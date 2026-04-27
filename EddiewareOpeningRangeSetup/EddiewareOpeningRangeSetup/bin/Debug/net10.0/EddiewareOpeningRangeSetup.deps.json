@@ -1,0 +1,319 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "EddiewareOpeningRangeSetup/1.0.0": {
+        "dependencies": {
+          "ATAS.Indicators": "8.0.13.385"
+        },
+        "runtime": {
+          "EddiewareOpeningRangeSetup.dll": {}
+        }
+      },
+      "ATAS.Indicators/8.0.13.385": {
+        "runtime": {
+          "ATAS.Indicators.dll": {
+            "assemblyVersion": "8.0.13.385",
+            "fileVersion": "8.0.13.385"
+          }
+        }
+      },
+      "OFT.Attributes/1.0.0.0": {
+        "runtime": {
+          "OFT.Attributes.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Utils.Common/1.0.0.0": {
+        "runtime": {
+          "Utils.Common.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Newtonsoft.Json/13.0.0.0": {
+        "runtime": {
+          "Newtonsoft.Json.dll": {
+            "assemblyVersion": "13.0.0.0",
+            "fileVersion": "13.0.3.27908"
+          }
+        }
+      },
+      "ATAS.DataFeedsCore/8.0.13.385": {
+        "runtime": {
+          "ATAS.DataFeedsCore.dll": {
+            "assemblyVersion": "8.0.13.385",
+            "fileVersion": "8.0.13.385"
+          }
+        }
+      },
+      "OFT.Rendering/8.0.13.385": {
+        "runtime": {
+          "OFT.Rendering.dll": {
+            "assemblyVersion": "8.0.13.385",
+            "fileVersion": "8.0.13.385"
+          }
+        }
+      },
+      "OFT.Localization/1.0.0.0": {
+        "runtime": {
+          "OFT.Localization.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        },
+        "resources": {
+          "de-de/OFT.Localization.resources.dll": {
+            "locale": "de-de"
+          },
+          "es-es/OFT.Localization.resources.dll": {
+            "locale": "es-es"
+          },
+          "fr-fr/OFT.Localization.resources.dll": {
+            "locale": "fr-fr"
+          },
+          "hi-in/OFT.Localization.resources.dll": {
+            "locale": "hi-in"
+          },
+          "ru-ru/OFT.Localization.resources.dll": {
+            "locale": "ru-ru"
+          },
+          "zh-cn/OFT.Localization.resources.dll": {
+            "locale": "zh-cn"
+          }
+        }
+      },
+      "CommandLine/2.9.1.0": {
+        "runtime": {
+          "CommandLine.dll": {
+            "assemblyVersion": "2.9.1.0",
+            "fileVersion": "2.9.1.0"
+          }
+        }
+      },
+      "Microsoft.Extensions.ObjectPool/10.0.0.0": {
+        "runtime": {
+          "Microsoft.Extensions.ObjectPool.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.25.52411"
+          }
+        }
+      },
+      "websocket-sharp/1.0.1.0": {
+        "runtime": {
+          "websocket-sharp.dll": {
+            "assemblyVersion": "1.0.1.0",
+            "fileVersion": "1.0.1.0"
+          }
+        }
+      },
+      "Pipelines.Sockets.Unofficial/1.0.0.0": {
+        "runtime": {
+          "Pipelines.Sockets.Unofficial.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "2.1.11.56636"
+          }
+        }
+      },
+      "log4net/2.0.15.0": {
+        "runtime": {
+          "log4net.dll": {
+            "assemblyVersion": "2.0.15.0",
+            "fileVersion": "2.0.15.0"
+          }
+        }
+      },
+      "protobuf-net/3.0.0.0": {
+        "runtime": {
+          "protobuf-net.dll": {
+            "assemblyVersion": "3.0.0.0",
+            "fileVersion": "3.2.45.36865"
+          }
+        }
+      },
+      "Macross.Json.Extensions/3.0.0.22164": {
+        "runtime": {
+          "Macross.Json.Extensions.dll": {
+            "assemblyVersion": "3.0.0.22164",
+            "fileVersion": "3.0.0.0"
+          }
+        }
+      },
+      "System.Security.Cryptography.ProtectedData/8.0.0.0": {
+        "runtime": {
+          "System.Security.Cryptography.ProtectedData.dll": {
+            "assemblyVersion": "8.0.0.0",
+            "fileVersion": "8.0.23.53103"
+          }
+        }
+      },
+      "SkiaSharp/3.116.0.0": {
+        "runtime": {
+          "SkiaSharp.dll": {
+            "assemblyVersion": "3.116.0.0",
+            "fileVersion": "3.116.1.0"
+          }
+        }
+      },
+      "K4os.Compression.LZ4/1.3.8.0": {
+        "runtime": {
+          "K4os.Compression.LZ4.dll": {
+            "assemblyVersion": "1.3.8.0",
+            "fileVersion": "1.3.8.0"
+          }
+        }
+      },
+      "System.IO.Hashing/10.0.0.0": {
+        "runtime": {
+          "System.IO.Hashing.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.25.52411"
+          }
+        }
+      },
+      "System.Configuration.ConfigurationManager/4.0.1.0": {
+        "runtime": {
+          "System.Configuration.ConfigurationManager.dll": {
+            "assemblyVersion": "4.0.1.0",
+            "fileVersion": "4.6.26515.6"
+          }
+        }
+      },
+      "protobuf-net.Core/3.0.0.0": {
+        "runtime": {
+          "protobuf-net.Core.dll": {
+            "assemblyVersion": "3.0.0.0",
+            "fileVersion": "3.2.45.36865"
+          }
+        }
+      },
+      "System.Security.Permissions/4.0.1.0": {
+        "runtime": {
+          "System.Security.Permissions.dll": {
+            "assemblyVersion": "4.0.1.0",
+            "fileVersion": "4.6.26515.6"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "EddiewareOpeningRangeSetup/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ATAS.Indicators/8.0.13.385": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "OFT.Attributes/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Utils.Common/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Newtonsoft.Json/13.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ATAS.DataFeedsCore/8.0.13.385": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "OFT.Rendering/8.0.13.385": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "OFT.Localization/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "CommandLine/2.9.1.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Microsoft.Extensions.ObjectPool/10.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "websocket-sharp/1.0.1.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Pipelines.Sockets.Unofficial/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "log4net/2.0.15.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "protobuf-net/3.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Macross.Json.Extensions/3.0.0.22164": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "System.Security.Cryptography.ProtectedData/8.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "SkiaSharp/3.116.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "K4os.Compression.LZ4/1.3.8.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "System.IO.Hashing/10.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "System.Configuration.ConfigurationManager/4.0.1.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "protobuf-net.Core/3.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "System.Security.Permissions/4.0.1.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
