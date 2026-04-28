@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Drawing;
 using ATAS.Indicators;
 using ATAS.Indicators.Drawing;
@@ -7,19 +8,28 @@ namespace ATAS.Indicators
 {
     public class EddiewareOpeningRangeSetup : Indicator
     {
-        private readonly ValueDataSeries _highLine = new ValueDataSeries("OR High 9:30 NY");
-        private readonly ValueDataSeries _lowLine = new ValueDataSeries("OR Low 9:30 NY");
+        private readonly ValueDataSeries _highLine = new ValueDataSeries("OR_HIGH", "OR High 9:30 NY");
+        private readonly ValueDataSeries _lowLine = new ValueDataSeries("OR_LOW", "OR Low 9:30 NY");
 
         private DateTime _currentDate = DateTime.MinValue;
-        private int _dayStartBar;
+
         private decimal _orHigh;
         private decimal _orLow;
+
         private bool _rangeReady;
         private bool _labelDrawn;
+        private bool _sessionEnded;
 
-        private const int TargetHourUtc = 13;
-        private const int TargetMinuteUtc = 30;
         private const decimal TickSize = 0.25m;
+
+        [DisplayName("Session Begin NY")]
+        public TimeSpan SessionBeginNY { get; set; } = new TimeSpan(9, 30, 0);
+
+        [DisplayName("Session End NY")]
+        public TimeSpan SessionEndNY { get; set; } = new TimeSpan(16, 0, 0);
+
+        [DisplayName("NY to UTC Offset Hours")]
+        public int NyToUtcOffsetHours { get; set; } = 4;
 
         public EddiewareOpeningRangeSetup()
         {
@@ -29,6 +39,9 @@ namespace ATAS.Indicators
             _highLine.ShowZeroValue = false;
             _lowLine.ShowZeroValue = false;
 
+            _highLine.Width = 1;
+            _lowLine.Width = 1;
+
             DrawAbovePrice = true;
         }
 
@@ -36,26 +49,71 @@ namespace ATAS.Indicators
         {
             var candle = GetCandle(bar);
             var time = candle.Time;
+            var clock = time.TimeOfDay;
+
+            var sessionBeginUtc = SessionBeginNY.Add(TimeSpan.FromHours(NyToUtcOffsetHours));
+            var sessionEndUtc = SessionEndNY.Add(TimeSpan.FromHours(NyToUtcOffsetHours));
 
             if (bar == 0 || time.Date != _currentDate)
             {
                 _currentDate = time.Date;
-                _dayStartBar = bar;
-                _rangeReady = false;
-                _labelDrawn = false;
+
                 _orHigh = 0;
                 _orLow = 0;
+
+                _rangeReady = false;
+                _labelDrawn = false;
+                _sessionEnded = false;
+
+                if (bar > 0)
+                {
+                    _highLine.SetPointOfEndLine(bar - 1);
+                    _lowLine.SetPointOfEndLine(bar - 1);
+                }
             }
 
-            _highLine[bar] = 0;
-            _lowLine[bar] = 0;
+            bool beforeSession = clock < sessionBeginUtc;
+            bool afterSession = clock > sessionEndUtc;
 
-            bool isTargetBar =
-                time.Hour == TargetHourUtc &&
-                time.Minute == TargetMinuteUtc;
-
-            if (isTargetBar && !_rangeReady)
+            if (beforeSession)
             {
+                if (bar > 0)
+                {
+                    _highLine.SetPointOfEndLine(bar);
+                    _lowLine.SetPointOfEndLine(bar);
+                }
+
+                return;
+            }
+
+            if (afterSession)
+            {
+                if (!_sessionEnded)
+                {
+                    _sessionEnded = true;
+
+                    if (bar > 0)
+                    {
+                        _highLine.SetPointOfEndLine(bar - 1);
+                        _lowLine.SetPointOfEndLine(bar - 1);
+                    }
+                }
+
+                return;
+            }
+
+            bool isSessionBegin =
+                clock.Hours == sessionBeginUtc.Hours &&
+                clock.Minutes == sessionBeginUtc.Minutes;
+
+            if (isSessionBegin && !_rangeReady)
+            {
+                if (bar > 0)
+                {
+                    _highLine.SetPointOfEndLine(bar - 1);
+                    _lowLine.SetPointOfEndLine(bar - 1);
+                }
+
                 _orHigh = candle.High;
                 _orLow = candle.Low;
                 _rangeReady = true;
@@ -87,21 +145,9 @@ namespace ATAS.Indicators
                         true
                     );
                 }
-
-                for (int i = _dayStartBar; i <= bar; i++)
-                {
-                    _highLine[i] = _orHigh;
-                    _lowLine[i] = _orLow;
-                }
-
-                return;
             }
 
-            bool afterTarget =
-                time.Hour > TargetHourUtc ||
-                (time.Hour == TargetHourUtc && time.Minute > TargetMinuteUtc);
-
-            if (_rangeReady && afterTarget)
+            if (_rangeReady)
             {
                 _highLine[bar] = _orHigh;
                 _lowLine[bar] = _orLow;
