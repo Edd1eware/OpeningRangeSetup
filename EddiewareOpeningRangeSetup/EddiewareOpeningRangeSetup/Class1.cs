@@ -137,10 +137,10 @@ namespace ATAS.Indicators
                         _orHigh,
                         -35,
                         0,
-                        Color.White,
+                        Color.Yellow,   // 👈 texto morado
                         Color.Black,
                         Color.Black,
-                        20,
+                        100,
                         DrawingText.TextAlign.Center,
                         true
                     );
