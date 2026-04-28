@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Drawing;
 using ATAS.Indicators;
+using ATAS.Indicators.Drawing;
 
 namespace ATAS.Indicators
 {
@@ -13,10 +15,11 @@ namespace ATAS.Indicators
         private decimal _orHigh;
         private decimal _orLow;
         private bool _rangeReady;
+        private bool _labelDrawn;
 
-        // 9:30 NY UTC-4 = 13:30 UTC
         private const int TargetHourUtc = 13;
         private const int TargetMinuteUtc = 30;
+        private const decimal TickSize = 0.25m;
 
         public EddiewareOpeningRangeSetup()
         {
@@ -25,6 +28,8 @@ namespace ATAS.Indicators
 
             _highLine.ShowZeroValue = false;
             _lowLine.ShowZeroValue = false;
+
+            DrawAbovePrice = true;
         }
 
         protected override void OnCalculate(int bar, decimal value)
@@ -37,6 +42,7 @@ namespace ATAS.Indicators
                 _currentDate = time.Date;
                 _dayStartBar = bar;
                 _rangeReady = false;
+                _labelDrawn = false;
                 _orHigh = 0;
                 _orLow = 0;
             }
@@ -54,7 +60,34 @@ namespace ATAS.Indicators
                 _orLow = candle.Low;
                 _rangeReady = true;
 
-                // Rellena desde el inicio del día hasta 9:30 para evitar el trazo vertical
+                decimal rangeTicks = (_orHigh - _orLow) / TickSize;
+
+                string label =
+                    rangeTicks < 150 ? $"A+  {rangeTicks:0} ticks" :
+                    rangeTicks <= 210 ? $"B FUERTE  {rangeTicks:0} ticks" :
+                    $"NO TRADE  {rangeTicks:0} ticks";
+
+                if (!_labelDrawn)
+                {
+                    _labelDrawn = true;
+
+                    AddText(
+                        $"OR_LABEL_{time:yyyyMMdd}_{bar}",
+                        label,
+                        true,
+                        bar,
+                        _orHigh,
+                        -35,
+                        0,
+                        Color.White,
+                        Color.Black,
+                        Color.Black,
+                        20,
+                        DrawingText.TextAlign.Center,
+                        true
+                    );
+                }
+
                 for (int i = _dayStartBar; i <= bar; i++)
                 {
                     _highLine[i] = _orHigh;
