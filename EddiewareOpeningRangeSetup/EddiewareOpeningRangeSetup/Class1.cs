@@ -19,6 +19,7 @@ namespace ATAS.Indicators
         private bool _rangeReady;
         private bool _labelDrawn;
         private bool _sessionEnded;
+        private bool _breakoutDrawn;
 
         private const decimal TickSize = 0.25m;
 
@@ -30,6 +31,9 @@ namespace ATAS.Indicators
 
         [DisplayName("NY to UTC Offset Hours")]
         public int NyToUtcOffsetHours { get; set; } = 4;
+
+        [DisplayName("Min Body Ratio")]
+        public decimal MinBodyRatio { get; set; } = 0.70m;
 
         public EddiewareOpeningRangeSetup()
         {
@@ -64,6 +68,7 @@ namespace ATAS.Indicators
                 _rangeReady = false;
                 _labelDrawn = false;
                 _sessionEnded = false;
+                _breakoutDrawn = false;
 
                 if (bar > 0)
                 {
@@ -137,7 +142,7 @@ namespace ATAS.Indicators
                         _orHigh,
                         -35,
                         0,
-                        Color.Yellow,   // 👈 texto morado
+                        Color.Yellow,
                         Color.Black,
                         Color.Black,
                         100,
@@ -151,7 +156,95 @@ namespace ATAS.Indicators
             {
                 _highLine[bar] = _orHigh;
                 _lowLine[bar] = _orLow;
+
+                DetectBreakout(bar, candle, isSessionBegin);
             }
+        }
+
+        private void DetectBreakout(int bar, IndicatorCandle candle, bool isSessionBegin)
+        {
+            if (_breakoutDrawn || isSessionBegin)
+                return;
+
+            decimal open = candle.Open;
+            decimal high = candle.High;
+            decimal low = candle.Low;
+            decimal close = candle.Close;
+
+            decimal candleRange = high - low;
+
+            if (candleRange <= 0)
+                return;
+
+            decimal body = Math.Abs(close - open);
+            decimal bodyRatio = body / candleRange;
+
+            bool strongBody = bodyRatio >= MinBodyRatio;
+
+            bool buyBreak = close > _orHigh;
+            bool sellBreak = close < _orLow;
+
+            if (!buyBreak && !sellBreak)
+                return;
+
+            decimal breakTicks = buyBreak
+                ? (close - _orHigh) / TickSize
+                : (_orLow - close) / TickSize;
+
+            if (breakTicks < 10)
+                return;
+
+            string side = buyBreak ? "BUY" : "SELL";
+
+            string breakoutType;
+            bool showSignal = false;
+
+            if (breakTicks >= 10 && breakTicks < 20)
+            {
+                breakoutType = "WEAK";
+                showSignal = false;
+            }
+            else if (breakTicks >= 20 && breakTicks < 35)
+            {
+                breakoutType = "VALID";
+                showSignal = strongBody;
+            }
+            else if (breakTicks >= 35 && breakTicks < 60)
+            {
+                breakoutType = "A+";
+                showSignal = strongBody;
+            }
+            else
+            {
+                breakoutType = "EXTREME";
+                showSignal = false;
+            }
+
+            if (!showSignal)
+                return;
+
+            string label = $"{side} | {breakoutType} | {breakTicks:0} ticks";
+
+            decimal labelPrice = buyBreak ? high : low;
+            int yOffset = buyBreak ? -40 : 40;
+
+            AddText(
+                $"BREAKOUT_{candle.Time:yyyyMMdd}_{bar}",
+                label,
+                true,
+                bar,
+                labelPrice,
+                yOffset,
+                0,
+                Color.Lime,
+                Color.Black,
+                Color.Black,
+                100,
+                DrawingText.TextAlign.Center,
+                true
+            );
+
+            _breakoutDrawn = true;
         }
     }
 }
