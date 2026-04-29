@@ -8,17 +8,17 @@
     ".NETCoreApp,Version=v10.0": {
       "EddiewareOpeningRangeSetup/1.0.0": {
         "dependencies": {
-          "ATAS.Indicators": "8.0.13.385"
+          "ATAS.Indicators": "8.0.13.386"
         },
         "runtime": {
           "EddiewareOpeningRangeSetup.dll": {}
         }
       },
-      "ATAS.Indicators/8.0.13.385": {
+      "ATAS.Indicators/8.0.13.386": {
         "runtime": {
           "ATAS.Indicators.dll": {
-            "assemblyVersion": "8.0.13.385",
-            "fileVersion": "8.0.13.385"
+            "assemblyVersion": "8.0.13.386",
+            "fileVersion": "8.0.13.386"
           }
         }
       },
@@ -46,19 +46,19 @@
           }
         }
       },
-      "ATAS.DataFeedsCore/8.0.13.385": {
+      "ATAS.DataFeedsCore/8.0.13.386": {
         "runtime": {
           "ATAS.DataFeedsCore.dll": {
-            "assemblyVersion": "8.0.13.385",
-            "fileVersion": "8.0.13.385"
+            "assemblyVersion": "8.0.13.386",
+            "fileVersion": "8.0.13.386"
           }
         }
       },
-      "OFT.Rendering/8.0.13.385": {
+      "OFT.Rendering/8.0.13.386": {
         "runtime": {
           "OFT.Rendering.dll": {
-            "assemblyVersion": "8.0.13.385",
-            "fileVersion": "8.0.13.385"
+            "assemblyVersion": "8.0.13.386",
+            "fileVersion": "8.0.13.386"
           }
         }
       },
@@ -210,7 +210,7 @@
       "serviceable": false,
       "sha512": ""
     },
-    "ATAS.Indicators/8.0.13.385": {
+    "ATAS.Indicators/8.0.13.386": {
       "type": "reference",
       "serviceable": false,
       "sha512": ""
@@ -230,12 +230,12 @@
       "serviceable": false,
       "sha512": ""
     },
-    "ATAS.DataFeedsCore/8.0.13.385": {
+    "ATAS.DataFeedsCore/8.0.13.386": {
       "type": "reference",
       "serviceable": false,
       "sha512": ""
     },
-    "OFT.Rendering/8.0.13.385": {
+    "OFT.Rendering/8.0.13.386": {
       "type": "reference",
       "serviceable": false,
       "sha512": ""
