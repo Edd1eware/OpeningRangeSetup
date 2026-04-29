@@ -32,9 +32,6 @@ namespace ATAS.Indicators
         [DisplayName("NY to UTC Offset Hours")]
         public int NyToUtcOffsetHours { get; set; } = 4;
 
-        [DisplayName("Min Body Ratio")]
-        public decimal MinBodyRatio { get; set; } = 0.70m;
-
         public EddiewareOpeningRangeSetup()
         {
             DataSeries[0] = _highLine;
@@ -171,18 +168,8 @@ namespace ATAS.Indicators
             decimal low = candle.Low;
             decimal close = candle.Close;
 
-            decimal candleRange = high - low;
-
-            if (candleRange <= 0)
-                return;
-
-            decimal body = Math.Abs(close - open);
-            decimal bodyRatio = body / candleRange;
-
-            bool strongBody = bodyRatio >= MinBodyRatio;
-
-            bool buyBreak = close > _orHigh;
-            bool sellBreak = close < _orLow;
+            bool buyBreak = close > _orHigh && close > open;
+            bool sellBreak = close < _orLow && close < open;
 
             if (!buyBreak && !sellBreak)
                 return;
@@ -197,7 +184,7 @@ namespace ATAS.Indicators
             string side = buyBreak ? "BUY" : "SELL";
 
             string breakoutType;
-            bool showSignal = false;
+            bool showSignal;
 
             if (breakTicks >= 10 && breakTicks < 20)
             {
@@ -207,12 +194,12 @@ namespace ATAS.Indicators
             else if (breakTicks >= 20 && breakTicks < 35)
             {
                 breakoutType = "VALID";
-                showSignal = strongBody;
+                showSignal = true;
             }
             else if (breakTicks >= 35 && breakTicks < 60)
             {
                 breakoutType = "A+";
-                showSignal = strongBody;
+                showSignal = true;
             }
             else
             {
