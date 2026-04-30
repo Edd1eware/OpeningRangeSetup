@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("EddiewareOpeningRangeSetup")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+84e166dd15eb8979955918ad8c6f3f8a3a83dc0f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+dd7298ab421e3679b27120d551ab95019f5db43c")]
 [assembly: System.Reflection.AssemblyProductAttribute("EddiewareOpeningRangeSetup")]
 [assembly: System.Reflection.AssemblyTitleAttribute("EddiewareOpeningRangeSetup")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
