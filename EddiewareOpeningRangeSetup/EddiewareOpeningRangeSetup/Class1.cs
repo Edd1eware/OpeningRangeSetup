@@ -1,39 +1,29 @@
 ﻿using System;
 using System.ComponentModel;
 using ATAS.Indicators;
+using ATAS.Indicators.Drawing;
 
 namespace ATAS.Indicators
 {
     public class EddiewareOpeningRangeSetup : Indicator
     {
-        private readonly ValueDataSeries _highLine = new ValueDataSeries("OR_HIGH", "OR High 9:30 UTC-4");
-        private readonly ValueDataSeries _lowLine = new ValueDataSeries("OR_LOW", "OR Low 9:30 UTC-4");
-
         private DateTime _currentDate = DateTime.MinValue;
 
         private decimal _orHigh;
         private decimal _orLow;
 
-        private bool _rangeReady;
-        private bool _sessionEnded;
+        private bool _rangeDrawn;
 
-        [DisplayName("Opening Time UTC Internal")]
-        public TimeSpan OpeningTimeUtcInternal { get; set; } = new TimeSpan(13, 30, 0);
+        private int _orBar = -1;
 
-        [DisplayName("Session End UTC Internal")]
-        public TimeSpan SessionEndUtcInternal { get; set; } = new TimeSpan(20, 0, 0);
+        [DisplayName("Opening Time UTC")]
+        public TimeSpan OpeningTimeUtc { get; set; } = new TimeSpan(13, 30, 0);
+
+        [DisplayName("Line Length (bars)")]
+        public int LineLength { get; set; } = 100;
 
         public EddiewareOpeningRangeSetup()
         {
-            DataSeries[0] = _highLine;
-            DataSeries.Add(_lowLine);
-
-            _highLine.ShowZeroValue = false;
-            _lowLine.ShowZeroValue = false;
-
-            _highLine.Width = 1;
-            _lowLine.Width = 1;
-
             DrawAbovePrice = true;
         }
 
@@ -50,54 +40,44 @@ namespace ATAS.Indicators
             {
                 _currentDate = time.Date;
 
-                _orHigh = 0;
-                _orLow = 0;
-
-                _rangeReady = false;
-                _sessionEnded = false;
-
-                _highLine.SetPointOfEndLine(bar - 1);
-                _lowLine.SetPointOfEndLine(bar - 1);
+                _rangeDrawn = false;
+                _orBar = -1;
             }
 
-            if (clock > SessionEndUtcInternal)
+            var prev = GetCandle(bar - 1);
+
+            bool is930Closed =
+                prev.Time.TimeOfDay.Hours == OpeningTimeUtc.Hours &&
+                prev.Time.TimeOfDay.Minutes == OpeningTimeUtc.Minutes;
+
+            if (!_rangeDrawn && is930Closed)
             {
-                if (!_sessionEnded)
-                {
-                    _sessionEnded = true;
-                    _highLine.SetPointOfEndLine(bar - 1);
-                    _lowLine.SetPointOfEndLine(bar - 1);
-                }
+                // 🔥 Tomamos la vela 9:30 ya cerrada (bar - 1)
+                _orHigh = prev.High;
+                _orLow = prev.Low;
 
-                return;
+                _orBar = bar - 1;
+
+                DrawOR(bar);
+
+                _rangeDrawn = true;
             }
+        }
 
-            var prevCandle = GetCandle(bar - 1);
-            var prevTime = prevCandle.Time;
-            var prevClock = prevTime.TimeOfDay;
+        private void DrawOR(int bar)
+        {
+            int startBar = _orBar;
+            int endBar = _orBar + LineLength;
 
-            bool previousBarWasOpening =
-                prevClock.Hours == OpeningTimeUtcInternal.Hours &&
-                prevClock.Minutes == OpeningTimeUtcInternal.Minutes;
+            var pen = new System.Drawing.Pen(System.Drawing.Color.Red, 1);
 
-            if (!_rangeReady && previousBarWasOpening)
-            {
-                _highLine.SetPointOfEndLine(bar - 1);
-                _lowLine.SetPointOfEndLine(bar - 1);
+            // Línea superior
+            var highLine = new TrendLine(startBar, _orHigh, endBar, _orHigh, pen);
+            TrendLines.Add(highLine);
 
-                // Aquí ya está cerrada la vela 9:30.
-                // Se toma el rango completo: mecha superior + mecha inferior.
-                _orHigh = prevCandle.High;
-                _orLow = prevCandle.Low;
-
-                _rangeReady = true;
-            }
-
-            if (_rangeReady)
-            {
-                _highLine[bar] = _orHigh;
-                _lowLine[bar] = _orLow;
-            }
+            // Línea inferior
+            var lowLine = new TrendLine(startBar, _orLow, endBar, _orLow, pen);
+            TrendLines.Add(lowLine);
         }
     }
 }
