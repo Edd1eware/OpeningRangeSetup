@@ -207,7 +207,7 @@ namespace ATAS.Indicators
                 $"BREAKOUT_LABEL_{candle.Time:yyyyMMdd}",
                 label,
                 true,
-                _breakoutLabelBar,
+                _breakoutLabelBar -2,
                 textPrice,
                 verticalOffset,
                 0,
