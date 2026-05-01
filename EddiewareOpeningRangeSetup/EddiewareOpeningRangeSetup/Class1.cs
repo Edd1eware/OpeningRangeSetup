@@ -17,6 +17,9 @@ namespace ATAS.Indicators
         private bool _orLabelDrawn;
         private bool _smallBodyLabelDrawn;
         private bool _sellTwoContractsLineDrawn;
+        private bool _buyTwoContractsLineDrawn;
+        private bool _sellOneContractLineDrawn;
+        private bool _buyOneContractLineDrawn;
 
         private int _orBar = -1;
 
@@ -57,6 +60,9 @@ namespace ATAS.Indicators
         [DisplayName("2 Contracts Distance Ticks")]
         public decimal TwoContractsDistanceTicks { get; set; } = 60;
 
+        [DisplayName("1 Contract Distance Ticks")]
+        public decimal OneContractDistanceTicks { get; set; } = 120;
+
         public EddiewareOpeningRangeSetup()
         {
             DrawAbovePrice = true;
@@ -78,6 +84,9 @@ namespace ATAS.Indicators
                 _orLabelDrawn = false;
                 _smallBodyLabelDrawn = false;
                 _sellTwoContractsLineDrawn = false;
+                _buyTwoContractsLineDrawn = false;
+                _sellOneContractLineDrawn = false;
+                _buyOneContractLineDrawn = false;
 
                 _orBar = -1;
 
@@ -285,7 +294,16 @@ namespace ATAS.Indicators
             );
 
             if (side == "SELL")
+            {
                 DrawSellTwoContractsLine(candle, closedBar);
+                DrawSellOneContractLine(candle, closedBar);
+            }
+
+            if (side == "BUY")
+            {
+                DrawBuyTwoContractsLine(candle, closedBar);
+                DrawBuyOneContractLine(candle, closedBar);
+            }
         }
 
         private void DrawSellTwoContractsLine(dynamic candle, int closedBar)
@@ -297,28 +315,67 @@ namespace ATAS.Indicators
 
             decimal targetPrice = candle.Close + (TwoContractsDistanceTicks * TickSize);
 
-            int startBar = closedBar;
-            int endBar = closedBar + LineLength;
+            var pen = new Pen(Color.LimeGreen, 2);
+            TrendLines.Add(new TrendLine(closedBar, targetPrice, closedBar + LineLength, targetPrice, pen));
 
-            var greenPen = new Pen(Color.LimeGreen, 2);
+            AddText($"SELL_2_CONTRACTS_LABEL_{candle.Time:yyyyMMdd}", "2 contratos", true,
+                closedBar, targetPrice, -25, 0,
+                Color.White, Color.Green, Color.Green, 16,
+                DrawingText.TextAlign.Center, true);
+        }
 
-            TrendLines.Add(new TrendLine(startBar, targetPrice, endBar, targetPrice, greenPen));
+        private void DrawSellOneContractLine(dynamic candle, int closedBar)
+        {
+            if (_sellOneContractLineDrawn)
+                return;
 
-            AddText(
-                $"SELL_2_CONTRACTS_LABEL_{candle.Time:yyyyMMdd}",
-                "2 contratos",
-                true,
-                startBar,
-                targetPrice,
-                -25,
-                0,
-                Color.White,
-                Color.Green,
-                Color.Green,
-                16,
-                DrawingText.TextAlign.Center,
-                true
-            );
+            _sellOneContractLineDrawn = true;
+
+            decimal targetPrice = candle.Close + (OneContractDistanceTicks * TickSize);
+
+            var pen = new Pen(Color.Yellow, 2);
+            TrendLines.Add(new TrendLine(closedBar, targetPrice, closedBar + LineLength, targetPrice, pen));
+
+            AddText($"SELL_1_CONTRACT_LABEL_{candle.Time:yyyyMMdd}", "1 contrato", true,
+                closedBar, targetPrice, -25, 0,
+                Color.Black, Color.Yellow, Color.Yellow, 16,
+                DrawingText.TextAlign.Center, true);
+        }
+
+        private void DrawBuyTwoContractsLine(dynamic candle, int closedBar)
+        {
+            if (_buyTwoContractsLineDrawn)
+                return;
+
+            _buyTwoContractsLineDrawn = true;
+
+            decimal targetPrice = candle.Close - (TwoContractsDistanceTicks * TickSize);
+
+            var pen = new Pen(Color.DodgerBlue, 2);
+            TrendLines.Add(new TrendLine(closedBar, targetPrice, closedBar + LineLength, targetPrice, pen));
+
+            AddText($"BUY_2_CONTRACTS_LABEL_{candle.Time:yyyyMMdd}", "2 contratos", true,
+                closedBar, targetPrice, 25, 0,
+                Color.White, Color.Blue, Color.Blue, 16,
+                DrawingText.TextAlign.Center, true);
+        }
+
+        private void DrawBuyOneContractLine(dynamic candle, int closedBar)
+        {
+            if (_buyOneContractLineDrawn)
+                return;
+
+            _buyOneContractLineDrawn = true;
+
+            decimal targetPrice = candle.Close - (OneContractDistanceTicks * TickSize);
+
+            var pen = new Pen(Color.Yellow, 2);
+            TrendLines.Add(new TrendLine(closedBar, targetPrice, closedBar + LineLength, targetPrice, pen));
+
+            AddText($"BUY_1_CONTRACT_LABEL_{candle.Time:yyyyMMdd}", "1 contrato", true,
+                closedBar, targetPrice, 25, 0,
+                Color.Black, Color.Yellow, Color.Yellow, 16,
+                DrawingText.TextAlign.Center, true);
         }
     }
 }
