@@ -148,6 +148,9 @@ namespace ATAS.Indicators
 
             string label = $"{classification} | OR {rangeTicks:0} ticks";
 
+            Color bgColor =
+                classification == "NO TRADE" ? Color.Red : Color.DarkGreen;
+
             AddText(
                 $"OR_LABEL_{time:yyyyMMdd}",
                 label,
@@ -157,8 +160,8 @@ namespace ATAS.Indicators
                 -35,
                 0,
                 Color.White,
-                Color.Black,
-                Color.Black,
+                bgColor,
+                bgColor,
                 18,
                 DrawingText.TextAlign.Center,
                 true
