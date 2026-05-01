@@ -15,6 +15,7 @@ namespace ATAS.Indicators
 
         private bool _rangeDrawn;
         private bool _orLabelDrawn;
+        private bool _smallBodyLabelDrawn;
 
         private int _orBar = -1;
 
@@ -43,6 +44,15 @@ namespace ATAS.Indicators
         [DisplayName("Extreme Min Ticks")]
         public decimal ExtremeMinTicks { get; set; } = 60;
 
+        [DisplayName("Min Body Quality %")]
+        public decimal MinBodyQualityPercent { get; set; } = 50;
+
+        [DisplayName("Min OR Body Quality %")]
+        public decimal MinORBodyQualityPercent { get; set; } = 50;
+
+        [DisplayName("Label Offset Bars Left")]
+        public int LabelOffsetBarsLeft { get; set; } = 2;
+
         public EddiewareOpeningRangeSetup()
         {
             DrawAbovePrice = true;
@@ -62,6 +72,7 @@ namespace ATAS.Indicators
 
                 _rangeDrawn = false;
                 _orLabelDrawn = false;
+                _smallBodyLabelDrawn = false;
 
                 _orBar = -1;
 
@@ -84,7 +95,7 @@ namespace ATAS.Indicators
 
                 _orBar = bar - 1;
 
-                DrawOR(time);
+                DrawOR(time, prev);
 
                 _rangeDrawn = true;
             }
@@ -93,7 +104,7 @@ namespace ATAS.Indicators
                 CheckBreakoutOnClosedBar(bar - 1);
         }
 
-        private void DrawOR(DateTime time)
+        private void DrawOR(DateTime time, dynamic orCandle)
         {
             int startBar = _orBar;
             int endBar = _orBar + LineLength;
@@ -104,6 +115,7 @@ namespace ATAS.Indicators
             TrendLines.Add(new TrendLine(startBar, _orLow, endBar, _orLow, pen));
 
             DrawRangeLabel(time);
+            DrawSmallBodyLabel(time, orCandle);
         }
 
         private void DrawRangeLabel(DateTime time)
@@ -139,6 +151,43 @@ namespace ATAS.Indicators
             );
         }
 
+        private void DrawSmallBodyLabel(DateTime time, dynamic orCandle)
+        {
+            if (_smallBodyLabelDrawn)
+                return;
+
+            decimal candleRange = orCandle.High - orCandle.Low;
+
+            if (candleRange <= 0)
+                return;
+
+            decimal body = Math.Abs(orCandle.Close - orCandle.Open);
+            decimal bodyPercent = body / candleRange * 100m;
+
+            if (bodyPercent >= MinORBodyQualityPercent)
+                return;
+
+            _smallBodyLabelDrawn = true;
+
+            string label = $"SMALL BODY | Body {bodyPercent:0}%";
+
+            AddText(
+                $"SMALL_BODY_LABEL_{time:yyyyMMdd}",
+                label,
+                true,
+                _orBar,
+                _orHigh,
+                -60,
+                0,
+                Color.White,
+                Color.DarkRed,
+                Color.DarkRed,
+                16,
+                DrawingText.TextAlign.Center,
+                true
+            );
+        }
+
         private void CheckBreakoutOnClosedBar(int closedBar)
         {
             if (_orBar < 0 || closedBar <= _orBar)
@@ -169,6 +218,17 @@ namespace ATAS.Indicators
             if (breakoutTicks < BPlusMinTicks)
                 return;
 
+            decimal candleRange = candle.High - candle.Low;
+
+            if (candleRange <= 0)
+                return;
+
+            decimal body = Math.Abs(candle.Close - candle.Open);
+            decimal bodyPercent = body / candleRange * 100m;
+
+            if (bodyPercent < MinBodyQualityPercent)
+                return;
+
             if (_breakoutSide == "")
                 _breakoutSide = side;
 
@@ -176,7 +236,10 @@ namespace ATAS.Indicators
                 return;
 
             _bestBreakoutTicks = breakoutTicks;
-            _breakoutLabelBar = closedBar;
+
+            // Fija la etiqueta SOLO en la primera vela válida del rompimiento.
+            if (_breakoutLabelBar < 0)
+                _breakoutLabelBar = closedBar;
 
             string classification =
                 breakoutTicks >= ExtremeMinTicks ? "A+ EXTREMO" :
@@ -187,10 +250,6 @@ namespace ATAS.Indicators
                 return;
 
             _lastBreakoutClassification = classification;
-
-            decimal candleRange = candle.High - candle.Low;
-            decimal body = Math.Abs(candle.Close - candle.Open);
-            decimal bodyPercent = candleRange > 0 ? body / candleRange * 100m : 0;
 
             string label =
                 $"{side} {classification} | BO {breakoutTicks:0} ticks | Body {bodyPercent:0}%";
@@ -203,11 +262,13 @@ namespace ATAS.Indicators
             decimal textPrice = side == "BUY" ? candle.High : candle.Low;
             int verticalOffset = side == "BUY" ? -45 : 45;
 
+            int labelBar = Math.Max(0, _breakoutLabelBar - LabelOffsetBarsLeft);
+
             AddText(
                 $"BREAKOUT_LABEL_{candle.Time:yyyyMMdd}",
                 label,
                 true,
-                _breakoutLabelBar -2,
+                labelBar,
                 textPrice,
                 verticalOffset,
                 0,
