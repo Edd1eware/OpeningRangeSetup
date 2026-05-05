@@ -173,7 +173,7 @@ namespace ATAS.Indicators
 
             _smallBodyLabelDrawn = true;
 
-            string label = $"SMALL BODY | B{bodyPercent:0}%";
+            string label = $"SMALL BODY";
 
             AddText(
                 $"SMALL_BODY_LABEL_{time:yyyyMMdd}",
@@ -218,14 +218,6 @@ namespace ATAS.Indicators
             if (_breakoutSide != "" && side != _breakoutSide)
                 return;
 
-            decimal candleRange = candle.High - candle.Low;
-
-            if (candleRange <= 0)
-                return;
-
-            decimal body = Math.Abs(candle.Close - candle.Open);
-            decimal bodyPercent = body / candleRange * 100m;
-
             decimal bodyOutsideTicks = CalculateBodyOutsideORTicks(candle, side);
 
             if (bodyOutsideTicks <= MinBodyOutsideORTicks)
@@ -234,7 +226,7 @@ namespace ATAS.Indicators
             _breakoutSide = side;
             _breakoutLabelDrawn = true;
 
-            string label = $"{side} A+ TRADE | {bodyOutsideTicks:0}t | B{bodyPercent:0}%";
+            string label = $"{side} A+ TRADE | {bodyOutsideTicks:0}t";
 
             decimal textPrice = side == "BUY" ? candle.High : candle.Low;
             int verticalOffset = side == "BUY" ? -45 : 45;
@@ -300,11 +292,6 @@ namespace ATAS.Indicators
 
             var pen = new Pen(Color.LimeGreen, 2);
             TrendLines.Add(new TrendLine(closedBar, targetPrice, closedBar + LineLength, targetPrice, pen));
-
-            AddText($"SELL_2_CONTRACTS_LABEL_{candle.Time:yyyyMMdd}", "2 contratos", true,
-                closedBar, targetPrice, -25, 0,
-                Color.White, Color.Green, Color.Green, 16,
-                DrawingText.TextAlign.Center, true);
         }
 
         private void DrawSellOneContractLine(dynamic candle, int closedBar)
@@ -318,11 +305,6 @@ namespace ATAS.Indicators
 
             var pen = new Pen(Color.Yellow, 2);
             TrendLines.Add(new TrendLine(closedBar, targetPrice, closedBar + LineLength, targetPrice, pen));
-
-            AddText($"SELL_1_CONTRACT_LABEL_{candle.Time:yyyyMMdd}", "1 contrato", true,
-                closedBar, targetPrice, -25, 0,
-                Color.Black, Color.Yellow, Color.Yellow, 16,
-                DrawingText.TextAlign.Center, true);
         }
 
         private void DrawBuyTwoContractsLine(dynamic candle, int closedBar)
@@ -336,11 +318,6 @@ namespace ATAS.Indicators
 
             var pen = new Pen(Color.DodgerBlue, 2);
             TrendLines.Add(new TrendLine(closedBar, targetPrice, closedBar + LineLength, targetPrice, pen));
-
-            AddText($"BUY_2_CONTRACTS_LABEL_{candle.Time:yyyyMMdd}", "2 contratos", true,
-                closedBar, targetPrice, 25, 0,
-                Color.White, Color.Blue, Color.Blue, 16,
-                DrawingText.TextAlign.Center, true);
         }
 
         private void DrawBuyOneContractLine(dynamic candle, int closedBar)
@@ -354,11 +331,6 @@ namespace ATAS.Indicators
 
             var pen = new Pen(Color.Yellow, 2);
             TrendLines.Add(new TrendLine(closedBar, targetPrice, closedBar + LineLength, targetPrice, pen));
-
-            AddText($"BUY_1_CONTRACT_LABEL_{candle.Time:yyyyMMdd}", "1 contrato", true,
-                closedBar, targetPrice, 25, 0,
-                Color.Black, Color.Yellow, Color.Yellow, 16,
-                DrawingText.TextAlign.Center, true);
         }
     }
 }
