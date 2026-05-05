@@ -23,6 +23,10 @@ namespace ATAS.Indicators
         private bool _sellOneContractLineDrawn;
         private bool _buyOneContractLineDrawn;
 
+        private bool _isFakeBreakoutOR;
+        private bool _waitingForFakeReentry;
+        private bool _fakeBreakoutReentered;
+
         private int _orBar = -1;
         private string _breakoutSide = "";
 
@@ -78,6 +82,10 @@ namespace ATAS.Indicators
                 _buyTwoContractsLineDrawn = false;
                 _sellOneContractLineDrawn = false;
                 _buyOneContractLineDrawn = false;
+
+                _isFakeBreakoutOR = false;
+                _waitingForFakeReentry = false;
+                _fakeBreakoutReentered = false;
 
                 _orBar = -1;
                 _breakoutSide = "";
@@ -166,6 +174,7 @@ namespace ATAS.Indicators
                 return;
 
             decimal body = Math.Abs(orCandle.Close - orCandle.Open);
+            decimal bodyTicks = body / TickSize;
             decimal bodyPercent = body / candleRange * 100m;
 
             if (bodyPercent >= MinORBodyQualityPercent)
@@ -173,7 +182,16 @@ namespace ATAS.Indicators
 
             _smallBodyLabelDrawn = true;
 
-            string label = $"SMALL BODY";
+            string label = bodyTicks <= 25m
+                ? "FAKE BREAKOUT"
+                : "SMALL BODY";
+
+            if (bodyTicks <= 25m)
+            {
+                _isFakeBreakoutOR = true;
+                _waitingForFakeReentry = true;
+                _fakeBreakoutReentered = false;
+            }
 
             AddText(
                 $"SMALL_BODY_LABEL_{time:yyyyMMdd}",
@@ -206,6 +224,21 @@ namespace ATAS.Indicators
                 return;
 
             var candle = GetCandle(closedBar);
+
+            if (_isFakeBreakoutOR && _waitingForFakeReentry && !_fakeBreakoutReentered)
+            {
+                bool closedBackInsideOR =
+                    candle.Close <= _orHigh &&
+                    candle.Close >= _orLow;
+
+                if (!closedBackInsideOR)
+                    return;
+
+                _fakeBreakoutReentered = true;
+                _waitingForFakeReentry = false;
+
+                return;
+            }
 
             bool closeAboveOR = candle.Close > _orHigh;
             bool closeBelowOR = candle.Close < _orLow;
@@ -292,6 +325,15 @@ namespace ATAS.Indicators
 
             var pen = new Pen(Color.LimeGreen, 2);
             TrendLines.Add(new TrendLine(closedBar, targetPrice, closedBar + LineLength, targetPrice, pen));
+
+            AddContractsLabel(
+                $"SELL_TWO_CONTRACTS_LABEL_{candle.Time:yyyyMMdd}",
+                "2 contratos",
+                closedBar,
+                targetPrice,
+                Color.White,
+                Color.LimeGreen
+            );
         }
 
         private void DrawSellOneContractLine(dynamic candle, int closedBar)
@@ -305,6 +347,15 @@ namespace ATAS.Indicators
 
             var pen = new Pen(Color.Yellow, 2);
             TrendLines.Add(new TrendLine(closedBar, targetPrice, closedBar + LineLength, targetPrice, pen));
+
+            AddContractsLabel(
+                $"SELL_ONE_CONTRACT_LABEL_{candle.Time:yyyyMMdd}",
+                "1 contrato",
+                closedBar,
+                targetPrice,
+                Color.Black,
+                Color.Yellow
+            );
         }
 
         private void DrawBuyTwoContractsLine(dynamic candle, int closedBar)
@@ -318,6 +369,15 @@ namespace ATAS.Indicators
 
             var pen = new Pen(Color.DodgerBlue, 2);
             TrendLines.Add(new TrendLine(closedBar, targetPrice, closedBar + LineLength, targetPrice, pen));
+
+            AddContractsLabel(
+                $"BUY_TWO_CONTRACTS_LABEL_{candle.Time:yyyyMMdd}",
+                "2 contratos",
+                closedBar,
+                targetPrice,
+                Color.White,
+                Color.DodgerBlue
+            );
         }
 
         private void DrawBuyOneContractLine(dynamic candle, int closedBar)
@@ -331,6 +391,40 @@ namespace ATAS.Indicators
 
             var pen = new Pen(Color.Yellow, 2);
             TrendLines.Add(new TrendLine(closedBar, targetPrice, closedBar + LineLength, targetPrice, pen));
+
+            AddContractsLabel(
+                $"BUY_ONE_CONTRACT_LABEL_{candle.Time:yyyyMMdd}",
+                "1 contrato",
+                closedBar,
+                targetPrice,
+                Color.Black,
+                Color.Yellow
+            );
+        }
+
+        private void AddContractsLabel(
+            string id,
+            string text,
+            int bar,
+            decimal price,
+            Color textColor,
+            Color bgColor)
+        {
+            AddText(
+                id,
+                text,
+                true,
+                bar,
+                price,
+                -20,
+                0,
+                textColor,
+                bgColor,
+                bgColor,
+                14,
+                DrawingText.TextAlign.Center,
+                true
+            );
         }
     }
 }
