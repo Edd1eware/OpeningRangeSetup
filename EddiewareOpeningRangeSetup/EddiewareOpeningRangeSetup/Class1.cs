@@ -24,6 +24,7 @@ namespace ATAS.Indicators
         private bool _buyOneContractLineDrawn;
 
         private bool _isFakeBreakoutOR;
+        private bool _fakeInitialOutsideDetected;
         private bool _waitingForFakeReentry;
         private bool _fakeBreakoutReentered;
 
@@ -84,6 +85,7 @@ namespace ATAS.Indicators
                 _buyOneContractLineDrawn = false;
 
                 _isFakeBreakoutOR = false;
+                _fakeInitialOutsideDetected = false;
                 _waitingForFakeReentry = false;
                 _fakeBreakoutReentered = false;
 
@@ -189,7 +191,8 @@ namespace ATAS.Indicators
             if (bodyTicks <= 25m)
             {
                 _isFakeBreakoutOR = true;
-                _waitingForFakeReentry = true;
+                _fakeInitialOutsideDetected = false;
+                _waitingForFakeReentry = false;
                 _fakeBreakoutReentered = false;
             }
 
@@ -225,41 +228,76 @@ namespace ATAS.Indicators
 
             var candle = GetCandle(closedBar);
 
-            if (_isFakeBreakoutOR && _waitingForFakeReentry && !_fakeBreakoutReentered)
+            // =========================================================
+            // LÓGICA ESPECIAL PARA DÍAS CON FAKE BREAKOUT EN LA 9:30
+            //
+            // Secuencia obligatoria:
+            // 1) Ya existe etiqueta FAKE BREAKOUT.
+            // 2) Esperar cierre con CUERPO fuera del OR.
+            // 3) Después esperar cierre de nuevo dentro del OR.
+            // 4) Solo entonces reactivar la lógica normal de rompimiento.
+            //
+            // Esto evita que un simple mechazo active la lógica.
+            // =========================================================
+            if (_isFakeBreakoutOR && !_fakeBreakoutReentered)
             {
-                bool closedBackInsideOR =
-                    candle.Close <= _orHigh &&
-                    candle.Close >= _orLow;
+                bool closeAboveOR = candle.Close > _orHigh;
+                bool closeBelowOR = candle.Close < _orLow;
 
-                if (!closedBackInsideOR)
+                if (!_fakeInitialOutsideDetected)
+                {
+                    if (!closeAboveOR && !closeBelowOR)
+                        return;
+
+                    string fakeSide = closeAboveOR ? "BUY" : "SELL";
+
+                    decimal bodyOutsideTicks = CalculateBodyOutsideORTicks(candle, fakeSide);
+
+                    if (bodyOutsideTicks <= MinBodyOutsideORTicks)
+                        return;
+
+                    _fakeInitialOutsideDetected = true;
+                    _waitingForFakeReentry = true;
+
                     return;
+                }
 
-                _fakeBreakoutReentered = true;
-                _waitingForFakeReentry = false;
+                if (_waitingForFakeReentry)
+                {
+                    bool closedBackInsideOR =
+                        candle.Close <= _orHigh &&
+                        candle.Close >= _orLow;
 
-                return;
+                    if (!closedBackInsideOR)
+                        return;
+
+                    _fakeBreakoutReentered = true;
+                    _waitingForFakeReentry = false;
+
+                    return;
+                }
             }
 
-            bool closeAboveOR = candle.Close > _orHigh;
-            bool closeBelowOR = candle.Close < _orLow;
+            bool breakoutCloseAboveOR = candle.Close > _orHigh;
+            bool breakoutCloseBelowOR = candle.Close < _orLow;
 
-            if (!closeAboveOR && !closeBelowOR)
+            if (!breakoutCloseAboveOR && !breakoutCloseBelowOR)
                 return;
 
-            string side = closeAboveOR ? "BUY" : "SELL";
+            string side = breakoutCloseAboveOR ? "BUY" : "SELL";
 
             if (_breakoutSide != "" && side != _breakoutSide)
                 return;
 
-            decimal bodyOutsideTicks = CalculateBodyOutsideORTicks(candle, side);
+            decimal realBodyOutsideTicks = CalculateBodyOutsideORTicks(candle, side);
 
-            if (bodyOutsideTicks <= MinBodyOutsideORTicks)
+            if (realBodyOutsideTicks <= MinBodyOutsideORTicks)
                 return;
 
             _breakoutSide = side;
             _breakoutLabelDrawn = true;
 
-            string label = $"{side} A+ TRADE | {bodyOutsideTicks:0}t";
+            string label = $"{side} A+ TRADE | {realBodyOutsideTicks:0}t";
 
             decimal textPrice = side == "BUY" ? candle.High : candle.Low;
             int verticalOffset = side == "BUY" ? -45 : 45;
