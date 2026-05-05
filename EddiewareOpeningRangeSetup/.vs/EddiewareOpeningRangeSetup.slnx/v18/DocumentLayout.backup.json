@@ -14,12 +14,8 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 0,
           "Children": [
-            {
-              "$type": "Bookmark",
-              "Name": "ST:0:0:{c6f34f0d-7ae5-4f3a-be61-fe0c21ae9eb8}"
-            },
             {
               "$type": "Document",
               "DocumentIndex": 0,
@@ -28,7 +24,7 @@
               "RelativeDocumentMoniker": "EddiewareOpeningRangeSetup\\Class1.cs",
               "ToolTip": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\Class1.cs*",
               "RelativeToolTip": "EddiewareOpeningRangeSetup\\Class1.cs*",
-              "ViewState": "AgIAAIoBAAAAAAAAAAAiwKwBAAABAAAAAAAAAA==",
+              "ViewState": "AgIAAGMBAAAAAAAAAADwv2sBAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-04-27T21:36:58.296Z",
               "EditorCaption": ""

@@ -24,7 +24,6 @@ namespace ATAS.Indicators
         private bool _buyOneContractLineDrawn;
 
         private int _orBar = -1;
-
         private string _breakoutSide = "";
 
         private const decimal TickSize = 0.25m;
@@ -38,23 +37,11 @@ namespace ATAS.Indicators
         [DisplayName("Breakout Scan Bars")]
         public int BreakoutScanBars { get; set; } = 30;
 
-        [DisplayName("B+ Min Ticks")]
-        public decimal BPlusMinTicks { get; set; } = 20;
-
-        [DisplayName("A+ Min Ticks")]
-        public decimal APlusMinTicks { get; set; } = 35;
-
-        [DisplayName("Extreme Min Ticks")]
-        public decimal ExtremeMinTicks { get; set; } = 60;
-
-        [DisplayName("Min Body Quality %")]
-        public decimal MinBodyQualityPercent { get; set; } = 50;
-
         [DisplayName("Min OR Body Quality %")]
         public decimal MinORBodyQualityPercent { get; set; } = 50;
 
-        [DisplayName("Min Body Outside OR %")]
-        public decimal MinBodyOutsideORPercent { get; set; } = 60;
+        [DisplayName("Min Body Outside OR Ticks")]
+        public decimal MinBodyOutsideORTicks { get; set; } = 20;
 
         [DisplayName("Label Offset Bars Left")]
         public int LabelOffsetBarsLeft { get; set; } = 2;
@@ -231,13 +218,6 @@ namespace ATAS.Indicators
             if (_breakoutSide != "" && side != _breakoutSide)
                 return;
 
-            decimal breakoutTicks = side == "BUY"
-                ? (candle.High - _orHigh) / TickSize
-                : (_orLow - candle.Low) / TickSize;
-
-            if (breakoutTicks < BPlusMinTicks)
-                return;
-
             decimal candleRange = candle.High - candle.Low;
 
             if (candleRange <= 0)
@@ -247,30 +227,14 @@ namespace ATAS.Indicators
             decimal bodyPercent = body / candleRange * 100m;
 
             decimal bodyOutsideTicks = CalculateBodyOutsideORTicks(candle, side);
-            decimal bodyOutsidePercent = CalculateBodyOutsideORPercent(candle, side);
 
-            bool bodyAccepted = bodyPercent >= MinBodyQualityPercent;
-            bool outsideAccepted = bodyOutsidePercent >= MinBodyOutsideORPercent;
-            bool breakoutAccepted = bodyAccepted && outsideAccepted;
+            if (bodyOutsideTicks <= MinBodyOutsideORTicks)
+                return;
 
             _breakoutSide = side;
             _breakoutLabelDrawn = true;
 
-            string classification =
-                breakoutTicks >= ExtremeMinTicks ? "A+ EXT" :
-                breakoutTicks >= APlusMinTicks ? "A+" :
-                "B+";
-
-            string label = $"{side} {classification} | {bodyOutsideTicks:0}t | B{bodyPercent:0}%";
-
-            Color bgColor;
-
-            if (!breakoutAccepted)
-                bgColor = Color.Red;
-            else if (classification.Contains("A+"))
-                bgColor = Color.Green;
-            else
-                bgColor = Color.Goldenrod;
+            string label = $"{side} A+ TRADE | {bodyOutsideTicks:0}t | B{bodyPercent:0}%";
 
             decimal textPrice = side == "BUY" ? candle.High : candle.Low;
             int verticalOffset = side == "BUY" ? -45 : 45;
@@ -286,15 +250,12 @@ namespace ATAS.Indicators
                 verticalOffset,
                 0,
                 Color.White,
-                bgColor,
-                bgColor,
+                Color.Green,
+                Color.Green,
                 16,
                 DrawingText.TextAlign.Center,
                 true
             );
-
-            if (!breakoutAccepted)
-                return;
 
             if (side == "SELL")
             {
@@ -326,32 +287,6 @@ namespace ATAS.Indicators
                 bodyOutside = 0;
 
             return bodyOutside / TickSize;
-        }
-
-        private decimal CalculateBodyOutsideORPercent(dynamic candle, string side)
-        {
-            decimal bodyHigh = Math.Max(candle.Open, candle.Close);
-            decimal bodyLow = Math.Min(candle.Open, candle.Close);
-            decimal bodySize = bodyHigh - bodyLow;
-
-            if (bodySize <= 0)
-                return 0;
-
-            decimal bodyOutside = 0;
-
-            if (side == "BUY")
-                bodyOutside = bodyHigh - Math.Max(bodyLow, _orHigh);
-
-            if (side == "SELL")
-                bodyOutside = Math.Min(bodyHigh, _orLow) - bodyLow;
-
-            if (bodyOutside < 0)
-                bodyOutside = 0;
-
-            if (bodyOutside > bodySize)
-                bodyOutside = bodySize;
-
-            return bodyOutside / bodySize * 100m;
         }
 
         private void DrawSellTwoContractsLine(dynamic candle, int closedBar)
