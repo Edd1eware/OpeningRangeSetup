@@ -19,7 +19,7 @@ namespace ATAS.Indicators
         private bool _smallBodyLabelDrawn;
         private bool _breakoutLabelDrawn;
         private bool _fakeNoTradeLabelDrawn;
-        private bool _buyImbalanceLineDrawn;
+        private bool _imbalanceLineDrawn;
 
         private bool _sellTwoContractsLineDrawn;
         private bool _buyTwoContractsLineDrawn;
@@ -99,7 +99,7 @@ namespace ATAS.Indicators
                 _smallBodyLabelDrawn = false;
                 _breakoutLabelDrawn = false;
                 _fakeNoTradeLabelDrawn = false;
-                _buyImbalanceLineDrawn = false;
+                _imbalanceLineDrawn = false;
 
                 _sellTwoContractsLineDrawn = false;
                 _buyTwoContractsLineDrawn = false;
@@ -329,25 +329,20 @@ namespace ATAS.Indicators
             if (realBodyOutsideTicks < MinBodyOutsideORTicks)
                 return;
 
-            decimal imbalancePrice = 0;
-            decimal imbalanceAsk = 0;
-            decimal imbalanceBid = 0;
+            decimal imbalancePrice;
+            decimal imbalanceAggressive;
+            decimal imbalancePassive;
 
-            if (side == "BUY")
-            {
-                bool hasValidImbalance = TryGetLowestBuyImbalance(
-                    candle,
-                    out imbalancePrice,
-                    out imbalanceAsk,
-                    out imbalanceBid
-                );
+            bool hasValidImbalance =
+                side == "BUY"
+                    ? TryGetLowestBuyImbalance(candle, out imbalancePrice, out imbalanceAggressive, out imbalancePassive)
+                    : TryGetHighestSellImbalance(candle, out imbalancePrice, out imbalanceAggressive, out imbalancePassive);
 
-                if (!hasValidImbalance)
-                    return;
+            if (!hasValidImbalance)
+                return;
 
-                DrawOrangeImbalanceLine(closedBar, imbalancePrice, imbalanceAsk, imbalanceBid);
-                _buyImbalanceLineDrawn = true;
-            }
+            DrawOrangeImbalanceLine(closedBar, imbalancePrice, imbalanceAggressive, imbalancePassive);
+            _imbalanceLineDrawn = true;
 
             _breakoutSide = side;
             _breakoutLabelDrawn = true;
@@ -357,7 +352,6 @@ namespace ATAS.Indicators
             decimal textPrice = side == "BUY" ? candle.High : candle.Low;
             int verticalOffset = side == "BUY" ? -45 : 45;
 
-            // MEJORA: el label se pinta sobre la vela del imbalance / breakout válido.
             int labelBar = closedBar;
 
             AddText(
@@ -397,19 +391,7 @@ namespace ATAS.Indicators
 
             try
             {
-                var levels = new List<ClusterLevel>();
-
-                foreach (var lvl in candle.GetAllPriceLevels())
-                {
-                    levels.Add(new ClusterLevel
-                    {
-                        Price = Convert.ToDecimal(lvl.Price),
-                        Bid = Convert.ToDecimal(lvl.Bid),
-                        Ask = Convert.ToDecimal(lvl.Ask)
-                    });
-                }
-
-                levels.Sort((a, b) => a.Price.CompareTo(b.Price));
+                var levels = GetClusterLevels(candle);
 
                 if (levels.Count < 2)
                     return false;
@@ -448,9 +430,75 @@ namespace ATAS.Indicators
             }
         }
 
-        private void DrawOrangeImbalanceLine(int bar, decimal price, decimal ask, decimal bid)
+        private bool TryGetHighestSellImbalance(dynamic candle, out decimal selectedPrice, out decimal selectedBid, out decimal selectedAsk)
         {
-            if (_buyImbalanceLineDrawn)
+            selectedPrice = 0;
+            selectedBid = 0;
+            selectedAsk = 0;
+
+            try
+            {
+                var levels = GetClusterLevels(candle);
+
+                if (levels.Count < 2)
+                    return false;
+
+                bool found = false;
+
+                for (int i = 0; i < levels.Count - 1; i++)
+                {
+                    var current = levels[i];
+                    var upper = levels[i + 1];
+
+                    if (upper.Ask <= 0)
+                        continue;
+
+                    bool isSellImbalance =
+                        current.Bid >= ImbalanceVolumeFilter &&
+                        current.Bid >= upper.Ask * ImbalanceRatio;
+
+                    if (!isSellImbalance)
+                        continue;
+
+                    if (!found || current.Price > selectedPrice)
+                    {
+                        found = true;
+                        selectedPrice = current.Price;
+                        selectedBid = current.Bid;
+                        selectedAsk = upper.Ask;
+                    }
+                }
+
+                return found;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private List<ClusterLevel> GetClusterLevels(dynamic candle)
+        {
+            var levels = new List<ClusterLevel>();
+
+            foreach (var lvl in candle.GetAllPriceLevels())
+            {
+                levels.Add(new ClusterLevel
+                {
+                    Price = Convert.ToDecimal(lvl.Price),
+                    Bid = Convert.ToDecimal(lvl.Bid),
+                    Ask = Convert.ToDecimal(lvl.Ask)
+                });
+            }
+
+            levels.Sort((a, b) => a.Price.CompareTo(b.Price));
+
+            return levels;
+        }
+
+        private void DrawOrangeImbalanceLine(int bar, decimal price, decimal aggressive, decimal passive)
+        {
+            if (_imbalanceLineDrawn)
                 return;
 
             var pen = new Pen(Color.Orange, 5);
@@ -466,8 +514,8 @@ namespace ATAS.Indicators
             );
 
             AddText(
-                $"BUY_IMB_BREAKOUT_{bar}_{price}",
-                $"{ask:0}/{bid:0}",
+                $"IMB_BREAKOUT_{bar}_{price}",
+                $"{aggressive:0}/{passive:0}",
                 true,
                 bar + 1,
                 price,
