@@ -17,16 +17,19 @@ namespace ATAS.Indicators
         private bool _orLabelDrawn;
         private bool _smallBodyLabelDrawn;
         private bool _breakoutLabelDrawn;
+        private bool _fakeNoTradeLabelDrawn;
 
         private bool _sellTwoContractsLineDrawn;
         private bool _buyTwoContractsLineDrawn;
         private bool _sellOneContractLineDrawn;
         private bool _buyOneContractLineDrawn;
 
+        private bool _isNoTradeNoiseOR;
         private bool _isFakeBreakoutOR;
         private bool _fakeInitialOutsideDetected;
         private bool _waitingForFakeReentry;
         private bool _fakeBreakoutReentered;
+        private bool _isFakeNoTradeOR;
 
         private int _orBar = -1;
         private string _breakoutSide = "";
@@ -41,6 +44,12 @@ namespace ATAS.Indicators
 
         [DisplayName("Breakout Scan Bars")]
         public int BreakoutScanBars { get; set; } = 30;
+
+        [DisplayName("Max Fake Initial Breakout Bars")]
+        public int MaxFakeInitialBreakoutBars { get; set; } = 3;
+
+        [DisplayName("Min Fake Initial Breakout Ticks")]
+        public decimal MinFakeInitialBreakoutTicks { get; set; } = 40;
 
         [DisplayName("Min OR Body Quality %")]
         public decimal MinORBodyQualityPercent { get; set; } = 50;
@@ -78,16 +87,19 @@ namespace ATAS.Indicators
                 _orLabelDrawn = false;
                 _smallBodyLabelDrawn = false;
                 _breakoutLabelDrawn = false;
+                _fakeNoTradeLabelDrawn = false;
 
                 _sellTwoContractsLineDrawn = false;
                 _buyTwoContractsLineDrawn = false;
                 _sellOneContractLineDrawn = false;
                 _buyOneContractLineDrawn = false;
 
+                _isNoTradeNoiseOR = false;
                 _isFakeBreakoutOR = false;
                 _fakeInitialOutsideDetected = false;
                 _waitingForFakeReentry = false;
                 _fakeBreakoutReentered = false;
+                _isFakeNoTradeOR = false;
 
                 _orBar = -1;
                 _breakoutSide = "";
@@ -125,8 +137,8 @@ namespace ATAS.Indicators
             TrendLines.Add(new TrendLine(startBar, _orHigh, endBar, _orHigh, pen));
             TrendLines.Add(new TrendLine(startBar, _orLow, endBar, _orLow, pen));
 
-            DrawRangeLabel(time);
             DrawSmallBodyLabel(time, orCandle);
+            DrawRangeLabel(time);
         }
 
         private void DrawRangeLabel(DateTime time)
@@ -139,6 +151,7 @@ namespace ATAS.Indicators
             decimal rangeTicks = (_orHigh - _orLow) / TickSize;
 
             string classification =
+                _isNoTradeNoiseOR ? "NO TRADE" :
                 rangeTicks <= 100 ? "A+" :
                 rangeTicks <= 210 ? "B FUERTE" :
                 "NO TRADE";
@@ -184,16 +197,25 @@ namespace ATAS.Indicators
 
             _smallBodyLabelDrawn = true;
 
-            string label = bodyTicks <= 25m
-                ? "FAKE BREAKOUT"
-                : "SMALL BODY";
+            string label;
 
-            if (bodyTicks <= 25m)
+            if (bodyTicks <= 7m)
             {
+                label = $"NO TRADE NOISE | {bodyTicks:0}t";
+                _isNoTradeNoiseOR = true;
+            }
+            else if (bodyTicks <= 25m)
+            {
+                label = $"FAKE BREAKOUT | {bodyTicks:0}t";
+
                 _isFakeBreakoutOR = true;
                 _fakeInitialOutsideDetected = false;
                 _waitingForFakeReentry = false;
                 _fakeBreakoutReentered = false;
+            }
+            else
+            {
+                label = $"SMALL BODY | {bodyTicks:0}t";
             }
 
             AddText(
@@ -218,6 +240,9 @@ namespace ATAS.Indicators
             if (_breakoutLabelDrawn)
                 return;
 
+            if (_isNoTradeNoiseOR || _isFakeNoTradeOR)
+                return;
+
             if (_orBar < 0 || closedBar <= _orBar)
                 return;
 
@@ -228,17 +253,6 @@ namespace ATAS.Indicators
 
             var candle = GetCandle(closedBar);
 
-            // =========================================================
-            // LÓGICA ESPECIAL PARA DÍAS CON FAKE BREAKOUT EN LA 9:30
-            //
-            // Secuencia obligatoria:
-            // 1) Ya existe etiqueta FAKE BREAKOUT.
-            // 2) Esperar cierre con CUERPO fuera del OR.
-            // 3) Después esperar cierre de nuevo dentro del OR.
-            // 4) Solo entonces reactivar la lógica normal de rompimiento.
-            //
-            // Esto evita que un simple mechazo active la lógica.
-            // =========================================================
             if (_isFakeBreakoutOR && !_fakeBreakoutReentered)
             {
                 bool closeAboveOR = candle.Close > _orHigh;
@@ -246,18 +260,30 @@ namespace ATAS.Indicators
 
                 if (!_fakeInitialOutsideDetected)
                 {
-                    if (!closeAboveOR && !closeBelowOR)
+                    bool validFakeInitialBreakout = false;
+
+                    if (barsAfterOR <= MaxFakeInitialBreakoutBars && (closeAboveOR || closeBelowOR))
+                    {
+                        string fakeSide = closeAboveOR ? "BUY" : "SELL";
+                        decimal fakeBodyOutsideTicks = CalculateBodyOutsideORTicks(candle, fakeSide);
+
+                        if (fakeBodyOutsideTicks >= MinFakeInitialBreakoutTicks)
+                            validFakeInitialBreakout = true;
+                    }
+
+                    if (validFakeInitialBreakout)
+                    {
+                        _fakeInitialOutsideDetected = true;
+                        _waitingForFakeReentry = true;
                         return;
+                    }
 
-                    string fakeSide = closeAboveOR ? "BUY" : "SELL";
-
-                    decimal bodyOutsideTicks = CalculateBodyOutsideORTicks(candle, fakeSide);
-
-                    if (bodyOutsideTicks <= MinBodyOutsideORTicks)
+                    if (barsAfterOR >= MaxFakeInitialBreakoutBars)
+                    {
+                        _isFakeNoTradeOR = true;
+                        DrawFakeNoTradeLabel(candle, closedBar);
                         return;
-
-                    _fakeInitialOutsideDetected = true;
-                    _waitingForFakeReentry = true;
+                    }
 
                     return;
                 }
@@ -331,6 +357,30 @@ namespace ATAS.Indicators
                 DrawBuyTwoContractsLine(candle, closedBar);
                 DrawBuyOneContractLine(candle, closedBar);
             }
+        }
+
+        private void DrawFakeNoTradeLabel(dynamic candle, int closedBar)
+        {
+            if (_fakeNoTradeLabelDrawn)
+                return;
+
+            _fakeNoTradeLabelDrawn = true;
+
+            AddText(
+                $"FAKE_NO_TRADE_LABEL_{candle.Time:yyyyMMdd}",
+                $"NO TRADE | NO 40t IN {MaxFakeInitialBreakoutBars} BARS",
+                true,
+                closedBar,
+                _orHigh,
+                -85,
+                0,
+                Color.White,
+                Color.Red,
+                Color.Red,
+                16,
+                DrawingText.TextAlign.Center,
+                true
+            );
         }
 
         private decimal CalculateBodyOutsideORTicks(dynamic candle, string side)
