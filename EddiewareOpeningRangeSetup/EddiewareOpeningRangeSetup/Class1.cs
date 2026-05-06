@@ -19,7 +19,7 @@ namespace ATAS.Indicators
         private bool _smallBodyLabelDrawn;
         private bool _breakoutLabelDrawn;
         private bool _fakeNoTradeLabelDrawn;
-        private bool _buyImbalance935Done;
+        private bool _buyImbalanceLineDrawn;
 
         private bool _sellTwoContractsLineDrawn;
         private bool _buyTwoContractsLineDrawn;
@@ -68,9 +68,6 @@ namespace ATAS.Indicators
         [DisplayName("1 Contract Distance Ticks")]
         public decimal OneContractDistanceTicks { get; set; } = 120;
 
-        [DisplayName("Detect 9:35 Buy Imbalance")]
-        public bool Detect935BuyImbalance { get; set; } = true;
-
         [DisplayName("Imbalance Ratio")]
         public decimal ImbalanceRatio { get; set; } = 3;
 
@@ -102,7 +99,7 @@ namespace ATAS.Indicators
                 _smallBodyLabelDrawn = false;
                 _breakoutLabelDrawn = false;
                 _fakeNoTradeLabelDrawn = false;
-                _buyImbalance935Done = false;
+                _buyImbalanceLineDrawn = false;
 
                 _sellTwoContractsLineDrawn = false;
                 _buyTwoContractsLineDrawn = false;
@@ -130,146 +127,14 @@ namespace ATAS.Indicators
             {
                 _orHigh = prev.High;
                 _orLow = prev.Low;
-
                 _orBar = bar - 1;
 
                 DrawOR(time, prev);
-
                 _rangeDrawn = true;
             }
 
             if (_rangeDrawn)
-            {
-                DetectLowestBuyImbalance935(bar - 1);
                 CheckBreakoutOnClosedBar(bar - 1);
-            }
-        }
-
-        private void DetectLowestBuyImbalance935(int closedBar)
-        {
-            if (!Detect935BuyImbalance || _buyImbalance935Done)
-                return;
-
-            var candle = GetCandle(closedBar);
-
-            TimeSpan targetTime = OpeningTimeUtc.Add(new TimeSpan(0, 5, 0));
-
-            bool is935Closed =
-                candle.Time.TimeOfDay.Hours == targetTime.Hours &&
-                candle.Time.TimeOfDay.Minutes == targetTime.Minutes;
-
-            if (!is935Closed)
-                return;
-
-            _buyImbalance935Done = true;
-
-            try
-            {
-                var levels = new List<ClusterLevel>();
-
-                foreach (var lvl in candle.GetAllPriceLevels())
-                {
-                    levels.Add(new ClusterLevel
-                    {
-                        Price = Convert.ToDecimal(lvl.Price),
-                        Bid = Convert.ToDecimal(lvl.Bid),
-                        Ask = Convert.ToDecimal(lvl.Ask)
-                    });
-                }
-
-                levels.Sort((a, b) => a.Price.CompareTo(b.Price));
-
-                if (levels.Count < 2)
-                    return;
-
-                decimal selectedPrice = 0;
-                decimal selectedAsk = 0;
-                decimal selectedBid = 0;
-                bool found = false;
-
-                for (int i = 1; i < levels.Count; i++)
-                {
-                    var current = levels[i];
-                    var lower = levels[i - 1];
-
-                    if (lower.Bid <= 0)
-                        continue;
-
-                    bool isBuyImbalance =
-                        current.Ask >= ImbalanceVolumeFilter &&
-                        current.Ask >= lower.Bid * ImbalanceRatio;
-
-                    if (!isBuyImbalance)
-                        continue;
-
-                    if (!found || current.Price < selectedPrice)
-                    {
-                        found = true;
-                        selectedPrice = current.Price;
-                        selectedAsk = current.Ask;
-                        selectedBid = lower.Bid;
-                    }
-                }
-
-                if (found)
-                    DrawOrangeImbalanceLine(closedBar, selectedPrice, selectedAsk, selectedBid);
-            }
-            catch
-            {
-                AddText(
-                    $"IMB_ERROR_{candle.Time:yyyyMMddHHmm}",
-                    "NO CLUSTER DATA",
-                    true,
-                    closedBar,
-                    candle.High,
-                    -50,
-                    0,
-                    Color.White,
-                    Color.Red,
-                    Color.Red,
-                    14,
-                    DrawingText.TextAlign.Center,
-                    true
-                );
-            }
-        }
-
-        private void DrawOrangeImbalanceLine(int bar, decimal price, decimal ask, decimal bid)
-        {
-            var pen = new Pen(Color.Orange, 5);
-
-            TrendLines.Add(
-                new TrendLine(
-                    bar,
-                    price,
-                    bar + ImbalanceLineLength,
-                    price,
-                    pen
-                )
-            );
-
-            AddText(
-                $"LOWEST_BUY_IMB_{bar}_{price}",
-                $"{ask:0}/{bid:0}",
-                true,
-                bar + 1,
-                price,
-                -15,
-                0,
-                Color.Black,
-                Color.Orange,
-                Color.Orange,
-                12,
-                DrawingText.TextAlign.Center,
-                true
-            );
-        }
-
-        private class ClusterLevel
-        {
-            public decimal Price { get; set; }
-            public decimal Bid { get; set; }
-            public decimal Ask { get; set; }
         }
 
         private void DrawOR(DateTime time, dynamic orCandle)
@@ -352,7 +217,6 @@ namespace ATAS.Indicators
             else if (bodyTicks <= 14m)
             {
                 label = $"FAKE BREAKOUT | {bodyTicks:0}t";
-
                 _isFakeBreakoutOR = true;
                 _fakeInitialOutsideDetected = false;
                 _waitingForFakeReentry = false;
@@ -465,6 +329,26 @@ namespace ATAS.Indicators
             if (realBodyOutsideTicks < MinBodyOutsideORTicks)
                 return;
 
+            decimal imbalancePrice = 0;
+            decimal imbalanceAsk = 0;
+            decimal imbalanceBid = 0;
+
+            if (side == "BUY")
+            {
+                bool hasValidImbalance = TryGetLowestBuyImbalance(
+                    candle,
+                    out imbalancePrice,
+                    out imbalanceAsk,
+                    out imbalanceBid
+                );
+
+                if (!hasValidImbalance)
+                    return;
+
+                DrawOrangeImbalanceLine(closedBar, imbalancePrice, imbalanceAsk, imbalanceBid);
+                _buyImbalanceLineDrawn = true;
+            }
+
             _breakoutSide = side;
             _breakoutLabelDrawn = true;
 
@@ -473,7 +357,8 @@ namespace ATAS.Indicators
             decimal textPrice = side == "BUY" ? candle.High : candle.Low;
             int verticalOffset = side == "BUY" ? -45 : 45;
 
-            int labelBar = Math.Max(0, closedBar - LabelOffsetBarsLeft);
+            // MEJORA: el label se pinta sobre la vela del imbalance / breakout válido.
+            int labelBar = closedBar;
 
             AddText(
                 $"BREAKOUT_LABEL_{candle.Time:yyyyMMdd}",
@@ -502,6 +387,106 @@ namespace ATAS.Indicators
                 DrawBuyTwoContractsLine(candle, closedBar);
                 DrawBuyOneContractLine(candle, closedBar);
             }
+        }
+
+        private bool TryGetLowestBuyImbalance(dynamic candle, out decimal selectedPrice, out decimal selectedAsk, out decimal selectedBid)
+        {
+            selectedPrice = 0;
+            selectedAsk = 0;
+            selectedBid = 0;
+
+            try
+            {
+                var levels = new List<ClusterLevel>();
+
+                foreach (var lvl in candle.GetAllPriceLevels())
+                {
+                    levels.Add(new ClusterLevel
+                    {
+                        Price = Convert.ToDecimal(lvl.Price),
+                        Bid = Convert.ToDecimal(lvl.Bid),
+                        Ask = Convert.ToDecimal(lvl.Ask)
+                    });
+                }
+
+                levels.Sort((a, b) => a.Price.CompareTo(b.Price));
+
+                if (levels.Count < 2)
+                    return false;
+
+                bool found = false;
+
+                for (int i = 1; i < levels.Count; i++)
+                {
+                    var current = levels[i];
+                    var lower = levels[i - 1];
+
+                    if (lower.Bid <= 0)
+                        continue;
+
+                    bool isBuyImbalance =
+                        current.Ask >= ImbalanceVolumeFilter &&
+                        current.Ask >= lower.Bid * ImbalanceRatio;
+
+                    if (!isBuyImbalance)
+                        continue;
+
+                    if (!found || current.Price < selectedPrice)
+                    {
+                        found = true;
+                        selectedPrice = current.Price;
+                        selectedAsk = current.Ask;
+                        selectedBid = lower.Bid;
+                    }
+                }
+
+                return found;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void DrawOrangeImbalanceLine(int bar, decimal price, decimal ask, decimal bid)
+        {
+            if (_buyImbalanceLineDrawn)
+                return;
+
+            var pen = new Pen(Color.Orange, 5);
+
+            TrendLines.Add(
+                new TrendLine(
+                    bar,
+                    price,
+                    bar + ImbalanceLineLength,
+                    price,
+                    pen
+                )
+            );
+
+            AddText(
+                $"BUY_IMB_BREAKOUT_{bar}_{price}",
+                $"{ask:0}/{bid:0}",
+                true,
+                bar + 1,
+                price,
+                -15,
+                0,
+                Color.Black,
+                Color.Orange,
+                Color.Orange,
+                12,
+                DrawingText.TextAlign.Center,
+                true
+            );
+        }
+
+        private class ClusterLevel
+        {
+            public decimal Price { get; set; }
+            public decimal Bid { get; set; }
+            public decimal Ask { get; set; }
         }
 
         private void DrawFakeNoTradeLabel(dynamic candle, int closedBar)
@@ -555,8 +540,8 @@ namespace ATAS.Indicators
             _sellTwoContractsLineDrawn = true;
 
             decimal targetPrice = candle.Close + (TwoContractsDistanceTicks * TickSize);
-
             var pen = new Pen(Color.LimeGreen, 2);
+
             TrendLines.Add(new TrendLine(closedBar, targetPrice, closedBar + LineLength, targetPrice, pen));
 
             AddContractsLabel(
@@ -577,8 +562,8 @@ namespace ATAS.Indicators
             _sellOneContractLineDrawn = true;
 
             decimal targetPrice = candle.Close + (OneContractDistanceTicks * TickSize);
-
             var pen = new Pen(Color.Yellow, 2);
+
             TrendLines.Add(new TrendLine(closedBar, targetPrice, closedBar + LineLength, targetPrice, pen));
 
             AddContractsLabel(
@@ -599,8 +584,8 @@ namespace ATAS.Indicators
             _buyTwoContractsLineDrawn = true;
 
             decimal targetPrice = candle.Close - (TwoContractsDistanceTicks * TickSize);
-
             var pen = new Pen(Color.DodgerBlue, 2);
+
             TrendLines.Add(new TrendLine(closedBar, targetPrice, closedBar + LineLength, targetPrice, pen));
 
             AddContractsLabel(
@@ -621,8 +606,8 @@ namespace ATAS.Indicators
             _buyOneContractLineDrawn = true;
 
             decimal targetPrice = candle.Close - (OneContractDistanceTicks * TickSize);
-
             var pen = new Pen(Color.Yellow, 2);
+
             TrendLines.Add(new TrendLine(closedBar, targetPrice, closedBar + LineLength, targetPrice, pen));
 
             AddContractsLabel(
@@ -635,13 +620,7 @@ namespace ATAS.Indicators
             );
         }
 
-        private void AddContractsLabel(
-            string id,
-            string text,
-            int bar,
-            decimal price,
-            Color textColor,
-            Color bgColor)
+        private void AddContractsLabel(string id, string text, int bar, decimal price, Color textColor, Color bgColor)
         {
             AddText(
                 id,
