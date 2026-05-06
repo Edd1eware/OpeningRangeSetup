@@ -55,7 +55,7 @@ namespace ATAS.Indicators
         public decimal MinORBodyQualityPercent { get; set; } = 50;
 
         [DisplayName("Min Body Outside OR Ticks")]
-        public decimal MinBodyOutsideORTicks { get; set; } = 20;
+        public decimal MinBodyOutsideORTicks { get; set; } = 35;
 
         [DisplayName("Label Offset Bars Left")]
         public int LabelOffsetBarsLeft { get; set; } = 2;
@@ -204,7 +204,7 @@ namespace ATAS.Indicators
                 label = $"NO TRADE NOISE | {bodyTicks:0}t";
                 _isNoTradeNoiseOR = true;
             }
-            else if (bodyTicks <= 25m)
+            else if (bodyTicks <= 14m)
             {
                 label = $"FAKE BREAKOUT | {bodyTicks:0}t";
 
@@ -317,7 +317,7 @@ namespace ATAS.Indicators
 
             decimal realBodyOutsideTicks = CalculateBodyOutsideORTicks(candle, side);
 
-            if (realBodyOutsideTicks <= MinBodyOutsideORTicks)
+            if (realBodyOutsideTicks < MinBodyOutsideORTicks)
                 return;
 
             _breakoutSide = side;
