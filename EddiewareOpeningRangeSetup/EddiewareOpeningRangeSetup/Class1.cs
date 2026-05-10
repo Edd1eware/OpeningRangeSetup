@@ -20,6 +20,7 @@ namespace ATAS.Indicators
         private bool _breakoutLabelDrawn;
         private bool _fakeNoTradeLabelDrawn;
         private bool _imbalanceLineDrawn;
+        private bool _exhaustionDayLabelDrawn;
 
         private bool _sellTwoContractsLineDrawn;
         private bool _buyTwoContractsLineDrawn;
@@ -32,6 +33,7 @@ namespace ATAS.Indicators
         private bool _waitingForFakeReentry;
         private bool _fakeBreakoutReentered;
         private bool _isFakeNoTradeOR;
+        private bool _isExhaustionDay;
 
         private int _orBar = -1;
         private string _breakoutSide = "";
@@ -100,6 +102,7 @@ namespace ATAS.Indicators
                 _breakoutLabelDrawn = false;
                 _fakeNoTradeLabelDrawn = false;
                 _imbalanceLineDrawn = false;
+                _exhaustionDayLabelDrawn = false;
 
                 _sellTwoContractsLineDrawn = false;
                 _buyTwoContractsLineDrawn = false;
@@ -112,6 +115,7 @@ namespace ATAS.Indicators
                 _waitingForFakeReentry = false;
                 _fakeBreakoutReentered = false;
                 _isFakeNoTradeOR = false;
+                _isExhaustionDay = false;
 
                 _orBar = -1;
                 _breakoutSide = "";
@@ -147,8 +151,46 @@ namespace ATAS.Indicators
             TrendLines.Add(new TrendLine(startBar, _orHigh, endBar, _orHigh, pen));
             TrendLines.Add(new TrendLine(startBar, _orLow, endBar, _orLow, pen));
 
+            DrawExhaustionDayLabel(time, orCandle);
             DrawSmallBodyLabel(time, orCandle);
             DrawRangeLabel(time);
+        }
+
+        private void DrawExhaustionDayLabel(DateTime time, dynamic orCandle)
+        {
+            if (_exhaustionDayLabelDrawn)
+                return;
+
+            decimal bodyHigh = Math.Max(orCandle.Open, orCandle.Close);
+            decimal bodyLow = Math.Min(orCandle.Open, orCandle.Close);
+
+            decimal upperWickTicks = (orCandle.High - bodyHigh) / TickSize;
+            decimal lowerWickTicks = (bodyLow - orCandle.Low) / TickSize;
+
+            bool noUpperWick = upperWickTicks <= 0;
+            bool noLowerWick = lowerWickTicks <= 0;
+
+            if (!noUpperWick && !noLowerWick)
+                return;
+
+            _isExhaustionDay = true;
+            _exhaustionDayLabelDrawn = true;
+
+            AddText(
+                $"EXHAUSTION_DAY_LABEL_{time:yyyyMMdd}",
+                "EXHAUSTION DAY",
+                true,
+                _orBar,
+                _orHigh,
+                -85,
+                0,
+                Color.White,
+                Color.Purple,
+                Color.Purple,
+                18,
+                DrawingText.TextAlign.Center,
+                true
+            );
         }
 
         private void DrawRangeLabel(DateTime time)
@@ -159,6 +201,9 @@ namespace ATAS.Indicators
             _orLabelDrawn = true;
 
             decimal rangeTicks = (_orHigh - _orLow) / TickSize;
+
+            if (_isExhaustionDay)
+                return;
 
             string classification =
                 _isNoTradeNoiseOR ? "NO TRADE" :
@@ -191,6 +236,9 @@ namespace ATAS.Indicators
         private void DrawSmallBodyLabel(DateTime time, dynamic orCandle)
         {
             if (_smallBodyLabelDrawn)
+                return;
+
+            if (_isExhaustionDay)
                 return;
 
             decimal candleRange = orCandle.High - orCandle.Low;
@@ -249,7 +297,7 @@ namespace ATAS.Indicators
             if (_breakoutLabelDrawn)
                 return;
 
-            if (_isNoTradeNoiseOR || _isFakeNoTradeOR)
+            if (_isExhaustionDay || _isNoTradeNoiseOR || _isFakeNoTradeOR)
                 return;
 
             if (_orBar < 0 || closedBar <= _orBar)
@@ -487,20 +535,10 @@ namespace ATAS.Indicators
             decimal bodyLow = Math.Min(candle.Open, candle.Close);
 
             if (side == "BUY")
-            {
-                // BUY válido si el imbalance está arriba del OR High,
-                // sin importar si cae en cuerpo o mecha superior.
-                // También permite mecha inferior como absorción.
                 return price >= _orHigh || price < bodyLow;
-            }
 
             if (side == "SELL")
-            {
-                // SELL válido si el imbalance está abajo del OR Low,
-                // sin importar si cae en cuerpo o mecha inferior.
-                // También permite mecha superior como absorción.
                 return price <= _orLow || price > bodyHigh;
-            }
 
             return false;
         }
@@ -531,15 +569,7 @@ namespace ATAS.Indicators
 
             var pen = new Pen(Color.Orange, 5);
 
-            TrendLines.Add(
-                new TrendLine(
-                    bar,
-                    price,
-                    bar + ImbalanceLineLength,
-                    price,
-                    pen
-                )
-            );
+            TrendLines.Add(new TrendLine(bar, price, bar + ImbalanceLineLength, price, pen));
 
             AddText(
                 $"IMB_BREAKOUT_{bar}_{price}",
