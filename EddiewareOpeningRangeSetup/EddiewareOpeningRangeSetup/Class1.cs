@@ -352,13 +352,11 @@ namespace ATAS.Indicators
             decimal textPrice = side == "BUY" ? candle.High : candle.Low;
             int verticalOffset = side == "BUY" ? -45 : 45;
 
-            int labelBar = closedBar;
-
             AddText(
                 $"BREAKOUT_LABEL_{candle.Time:yyyyMMdd}",
                 label,
                 true,
-                labelBar,
+                closedBar,
                 textPrice,
                 verticalOffset,
                 0,
@@ -413,6 +411,12 @@ namespace ATAS.Indicators
                     if (!isBuyImbalance)
                         continue;
 
+                    // MEJORA:
+                    // El imbalance BUY solo es válido si está dentro del cuerpo
+                    // y dentro de la parte del cuerpo que rompió arriba del OR High.
+                    if (!IsImbalanceInsideBreakoutBody(candle, current.Price, "BUY"))
+                        continue;
+
                     if (!found || current.Price < selectedPrice)
                     {
                         found = true;
@@ -460,6 +464,12 @@ namespace ATAS.Indicators
                     if (!isSellImbalance)
                         continue;
 
+                    // MEJORA:
+                    // El imbalance SELL solo es válido si está dentro del cuerpo
+                    // y dentro de la parte del cuerpo que rompió abajo del OR Low.
+                    if (!IsImbalanceInsideBreakoutBody(candle, current.Price, "SELL"))
+                        continue;
+
                     if (!found || current.Price > selectedPrice)
                     {
                         found = true;
@@ -475,6 +485,28 @@ namespace ATAS.Indicators
             {
                 return false;
             }
+        }
+
+        private bool IsImbalanceInsideBreakoutBody(dynamic candle, decimal price, string side)
+        {
+            decimal bodyHigh = Math.Max(candle.Open, candle.Close);
+            decimal bodyLow = Math.Min(candle.Open, candle.Close);
+
+            if (side == "BUY")
+            {
+                return price >= _orHigh &&
+                       price >= bodyLow &&
+                       price <= bodyHigh;
+            }
+
+            if (side == "SELL")
+            {
+                return price <= _orLow &&
+                       price >= bodyLow &&
+                       price <= bodyHigh;
+            }
+
+            return false;
         }
 
         private List<ClusterLevel> GetClusterLevels(dynamic candle)
