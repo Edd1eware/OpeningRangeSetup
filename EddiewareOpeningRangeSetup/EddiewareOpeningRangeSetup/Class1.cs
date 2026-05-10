@@ -72,7 +72,7 @@ namespace ATAS.Indicators
         public decimal ImbalanceRatio { get; set; } = 3;
 
         [DisplayName("Imbalance Volume Filter")]
-        public decimal ImbalanceVolumeFilter { get; set; } = 50;
+        public decimal ImbalanceVolumeFilter { get; set; } = 30;
 
         [DisplayName("Imbalance Line Length")]
         public int ImbalanceLineLength { get; set; } = 10;
@@ -411,10 +411,7 @@ namespace ATAS.Indicators
                     if (!isBuyImbalance)
                         continue;
 
-                    // MEJORA:
-                    // El imbalance BUY solo es válido si está dentro del cuerpo
-                    // y dentro de la parte del cuerpo que rompió arriba del OR High.
-                    if (!IsImbalanceInsideBreakoutBody(candle, current.Price, "BUY"))
+                    if (!IsValidDirectionalImbalanceLocation(candle, current.Price, "BUY"))
                         continue;
 
                     if (!found || current.Price < selectedPrice)
@@ -464,10 +461,7 @@ namespace ATAS.Indicators
                     if (!isSellImbalance)
                         continue;
 
-                    // MEJORA:
-                    // El imbalance SELL solo es válido si está dentro del cuerpo
-                    // y dentro de la parte del cuerpo que rompió abajo del OR Low.
-                    if (!IsImbalanceInsideBreakoutBody(candle, current.Price, "SELL"))
+                    if (!IsValidDirectionalImbalanceLocation(candle, current.Price, "SELL"))
                         continue;
 
                     if (!found || current.Price > selectedPrice)
@@ -487,23 +481,25 @@ namespace ATAS.Indicators
             }
         }
 
-        private bool IsImbalanceInsideBreakoutBody(dynamic candle, decimal price, string side)
+        private bool IsValidDirectionalImbalanceLocation(dynamic candle, decimal price, string side)
         {
             decimal bodyHigh = Math.Max(candle.Open, candle.Close);
             decimal bodyLow = Math.Min(candle.Open, candle.Close);
 
             if (side == "BUY")
             {
-                return price >= _orHigh &&
-                       price >= bodyLow &&
-                       price <= bodyHigh;
+                // BUY válido si el imbalance está arriba del OR High,
+                // sin importar si cae en cuerpo o mecha superior.
+                // También permite mecha inferior como absorción.
+                return price >= _orHigh || price < bodyLow;
             }
 
             if (side == "SELL")
             {
-                return price <= _orLow &&
-                       price >= bodyLow &&
-                       price <= bodyHigh;
+                // SELL válido si el imbalance está abajo del OR Low,
+                // sin importar si cae en cuerpo o mecha inferior.
+                // También permite mecha superior como absorción.
+                return price <= _orLow || price > bodyHigh;
             }
 
             return false;
