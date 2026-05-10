@@ -1,6 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
-using System.Linq;
 using ATAS.Indicators;
 using ATAS.Indicators.Drawing;
 
@@ -8,373 +9,682 @@ namespace ATAS.Indicators
 {
     public class EddiewareOpeningRangeSetup : Indicator
     {
-        private readonly ValueDataSeries _highLine = new ValueDataSeries("OR High 9:30 NY");
-        private readonly ValueDataSeries _lowLine = new ValueDataSeries("OR Low 9:30 NY");
-
         private DateTime _currentDate = DateTime.MinValue;
-        private int _orBar = -1;
 
         private decimal _orHigh;
         private decimal _orLow;
 
-        private bool _rangeReady;
-        private bool _labelDrawn;
+        private bool _rangeDrawn;
+        private bool _orLabelDrawn;
+        private bool _smallBodyLabelDrawn;
         private bool _breakoutLabelDrawn;
+        private bool _fakeNoTradeLabelDrawn;
+        private bool _imbalanceLineDrawn;
 
-        private const int TargetHourUtc = 13;
-        private const int TargetMinuteUtc = 30;
+        private bool _sellTwoContractsLineDrawn;
+        private bool _buyTwoContractsLineDrawn;
+        private bool _sellOneContractLineDrawn;
+        private bool _buyOneContractLineDrawn;
+
+        private bool _isNoTradeNoiseOR;
+        private bool _isFakeBreakoutOR;
+        private bool _fakeInitialOutsideDetected;
+        private bool _waitingForFakeReentry;
+        private bool _fakeBreakoutReentered;
+        private bool _isFakeNoTradeOR;
+
+        private int _orBar = -1;
+        private string _breakoutSide = "";
 
         private const decimal TickSize = 0.25m;
-        private const decimal ImbalanceRatio = 1.5m;
-        private const decimal MinImbalanceVolume = 10m;
 
-        private const decimal MaxSlSearchTicks = 250m;
+        [DisplayName("Opening Time UTC")]
+        public TimeSpan OpeningTimeUtc { get; set; } = new TimeSpan(13, 30, 0);
+
+        [DisplayName("Line Length (bars)")]
+        public int LineLength { get; set; } = 100;
+
+        [DisplayName("Breakout Scan Bars")]
+        public int BreakoutScanBars { get; set; } = 30;
+
+        [DisplayName("Max Fake Initial Breakout Bars")]
+        public int MaxFakeInitialBreakoutBars { get; set; } = 3;
+
+        [DisplayName("Min Fake Initial Breakout Ticks")]
+        public decimal MinFakeInitialBreakoutTicks { get; set; } = 40;
+
+        [DisplayName("Min OR Body Quality %")]
+        public decimal MinORBodyQualityPercent { get; set; } = 50;
+
+        [DisplayName("Min Body Outside OR Ticks")]
+        public decimal MinBodyOutsideORTicks { get; set; } = 35;
+
+        [DisplayName("Label Offset Bars Left")]
+        public int LabelOffsetBarsLeft { get; set; } = 2;
+
+        [DisplayName("2 Contracts Distance Ticks")]
+        public decimal TwoContractsDistanceTicks { get; set; } = 60;
+
+        [DisplayName("1 Contract Distance Ticks")]
+        public decimal OneContractDistanceTicks { get; set; } = 120;
+
+        [DisplayName("Imbalance Ratio")]
+        public decimal ImbalanceRatio { get; set; } = 3;
+
+        [DisplayName("Imbalance Volume Filter")]
+        public decimal ImbalanceVolumeFilter { get; set; } = 50;
+
+        [DisplayName("Imbalance Line Length")]
+        public int ImbalanceLineLength { get; set; } = 10;
 
         public EddiewareOpeningRangeSetup()
         {
-            DataSeries[0] = _highLine;
-            DataSeries.Add(_lowLine);
-
-            _highLine.ShowZeroValue = false;
-            _lowLine.ShowZeroValue = false;
-
             DrawAbovePrice = true;
         }
 
         protected override void OnCalculate(int bar, decimal value)
         {
+            if (bar < 1)
+                return;
+
             var candle = GetCandle(bar);
             var time = candle.Time;
 
-            if (bar == 0 || time.Date != _currentDate)
+            if (time.Date != _currentDate)
             {
                 _currentDate = time.Date;
-                _orBar = -1;
-                _orHigh = 0;
-                _orLow = 0;
 
-                _rangeReady = false;
-                _labelDrawn = false;
+                _rangeDrawn = false;
+                _orLabelDrawn = false;
+                _smallBodyLabelDrawn = false;
                 _breakoutLabelDrawn = false;
+                _fakeNoTradeLabelDrawn = false;
+                _imbalanceLineDrawn = false;
+
+                _sellTwoContractsLineDrawn = false;
+                _buyTwoContractsLineDrawn = false;
+                _sellOneContractLineDrawn = false;
+                _buyOneContractLineDrawn = false;
+
+                _isNoTradeNoiseOR = false;
+                _isFakeBreakoutOR = false;
+                _fakeInitialOutsideDetected = false;
+                _waitingForFakeReentry = false;
+                _fakeBreakoutReentered = false;
+                _isFakeNoTradeOR = false;
+
+                _orBar = -1;
+                _breakoutSide = "";
             }
 
-            _highLine[bar] = 0;
-            _lowLine[bar] = 0;
+            var prev = GetCandle(bar - 1);
 
-            bool isTargetBar = time.Hour == TargetHourUtc && time.Minute == TargetMinuteUtc;
+            bool is930Closed =
+                prev.Time.TimeOfDay.Hours == OpeningTimeUtc.Hours &&
+                prev.Time.TimeOfDay.Minutes == OpeningTimeUtc.Minutes;
 
-            if (isTargetBar && !_rangeReady)
+            if (!_rangeDrawn && is930Closed)
             {
-                _orBar = bar;
-                _orHigh = candle.High;
-                _orLow = candle.Low;
-                _rangeReady = true;
+                _orHigh = prev.High;
+                _orLow = prev.Low;
+                _orBar = bar - 1;
 
-                decimal rangeTicks = (_orHigh - _orLow) / TickSize;
+                DrawOR(time, prev);
+                _rangeDrawn = true;
+            }
 
-                string label =
-                    rangeTicks < 60 ? $"A+  {rangeTicks:0} ticks" :
-                    rangeTicks <= 80 ? $"B FUERTE  {rangeTicks:0} ticks" :
-                    $"NO TRADE  {rangeTicks:0} ticks";
+            if (_rangeDrawn)
+                CheckBreakoutOnClosedBar(bar - 1);
+        }
 
-                if (!_labelDrawn)
-                {
-                    _labelDrawn = true;
+        private void DrawOR(DateTime time, dynamic orCandle)
+        {
+            int startBar = _orBar;
+            int endBar = _orBar + LineLength;
 
-                    AddText(
-                        $"OR_LABEL_{time:yyyyMMdd}_{bar}",
-                        label,
-                        true,
-                        bar,
-                        _orHigh,
-                        -40,
-                        0,
-                        Color.White,
-                        Color.Black,
-                        Color.Black,
-                        20,
-                        DrawingText.TextAlign.Center,
-                        true
-                    );
-                }
+            var pen = new Pen(Color.Red, 1);
 
+            TrendLines.Add(new TrendLine(startBar, _orHigh, endBar, _orHigh, pen));
+            TrendLines.Add(new TrendLine(startBar, _orLow, endBar, _orLow, pen));
+
+            DrawSmallBodyLabel(time, orCandle);
+            DrawRangeLabel(time);
+        }
+
+        private void DrawRangeLabel(DateTime time)
+        {
+            if (_orLabelDrawn)
                 return;
+
+            _orLabelDrawn = true;
+
+            decimal rangeTicks = (_orHigh - _orLow) / TickSize;
+
+            string classification =
+                _isNoTradeNoiseOR ? "NO TRADE" :
+                rangeTicks <= 100 ? "A+" :
+                rangeTicks <= 210 ? "B FUERTE" :
+                "NO TRADE";
+
+            string label = $"{classification} | OR {rangeTicks:0}t";
+
+            Color bgColor =
+                classification == "NO TRADE" ? Color.Red : Color.DarkGreen;
+
+            AddText(
+                $"OR_LABEL_{time:yyyyMMdd}",
+                label,
+                true,
+                _orBar,
+                _orHigh,
+                -35,
+                0,
+                Color.White,
+                bgColor,
+                bgColor,
+                18,
+                DrawingText.TextAlign.Center,
+                true
+            );
+        }
+
+        private void DrawSmallBodyLabel(DateTime time, dynamic orCandle)
+        {
+            if (_smallBodyLabelDrawn)
+                return;
+
+            decimal candleRange = orCandle.High - orCandle.Low;
+
+            if (candleRange <= 0)
+                return;
+
+            decimal body = Math.Abs(orCandle.Close - orCandle.Open);
+            decimal bodyTicks = body / TickSize;
+            decimal bodyPercent = body / candleRange * 100m;
+
+            if (bodyPercent >= MinORBodyQualityPercent)
+                return;
+
+            _smallBodyLabelDrawn = true;
+
+            string label;
+
+            if (bodyTicks <= 7m)
+            {
+                label = $"NO TRADE NOISE | {bodyTicks:0}t";
+                _isNoTradeNoiseOR = true;
+            }
+            else if (bodyTicks <= 14m)
+            {
+                label = $"FAKE BREAKOUT | {bodyTicks:0}t";
+                _isFakeBreakoutOR = true;
+                _fakeInitialOutsideDetected = false;
+                _waitingForFakeReentry = false;
+                _fakeBreakoutReentered = false;
+            }
+            else
+            {
+                label = $"SMALL BODY | {bodyTicks:0}t";
             }
 
-            bool afterTarget =
-                time.Hour > TargetHourUtc ||
-                (time.Hour == TargetHourUtc && time.Minute > TargetMinuteUtc);
+            AddText(
+                $"SMALL_BODY_LABEL_{time:yyyyMMdd}",
+                label,
+                true,
+                _orBar,
+                _orHigh,
+                -60,
+                0,
+                Color.White,
+                Color.DarkRed,
+                Color.DarkRed,
+                16,
+                DrawingText.TextAlign.Center,
+                true
+            );
+        }
 
-            if (_rangeReady && afterTarget)
+        private void CheckBreakoutOnClosedBar(int closedBar)
+        {
+            if (_breakoutLabelDrawn)
+                return;
+
+            if (_isNoTradeNoiseOR || _isFakeNoTradeOR)
+                return;
+
+            if (_orBar < 0 || closedBar <= _orBar)
+                return;
+
+            int barsAfterOR = closedBar - _orBar;
+
+            if (barsAfterOR > BreakoutScanBars)
+                return;
+
+            var candle = GetCandle(closedBar);
+
+            if (_isFakeBreakoutOR && !_fakeBreakoutReentered)
             {
-                _highLine[bar] = _orHigh;
-                _lowLine[bar] = _orLow;
+                bool closeAboveOR = candle.Close > _orHigh;
+                bool closeBelowOR = candle.Close < _orLow;
+
+                if (!_fakeInitialOutsideDetected)
+                {
+                    bool validFakeInitialBreakout = false;
+
+                    if (barsAfterOR <= MaxFakeInitialBreakoutBars && (closeAboveOR || closeBelowOR))
+                    {
+                        string fakeSide = closeAboveOR ? "BUY" : "SELL";
+                        decimal fakeBodyOutsideTicks = CalculateBodyOutsideORTicks(candle, fakeSide);
+
+                        if (fakeBodyOutsideTicks >= MinFakeInitialBreakoutTicks)
+                            validFakeInitialBreakout = true;
+                    }
+
+                    if (validFakeInitialBreakout)
+                    {
+                        _fakeInitialOutsideDetected = true;
+                        _waitingForFakeReentry = true;
+                        return;
+                    }
+
+                    if (barsAfterOR >= MaxFakeInitialBreakoutBars)
+                    {
+                        _isFakeNoTradeOR = true;
+                        DrawFakeNoTradeLabel(candle, closedBar);
+                        return;
+                    }
+
+                    return;
+                }
+
+                if (_waitingForFakeReentry)
+                {
+                    bool closedBackInsideOR =
+                        candle.Close <= _orHigh &&
+                        candle.Close >= _orLow;
+
+                    if (!closedBackInsideOR)
+                        return;
+
+                    _fakeBreakoutReentered = true;
+                    _waitingForFakeReentry = false;
+
+                    return;
+                }
             }
 
-            bool isClosedBar = bar < CurrentBar - 1;
+            bool breakoutCloseAboveOR = candle.Close > _orHigh;
+            bool breakoutCloseBelowOR = candle.Close < _orLow;
 
-            if (_rangeReady && afterTarget && isClosedBar && !_breakoutLabelDrawn)
+            if (!breakoutCloseAboveOR && !breakoutCloseBelowOR)
+                return;
+
+            string side = breakoutCloseAboveOR ? "BUY" : "SELL";
+
+            if (_breakoutSide != "" && side != _breakoutSide)
+                return;
+
+            decimal realBodyOutsideTicks = CalculateBodyOutsideORTicks(candle, side);
+
+            if (realBodyOutsideTicks < MinBodyOutsideORTicks)
+                return;
+
+            decimal imbalancePrice;
+            decimal imbalanceAggressive;
+            decimal imbalancePassive;
+
+            bool hasValidImbalance =
+                side == "BUY"
+                    ? TryGetLowestBuyImbalance(candle, out imbalancePrice, out imbalanceAggressive, out imbalancePassive)
+                    : TryGetHighestSellImbalance(candle, out imbalancePrice, out imbalanceAggressive, out imbalancePassive);
+
+            if (!hasValidImbalance)
+                return;
+
+            DrawOrangeImbalanceLine(closedBar, imbalancePrice, imbalanceAggressive, imbalancePassive);
+            _imbalanceLineDrawn = true;
+
+            _breakoutSide = side;
+            _breakoutLabelDrawn = true;
+
+            string label = $"{side} A+ TRADE | {realBodyOutsideTicks:0}t";
+
+            decimal textPrice = side == "BUY" ? candle.High : candle.Low;
+            int verticalOffset = side == "BUY" ? -45 : 45;
+
+            int labelBar = closedBar;
+
+            AddText(
+                $"BREAKOUT_LABEL_{candle.Time:yyyyMMdd}",
+                label,
+                true,
+                labelBar,
+                textPrice,
+                verticalOffset,
+                0,
+                Color.White,
+                Color.Green,
+                Color.Green,
+                16,
+                DrawingText.TextAlign.Center,
+                true
+            );
+
+            if (side == "SELL")
             {
-                decimal breakoutTicks = 0;
-                string direction = "";
+                DrawSellTwoContractsLine(candle, closedBar);
+                DrawSellOneContractLine(candle, closedBar);
+            }
 
-                if (candle.Close > _orHigh)
-                {
-                    breakoutTicks = (candle.Close - _orHigh) / TickSize;
-                    direction = "BUY";
-                }
-                else if (candle.Close < _orLow)
-                {
-                    breakoutTicks = (_orLow - candle.Close) / TickSize;
-                    direction = "SELL";
-                }
-
-                if (breakoutTicks >= 20)
-                {
-                    _breakoutLabelDrawn = true;
-
-                    string breakoutLabel;
-                    string simpleLabel;
-
-                    if (breakoutTicks <= 35)
-                    {
-                        breakoutLabel = $"BR VÁLIDO {direction}  {breakoutTicks:0} ticks";
-                        simpleLabel = "VÁLIDO";
-                    }
-                    else if (breakoutTicks <= 60)
-                    {
-                        breakoutLabel = $"🔥 A+ {direction}  {breakoutTicks:0} ticks";
-                        simpleLabel = "A+";
-                    }
-                    else
-                    {
-                        breakoutLabel = $"🚀 EXTREMO {direction}  {breakoutTicks:0} ticks";
-                        simpleLabel = "EXTREMO";
-                    }
-
-                    decimal breakoutLabelPrice = direction == "BUY" ? candle.High : candle.Low;
-                    int verticalOffset = direction == "BUY" ? -35 : 35;
-
-                    AddText(
-                        $"BREAKOUT_{time:yyyyMMdd}_{bar}",
-                        breakoutLabel,
-                        true,
-                        bar,
-                        breakoutLabelPrice,
-                        verticalOffset,
-                        0,
-                        Color.White,
-                        Color.Black,
-                        Color.Black,
-                        18,
-                        DrawingText.TextAlign.Center,
-                        true
-                    );
-
-                    AddText(
-                        $"SIMPLE_{time:yyyyMMdd}_{bar}",
-                        simpleLabel,
-                        true,
-                        bar,
-                        breakoutLabelPrice,
-                        verticalOffset - 20,
-                        0,
-                        Color.Yellow,
-                        Color.Transparent,
-                        Color.Transparent,
-                        22,
-                        DrawingText.TextAlign.Center,
-                        true
-                    );
-
-                    decimal slLevel;
-                    decimal slTicks;
-
-                    bool foundImbalance = direction == "BUY"
-                        ? TryFindBuySlFromBreakoutClose(bar, candle.Close, out slLevel, out slTicks)
-                        : TryFindSellSlFromBreakoutClose(bar, candle.Close, out slLevel, out slTicks);
-
-                    if (foundImbalance)
-                    {
-                        // 🔥 SOLO CAMBIO: SL DEBAJO DE LA VELA
-                        AddText(
-                            $"SL_{time:yyyyMMdd}_{bar}",
-                            $"------ SL {slTicks:0} ticks",
-                            true,
-                            bar,
-                            candle.Low,   // 👈 base en el low de la vela
-                            40,           // 👈 lo baja
-                            0,
-                            Color.White,
-                            Color.Transparent,
-                            Color.Transparent,
-                            14,
-                            DrawingText.TextAlign.Center,
-                            true
-                        );
-                    }
-                }
+            if (side == "BUY")
+            {
+                DrawBuyTwoContractsLine(candle, closedBar);
+                DrawBuyOneContractLine(candle, closedBar);
             }
         }
 
-        // 🔽 TODO LO DEMÁS IGUAL 🔽
-
-        private bool TryFindBuySlFromBreakoutClose(int breakoutBar, decimal breakoutClose, out decimal slLevel, out decimal slTicks)
+        private bool TryGetLowestBuyImbalance(dynamic candle, out decimal selectedPrice, out decimal selectedAsk, out decimal selectedBid)
         {
-            slLevel = 0;
-            slTicks = 0;
+            selectedPrice = 0;
+            selectedAsk = 0;
+            selectedBid = 0;
 
-            if (_orBar < 0)
-                return false;
-
-            decimal bestDistance = decimal.MaxValue;
-            decimal bestLevel = 0;
-
-            for (int bar = breakoutBar; bar >= _orBar + 1; bar--)
+            try
             {
-                var candle = GetCandle(bar);
+                var levels = GetClusterLevels(candle);
 
-                if (candle.Time.Date != _currentDate)
-                    break;
+                if (levels.Count < 2)
+                    return false;
 
-                var levels = candle.GetAllPriceLevels().OrderByDescending(x => x.Price).ToList();
+                bool found = false;
 
-                for (int i = 0; i < levels.Count - 1; i++)
+                for (int i = 1; i < levels.Count; i++)
                 {
                     var current = levels[i];
-                    var lower = levels[i + 1];
+                    var lower = levels[i - 1];
 
-                    if (current.Price >= breakoutClose)
+                    if (lower.Bid <= 0)
                         continue;
 
-                    if (!IsBuyImbalance(current, lower))
+                    bool isBuyImbalance =
+                        current.Ask >= ImbalanceVolumeFilter &&
+                        current.Ask >= lower.Bid * ImbalanceRatio;
+
+                    if (!isBuyImbalance)
                         continue;
 
-                    decimal distanceTicks = (breakoutClose - current.Price) / TickSize;
-
-                    if (distanceTicks <= 0 || distanceTicks > MaxSlSearchTicks)
-                        continue;
-
-                    if (bar < breakoutBar && WasBuyLevelTouchedAfter(bar + 1, breakoutBar, current.Price))
-                        continue;
-
-                    if (distanceTicks < bestDistance)
+                    if (!found || current.Price < selectedPrice)
                     {
-                        bestDistance = distanceTicks;
-                        bestLevel = current.Price;
+                        found = true;
+                        selectedPrice = current.Price;
+                        selectedAsk = current.Ask;
+                        selectedBid = lower.Bid;
                     }
                 }
+
+                return found;
             }
-
-            if (bestLevel == 0)
+            catch
+            {
                 return false;
-
-            slLevel = bestLevel;
-            slTicks = Math.Round(bestDistance, 0);
-            return true;
+            }
         }
 
-        private bool TryFindSellSlFromBreakoutClose(int breakoutBar, decimal breakoutClose, out decimal slLevel, out decimal slTicks)
+        private bool TryGetHighestSellImbalance(dynamic candle, out decimal selectedPrice, out decimal selectedBid, out decimal selectedAsk)
         {
-            slLevel = 0;
-            slTicks = 0;
+            selectedPrice = 0;
+            selectedBid = 0;
+            selectedAsk = 0;
 
-            if (_orBar < 0)
-                return false;
-
-            decimal bestDistance = decimal.MaxValue;
-            decimal bestLevel = 0;
-
-            for (int bar = breakoutBar; bar >= _orBar + 1; bar--)
+            try
             {
-                var candle = GetCandle(bar);
+                var levels = GetClusterLevels(candle);
 
-                if (candle.Time.Date != _currentDate)
-                    break;
+                if (levels.Count < 2)
+                    return false;
 
-                var levels = candle.GetAllPriceLevels().OrderBy(x => x.Price).ToList();
+                bool found = false;
 
                 for (int i = 0; i < levels.Count - 1; i++)
                 {
                     var current = levels[i];
                     var upper = levels[i + 1];
 
-                    if (current.Price <= breakoutClose)
+                    if (upper.Ask <= 0)
                         continue;
 
-                    if (!IsSellImbalance(current, upper))
+                    bool isSellImbalance =
+                        current.Bid >= ImbalanceVolumeFilter &&
+                        current.Bid >= upper.Ask * ImbalanceRatio;
+
+                    if (!isSellImbalance)
                         continue;
 
-                    decimal distanceTicks = (current.Price - breakoutClose) / TickSize;
-
-                    if (distanceTicks <= 0 || distanceTicks > MaxSlSearchTicks)
-                        continue;
-
-                    if (bar < breakoutBar && WasSellLevelTouchedAfter(bar + 1, breakoutBar, current.Price))
-                        continue;
-
-                    if (distanceTicks < bestDistance)
+                    if (!found || current.Price > selectedPrice)
                     {
-                        bestDistance = distanceTicks;
-                        bestLevel = current.Price;
+                        found = true;
+                        selectedPrice = current.Price;
+                        selectedBid = current.Bid;
+                        selectedAsk = upper.Ask;
                     }
                 }
+
+                return found;
             }
-
-            if (bestLevel == 0)
-                return false;
-
-            slLevel = bestLevel;
-            slTicks = Math.Round(bestDistance, 0);
-            return true;
-        }
-
-        private bool WasBuyLevelTouchedAfter(int fromBar, int toBar, decimal price)
-        {
-            for (int i = fromBar; i <= toBar; i++)
+            catch
             {
-                if (i < 0 || i >= CurrentBar)
-                    continue;
-
-                if (GetCandle(i).Low <= price)
-                    return true;
+                return false;
             }
-            return false;
         }
 
-        private bool WasSellLevelTouchedAfter(int fromBar, int toBar, decimal price)
+        private List<ClusterLevel> GetClusterLevels(dynamic candle)
         {
-            for (int i = fromBar; i <= toBar; i++)
+            var levels = new List<ClusterLevel>();
+
+            foreach (var lvl in candle.GetAllPriceLevels())
             {
-                if (i < 0 || i >= CurrentBar)
-                    continue;
-
-                if (GetCandle(i).High >= price)
-                    return true;
+                levels.Add(new ClusterLevel
+                {
+                    Price = Convert.ToDecimal(lvl.Price),
+                    Bid = Convert.ToDecimal(lvl.Bid),
+                    Ask = Convert.ToDecimal(lvl.Ask)
+                });
             }
-            return false;
+
+            levels.Sort((a, b) => a.Price.CompareTo(b.Price));
+
+            return levels;
         }
 
-        private bool IsBuyImbalance(PriceVolumeInfo current, PriceVolumeInfo lower)
+        private void DrawOrangeImbalanceLine(int bar, decimal price, decimal aggressive, decimal passive)
         {
-            if (current.Ask < MinImbalanceVolume)
-                return false;
+            if (_imbalanceLineDrawn)
+                return;
 
-            if (lower.Bid <= 0)
-                return current.Ask >= MinImbalanceVolume;
+            var pen = new Pen(Color.Orange, 5);
 
-            return current.Ask >= lower.Bid * ImbalanceRatio;
+            TrendLines.Add(
+                new TrendLine(
+                    bar,
+                    price,
+                    bar + ImbalanceLineLength,
+                    price,
+                    pen
+                )
+            );
+
+            AddText(
+                $"IMB_BREAKOUT_{bar}_{price}",
+                $"{aggressive:0}/{passive:0}",
+                true,
+                bar + 1,
+                price,
+                -15,
+                0,
+                Color.Black,
+                Color.Orange,
+                Color.Orange,
+                12,
+                DrawingText.TextAlign.Center,
+                true
+            );
         }
 
-        private bool IsSellImbalance(PriceVolumeInfo current, PriceVolumeInfo upper)
+        private class ClusterLevel
         {
-            if (current.Bid < MinImbalanceVolume)
-                return false;
+            public decimal Price { get; set; }
+            public decimal Bid { get; set; }
+            public decimal Ask { get; set; }
+        }
 
-            if (upper.Ask <= 0)
-                return current.Bid >= MinImbalanceVolume;
+        private void DrawFakeNoTradeLabel(dynamic candle, int closedBar)
+        {
+            if (_fakeNoTradeLabelDrawn)
+                return;
 
-            return current.Bid >= upper.Ask * ImbalanceRatio;
+            _fakeNoTradeLabelDrawn = true;
+
+            AddText(
+                $"FAKE_NO_TRADE_LABEL_{candle.Time:yyyyMMdd}",
+                $"NO TRADE | NO 40t IN {MaxFakeInitialBreakoutBars} BARS",
+                true,
+                closedBar,
+                _orHigh,
+                -85,
+                0,
+                Color.White,
+                Color.Red,
+                Color.Red,
+                16,
+                DrawingText.TextAlign.Center,
+                true
+            );
+        }
+
+        private decimal CalculateBodyOutsideORTicks(dynamic candle, string side)
+        {
+            decimal bodyHigh = Math.Max(candle.Open, candle.Close);
+            decimal bodyLow = Math.Min(candle.Open, candle.Close);
+
+            decimal bodyOutside = 0;
+
+            if (side == "BUY")
+                bodyOutside = bodyHigh - Math.Max(bodyLow, _orHigh);
+
+            if (side == "SELL")
+                bodyOutside = Math.Min(bodyHigh, _orLow) - bodyLow;
+
+            if (bodyOutside < 0)
+                bodyOutside = 0;
+
+            return bodyOutside / TickSize;
+        }
+
+        private void DrawSellTwoContractsLine(dynamic candle, int closedBar)
+        {
+            if (_sellTwoContractsLineDrawn)
+                return;
+
+            _sellTwoContractsLineDrawn = true;
+
+            decimal targetPrice = candle.Close + (TwoContractsDistanceTicks * TickSize);
+            var pen = new Pen(Color.LimeGreen, 2);
+
+            TrendLines.Add(new TrendLine(closedBar, targetPrice, closedBar + LineLength, targetPrice, pen));
+
+            AddContractsLabel(
+                $"SELL_TWO_CONTRACTS_LABEL_{candle.Time:yyyyMMdd}",
+                "2 contratos",
+                closedBar,
+                targetPrice,
+                Color.White,
+                Color.LimeGreen
+            );
+        }
+
+        private void DrawSellOneContractLine(dynamic candle, int closedBar)
+        {
+            if (_sellOneContractLineDrawn)
+                return;
+
+            _sellOneContractLineDrawn = true;
+
+            decimal targetPrice = candle.Close + (OneContractDistanceTicks * TickSize);
+            var pen = new Pen(Color.Yellow, 2);
+
+            TrendLines.Add(new TrendLine(closedBar, targetPrice, closedBar + LineLength, targetPrice, pen));
+
+            AddContractsLabel(
+                $"SELL_ONE_CONTRACT_LABEL_{candle.Time:yyyyMMdd}",
+                "1 contrato",
+                closedBar,
+                targetPrice,
+                Color.Black,
+                Color.Yellow
+            );
+        }
+
+        private void DrawBuyTwoContractsLine(dynamic candle, int closedBar)
+        {
+            if (_buyTwoContractsLineDrawn)
+                return;
+
+            _buyTwoContractsLineDrawn = true;
+
+            decimal targetPrice = candle.Close - (TwoContractsDistanceTicks * TickSize);
+            var pen = new Pen(Color.DodgerBlue, 2);
+
+            TrendLines.Add(new TrendLine(closedBar, targetPrice, closedBar + LineLength, targetPrice, pen));
+
+            AddContractsLabel(
+                $"BUY_TWO_CONTRACTS_LABEL_{candle.Time:yyyyMMdd}",
+                "2 contratos",
+                closedBar,
+                targetPrice,
+                Color.White,
+                Color.DodgerBlue
+            );
+        }
+
+        private void DrawBuyOneContractLine(dynamic candle, int closedBar)
+        {
+            if (_buyOneContractLineDrawn)
+                return;
+
+            _buyOneContractLineDrawn = true;
+
+            decimal targetPrice = candle.Close - (OneContractDistanceTicks * TickSize);
+            var pen = new Pen(Color.Yellow, 2);
+
+            TrendLines.Add(new TrendLine(closedBar, targetPrice, closedBar + LineLength, targetPrice, pen));
+
+            AddContractsLabel(
+                $"BUY_ONE_CONTRACT_LABEL_{candle.Time:yyyyMMdd}",
+                "1 contrato",
+                closedBar,
+                targetPrice,
+                Color.Black,
+                Color.Yellow
+            );
+        }
+
+        private void AddContractsLabel(string id, string text, int bar, decimal price, Color textColor, Color bgColor)
+        {
+            AddText(
+                id,
+                text,
+                true,
+                bar,
+                price,
+                -20,
+                0,
+                textColor,
+                bgColor,
+                bgColor,
+                14,
+                DrawingText.TextAlign.Center,
+                true
+            );
         }
     }
 }
