@@ -1001,7 +1001,7 @@ namespace ATAS.Indicators
                             current.Ask >= lower.Bid * ImbalanceRatio;
                     }
 
-                    if (!sameLevelBuyImbalance && !reversedSameLevelBuyImbalance && !diagonalBuyImbalance)
+                    if (!diagonalBuyImbalance)
                         continue;
 
                     bool isValidAbsorptionZone =
@@ -1016,21 +1016,8 @@ namespace ATAS.Indicators
                         found = true;
                         selectedPrice = current.Price;
 
-                        if (sameLevelBuyImbalance)
-                        {
-                            selectedAsk = current.Ask;
-                            selectedBid = current.Bid;
-                        }
-                        else if (reversedSameLevelBuyImbalance)
-                        {
-                            selectedAsk = current.Bid;
-                            selectedBid = current.Ask;
-                        }
-                        else
-                        {
-                            selectedAsk = current.Ask;
-                            selectedBid = diagonalBid;
-                        }
+                        selectedAsk = current.Ask;
+                        selectedBid = diagonalBid;
                     }
                 }
 
@@ -1088,7 +1075,7 @@ namespace ATAS.Indicators
                             current.Bid >= upper.Ask * ImbalanceRatio;
                     }
 
-                    if (!sameLevelSellImbalance && !reversedSameLevelSellImbalance && !diagonalSellImbalance)
+                    if (!diagonalSellImbalance)
                         continue;
 
                     bool isValidAbsorptionZone =
@@ -1103,21 +1090,8 @@ namespace ATAS.Indicators
                         found = true;
                         selectedPrice = current.Price;
 
-                        if (sameLevelSellImbalance)
-                        {
-                            selectedBid = current.Bid;
-                            selectedAsk = current.Ask;
-                        }
-                        else if (reversedSameLevelSellImbalance)
-                        {
-                            selectedBid = current.Ask;
-                            selectedAsk = current.Bid;
-                        }
-                        else
-                        {
-                            selectedBid = current.Bid;
-                            selectedAsk = diagonalAsk;
-                        }
+                        selectedBid = current.Bid;
+                        selectedAsk = diagonalAsk;
                     }
                 }
 
@@ -1536,54 +1510,36 @@ namespace ATAS.Indicators
                     }
                 }
 
-                // =========================
-                // SAME LEVEL SELL
-                // =========================
 
-                if (current.Ask > 0 &&
-                    current.Bid >= ImbalanceVolumeFilter &&
-                    current.Bid >= current.Ask * ImbalanceRatio)
-                {
-                    if (inLowerWick)
-                    {
-                        UpdateWickDebugCandidate(
-                            lower,
-                            current.Price,
-                            current.Bid,
-                            current.Ask
-                        );
-                    }
-
-                    if (inUpperWick)
-                    {
-                        UpdateWickDebugCandidate(
-                            upper,
-                            current.Price,
-                            current.Bid,
-                            current.Ask
-                        );
-                    }
-                }
 
                 // =========================
-                // DIAGONAL BUY
+                // DIAGONAL BUY (ATAS STYLE)
                 // =========================
 
                 if (i > 0)
                 {
                     var lowerLevel = levels[i - 1];
 
-                    if (lowerLevel.Bid > 0 &&
-                        current.Ask >= ImbalanceVolumeFilter &&
-                        current.Ask >= lowerLevel.Bid * ImbalanceRatio)
+                    decimal diagonalAsk = current.Ask;
+                    decimal diagonalBid = lowerLevel.Bid;
+
+                    bool validDiagonalBuy =
+                        diagonalBid > 0 &&
+                        diagonalAsk >= ImbalanceVolumeFilter &&
+                        diagonalAsk >= diagonalBid * ImbalanceRatio;
+
+                    if (validDiagonalBuy)
                     {
+                        // PRIORIDAD TOTAL AL DIAGONAL
+                        // porque así lee ATAS footprint
+
                         if (inLowerWick)
                         {
                             UpdateWickDebugCandidate(
                                 lower,
                                 current.Price,
-                                current.Ask,
-                                lowerLevel.Bid
+                                diagonalAsk,
+                                diagonalBid
                             );
                         }
 
@@ -1592,32 +1548,40 @@ namespace ATAS.Indicators
                             UpdateWickDebugCandidate(
                                 upper,
                                 current.Price,
-                                current.Ask,
-                                lowerLevel.Bid
+                                diagonalAsk,
+                                diagonalBid
                             );
                         }
                     }
                 }
 
                 // =========================
-                // DIAGONAL SELL
+                // DIAGONAL SELL (ATAS STYLE)
                 // =========================
 
                 if (i < levels.Count - 1)
                 {
                     var upperLevel = levels[i + 1];
 
-                    if (upperLevel.Ask > 0 &&
-                        current.Bid >= ImbalanceVolumeFilter &&
-                        current.Bid >= upperLevel.Ask * ImbalanceRatio)
+                    decimal diagonalBid = current.Bid;
+                    decimal diagonalAsk = upperLevel.Ask;
+
+                    bool validDiagonalSell =
+                        diagonalAsk > 0 &&
+                        diagonalBid >= ImbalanceVolumeFilter &&
+                        diagonalBid >= diagonalAsk * ImbalanceRatio;
+
+                    if (validDiagonalSell)
                     {
+                        // PRIORIDAD TOTAL AL DIAGONAL SELL
+
                         if (inLowerWick)
                         {
                             UpdateWickDebugCandidate(
                                 lower,
                                 current.Price,
-                                current.Bid,
-                                upperLevel.Ask
+                                diagonalBid,
+                                diagonalAsk
                             );
                         }
 
@@ -1626,12 +1590,14 @@ namespace ATAS.Indicators
                             UpdateWickDebugCandidate(
                                 upper,
                                 current.Price,
-                                current.Bid,
-                                upperLevel.Ask
+                                diagonalBid,
+                                diagonalAsk
                             );
                         }
                     }
                 }
+
+
             }
 
             string lowerText =
