@@ -5,6 +5,9 @@
     {
       "AbsoluteMoniker": "D:0:0:{8D310DC7-7A48-92A1-A390-D34265CB253A}|EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup.csproj|c:\\users\\k_99_\\desktop\\codding\\openingrangesetup\\eddiewareopeningrangesetup\\eddiewareopeningrangesetup\\class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{8D310DC7-7A48-92A1-A390-D34265CB253A}|EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup.csproj|solutionrelative:eddiewareopeningrangesetup\\class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\k_99_\\Desktop\\EddiewareOpeningRangeSetup_NoAbsFormat.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -14,8 +17,21 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 1,
           "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "EddiewareOpeningRangeSetup_NoAbsFormat.cs",
+              "DocumentMoniker": "C:\\Users\\k_99_\\Desktop\\EddiewareOpeningRangeSetup_NoAbsFormat.cs",
+              "RelativeDocumentMoniker": "..\\..\\..\\EddiewareOpeningRangeSetup_NoAbsFormat.cs",
+              "ToolTip": "C:\\Users\\k_99_\\Desktop\\EddiewareOpeningRangeSetup_NoAbsFormat.cs",
+              "RelativeToolTip": "..\\..\\..\\EddiewareOpeningRangeSetup_NoAbsFormat.cs",
+              "ViewState": "AgIAAAYFAAAAAAAAAAAowCMFAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-11T23:11:20.45Z",
+              "EditorCaption": ""
+            },
             {
               "$type": "Document",
               "DocumentIndex": 0,
@@ -24,7 +40,7 @@
               "RelativeDocumentMoniker": "EddiewareOpeningRangeSetup\\Class1.cs",
               "ToolTip": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\Class1.cs",
               "RelativeToolTip": "EddiewareOpeningRangeSetup\\Class1.cs",
-              "ViewState": "AgIAABEFAAAAAAAAAAAowBIFAAALAAAAAAAAAA==",
+              "ViewState": "AgIAACwAAAAAAAAAAAAcwDsAAABBAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-04-27T21:36:58.296Z",
               "EditorCaption": ""

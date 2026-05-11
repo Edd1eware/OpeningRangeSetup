@@ -35,7 +35,6 @@ namespace ATAS.Indicators
         private bool _fakeBreakoutReentered;
         private bool _isFakeNoTradeOR;
         private bool _isExhaustionDay;
-        private bool _isORTicksTooLarge;
 
         private int _orBar = -1;
         private string _breakoutSide = "";
@@ -58,7 +57,7 @@ namespace ATAS.Indicators
         public decimal MinFakeInitialBreakoutTicks { get; set; } = 40;
 
         [DisplayName("Min OR Body Quality %")]
-        public decimal MinORBodyQualityPercent { get; set; } = 50;
+        public decimal MinORBodyQualityPercent { get; set; } = 45;
 
         [DisplayName("Min Body Outside OR Ticks")]
         public decimal MinBodyOutsideORTicks { get; set; } = 35;
@@ -89,9 +88,6 @@ namespace ATAS.Indicators
 
         [DisplayName("Min Signal Body Ticks")]
         public decimal MinSignalBodyTicks { get; set; } = 1;
-
-        [DisplayName("Max OR Range Ticks")]
-        public decimal MaxORRangeTicks { get; set; } = 210;
 
 
 
@@ -133,7 +129,6 @@ namespace ATAS.Indicators
                 _fakeBreakoutReentered = false;
                 _isFakeNoTradeOR = false;
                 _isExhaustionDay = false;
-                _isORTicksTooLarge = false;
 
                 _orBar = -1;
                 _breakoutSide = "";
@@ -223,12 +218,10 @@ namespace ATAS.Indicators
 
             decimal rangeTicks = (_orHigh - _orLow) / TickSize;
 
-            _isORTicksTooLarge = rangeTicks > MaxORRangeTicks;
-
             string classification =
                 _isNoTradeNoiseOR ? "NO TRADE" :
                 rangeTicks <= 100 ? "A+" :
-                rangeTicks <= MaxORRangeTicks ? "B FUERTE" :
+                rangeTicks <= 210 ? "B FUERTE" :
                 "NO TRADE";
 
             string label = $"{classification} | OR {rangeTicks:0}t";
@@ -330,9 +323,6 @@ namespace ATAS.Indicators
             int barsAfterOR = closedBar - _orBar;
 
             if (barsAfterOR > BreakoutScanBars)
-                return;
-
-            if (_isORTicksTooLarge)
                 return;
 
             if (_isExhaustionDay)
@@ -1250,30 +1240,41 @@ namespace ATAS.Indicators
                 }
             }
 
-            string lowerText =
-                lower.Found
-                    ? $"{lower.Aggressive:0}/{lower.Passive:0}"
-                    : "NO";
+            bool hasAnyDebugImbalance = lower.Found || upper.Found;
 
-            string upperText =
-                upper.Found
-                    ? $"{upper.Aggressive:0}/{upper.Passive:0}"
-                    : "NO";
+            decimal strongestAggressive = 0;
+            decimal strongestPassive = 0;
+
+            if (lower.Found)
+            {
+                strongestAggressive = lower.Aggressive;
+                strongestPassive = lower.Passive;
+            }
+
+            if (upper.Found && upper.Aggressive > strongestAggressive)
+            {
+                strongestAggressive = upper.Aggressive;
+                strongestPassive = upper.Passive;
+            }
+
+            string debugText = hasAnyDebugImbalance
+                ? $"NO ABS | {strongestAggressive:0}/{strongestPassive:0}"
+                : "NO ABS | NONE";
 
             AddText(
                 $"WARN_ABS_DEBUG_{candle.Time:yyyyMMdd_HHmm}_{closedBar}",
-                $"ABS DBG | L {lowerText} | U {upperText}",
+                debugText,
                 true,
                 closedBar,
                 candle.High,
                 -30,
                 0,
-                Color.Black,
-                lower.Found || upper.Found
-                    ? Color.Orange
+                Color.White,
+                hasAnyDebugImbalance
+                    ? Color.DarkRed
                     : Color.DarkRed,
-                lower.Found || upper.Found
-                    ? Color.Orange
+                hasAnyDebugImbalance
+                    ? Color.DarkRed
                     : Color.DarkRed,
                 10,
                 DrawingText.TextAlign.Center,
