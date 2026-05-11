@@ -38,6 +38,19 @@ namespace ATAS.Indicators
         private bool _isExhaustionDay;
 
         private bool _institutionalReverseDrawn;
+        private bool _largeTradeStatusLabelDrawn;
+        private bool _bigTradeStatusActive;
+        private bool _bigTradeStatusTwoTouched;
+        private bool _bigTradeStatusOneTouched;
+        private int _bigTradeStatusSignalBar = -1;
+        private int _bigTradeStatusLastDrawnBar = -1;
+        private string _bigTradeStatusLastDrawnText = "";
+        private string _bigTradeStatusSide = "";
+        private decimal _bigTradeStatusTwoPrice;
+        private decimal _bigTradeStatusOnePrice;
+        private string _bigTradeStatusRenderText = "";
+        private Color _bigTradeStatusRenderTextColor = Color.LimeGreen;
+        private Color _bigTradeStatusRenderBackgroundColor = Color.FromArgb(180, 0, 0, 0);
         private int _initialBreakoutBar = -1;
         private string _initialBreakoutSide = "";
 
@@ -91,9 +104,6 @@ namespace ATAS.Indicators
         [DisplayName("Show Warning Absorption Debug Labels")]
         public bool ShowWarningAbsorptionDebugLabels { get; set; } = true;
 
-        [DisplayName("Show ABS / NO ABS Debug Labels")]
-        public bool ShowAbsorptionPerBarDebugLabels { get; set; } = true;
-
         [DisplayName("Absorption Wick Tolerance Ticks")]
         public decimal AbsorptionWickToleranceTicks { get; set; } = 1;
 
@@ -106,11 +116,28 @@ namespace ATAS.Indicators
         [DisplayName("Institutional Reverse Require OR Reentry")]
         public bool InstitutionalReverseRequireORReentry { get; set; } = true;
 
+        [DisplayName("Show Big Trade Status Label")]
+        public bool ShowBigTradeStatusLabel { get; set; } = true;
+
+        [DisplayName("Big Trade Status Font Size")]
+        public int BigTradeStatusFontSize { get; set; } = 90;
+
+        [DisplayName("Big Trade Status Offset X")]
+        public int BigTradeStatusOffsetX { get; set; } = 10;
+
+        [DisplayName("Big Trade Status Offset Y")]
+        public int BigTradeStatusOffsetY { get; set; } = 550;
+
+        [DisplayName("Big Trade Status Forward Bars")]
+        public int BigTradeStatusForwardBars { get; set; } = 3;
+
 
 
         public EddiewareOpeningRangeSetup()
         {
             DrawAbovePrice = true;
+            EnableCustomDrawing = true;
+            SubscribeToDrawingEvents(DrawingLayouts.Final | DrawingLayouts.LatestBar);
         }
 
         protected override void OnCalculate(int bar, decimal value)
@@ -149,6 +176,18 @@ namespace ATAS.Indicators
                 _isExhaustionDay = false;
 
                 _institutionalReverseDrawn = false;
+                _largeTradeStatusLabelDrawn = false;
+                _bigTradeStatusActive = false;
+                _bigTradeStatusTwoTouched = false;
+                _bigTradeStatusOneTouched = false;
+                _bigTradeStatusSignalBar = -1;
+                _bigTradeStatusLastDrawnBar = -1;
+                _bigTradeStatusLastDrawnText = "";
+                _bigTradeStatusSide = "";
+                _bigTradeStatusTwoPrice = 0;
+                _bigTradeStatusOnePrice = 0;
+                _bigTradeStatusRenderText = "";
+                _bigTradeStatusRenderTextColor = Color.LimeGreen;
                 _initialBreakoutBar = -1;
                 _initialBreakoutSide = "";
 
@@ -174,8 +213,9 @@ namespace ATAS.Indicators
 
             if (_rangeDrawn)
             {
-                DrawAbsorptionPerBarDebugLabel(bar - 1);
-                CheckBreakoutOnClosedBar(bar - 1);
+                int closedBar = bar - 1;
+                CheckBreakoutOnClosedBar(closedBar);
+                UpdateBigTradeStatusLabel(closedBar);
             }
         }
 
@@ -552,6 +592,8 @@ namespace ATAS.Indicators
                 DrawBuyOneContractLine(candle, closedBar);
             }
 
+            DrawBigTradeStatusLabel(candle, closedBar, finalSide);
+
         }
 
 
@@ -667,6 +709,8 @@ namespace ATAS.Indicators
                 DrawBuyTwoContractsLine(candle, closedBar);
                 DrawBuyOneContractLine(candle, closedBar);
             }
+
+            DrawBigTradeStatusLabel(candle, closedBar, reverseSide);
         }
 
         private void DrawInstitutionalReverseLine(int bar, decimal price, decimal aggressive, decimal passive, string side)
@@ -1301,6 +1345,120 @@ namespace ATAS.Indicators
             );
         }
 
+        private void DrawBigTradeStatusLabel(dynamic candle, int closedBar, string side)
+        {
+            if (!ShowBigTradeStatusLabel)
+                return;
+
+            if (_largeTradeStatusLabelDrawn)
+                return;
+
+            _largeTradeStatusLabelDrawn = true;
+            _bigTradeStatusActive = true;
+            _bigTradeStatusSignalBar = closedBar;
+            _bigTradeStatusSide = side;
+            _bigTradeStatusTwoTouched = false;
+            _bigTradeStatusOneTouched = false;
+
+            _bigTradeStatusTwoPrice = side == "SELL"
+                ? candle.Close + (TwoContractsDistanceTicks * TickSize)
+                : candle.Close - (TwoContractsDistanceTicks * TickSize);
+
+            _bigTradeStatusOnePrice = side == "SELL"
+                ? candle.Close + (OneContractDistanceTicks * TickSize)
+                : candle.Close - (OneContractDistanceTicks * TickSize);
+
+            UpdateBigTradeStatusLabel(closedBar);
+        }
+
+        private void UpdateBigTradeStatusLabel(int closedBar)
+        {
+            if (!ShowBigTradeStatusLabel)
+                return;
+
+            if (!_bigTradeStatusActive)
+                return;
+
+            if (_bigTradeStatusSignalBar < 0 || closedBar < _bigTradeStatusSignalBar)
+                return;
+
+            var candle = GetCandle(closedBar);
+
+            if (_bigTradeStatusSide == "SELL")
+            {
+                if (candle.High >= _bigTradeStatusTwoPrice)
+                    _bigTradeStatusTwoTouched = true;
+
+                if (candle.High >= _bigTradeStatusOnePrice)
+                    _bigTradeStatusOneTouched = true;
+            }
+            else if (_bigTradeStatusSide == "BUY")
+            {
+                if (candle.Low <= _bigTradeStatusTwoPrice)
+                    _bigTradeStatusTwoTouched = true;
+
+                if (candle.Low <= _bigTradeStatusOnePrice)
+                    _bigTradeStatusOneTouched = true;
+            }
+            else
+            {
+                return;
+            }
+
+            if (_bigTradeStatusOneTouched)
+            {
+                _bigTradeStatusActive = false;
+                return;
+            }
+
+            string label;
+            decimal labelPrice;
+            Color textColor;
+            Color bgColor;
+
+            if (_bigTradeStatusTwoTouched)
+            {
+                label = $"{_bigTradeStatusSide} 1";
+                labelPrice = _bigTradeStatusOnePrice;
+                textColor = Color.Yellow;
+                bgColor = Color.Black;
+            }
+            else
+            {
+                label = $"{_bigTradeStatusSide} 2";
+                labelPrice = _bigTradeStatusTwoPrice;
+                textColor = Color.Lime;
+                bgColor = Color.Black;
+            }
+
+            // Solo imprime una vez cada estado.
+            // Ejemplo: imprime SELL 2 una sola vez.
+            // Si después toca la línea verde, imprime SELL 1 una sola vez.
+            if (_bigTradeStatusLastDrawnText == label)
+                return;
+
+            _bigTradeStatusLastDrawnText = label;
+            _bigTradeStatusLastDrawnBar = closedBar;
+
+            int labelBar = closedBar + BigTradeStatusForwardBars;
+
+            AddText(
+                $"BIG_TRADE_STATUS_{_currentDate:yyyyMMdd}_{label.Replace(" ", "_")}",
+                label,
+                true,
+                labelBar,
+                labelPrice,
+                _bigTradeStatusSide == "SELL" ? -45 : 45,
+                0,
+                textColor,
+                bgColor,
+                bgColor,
+                BigTradeStatusFontSize,
+                DrawingText.TextAlign.Center,
+                true
+            );
+        }
+
         private void AddContractsLabel(string id, string text, int bar, decimal price, Color textColor, Color bgColor)
         {
             AddText(
@@ -1315,80 +1473,6 @@ namespace ATAS.Indicators
                 bgColor,
                 bgColor,
                 14,
-                DrawingText.TextAlign.Center,
-                true
-            );
-        }
-
-
-        private void DrawAbsorptionPerBarDebugLabel(int closedBar)
-        {
-            if (!ShowAbsorptionPerBarDebugLabels)
-                return;
-
-            if (_orBar < 0 || closedBar <= _orBar)
-                return;
-
-            int barsAfterOR = closedBar - _orBar;
-
-            if (barsAfterOR > BreakoutScanBars)
-                return;
-
-            var candle = GetCandle(closedBar);
-
-            decimal upperPrice = 0;
-            decimal upperAggressive = 0;
-            decimal upperPassive = 0;
-
-            decimal lowerPrice = 0;
-            decimal lowerAggressive = 0;
-            decimal lowerPassive = 0;
-
-            bool hasUpperAbsorption = TryGetHighestSellImbalanceInUpperZone(
-                candle,
-                out upperPrice,
-                out upperAggressive,
-                out upperPassive
-            );
-
-            bool hasLowerAbsorption = TryGetLowestBuyImbalanceInLowerZone(
-                candle,
-                out lowerPrice,
-                out lowerAggressive,
-                out lowerPassive
-            );
-
-            string label;
-
-            if (hasUpperAbsorption && hasLowerAbsorption)
-                label = $"ABS U {upperAggressive:0}/{upperPassive:0} | L {lowerAggressive:0}/{lowerPassive:0}";
-            else if (hasUpperAbsorption)
-                label = $"ABS U {upperAggressive:0}/{upperPassive:0}";
-            else if (hasLowerAbsorption)
-                label = $"ABS L {lowerAggressive:0}/{lowerPassive:0}";
-            else
-                label = "NO ABS";
-
-            Color bgColor = hasUpperAbsorption || hasLowerAbsorption
-                ? Color.Orange
-                : Color.DarkRed;
-
-            Color textColor = hasUpperAbsorption || hasLowerAbsorption
-                ? Color.Black
-                : Color.White;
-
-            AddText(
-                $"ABS_PER_BAR_DEBUG_{candle.Time:yyyyMMdd_HHmm}_{closedBar}",
-                label,
-                true,
-                closedBar,
-                candle.High,
-                -75,
-                0,
-                textColor,
-                bgColor,
-                bgColor,
-                10,
                 DrawingText.TextAlign.Center,
                 true
             );
