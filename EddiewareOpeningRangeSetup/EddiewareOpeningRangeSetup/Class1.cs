@@ -29,30 +29,11 @@ namespace ATAS.Indicators
 
         private bool _isNoTradeNoiseOR;
         private bool _isFakeBreakoutOR;
-        private bool _isWarningAbsorptionOR;
-        private bool _isOversizedOR;
         private bool _fakeInitialOutsideDetected;
         private bool _waitingForFakeReentry;
         private bool _fakeBreakoutReentered;
         private bool _isFakeNoTradeOR;
         private bool _isExhaustionDay;
-
-        private bool _institutionalReverseDrawn;
-        private bool _largeTradeStatusLabelDrawn;
-        private bool _bigTradeStatusActive;
-        private bool _bigTradeStatusTwoTouched;
-        private bool _bigTradeStatusOneTouched;
-        private int _bigTradeStatusSignalBar = -1;
-        private int _bigTradeStatusLastDrawnBar = -1;
-        private string _bigTradeStatusLastDrawnText = "";
-        private string _bigTradeStatusSide = "";
-        private decimal _bigTradeStatusTwoPrice;
-        private decimal _bigTradeStatusOnePrice;
-        private string _bigTradeStatusRenderText = "";
-        private Color _bigTradeStatusRenderTextColor = Color.LimeGreen;
-        private Color _bigTradeStatusRenderBackgroundColor = Color.FromArgb(180, 0, 0, 0);
-        private int _initialBreakoutBar = -1;
-        private string _initialBreakoutSide = "";
 
         private int _orBar = -1;
         private string _breakoutSide = "";
@@ -80,9 +61,6 @@ namespace ATAS.Indicators
         [DisplayName("Min Body Outside OR Ticks")]
         public decimal MinBodyOutsideORTicks { get; set; } = 35;
 
-        [DisplayName("Max OR Range Ticks")]
-        public decimal MaxORRangeTicks { get; set; } = 210;
-
         [DisplayName("2 Contracts Distance Ticks")]
         public decimal TwoContractsDistanceTicks { get; set; } = 60;
 
@@ -101,43 +79,12 @@ namespace ATAS.Indicators
         [DisplayName("Show Exhaustion Debug Labels")]
         public bool ShowExhaustionDebugLabels { get; set; } = true;
 
-        [DisplayName("Show Warning Absorption Debug Labels")]
-        public bool ShowWarningAbsorptionDebugLabels { get; set; } = true;
-
         [DisplayName("Absorption Wick Tolerance Ticks")]
         public decimal AbsorptionWickToleranceTicks { get; set; } = 1;
-
-        [DisplayName("Enable Institutional Reverse")]
-        public bool EnableInstitutionalReverse { get; set; } = true;
-
-        [DisplayName("Institutional Reverse Scan Bars")]
-        public int InstitutionalReverseScanBars { get; set; } = 12;
-
-        [DisplayName("Institutional Reverse Require OR Reentry")]
-        public bool InstitutionalReverseRequireORReentry { get; set; } = true;
-
-        [DisplayName("Show Big Trade Status Label")]
-        public bool ShowBigTradeStatusLabel { get; set; } = true;
-
-        [DisplayName("Big Trade Status Font Size")]
-        public int BigTradeStatusFontSize { get; set; } = 90;
-
-        [DisplayName("Big Trade Status Offset X")]
-        public int BigTradeStatusOffsetX { get; set; } = 10;
-
-        [DisplayName("Big Trade Status Offset Y")]
-        public int BigTradeStatusOffsetY { get; set; } = 550;
-
-        [DisplayName("Big Trade Status Forward Bars")]
-        public int BigTradeStatusForwardBars { get; set; } = 3;
-
-
 
         public EddiewareOpeningRangeSetup()
         {
             DrawAbovePrice = true;
-            EnableCustomDrawing = true;
-            SubscribeToDrawingEvents(DrawingLayouts.Final | DrawingLayouts.LatestBar);
         }
 
         protected override void OnCalculate(int bar, decimal value)
@@ -167,29 +114,11 @@ namespace ATAS.Indicators
 
                 _isNoTradeNoiseOR = false;
                 _isFakeBreakoutOR = false;
-                _isWarningAbsorptionOR = false;
-                _isOversizedOR = false;
                 _fakeInitialOutsideDetected = false;
                 _waitingForFakeReentry = false;
                 _fakeBreakoutReentered = false;
                 _isFakeNoTradeOR = false;
                 _isExhaustionDay = false;
-
-                _institutionalReverseDrawn = false;
-                _largeTradeStatusLabelDrawn = false;
-                _bigTradeStatusActive = false;
-                _bigTradeStatusTwoTouched = false;
-                _bigTradeStatusOneTouched = false;
-                _bigTradeStatusSignalBar = -1;
-                _bigTradeStatusLastDrawnBar = -1;
-                _bigTradeStatusLastDrawnText = "";
-                _bigTradeStatusSide = "";
-                _bigTradeStatusTwoPrice = 0;
-                _bigTradeStatusOnePrice = 0;
-                _bigTradeStatusRenderText = "";
-                _bigTradeStatusRenderTextColor = Color.LimeGreen;
-                _initialBreakoutBar = -1;
-                _initialBreakoutSide = "";
 
                 _orBar = -1;
                 _breakoutSide = "";
@@ -212,11 +141,7 @@ namespace ATAS.Indicators
             }
 
             if (_rangeDrawn)
-            {
-                int closedBar = bar - 1;
-                CheckBreakoutOnClosedBar(closedBar);
-                UpdateBigTradeStatusLabel(closedBar);
-            }
+                CheckBreakoutOnClosedBar(bar - 1);
         }
 
         private void DrawOR(DateTime time, dynamic orCandle)
@@ -228,9 +153,6 @@ namespace ATAS.Indicators
 
             TrendLines.Add(new TrendLine(startBar, _orHigh, endBar, _orHigh, pen));
             TrendLines.Add(new TrendLine(startBar, _orLow, endBar, _orLow, pen));
-
-            decimal rangeTicks = (_orHigh - _orLow) / TickSize;
-            _isOversizedOR = rangeTicks > MaxORRangeTicks;
 
             DrawExhaustionDayLabel(time, orCandle);
             DrawSmallBodyLabel(time, orCandle);
@@ -289,7 +211,7 @@ namespace ATAS.Indicators
             string classification =
                 _isNoTradeNoiseOR ? "NO TRADE" :
                 rangeTicks <= 100 ? "A+" :
-                rangeTicks <= MaxORRangeTicks ? "B FUERTE" :
+                rangeTicks <= 210 ? "B FUERTE" :
                 "NO TRADE";
 
             string label = $"{classification} | OR {rangeTicks:0}t";
@@ -331,40 +253,33 @@ namespace ATAS.Indicators
             decimal bodyTicks = body / TickSize;
             decimal bodyPercent = body / candleRange * 100m;
 
+            if (bodyPercent >= MinORBodyQualityPercent)
+                return;
+
             _smallBodyLabelDrawn = true;
 
             string label;
-            Color bgColor;
 
-            if (bodyPercent < MinORBodyQualityPercent)
+            if (bodyTicks <= 7m)
             {
-                _isWarningAbsorptionOR = true;
-
-                label = $"WARNING ABSORPTION | B{bodyPercent:0}% | {bodyTicks:0}t";
-                bgColor = Color.DarkOrange;
-
-                if (bodyTicks <= 7m)
-                {
-                    _isNoTradeNoiseOR = true;
-                }
-                else if (bodyTicks <= 14m)
-                {
-                    _isFakeBreakoutOR = true;
-                    _fakeInitialOutsideDetected = false;
-                    _waitingForFakeReentry = false;
-                    _fakeBreakoutReentered = false;
-                }
+                label = $"NO TRADE NOISE | {bodyTicks:0}t";
+                _isNoTradeNoiseOR = true;
+            }
+            else if (bodyTicks <= 14m)
+            {
+                label = $"FAKE BREAKOUT | {bodyTicks:0}t";
+                _isFakeBreakoutOR = true;
+                _fakeInitialOutsideDetected = false;
+                _waitingForFakeReentry = false;
+                _fakeBreakoutReentered = false;
             }
             else
             {
-                _isWarningAbsorptionOR = false;
-
-                label = $"HEALTHY BODY | B{bodyPercent:0}% | {bodyTicks:0}t";
-                bgColor = Color.DarkGreen;
+                label = $"SMALL BODY | {bodyTicks:0}t";
             }
 
             AddText(
-                $"BODY_QUALITY_LABEL_{time:yyyyMMdd}",
+                $"SMALL_BODY_LABEL_{time:yyyyMMdd}",
                 label,
                 true,
                 _orBar,
@@ -372,8 +287,8 @@ namespace ATAS.Indicators
                 -60,
                 0,
                 Color.White,
-                bgColor,
-                bgColor,
+                Color.DarkRed,
+                Color.DarkRed,
                 16,
                 DrawingText.TextAlign.Center,
                 true
@@ -383,10 +298,7 @@ namespace ATAS.Indicators
         private void CheckBreakoutOnClosedBar(int closedBar)
         {
             if (_breakoutLabelDrawn)
-            {
-                CheckInstitutionalReverseOnClosedBar(closedBar);
                 return;
-            }
 
             if (_orBar < 0 || closedBar <= _orBar)
                 return;
@@ -394,9 +306,6 @@ namespace ATAS.Indicators
             int barsAfterOR = closedBar - _orBar;
 
             if (barsAfterOR > BreakoutScanBars)
-                return;
-
-            if (_isOversizedOR)
                 return;
 
             if (_isExhaustionDay)
@@ -409,10 +318,6 @@ namespace ATAS.Indicators
                 return;
 
             var candle = GetCandle(closedBar);
-
-            if (_isWarningAbsorptionOR && ShowWarningAbsorptionDebugLabels)
-                DrawWarningAbsorptionDebugLabel(candle, closedBar);
-
 
             if (_isFakeBreakoutOR && !_fakeBreakoutReentered)
             {
@@ -493,76 +398,16 @@ namespace ATAS.Indicators
             if (!hasValidImbalance)
                 return;
 
-            // =========================================================
-            // INSTITUTIONAL REVERSE EN LA MISMA VELA DEL BREAKOUT
-            // =========================================================
-            // Si el breakout es BUY, pero hay absorción válida en mecha superior,
-            // el setup real se etiqueta como SELL.
-            // Si el breakout es SELL, pero hay absorción válida en mecha inferior,
-            // el setup real se etiqueta como BUY.
-            decimal reverseAbsorptionPrice = 0;
-            decimal reverseAggressive = 0;
-            decimal reversePassive = 0;
-
-            bool hasSameBarInstitutionalReverseAbsorption = false;
-            string finalSide = side;
-            bool isSameBarInstitutionalReverse = false;
-
-            if (EnableInstitutionalReverse && side == "BUY")
-            {
-                hasSameBarInstitutionalReverseAbsorption = TryGetHighestSellImbalanceInUpperZone(
-                    candle,
-                    out reverseAbsorptionPrice,
-                    out reverseAggressive,
-                    out reversePassive
-                );
-
-                if (hasSameBarInstitutionalReverseAbsorption)
-                {
-                    finalSide = "SELL";
-                    isSameBarInstitutionalReverse = true;
-                    imbalancePrice = reverseAbsorptionPrice;
-                    imbalanceAggressive = reverseAggressive;
-                    imbalancePassive = reversePassive;
-                }
-            }
-            else if (EnableInstitutionalReverse && side == "SELL")
-            {
-                hasSameBarInstitutionalReverseAbsorption = TryGetLowestBuyImbalanceInLowerZone(
-                    candle,
-                    out reverseAbsorptionPrice,
-                    out reverseAggressive,
-                    out reversePassive
-                );
-
-                if (hasSameBarInstitutionalReverseAbsorption)
-                {
-                    finalSide = "BUY";
-                    isSameBarInstitutionalReverse = true;
-                    imbalancePrice = reverseAbsorptionPrice;
-                    imbalanceAggressive = reverseAggressive;
-                    imbalancePassive = reversePassive;
-                }
-            }
-
             DrawOrangeImbalanceLine(closedBar, imbalancePrice, imbalanceAggressive, imbalancePassive);
             _imbalanceLineDrawn = true;
 
-            _breakoutSide = finalSide;
+            _breakoutSide = side;
             _breakoutLabelDrawn = true;
-            _initialBreakoutBar = closedBar;
-            _initialBreakoutSide = side;
 
-            if (isSameBarInstitutionalReverse)
-                _institutionalReverseDrawn = true;
+            string label = $"{side} A+ TRADE | {realBodyOutsideTicks:0}t";
 
-            string label = isSameBarInstitutionalReverse
-                ? $"IR {finalSide} | {imbalanceAggressive:0}/{imbalancePassive:0}"
-                : $"{finalSide} A+ TRADE | {realBodyOutsideTicks:0}t";
-
-            decimal textPrice = finalSide == "BUY" ? candle.High : candle.Low;
-            int verticalOffset = finalSide == "BUY" ? -45 : 45;
-            Color labelBgColor = isSameBarInstitutionalReverse ? Color.Purple : Color.Green;
+            decimal textPrice = side == "BUY" ? candle.High : candle.Low;
+            int verticalOffset = side == "BUY" ? -45 : 45;
 
             AddText(
                 $"BREAKOUT_LABEL_{candle.Time:yyyyMMdd}",
@@ -573,175 +418,24 @@ namespace ATAS.Indicators
                 verticalOffset,
                 0,
                 Color.White,
-                labelBgColor,
-                labelBgColor,
+                Color.Green,
+                Color.Green,
                 16,
                 DrawingText.TextAlign.Center,
                 true
             );
 
-            if (finalSide == "SELL")
+            if (side == "SELL")
             {
                 DrawSellTwoContractsLine(candle, closedBar);
                 DrawSellOneContractLine(candle, closedBar);
             }
 
-            if (finalSide == "BUY")
+            if (side == "BUY")
             {
                 DrawBuyTwoContractsLine(candle, closedBar);
                 DrawBuyOneContractLine(candle, closedBar);
             }
-
-            DrawBigTradeStatusLabel(candle, closedBar, finalSide);
-
-        }
-
-
-        private void CheckInstitutionalReverseOnClosedBar(int closedBar)
-        {
-            if (!EnableInstitutionalReverse)
-                return;
-
-            if (_institutionalReverseDrawn)
-                return;
-
-            if (_isOversizedOR || _isExhaustionDay)
-                return;
-
-            if (_initialBreakoutBar < 0 || _initialBreakoutSide == "")
-                return;
-
-            if (closedBar <= _initialBreakoutBar)
-                return;
-
-            int barsAfterInitialBreakout = closedBar - _initialBreakoutBar;
-
-            if (barsAfterInitialBreakout > InstitutionalReverseScanBars)
-                return;
-
-            var candle = GetCandle(closedBar);
-
-            decimal absorptionPrice = 0;
-            decimal aggressive = 0;
-            decimal passive = 0;
-
-            bool hasReverseAbsorption = false;
-            bool hasReverseConfirmation = false;
-            string reverseSide = "";
-
-            if (_initialBreakoutSide == "BUY")
-            {
-                reverseSide = "SELL";
-
-                hasReverseAbsorption = TryGetHighestSellImbalanceInUpperZone(
-                    candle,
-                    out absorptionPrice,
-                    out aggressive,
-                    out passive
-                );
-
-                bool closedBackInsideOR = candle.Close <= _orHigh;
-                bool bearishClose = candle.Close < candle.Open;
-                bool rejectedUpperOR = candle.High > _orHigh && candle.Close < _orHigh;
-
-                hasReverseConfirmation =
-                    InstitutionalReverseRequireORReentry
-                        ? closedBackInsideOR && bearishClose
-                        : bearishClose || rejectedUpperOR;
-            }
-            else if (_initialBreakoutSide == "SELL")
-            {
-                reverseSide = "BUY";
-
-                hasReverseAbsorption = TryGetLowestBuyImbalanceInLowerZone(
-                    candle,
-                    out absorptionPrice,
-                    out aggressive,
-                    out passive
-                );
-
-                bool closedBackInsideOR = candle.Close >= _orLow;
-                bool bullishClose = candle.Close > candle.Open;
-                bool rejectedLowerOR = candle.Low < _orLow && candle.Close > _orLow;
-
-                hasReverseConfirmation =
-                    InstitutionalReverseRequireORReentry
-                        ? closedBackInsideOR && bullishClose
-                        : bullishClose || rejectedLowerOR;
-            }
-
-            if (!hasReverseAbsorption)
-                return;
-
-            if (!hasReverseConfirmation)
-                return;
-
-            DrawInstitutionalReverseLine(closedBar, absorptionPrice, aggressive, passive, reverseSide);
-
-            _institutionalReverseDrawn = true;
-
-            string label = $"IR {reverseSide} | {aggressive:0}/{passive:0}";
-
-            AddText(
-                $"INSTITUTIONAL_REVERSE_LABEL_{candle.Time:yyyyMMdd_HHmm}_{closedBar}",
-                label,
-                true,
-                closedBar,
-                reverseSide == "SELL" ? candle.High : candle.Low,
-                reverseSide == "SELL" ? -55 : 55,
-                0,
-                Color.White,
-                Color.Purple,
-                Color.Purple,
-                16,
-                DrawingText.TextAlign.Center,
-                true
-            );
-
-            if (reverseSide == "SELL")
-            {
-                DrawSellTwoContractsLine(candle, closedBar);
-                DrawSellOneContractLine(candle, closedBar);
-            }
-
-            if (reverseSide == "BUY")
-            {
-                DrawBuyTwoContractsLine(candle, closedBar);
-                DrawBuyOneContractLine(candle, closedBar);
-            }
-
-            DrawBigTradeStatusLabel(candle, closedBar, reverseSide);
-        }
-
-        private void DrawInstitutionalReverseLine(int bar, decimal price, decimal aggressive, decimal passive, string side)
-        {
-            var pen = new Pen(Color.Purple, 5);
-
-            TrendLines.Add(
-                new TrendLine(
-                    bar,
-                    price,
-                    bar + ImbalanceLineLength,
-                    price,
-                    pen
-                )
-            );
-
-            AddText(
-                $"IR_IMB_{bar}_{price}",
-                $"IR {aggressive:0}/{passive:0}",
-                true,
-                bar + 1,
-                price,
-                side == "SELL" ? -18 : 18,
-                0,
-                Color.White,
-                Color.Purple,
-                Color.Purple,
-                12,
-                DrawingText.TextAlign.Center,
-                true
-            );
         }
 
         private void CheckExhaustionAbsorptionOnClosedBar(int closedBar)
@@ -750,7 +444,6 @@ namespace ATAS.Indicators
                 return;
 
             var candle = GetCandle(closedBar);
-
 
             bool brokeAboveOR = candle.High > _orHigh;
             bool brokeBelowOR = candle.Low < _orLow;
@@ -1001,7 +694,7 @@ namespace ATAS.Indicators
                             current.Ask >= lower.Bid * ImbalanceRatio;
                     }
 
-                    if (!diagonalBuyImbalance)
+                    if (!sameLevelBuyImbalance && !reversedSameLevelBuyImbalance && !diagonalBuyImbalance)
                         continue;
 
                     bool isValidAbsorptionZone =
@@ -1016,8 +709,21 @@ namespace ATAS.Indicators
                         found = true;
                         selectedPrice = current.Price;
 
-                        selectedAsk = current.Ask;
-                        selectedBid = diagonalBid;
+                        if (sameLevelBuyImbalance)
+                        {
+                            selectedAsk = current.Ask;
+                            selectedBid = current.Bid;
+                        }
+                        else if (reversedSameLevelBuyImbalance)
+                        {
+                            selectedAsk = current.Bid;
+                            selectedBid = current.Ask;
+                        }
+                        else
+                        {
+                            selectedAsk = current.Ask;
+                            selectedBid = diagonalBid;
+                        }
                     }
                 }
 
@@ -1075,7 +781,7 @@ namespace ATAS.Indicators
                             current.Bid >= upper.Ask * ImbalanceRatio;
                     }
 
-                    if (!diagonalSellImbalance)
+                    if (!sameLevelSellImbalance && !reversedSameLevelSellImbalance && !diagonalSellImbalance)
                         continue;
 
                     bool isValidAbsorptionZone =
@@ -1090,8 +796,21 @@ namespace ATAS.Indicators
                         found = true;
                         selectedPrice = current.Price;
 
-                        selectedBid = current.Bid;
-                        selectedAsk = diagonalAsk;
+                        if (sameLevelSellImbalance)
+                        {
+                            selectedBid = current.Bid;
+                            selectedAsk = current.Ask;
+                        }
+                        else if (reversedSameLevelSellImbalance)
+                        {
+                            selectedBid = current.Ask;
+                            selectedAsk = current.Bid;
+                        }
+                        else
+                        {
+                            selectedBid = current.Bid;
+                            selectedAsk = diagonalAsk;
+                        }
                     }
                 }
 
@@ -1107,17 +826,6 @@ namespace ATAS.Indicators
         {
             decimal bodyHigh = Math.Max(candle.Open, candle.Close);
             decimal bodyLow = Math.Min(candle.Open, candle.Close);
-
-            if (_isWarningAbsorptionOR)
-            {
-                if (side == "BUY")
-                    return price < bodyLow;
-
-                if (side == "SELL")
-                    return price > bodyHigh;
-
-                return false;
-            }
 
             if (side == "BUY")
                 return price >= _orHigh || price < bodyLow;
@@ -1319,120 +1027,6 @@ namespace ATAS.Indicators
             );
         }
 
-        private void DrawBigTradeStatusLabel(dynamic candle, int closedBar, string side)
-        {
-            if (!ShowBigTradeStatusLabel)
-                return;
-
-            if (_largeTradeStatusLabelDrawn)
-                return;
-
-            _largeTradeStatusLabelDrawn = true;
-            _bigTradeStatusActive = true;
-            _bigTradeStatusSignalBar = closedBar;
-            _bigTradeStatusSide = side;
-            _bigTradeStatusTwoTouched = false;
-            _bigTradeStatusOneTouched = false;
-
-            _bigTradeStatusTwoPrice = side == "SELL"
-                ? candle.Close + (TwoContractsDistanceTicks * TickSize)
-                : candle.Close - (TwoContractsDistanceTicks * TickSize);
-
-            _bigTradeStatusOnePrice = side == "SELL"
-                ? candle.Close + (OneContractDistanceTicks * TickSize)
-                : candle.Close - (OneContractDistanceTicks * TickSize);
-
-            UpdateBigTradeStatusLabel(closedBar);
-        }
-
-        private void UpdateBigTradeStatusLabel(int closedBar)
-        {
-            if (!ShowBigTradeStatusLabel)
-                return;
-
-            if (!_bigTradeStatusActive)
-                return;
-
-            if (_bigTradeStatusSignalBar < 0 || closedBar < _bigTradeStatusSignalBar)
-                return;
-
-            var candle = GetCandle(closedBar);
-
-            if (_bigTradeStatusSide == "SELL")
-            {
-                if (candle.High >= _bigTradeStatusTwoPrice)
-                    _bigTradeStatusTwoTouched = true;
-
-                if (candle.High >= _bigTradeStatusOnePrice)
-                    _bigTradeStatusOneTouched = true;
-            }
-            else if (_bigTradeStatusSide == "BUY")
-            {
-                if (candle.Low <= _bigTradeStatusTwoPrice)
-                    _bigTradeStatusTwoTouched = true;
-
-                if (candle.Low <= _bigTradeStatusOnePrice)
-                    _bigTradeStatusOneTouched = true;
-            }
-            else
-            {
-                return;
-            }
-
-            if (_bigTradeStatusOneTouched)
-            {
-                _bigTradeStatusActive = false;
-                return;
-            }
-
-            string label;
-            decimal labelPrice;
-            Color textColor;
-            Color bgColor;
-
-            if (_bigTradeStatusTwoTouched)
-            {
-                label = $"{_bigTradeStatusSide} 1";
-                labelPrice = _bigTradeStatusOnePrice;
-                textColor = Color.Yellow;
-                bgColor = Color.Black;
-            }
-            else
-            {
-                label = $"{_bigTradeStatusSide} 2";
-                labelPrice = _bigTradeStatusTwoPrice;
-                textColor = Color.Lime;
-                bgColor = Color.Black;
-            }
-
-            // Solo imprime una vez cada estado.
-            // Ejemplo: imprime SELL 2 una sola vez.
-            // Si después toca la línea verde, imprime SELL 1 una sola vez.
-            if (_bigTradeStatusLastDrawnText == label)
-                return;
-
-            _bigTradeStatusLastDrawnText = label;
-            _bigTradeStatusLastDrawnBar = closedBar;
-
-            int labelBar = closedBar + BigTradeStatusForwardBars;
-
-            AddText(
-                $"BIG_TRADE_STATUS_{_currentDate:yyyyMMdd}_{label.Replace(" ", "_")}",
-                label,
-                true,
-                labelBar,
-                labelPrice,
-                _bigTradeStatusSide == "SELL" ? -45 : 45,
-                0,
-                textColor,
-                bgColor,
-                bgColor,
-                BigTradeStatusFontSize,
-                DrawingText.TextAlign.Center,
-                true
-            );
-        }
-
         private void AddContractsLabel(string id, string text, int bar, decimal price, Color textColor, Color bgColor)
         {
             AddText(
@@ -1451,212 +1045,5 @@ namespace ATAS.Indicators
                 true
             );
         }
-
-
-        private void DrawWarningAbsorptionDebugLabel(dynamic candle, int closedBar)
-        {
-            decimal bodyHigh = Math.Max(candle.Open, candle.Close);
-            decimal bodyLow = Math.Min(candle.Open, candle.Close);
-
-            decimal tolerance =
-                AbsorptionWickToleranceTicks * TickSize;
-
-            var levels = GetClusterLevels(candle);
-
-            var lower = new WickDebugCandidate();
-            var upper = new WickDebugCandidate();
-
-            for (int i = 0; i < levels.Count; i++)
-            {
-                var current = levels[i];
-
-                bool inLowerWick =
-                    current.Price >= candle.Low &&
-                    current.Price <= bodyLow + tolerance;
-
-                bool inUpperWick =
-                    current.Price <= candle.High &&
-                    current.Price >= bodyHigh - tolerance;
-
-                if (!inLowerWick && !inUpperWick)
-                    continue;
-
-                // =========================
-                // SAME LEVEL BUY
-                // =========================
-
-                if (current.Bid > 0 &&
-                    current.Ask >= ImbalanceVolumeFilter &&
-                    current.Ask >= current.Bid * ImbalanceRatio)
-                {
-                    if (inLowerWick)
-                    {
-                        UpdateWickDebugCandidate(
-                            lower,
-                            current.Price,
-                            current.Ask,
-                            current.Bid
-                        );
-                    }
-
-                    if (inUpperWick)
-                    {
-                        UpdateWickDebugCandidate(
-                            upper,
-                            current.Price,
-                            current.Ask,
-                            current.Bid
-                        );
-                    }
-                }
-
-
-
-                // =========================
-                // DIAGONAL BUY (ATAS STYLE)
-                // =========================
-
-                if (i > 0)
-                {
-                    var lowerLevel = levels[i - 1];
-
-                    decimal diagonalAsk = current.Ask;
-                    decimal diagonalBid = lowerLevel.Bid;
-
-                    bool validDiagonalBuy =
-                        diagonalBid > 0 &&
-                        diagonalAsk >= ImbalanceVolumeFilter &&
-                        diagonalAsk >= diagonalBid * ImbalanceRatio;
-
-                    if (validDiagonalBuy)
-                    {
-                        // PRIORIDAD TOTAL AL DIAGONAL
-                        // porque así lee ATAS footprint
-
-                        if (inLowerWick)
-                        {
-                            UpdateWickDebugCandidate(
-                                lower,
-                                current.Price,
-                                diagonalAsk,
-                                diagonalBid
-                            );
-                        }
-
-                        if (inUpperWick)
-                        {
-                            UpdateWickDebugCandidate(
-                                upper,
-                                current.Price,
-                                diagonalAsk,
-                                diagonalBid
-                            );
-                        }
-                    }
-                }
-
-                // =========================
-                // DIAGONAL SELL (ATAS STYLE)
-                // =========================
-
-                if (i < levels.Count - 1)
-                {
-                    var upperLevel = levels[i + 1];
-
-                    decimal diagonalBid = current.Bid;
-                    decimal diagonalAsk = upperLevel.Ask;
-
-                    bool validDiagonalSell =
-                        diagonalAsk > 0 &&
-                        diagonalBid >= ImbalanceVolumeFilter &&
-                        diagonalBid >= diagonalAsk * ImbalanceRatio;
-
-                    if (validDiagonalSell)
-                    {
-                        // PRIORIDAD TOTAL AL DIAGONAL SELL
-
-                        if (inLowerWick)
-                        {
-                            UpdateWickDebugCandidate(
-                                lower,
-                                current.Price,
-                                diagonalBid,
-                                diagonalAsk
-                            );
-                        }
-
-                        if (inUpperWick)
-                        {
-                            UpdateWickDebugCandidate(
-                                upper,
-                                current.Price,
-                                diagonalBid,
-                                diagonalAsk
-                            );
-                        }
-                    }
-                }
-
-
-            }
-
-            string lowerText =
-                lower.Found
-                    ? $"{lower.Aggressive:0}/{lower.Passive:0}"
-                    : "NO";
-
-            string upperText =
-                upper.Found
-                    ? $"{upper.Aggressive:0}/{upper.Passive:0}"
-                    : "NO";
-
-            AddText(
-                $"WARN_ABS_DEBUG_{candle.Time:yyyyMMdd_HHmm}_{closedBar}",
-                $"ABS DBG | L {lowerText} | U {upperText}",
-                true,
-                closedBar,
-                candle.High,
-                -30,
-                0,
-                Color.Black,
-                lower.Found || upper.Found
-                    ? Color.Orange
-                    : Color.DarkRed,
-                lower.Found || upper.Found
-                    ? Color.Orange
-                    : Color.DarkRed,
-                10,
-                DrawingText.TextAlign.Center,
-                true
-            );
-        }
-
-        private void UpdateWickDebugCandidate(
-            WickDebugCandidate candidate,
-            decimal price,
-            decimal aggressive,
-            decimal passive)
-        {
-            if (!candidate.Found ||
-                aggressive > candidate.Aggressive)
-            {
-                candidate.Found = true;
-                candidate.Price = price;
-                candidate.Aggressive = aggressive;
-                candidate.Passive = passive;
-            }
-        }
-
-        private class WickDebugCandidate
-        {
-            public bool Found { get; set; }
-
-            public decimal Price { get; set; }
-
-            public decimal Aggressive { get; set; }
-
-            public decimal Passive { get; set; }
-        }
-
     }
 }
