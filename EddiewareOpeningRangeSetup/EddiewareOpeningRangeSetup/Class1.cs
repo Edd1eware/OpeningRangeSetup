@@ -29,6 +29,7 @@ namespace ATAS.Indicators
 
         private bool _isNoTradeNoiseOR;
         private bool _isFakeBreakoutOR;
+        private bool _isWarningAbsorptionOR;
         private bool _fakeInitialOutsideDetected;
         private bool _waitingForFakeReentry;
         private bool _fakeBreakoutReentered;
@@ -79,8 +80,16 @@ namespace ATAS.Indicators
         [DisplayName("Show Exhaustion Debug Labels")]
         public bool ShowExhaustionDebugLabels { get; set; } = true;
 
+        [DisplayName("Show Warning Absorption Debug Labels")]
+        public bool ShowWarningAbsorptionDebugLabels { get; set; } = true;
+
         [DisplayName("Absorption Wick Tolerance Ticks")]
         public decimal AbsorptionWickToleranceTicks { get; set; } = 1;
+
+        [DisplayName("Min Signal Body Ticks")]
+        public decimal MinSignalBodyTicks { get; set; } = 1;
+
+
 
         public EddiewareOpeningRangeSetup()
         {
@@ -114,6 +123,7 @@ namespace ATAS.Indicators
 
                 _isNoTradeNoiseOR = false;
                 _isFakeBreakoutOR = false;
+                _isWarningAbsorptionOR = false;
                 _fakeInitialOutsideDetected = false;
                 _waitingForFakeReentry = false;
                 _fakeBreakoutReentered = false;
@@ -253,33 +263,40 @@ namespace ATAS.Indicators
             decimal bodyTicks = body / TickSize;
             decimal bodyPercent = body / candleRange * 100m;
 
-            if (bodyPercent >= MinORBodyQualityPercent)
-                return;
-
             _smallBodyLabelDrawn = true;
 
             string label;
+            Color bgColor;
 
-            if (bodyTicks <= 7m)
+            if (bodyPercent < MinORBodyQualityPercent)
             {
-                label = $"NO TRADE NOISE | {bodyTicks:0}t";
-                _isNoTradeNoiseOR = true;
-            }
-            else if (bodyTicks <= 14m)
-            {
-                label = $"FAKE BREAKOUT | {bodyTicks:0}t";
-                _isFakeBreakoutOR = true;
-                _fakeInitialOutsideDetected = false;
-                _waitingForFakeReentry = false;
-                _fakeBreakoutReentered = false;
+                _isWarningAbsorptionOR = true;
+
+                label = $"WARNING ABSORPTION | B{bodyPercent:0}% | {bodyTicks:0}t";
+                bgColor = Color.DarkOrange;
+
+                if (bodyTicks <= 7m)
+                {
+                    _isNoTradeNoiseOR = true;
+                }
+                else if (bodyTicks <= 14m)
+                {
+                    _isFakeBreakoutOR = true;
+                    _fakeInitialOutsideDetected = false;
+                    _waitingForFakeReentry = false;
+                    _fakeBreakoutReentered = false;
+                }
             }
             else
             {
-                label = $"SMALL BODY | {bodyTicks:0}t";
+                _isWarningAbsorptionOR = false;
+
+                label = $"HEALTHY BODY | B{bodyPercent:0}% | {bodyTicks:0}t";
+                bgColor = Color.DarkGreen;
             }
 
             AddText(
-                $"SMALL_BODY_LABEL_{time:yyyyMMdd}",
+                $"BODY_QUALITY_LABEL_{time:yyyyMMdd}",
                 label,
                 true,
                 _orBar,
@@ -287,8 +304,8 @@ namespace ATAS.Indicators
                 -60,
                 0,
                 Color.White,
-                Color.DarkRed,
-                Color.DarkRed,
+                bgColor,
+                bgColor,
                 16,
                 DrawingText.TextAlign.Center,
                 true
@@ -318,6 +335,10 @@ namespace ATAS.Indicators
                 return;
 
             var candle = GetCandle(closedBar);
+
+            if (_isWarningAbsorptionOR && ShowWarningAbsorptionDebugLabels)
+                DrawWarningAbsorptionDebugLabel(candle, closedBar);
+
 
             if (_isFakeBreakoutOR && !_fakeBreakoutReentered)
             {
@@ -386,6 +407,9 @@ namespace ATAS.Indicators
             if (realBodyOutsideTicks < MinBodyOutsideORTicks)
                 return;
 
+            if (!HasEnoughBodyForSignal(candle))
+                return;
+
             decimal imbalancePrice;
             decimal imbalanceAggressive;
             decimal imbalancePassive;
@@ -436,6 +460,7 @@ namespace ATAS.Indicators
                 DrawBuyTwoContractsLine(candle, closedBar);
                 DrawBuyOneContractLine(candle, closedBar);
             }
+
         }
 
         private void CheckExhaustionAbsorptionOnClosedBar(int closedBar)
@@ -444,6 +469,7 @@ namespace ATAS.Indicators
                 return;
 
             var candle = GetCandle(closedBar);
+
 
             bool brokeAboveOR = candle.High > _orHigh;
             bool brokeBelowOR = candle.Low < _orLow;
@@ -487,7 +513,19 @@ namespace ATAS.Indicators
                 else if (hasAbsorption)
                     debugText = $"ABSORPTION {side} | {aggressive:0}/{passive:0}";
                 else
-                    debugText = "NO ABSORPTION";
+                {
+                    decimal strongestAggressive;
+                    decimal strongestPassive;
+
+                    if (TryGetStrongestAnyDiagonalImbalance(
+                        candle,
+                        out strongestAggressive,
+                        out strongestPassive
+                    ))
+                        debugText = $"NO ABS | {strongestAggressive:0}/{strongestPassive:0}";
+                    else
+                        debugText = "NO ABS | NONE";
+                }
 
                 AddText(
                     $"EXH_DEBUG_{candle.Time:yyyyMMdd_HHmm}_{closedBar}",
@@ -511,6 +549,30 @@ namespace ATAS.Indicators
 
             if (!hasAbsorption)
                 return;
+
+            if (!HasEnoughBodyForSignal(candle))
+            {
+                if (ShowExhaustionDebugLabels)
+                {
+                    AddText(
+                        $"NO_BODY_FILTER_{candle.Time:yyyyMMdd_HHmm}_{closedBar}",
+                        $"NO BODY | {GetBodyTicks(candle):0}t",
+                        true,
+                        closedBar,
+                        candle.Low,
+                        25,
+                        0,
+                        Color.White,
+                        Color.DarkRed,
+                        Color.DarkRed,
+                        10,
+                        DrawingText.TextAlign.Center,
+                        true
+                    );
+                }
+
+                return;
+            }
 
             DrawOrangeImbalanceLine(closedBar, absorptionPrice, aggressive, passive);
             _imbalanceLineDrawn = true;
@@ -658,7 +720,7 @@ namespace ATAS.Indicators
             {
                 var levels = GetClusterLevels(candle);
 
-                if (levels.Count < 1)
+                if (levels.Count < 2)
                     return false;
 
                 decimal bodyLow = Math.Min(candle.Open, candle.Close);
@@ -666,35 +728,19 @@ namespace ATAS.Indicators
 
                 bool found = false;
 
-                for (int i = 0; i < levels.Count; i++)
+                for (int i = 1; i < levels.Count; i++)
                 {
                     var current = levels[i];
+                    var lower = levels[i - 1];
 
-                    bool sameLevelBuyImbalance =
-                        current.Bid > 0 &&
+                    decimal diagonalBid = lower.Bid;
+
+                    bool diagonalBuyImbalance =
+                        diagonalBid > 0 &&
                         current.Ask >= ImbalanceVolumeFilter &&
-                        current.Ask >= current.Bid * ImbalanceRatio;
+                        current.Ask >= diagonalBid * ImbalanceRatio;
 
-                    bool reversedSameLevelBuyImbalance =
-                        current.Ask > 0 &&
-                        current.Bid >= ImbalanceVolumeFilter &&
-                        current.Bid >= current.Ask * ImbalanceRatio;
-
-                    bool diagonalBuyImbalance = false;
-                    decimal diagonalBid = 0;
-
-                    if (i > 0)
-                    {
-                        var lower = levels[i - 1];
-                        diagonalBid = lower.Bid;
-
-                        diagonalBuyImbalance =
-                            lower.Bid > 0 &&
-                            current.Ask >= ImbalanceVolumeFilter &&
-                            current.Ask >= lower.Bid * ImbalanceRatio;
-                    }
-
-                    if (!sameLevelBuyImbalance && !reversedSameLevelBuyImbalance && !diagonalBuyImbalance)
+                    if (!diagonalBuyImbalance)
                         continue;
 
                     bool isValidAbsorptionZone =
@@ -708,22 +754,8 @@ namespace ATAS.Indicators
                     {
                         found = true;
                         selectedPrice = current.Price;
-
-                        if (sameLevelBuyImbalance)
-                        {
-                            selectedAsk = current.Ask;
-                            selectedBid = current.Bid;
-                        }
-                        else if (reversedSameLevelBuyImbalance)
-                        {
-                            selectedAsk = current.Bid;
-                            selectedBid = current.Ask;
-                        }
-                        else
-                        {
-                            selectedAsk = current.Ask;
-                            selectedBid = diagonalBid;
-                        }
+                        selectedAsk = current.Ask;
+                        selectedBid = diagonalBid;
                     }
                 }
 
@@ -735,6 +767,8 @@ namespace ATAS.Indicators
             }
         }
 
+
+
         private bool TryGetHighestSellImbalanceInUpperZone(dynamic candle, out decimal selectedPrice, out decimal selectedBid, out decimal selectedAsk)
         {
             selectedPrice = 0;
@@ -745,7 +779,7 @@ namespace ATAS.Indicators
             {
                 var levels = GetClusterLevels(candle);
 
-                if (levels.Count < 1)
+                if (levels.Count < 2)
                     return false;
 
                 decimal bodyHigh = Math.Max(candle.Open, candle.Close);
@@ -753,35 +787,19 @@ namespace ATAS.Indicators
 
                 bool found = false;
 
-                for (int i = 0; i < levels.Count; i++)
+                for (int i = 0; i < levels.Count - 1; i++)
                 {
                     var current = levels[i];
+                    var upper = levels[i + 1];
 
-                    bool sameLevelSellImbalance =
-                        current.Ask > 0 &&
+                    decimal diagonalAsk = upper.Ask;
+
+                    bool diagonalSellImbalance =
+                        diagonalAsk > 0 &&
                         current.Bid >= ImbalanceVolumeFilter &&
-                        current.Bid >= current.Ask * ImbalanceRatio;
+                        current.Bid >= diagonalAsk * ImbalanceRatio;
 
-                    bool reversedSameLevelSellImbalance =
-                        current.Bid > 0 &&
-                        current.Ask >= ImbalanceVolumeFilter &&
-                        current.Ask >= current.Bid * ImbalanceRatio;
-
-                    bool diagonalSellImbalance = false;
-                    decimal diagonalAsk = 0;
-
-                    if (i < levels.Count - 1)
-                    {
-                        var upper = levels[i + 1];
-                        diagonalAsk = upper.Ask;
-
-                        diagonalSellImbalance =
-                            upper.Ask > 0 &&
-                            current.Bid >= ImbalanceVolumeFilter &&
-                            current.Bid >= upper.Ask * ImbalanceRatio;
-                    }
-
-                    if (!sameLevelSellImbalance && !reversedSameLevelSellImbalance && !diagonalSellImbalance)
+                    if (!diagonalSellImbalance)
                         continue;
 
                     bool isValidAbsorptionZone =
@@ -795,22 +813,8 @@ namespace ATAS.Indicators
                     {
                         found = true;
                         selectedPrice = current.Price;
-
-                        if (sameLevelSellImbalance)
-                        {
-                            selectedBid = current.Bid;
-                            selectedAsk = current.Ask;
-                        }
-                        else if (reversedSameLevelSellImbalance)
-                        {
-                            selectedBid = current.Ask;
-                            selectedAsk = current.Bid;
-                        }
-                        else
-                        {
-                            selectedBid = current.Bid;
-                            selectedAsk = diagonalAsk;
-                        }
+                        selectedBid = current.Bid;
+                        selectedAsk = diagonalAsk;
                     }
                 }
 
@@ -822,10 +826,23 @@ namespace ATAS.Indicators
             }
         }
 
+
+
         private bool IsValidDirectionalImbalanceLocation(dynamic candle, decimal price, string side)
         {
             decimal bodyHigh = Math.Max(candle.Open, candle.Close);
             decimal bodyLow = Math.Min(candle.Open, candle.Close);
+
+            if (_isWarningAbsorptionOR)
+            {
+                if (side == "BUY")
+                    return price < bodyLow;
+
+                if (side == "SELL")
+                    return price > bodyHigh;
+
+                return false;
+            }
 
             if (side == "BUY")
                 return price >= _orHigh || price < bodyLow;
@@ -887,6 +904,83 @@ namespace ATAS.Indicators
                 DrawingText.TextAlign.Center,
                 true
             );
+        }
+
+
+        private decimal GetBodyTicks(dynamic candle)
+        {
+            return Math.Abs(candle.Close - candle.Open) / TickSize;
+        }
+
+        private bool HasEnoughBodyForSignal(dynamic candle)
+        {
+            return GetBodyTicks(candle) >= MinSignalBodyTicks;
+        }
+
+        private bool TryGetStrongestAnyDiagonalImbalance(
+            dynamic candle,
+            out decimal selectedAggressive,
+            out decimal selectedPassive)
+        {
+            selectedAggressive = 0;
+            selectedPassive = 0;
+
+            try
+            {
+                var levels = GetClusterLevels(candle);
+
+                if (levels.Count < 2)
+                    return false;
+
+                bool found = false;
+
+                for (int i = 0; i < levels.Count; i++)
+                {
+                    var current = levels[i];
+
+                    // BUY diagonal: Ask actual / Bid del nivel inferior
+                    if (i > 0)
+                    {
+                        var lower = levels[i - 1];
+
+                        if (lower.Bid > 0 &&
+                            current.Ask >= ImbalanceVolumeFilter &&
+                            current.Ask >= lower.Bid * ImbalanceRatio)
+                        {
+                            if (!found || current.Ask > selectedAggressive)
+                            {
+                                found = true;
+                                selectedAggressive = current.Ask;
+                                selectedPassive = lower.Bid;
+                            }
+                        }
+                    }
+
+                    // SELL diagonal: Bid actual / Ask del nivel superior
+                    if (i < levels.Count - 1)
+                    {
+                        var upper = levels[i + 1];
+
+                        if (upper.Ask > 0 &&
+                            current.Bid >= ImbalanceVolumeFilter &&
+                            current.Bid >= upper.Ask * ImbalanceRatio)
+                        {
+                            if (!found || current.Bid > selectedAggressive)
+                            {
+                                found = true;
+                                selectedAggressive = current.Bid;
+                                selectedPassive = upper.Ask;
+                            }
+                        }
+                    }
+                }
+
+                return found;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private class ClusterLevel
@@ -1045,5 +1139,167 @@ namespace ATAS.Indicators
                 true
             );
         }
+
+
+        private void DrawWarningAbsorptionDebugLabel(dynamic candle, int closedBar)
+        {
+            decimal bodyHigh = Math.Max(candle.Open, candle.Close);
+            decimal bodyLow = Math.Min(candle.Open, candle.Close);
+
+            decimal tolerance =
+                AbsorptionWickToleranceTicks * TickSize;
+
+            var levels = GetClusterLevels(candle);
+
+            var lower = new WickDebugCandidate();
+            var upper = new WickDebugCandidate();
+
+            for (int i = 0; i < levels.Count; i++)
+            {
+                var current = levels[i];
+
+                bool inLowerWick =
+                    current.Price >= candle.Low &&
+                    current.Price <= bodyLow + tolerance;
+
+                bool inUpperWick =
+                    current.Price <= candle.High &&
+                    current.Price >= bodyHigh - tolerance;
+
+                if (!inLowerWick && !inUpperWick)
+                    continue;
+
+                // =========================
+                // DIAGONAL BUY ONLY
+                // Ask actual / Bid del nivel inferior
+                // =========================
+
+                if (i > 0)
+                {
+                    var lowerLevel = levels[i - 1];
+
+                    if (lowerLevel.Bid > 0 &&
+                        current.Ask >= ImbalanceVolumeFilter &&
+                        current.Ask >= lowerLevel.Bid * ImbalanceRatio)
+                    {
+                        if (inLowerWick)
+                        {
+                            UpdateWickDebugCandidate(
+                                lower,
+                                current.Price,
+                                current.Ask,
+                                lowerLevel.Bid
+                            );
+                        }
+
+                        if (inUpperWick)
+                        {
+                            UpdateWickDebugCandidate(
+                                upper,
+                                current.Price,
+                                current.Ask,
+                                lowerLevel.Bid
+                            );
+                        }
+                    }
+                }
+
+                // =========================
+                // DIAGONAL SELL ONLY
+                // Bid actual / Ask del nivel superior
+                // =========================
+
+                if (i < levels.Count - 1)
+                {
+                    var upperLevel = levels[i + 1];
+
+                    if (upperLevel.Ask > 0 &&
+                        current.Bid >= ImbalanceVolumeFilter &&
+                        current.Bid >= upperLevel.Ask * ImbalanceRatio)
+                    {
+                        if (inLowerWick)
+                        {
+                            UpdateWickDebugCandidate(
+                                lower,
+                                current.Price,
+                                current.Bid,
+                                upperLevel.Ask
+                            );
+                        }
+
+                        if (inUpperWick)
+                        {
+                            UpdateWickDebugCandidate(
+                                upper,
+                                current.Price,
+                                current.Bid,
+                                upperLevel.Ask
+                            );
+                        }
+                    }
+                }
+            }
+
+            string lowerText =
+                lower.Found
+                    ? $"{lower.Aggressive:0}/{lower.Passive:0}"
+                    : "NO";
+
+            string upperText =
+                upper.Found
+                    ? $"{upper.Aggressive:0}/{upper.Passive:0}"
+                    : "NO";
+
+            AddText(
+                $"WARN_ABS_DEBUG_{candle.Time:yyyyMMdd_HHmm}_{closedBar}",
+                $"ABS DBG | L {lowerText} | U {upperText}",
+                true,
+                closedBar,
+                candle.High,
+                -30,
+                0,
+                Color.Black,
+                lower.Found || upper.Found
+                    ? Color.Orange
+                    : Color.DarkRed,
+                lower.Found || upper.Found
+                    ? Color.Orange
+                    : Color.DarkRed,
+                10,
+                DrawingText.TextAlign.Center,
+                true
+            );
+        }
+
+
+
+        private void UpdateWickDebugCandidate(
+            WickDebugCandidate candidate,
+            decimal price,
+            decimal aggressive,
+            decimal passive)
+        {
+            if (!candidate.Found ||
+                aggressive > candidate.Aggressive)
+            {
+                candidate.Found = true;
+                candidate.Price = price;
+                candidate.Aggressive = aggressive;
+                candidate.Passive = passive;
+            }
+        }
+
+        private class WickDebugCandidate
+        {
+            public bool Found { get; set; }
+
+            public decimal Price { get; set; }
+
+            public decimal Aggressive { get; set; }
+
+            public decimal Passive { get; set; }
+        }
+
     }
+
 }
