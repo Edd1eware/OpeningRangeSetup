@@ -29,6 +29,8 @@ namespace ATAS.Indicators
 
         private bool _isNoTradeNoiseOR;
         private bool _isFakeBreakoutOR;
+        private bool _isWarningAbsorptionOR;
+        private bool _isOversizedOR;
         private bool _fakeInitialOutsideDetected;
         private bool _waitingForFakeReentry;
         private bool _fakeBreakoutReentered;
@@ -61,6 +63,9 @@ namespace ATAS.Indicators
         [DisplayName("Min Body Outside OR Ticks")]
         public decimal MinBodyOutsideORTicks { get; set; } = 35;
 
+        [DisplayName("Max OR Range Ticks")]
+        public decimal MaxORRangeTicks { get; set; } = 210;
+
         [DisplayName("2 Contracts Distance Ticks")]
         public decimal TwoContractsDistanceTicks { get; set; } = 60;
 
@@ -79,8 +84,13 @@ namespace ATAS.Indicators
         [DisplayName("Show Exhaustion Debug Labels")]
         public bool ShowExhaustionDebugLabels { get; set; } = true;
 
+        [DisplayName("Show Warning Absorption Debug Labels")]
+        public bool ShowWarningAbsorptionDebugLabels { get; set; } = true;
+
         [DisplayName("Absorption Wick Tolerance Ticks")]
         public decimal AbsorptionWickToleranceTicks { get; set; } = 1;
+
+
 
         public EddiewareOpeningRangeSetup()
         {
@@ -114,6 +124,8 @@ namespace ATAS.Indicators
 
                 _isNoTradeNoiseOR = false;
                 _isFakeBreakoutOR = false;
+                _isWarningAbsorptionOR = false;
+                _isOversizedOR = false;
                 _fakeInitialOutsideDetected = false;
                 _waitingForFakeReentry = false;
                 _fakeBreakoutReentered = false;
@@ -153,6 +165,9 @@ namespace ATAS.Indicators
 
             TrendLines.Add(new TrendLine(startBar, _orHigh, endBar, _orHigh, pen));
             TrendLines.Add(new TrendLine(startBar, _orLow, endBar, _orLow, pen));
+
+            decimal rangeTicks = (_orHigh - _orLow) / TickSize;
+            _isOversizedOR = rangeTicks > MaxORRangeTicks;
 
             DrawExhaustionDayLabel(time, orCandle);
             DrawSmallBodyLabel(time, orCandle);
@@ -211,7 +226,7 @@ namespace ATAS.Indicators
             string classification =
                 _isNoTradeNoiseOR ? "NO TRADE" :
                 rangeTicks <= 100 ? "A+" :
-                rangeTicks <= 210 ? "B FUERTE" :
+                rangeTicks <= MaxORRangeTicks ? "B FUERTE" :
                 "NO TRADE";
 
             string label = $"{classification} | OR {rangeTicks:0}t";
@@ -260,10 +275,11 @@ namespace ATAS.Indicators
 
             if (bodyPercent < MinORBodyQualityPercent)
             {
+                _isWarningAbsorptionOR = true;
+
                 label = $"WARNING ABSORPTION | B{bodyPercent:0}% | {bodyTicks:0}t";
                 bgColor = Color.DarkOrange;
 
-                // Se conserva la lógica interna anterior para no romper el sistema
                 if (bodyTicks <= 7m)
                 {
                     _isNoTradeNoiseOR = true;
@@ -278,6 +294,8 @@ namespace ATAS.Indicators
             }
             else
             {
+                _isWarningAbsorptionOR = false;
+
                 label = $"HEALTHY BODY | B{bodyPercent:0}% | {bodyTicks:0}t";
                 bgColor = Color.DarkGreen;
             }
@@ -312,6 +330,9 @@ namespace ATAS.Indicators
             if (barsAfterOR > BreakoutScanBars)
                 return;
 
+            if (_isOversizedOR)
+                return;
+
             if (_isExhaustionDay)
             {
                 CheckExhaustionAbsorptionOnClosedBar(closedBar);
@@ -322,6 +343,10 @@ namespace ATAS.Indicators
                 return;
 
             var candle = GetCandle(closedBar);
+
+            if (_isWarningAbsorptionOR && ShowWarningAbsorptionDebugLabels)
+                DrawWarningAbsorptionDebugLabel(candle, closedBar);
+
 
             if (_isFakeBreakoutOR && !_fakeBreakoutReentered)
             {
@@ -440,6 +465,7 @@ namespace ATAS.Indicators
                 DrawBuyTwoContractsLine(candle, closedBar);
                 DrawBuyOneContractLine(candle, closedBar);
             }
+
         }
 
         private void CheckExhaustionAbsorptionOnClosedBar(int closedBar)
@@ -448,6 +474,7 @@ namespace ATAS.Indicators
                 return;
 
             var candle = GetCandle(closedBar);
+
 
             bool brokeAboveOR = candle.High > _orHigh;
             bool brokeBelowOR = candle.Low < _orLow;
@@ -831,6 +858,17 @@ namespace ATAS.Indicators
             decimal bodyHigh = Math.Max(candle.Open, candle.Close);
             decimal bodyLow = Math.Min(candle.Open, candle.Close);
 
+            if (_isWarningAbsorptionOR)
+            {
+                if (side == "BUY")
+                    return price < bodyLow;
+
+                if (side == "SELL")
+                    return price > bodyHigh;
+
+                return false;
+            }
+
             if (side == "BUY")
                 return price >= _orHigh || price < bodyLow;
 
@@ -1049,5 +1087,220 @@ namespace ATAS.Indicators
                 true
             );
         }
+
+
+        private void DrawWarningAbsorptionDebugLabel(dynamic candle, int closedBar)
+        {
+            decimal bodyHigh = Math.Max(candle.Open, candle.Close);
+            decimal bodyLow = Math.Min(candle.Open, candle.Close);
+
+            decimal tolerance =
+                AbsorptionWickToleranceTicks * TickSize;
+
+            var levels = GetClusterLevels(candle);
+
+            var lower = new WickDebugCandidate();
+            var upper = new WickDebugCandidate();
+
+            for (int i = 0; i < levels.Count; i++)
+            {
+                var current = levels[i];
+
+                bool inLowerWick =
+                    current.Price >= candle.Low &&
+                    current.Price <= bodyLow + tolerance;
+
+                bool inUpperWick =
+                    current.Price <= candle.High &&
+                    current.Price >= bodyHigh - tolerance;
+
+                if (!inLowerWick && !inUpperWick)
+                    continue;
+
+                // =========================
+                // SAME LEVEL BUY
+                // =========================
+
+                if (current.Bid > 0 &&
+                    current.Ask >= ImbalanceVolumeFilter &&
+                    current.Ask >= current.Bid * ImbalanceRatio)
+                {
+                    if (inLowerWick)
+                    {
+                        UpdateWickDebugCandidate(
+                            lower,
+                            current.Price,
+                            current.Ask,
+                            current.Bid
+                        );
+                    }
+
+                    if (inUpperWick)
+                    {
+                        UpdateWickDebugCandidate(
+                            upper,
+                            current.Price,
+                            current.Ask,
+                            current.Bid
+                        );
+                    }
+                }
+
+                // =========================
+                // SAME LEVEL SELL
+                // =========================
+
+                if (current.Ask > 0 &&
+                    current.Bid >= ImbalanceVolumeFilter &&
+                    current.Bid >= current.Ask * ImbalanceRatio)
+                {
+                    if (inLowerWick)
+                    {
+                        UpdateWickDebugCandidate(
+                            lower,
+                            current.Price,
+                            current.Bid,
+                            current.Ask
+                        );
+                    }
+
+                    if (inUpperWick)
+                    {
+                        UpdateWickDebugCandidate(
+                            upper,
+                            current.Price,
+                            current.Bid,
+                            current.Ask
+                        );
+                    }
+                }
+
+                // =========================
+                // DIAGONAL BUY
+                // =========================
+
+                if (i > 0)
+                {
+                    var lowerLevel = levels[i - 1];
+
+                    if (lowerLevel.Bid > 0 &&
+                        current.Ask >= ImbalanceVolumeFilter &&
+                        current.Ask >= lowerLevel.Bid * ImbalanceRatio)
+                    {
+                        if (inLowerWick)
+                        {
+                            UpdateWickDebugCandidate(
+                                lower,
+                                current.Price,
+                                current.Ask,
+                                lowerLevel.Bid
+                            );
+                        }
+
+                        if (inUpperWick)
+                        {
+                            UpdateWickDebugCandidate(
+                                upper,
+                                current.Price,
+                                current.Ask,
+                                lowerLevel.Bid
+                            );
+                        }
+                    }
+                }
+
+                // =========================
+                // DIAGONAL SELL
+                // =========================
+
+                if (i < levels.Count - 1)
+                {
+                    var upperLevel = levels[i + 1];
+
+                    if (upperLevel.Ask > 0 &&
+                        current.Bid >= ImbalanceVolumeFilter &&
+                        current.Bid >= upperLevel.Ask * ImbalanceRatio)
+                    {
+                        if (inLowerWick)
+                        {
+                            UpdateWickDebugCandidate(
+                                lower,
+                                current.Price,
+                                current.Bid,
+                                upperLevel.Ask
+                            );
+                        }
+
+                        if (inUpperWick)
+                        {
+                            UpdateWickDebugCandidate(
+                                upper,
+                                current.Price,
+                                current.Bid,
+                                upperLevel.Ask
+                            );
+                        }
+                    }
+                }
+            }
+
+            string lowerText =
+                lower.Found
+                    ? $"{lower.Aggressive:0}/{lower.Passive:0}"
+                    : "NO";
+
+            string upperText =
+                upper.Found
+                    ? $"{upper.Aggressive:0}/{upper.Passive:0}"
+                    : "NO";
+
+            AddText(
+                $"WARN_ABS_DEBUG_{candle.Time:yyyyMMdd_HHmm}_{closedBar}",
+                $"ABS DBG | L {lowerText} | U {upperText}",
+                true,
+                closedBar,
+                candle.High,
+                -30,
+                0,
+                Color.Black,
+                lower.Found || upper.Found
+                    ? Color.Orange
+                    : Color.DarkRed,
+                lower.Found || upper.Found
+                    ? Color.Orange
+                    : Color.DarkRed,
+                10,
+                DrawingText.TextAlign.Center,
+                true
+            );
+        }
+
+        private void UpdateWickDebugCandidate(
+            WickDebugCandidate candidate,
+            decimal price,
+            decimal aggressive,
+            decimal passive)
+        {
+            if (!candidate.Found ||
+                aggressive > candidate.Aggressive)
+            {
+                candidate.Found = true;
+                candidate.Price = price;
+                candidate.Aggressive = aggressive;
+                candidate.Passive = passive;
+            }
+        }
+
+        private class WickDebugCandidate
+        {
+            public bool Found { get; set; }
+
+            public decimal Price { get; set; }
+
+            public decimal Aggressive { get; set; }
+
+            public decimal Passive { get; set; }
+        }
+
     }
 }
