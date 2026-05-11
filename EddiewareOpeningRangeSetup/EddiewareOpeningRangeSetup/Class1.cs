@@ -35,6 +35,7 @@ namespace ATAS.Indicators
         private bool _fakeBreakoutReentered;
         private bool _isFakeNoTradeOR;
         private bool _isExhaustionDay;
+        private bool _isORTicksTooLarge;
 
         private int _orBar = -1;
         private string _breakoutSide = "";
@@ -89,6 +90,9 @@ namespace ATAS.Indicators
         [DisplayName("Min Signal Body Ticks")]
         public decimal MinSignalBodyTicks { get; set; } = 1;
 
+        [DisplayName("Max OR Range Ticks")]
+        public decimal MaxORRangeTicks { get; set; } = 210;
+
 
 
         public EddiewareOpeningRangeSetup()
@@ -129,6 +133,7 @@ namespace ATAS.Indicators
                 _fakeBreakoutReentered = false;
                 _isFakeNoTradeOR = false;
                 _isExhaustionDay = false;
+                _isORTicksTooLarge = false;
 
                 _orBar = -1;
                 _breakoutSide = "";
@@ -218,10 +223,12 @@ namespace ATAS.Indicators
 
             decimal rangeTicks = (_orHigh - _orLow) / TickSize;
 
+            _isORTicksTooLarge = rangeTicks > MaxORRangeTicks;
+
             string classification =
                 _isNoTradeNoiseOR ? "NO TRADE" :
                 rangeTicks <= 100 ? "A+" :
-                rangeTicks <= 210 ? "B FUERTE" :
+                rangeTicks <= MaxORRangeTicks ? "B FUERTE" :
                 "NO TRADE";
 
             string label = $"{classification} | OR {rangeTicks:0}t";
@@ -323,6 +330,9 @@ namespace ATAS.Indicators
             int barsAfterOR = closedBar - _orBar;
 
             if (barsAfterOR > BreakoutScanBars)
+                return;
+
+            if (_isORTicksTooLarge)
                 return;
 
             if (_isExhaustionDay)
