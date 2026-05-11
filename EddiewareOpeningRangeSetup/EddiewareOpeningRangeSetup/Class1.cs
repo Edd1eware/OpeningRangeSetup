@@ -253,33 +253,37 @@ namespace ATAS.Indicators
             decimal bodyTicks = body / TickSize;
             decimal bodyPercent = body / candleRange * 100m;
 
-            if (bodyPercent >= MinORBodyQualityPercent)
-                return;
-
             _smallBodyLabelDrawn = true;
 
             string label;
+            Color bgColor;
 
-            if (bodyTicks <= 7m)
+            if (bodyPercent < MinORBodyQualityPercent)
             {
-                label = $"NO TRADE NOISE | {bodyTicks:0}t";
-                _isNoTradeNoiseOR = true;
-            }
-            else if (bodyTicks <= 14m)
-            {
-                label = $"FAKE BREAKOUT | {bodyTicks:0}t";
-                _isFakeBreakoutOR = true;
-                _fakeInitialOutsideDetected = false;
-                _waitingForFakeReentry = false;
-                _fakeBreakoutReentered = false;
+                label = $"WARNING ABSORPTION | B{bodyPercent:0}% | {bodyTicks:0}t";
+                bgColor = Color.DarkOrange;
+
+                // Se conserva la lógica interna anterior para no romper el sistema
+                if (bodyTicks <= 7m)
+                {
+                    _isNoTradeNoiseOR = true;
+                }
+                else if (bodyTicks <= 14m)
+                {
+                    _isFakeBreakoutOR = true;
+                    _fakeInitialOutsideDetected = false;
+                    _waitingForFakeReentry = false;
+                    _fakeBreakoutReentered = false;
+                }
             }
             else
             {
-                label = $"SMALL BODY | {bodyTicks:0}t";
+                label = $"HEALTHY BODY | B{bodyPercent:0}% | {bodyTicks:0}t";
+                bgColor = Color.DarkGreen;
             }
 
             AddText(
-                $"SMALL_BODY_LABEL_{time:yyyyMMdd}",
+                $"BODY_QUALITY_LABEL_{time:yyyyMMdd}",
                 label,
                 true,
                 _orBar,
@@ -287,8 +291,8 @@ namespace ATAS.Indicators
                 -60,
                 0,
                 Color.White,
-                Color.DarkRed,
-                Color.DarkRed,
+                bgColor,
+                bgColor,
                 16,
                 DrawingText.TextAlign.Center,
                 true
