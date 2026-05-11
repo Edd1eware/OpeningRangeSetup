@@ -37,6 +37,10 @@ namespace ATAS.Indicators
         private bool _isFakeNoTradeOR;
         private bool _isExhaustionDay;
 
+        private bool _institutionalReverseDrawn;
+        private int _initialBreakoutBar = -1;
+        private string _initialBreakoutSide = "";
+
         private int _orBar = -1;
         private string _breakoutSide = "";
 
@@ -87,8 +91,20 @@ namespace ATAS.Indicators
         [DisplayName("Show Warning Absorption Debug Labels")]
         public bool ShowWarningAbsorptionDebugLabels { get; set; } = true;
 
+        [DisplayName("Show ABS / NO ABS Debug Labels")]
+        public bool ShowAbsorptionPerBarDebugLabels { get; set; } = true;
+
         [DisplayName("Absorption Wick Tolerance Ticks")]
         public decimal AbsorptionWickToleranceTicks { get; set; } = 1;
+
+        [DisplayName("Enable Institutional Reverse")]
+        public bool EnableInstitutionalReverse { get; set; } = true;
+
+        [DisplayName("Institutional Reverse Scan Bars")]
+        public int InstitutionalReverseScanBars { get; set; } = 12;
+
+        [DisplayName("Institutional Reverse Require OR Reentry")]
+        public bool InstitutionalReverseRequireORReentry { get; set; } = true;
 
 
 
@@ -132,6 +148,10 @@ namespace ATAS.Indicators
                 _isFakeNoTradeOR = false;
                 _isExhaustionDay = false;
 
+                _institutionalReverseDrawn = false;
+                _initialBreakoutBar = -1;
+                _initialBreakoutSide = "";
+
                 _orBar = -1;
                 _breakoutSide = "";
             }
@@ -153,7 +173,10 @@ namespace ATAS.Indicators
             }
 
             if (_rangeDrawn)
+            {
+                DrawAbsorptionPerBarDebugLabel(bar - 1);
                 CheckBreakoutOnClosedBar(bar - 1);
+            }
         }
 
         private void DrawOR(DateTime time, dynamic orCandle)
@@ -320,7 +343,10 @@ namespace ATAS.Indicators
         private void CheckBreakoutOnClosedBar(int closedBar)
         {
             if (_breakoutLabelDrawn)
+            {
+                CheckInstitutionalReverseOnClosedBar(closedBar);
                 return;
+            }
 
             if (_orBar < 0 || closedBar <= _orBar)
                 return;
@@ -427,16 +453,76 @@ namespace ATAS.Indicators
             if (!hasValidImbalance)
                 return;
 
+            // =========================================================
+            // INSTITUTIONAL REVERSE EN LA MISMA VELA DEL BREAKOUT
+            // =========================================================
+            // Si el breakout es BUY, pero hay absorción válida en mecha superior,
+            // el setup real se etiqueta como SELL.
+            // Si el breakout es SELL, pero hay absorción válida en mecha inferior,
+            // el setup real se etiqueta como BUY.
+            decimal reverseAbsorptionPrice = 0;
+            decimal reverseAggressive = 0;
+            decimal reversePassive = 0;
+
+            bool hasSameBarInstitutionalReverseAbsorption = false;
+            string finalSide = side;
+            bool isSameBarInstitutionalReverse = false;
+
+            if (EnableInstitutionalReverse && side == "BUY")
+            {
+                hasSameBarInstitutionalReverseAbsorption = TryGetHighestSellImbalanceInUpperZone(
+                    candle,
+                    out reverseAbsorptionPrice,
+                    out reverseAggressive,
+                    out reversePassive
+                );
+
+                if (hasSameBarInstitutionalReverseAbsorption)
+                {
+                    finalSide = "SELL";
+                    isSameBarInstitutionalReverse = true;
+                    imbalancePrice = reverseAbsorptionPrice;
+                    imbalanceAggressive = reverseAggressive;
+                    imbalancePassive = reversePassive;
+                }
+            }
+            else if (EnableInstitutionalReverse && side == "SELL")
+            {
+                hasSameBarInstitutionalReverseAbsorption = TryGetLowestBuyImbalanceInLowerZone(
+                    candle,
+                    out reverseAbsorptionPrice,
+                    out reverseAggressive,
+                    out reversePassive
+                );
+
+                if (hasSameBarInstitutionalReverseAbsorption)
+                {
+                    finalSide = "BUY";
+                    isSameBarInstitutionalReverse = true;
+                    imbalancePrice = reverseAbsorptionPrice;
+                    imbalanceAggressive = reverseAggressive;
+                    imbalancePassive = reversePassive;
+                }
+            }
+
             DrawOrangeImbalanceLine(closedBar, imbalancePrice, imbalanceAggressive, imbalancePassive);
             _imbalanceLineDrawn = true;
 
-            _breakoutSide = side;
+            _breakoutSide = finalSide;
             _breakoutLabelDrawn = true;
+            _initialBreakoutBar = closedBar;
+            _initialBreakoutSide = side;
 
-            string label = $"{side} A+ TRADE | {realBodyOutsideTicks:0}t";
+            if (isSameBarInstitutionalReverse)
+                _institutionalReverseDrawn = true;
 
-            decimal textPrice = side == "BUY" ? candle.High : candle.Low;
-            int verticalOffset = side == "BUY" ? -45 : 45;
+            string label = isSameBarInstitutionalReverse
+                ? $"IR {finalSide} | {imbalanceAggressive:0}/{imbalancePassive:0}"
+                : $"{finalSide} A+ TRADE | {realBodyOutsideTicks:0}t";
+
+            decimal textPrice = finalSide == "BUY" ? candle.High : candle.Low;
+            int verticalOffset = finalSide == "BUY" ? -45 : 45;
+            Color labelBgColor = isSameBarInstitutionalReverse ? Color.Purple : Color.Green;
 
             AddText(
                 $"BREAKOUT_LABEL_{candle.Time:yyyyMMdd}",
@@ -447,25 +533,171 @@ namespace ATAS.Indicators
                 verticalOffset,
                 0,
                 Color.White,
-                Color.Green,
-                Color.Green,
+                labelBgColor,
+                labelBgColor,
                 16,
                 DrawingText.TextAlign.Center,
                 true
             );
 
-            if (side == "SELL")
+            if (finalSide == "SELL")
             {
                 DrawSellTwoContractsLine(candle, closedBar);
                 DrawSellOneContractLine(candle, closedBar);
             }
 
-            if (side == "BUY")
+            if (finalSide == "BUY")
             {
                 DrawBuyTwoContractsLine(candle, closedBar);
                 DrawBuyOneContractLine(candle, closedBar);
             }
 
+        }
+
+
+        private void CheckInstitutionalReverseOnClosedBar(int closedBar)
+        {
+            if (!EnableInstitutionalReverse)
+                return;
+
+            if (_institutionalReverseDrawn)
+                return;
+
+            if (_isOversizedOR || _isExhaustionDay)
+                return;
+
+            if (_initialBreakoutBar < 0 || _initialBreakoutSide == "")
+                return;
+
+            if (closedBar <= _initialBreakoutBar)
+                return;
+
+            int barsAfterInitialBreakout = closedBar - _initialBreakoutBar;
+
+            if (barsAfterInitialBreakout > InstitutionalReverseScanBars)
+                return;
+
+            var candle = GetCandle(closedBar);
+
+            decimal absorptionPrice = 0;
+            decimal aggressive = 0;
+            decimal passive = 0;
+
+            bool hasReverseAbsorption = false;
+            bool hasReverseConfirmation = false;
+            string reverseSide = "";
+
+            if (_initialBreakoutSide == "BUY")
+            {
+                reverseSide = "SELL";
+
+                hasReverseAbsorption = TryGetHighestSellImbalanceInUpperZone(
+                    candle,
+                    out absorptionPrice,
+                    out aggressive,
+                    out passive
+                );
+
+                bool closedBackInsideOR = candle.Close <= _orHigh;
+                bool bearishClose = candle.Close < candle.Open;
+                bool rejectedUpperOR = candle.High > _orHigh && candle.Close < _orHigh;
+
+                hasReverseConfirmation =
+                    InstitutionalReverseRequireORReentry
+                        ? closedBackInsideOR && bearishClose
+                        : bearishClose || rejectedUpperOR;
+            }
+            else if (_initialBreakoutSide == "SELL")
+            {
+                reverseSide = "BUY";
+
+                hasReverseAbsorption = TryGetLowestBuyImbalanceInLowerZone(
+                    candle,
+                    out absorptionPrice,
+                    out aggressive,
+                    out passive
+                );
+
+                bool closedBackInsideOR = candle.Close >= _orLow;
+                bool bullishClose = candle.Close > candle.Open;
+                bool rejectedLowerOR = candle.Low < _orLow && candle.Close > _orLow;
+
+                hasReverseConfirmation =
+                    InstitutionalReverseRequireORReentry
+                        ? closedBackInsideOR && bullishClose
+                        : bullishClose || rejectedLowerOR;
+            }
+
+            if (!hasReverseAbsorption)
+                return;
+
+            if (!hasReverseConfirmation)
+                return;
+
+            DrawInstitutionalReverseLine(closedBar, absorptionPrice, aggressive, passive, reverseSide);
+
+            _institutionalReverseDrawn = true;
+
+            string label = $"IR {reverseSide} | {aggressive:0}/{passive:0}";
+
+            AddText(
+                $"INSTITUTIONAL_REVERSE_LABEL_{candle.Time:yyyyMMdd_HHmm}_{closedBar}",
+                label,
+                true,
+                closedBar,
+                reverseSide == "SELL" ? candle.High : candle.Low,
+                reverseSide == "SELL" ? -55 : 55,
+                0,
+                Color.White,
+                Color.Purple,
+                Color.Purple,
+                16,
+                DrawingText.TextAlign.Center,
+                true
+            );
+
+            if (reverseSide == "SELL")
+            {
+                DrawSellTwoContractsLine(candle, closedBar);
+                DrawSellOneContractLine(candle, closedBar);
+            }
+
+            if (reverseSide == "BUY")
+            {
+                DrawBuyTwoContractsLine(candle, closedBar);
+                DrawBuyOneContractLine(candle, closedBar);
+            }
+        }
+
+        private void DrawInstitutionalReverseLine(int bar, decimal price, decimal aggressive, decimal passive, string side)
+        {
+            var pen = new Pen(Color.Purple, 5);
+
+            TrendLines.Add(
+                new TrendLine(
+                    bar,
+                    price,
+                    bar + ImbalanceLineLength,
+                    price,
+                    pen
+                )
+            );
+
+            AddText(
+                $"IR_IMB_{bar}_{price}",
+                $"IR {aggressive:0}/{passive:0}",
+                true,
+                bar + 1,
+                price,
+                side == "SELL" ? -18 : 18,
+                0,
+                Color.White,
+                Color.Purple,
+                Color.Purple,
+                12,
+                DrawingText.TextAlign.Center,
+                true
+            );
         }
 
         private void CheckExhaustionAbsorptionOnClosedBar(int closedBar)
@@ -1083,6 +1315,80 @@ namespace ATAS.Indicators
                 bgColor,
                 bgColor,
                 14,
+                DrawingText.TextAlign.Center,
+                true
+            );
+        }
+
+
+        private void DrawAbsorptionPerBarDebugLabel(int closedBar)
+        {
+            if (!ShowAbsorptionPerBarDebugLabels)
+                return;
+
+            if (_orBar < 0 || closedBar <= _orBar)
+                return;
+
+            int barsAfterOR = closedBar - _orBar;
+
+            if (barsAfterOR > BreakoutScanBars)
+                return;
+
+            var candle = GetCandle(closedBar);
+
+            decimal upperPrice = 0;
+            decimal upperAggressive = 0;
+            decimal upperPassive = 0;
+
+            decimal lowerPrice = 0;
+            decimal lowerAggressive = 0;
+            decimal lowerPassive = 0;
+
+            bool hasUpperAbsorption = TryGetHighestSellImbalanceInUpperZone(
+                candle,
+                out upperPrice,
+                out upperAggressive,
+                out upperPassive
+            );
+
+            bool hasLowerAbsorption = TryGetLowestBuyImbalanceInLowerZone(
+                candle,
+                out lowerPrice,
+                out lowerAggressive,
+                out lowerPassive
+            );
+
+            string label;
+
+            if (hasUpperAbsorption && hasLowerAbsorption)
+                label = $"ABS U {upperAggressive:0}/{upperPassive:0} | L {lowerAggressive:0}/{lowerPassive:0}";
+            else if (hasUpperAbsorption)
+                label = $"ABS U {upperAggressive:0}/{upperPassive:0}";
+            else if (hasLowerAbsorption)
+                label = $"ABS L {lowerAggressive:0}/{lowerPassive:0}";
+            else
+                label = "NO ABS";
+
+            Color bgColor = hasUpperAbsorption || hasLowerAbsorption
+                ? Color.Orange
+                : Color.DarkRed;
+
+            Color textColor = hasUpperAbsorption || hasLowerAbsorption
+                ? Color.Black
+                : Color.White;
+
+            AddText(
+                $"ABS_PER_BAR_DEBUG_{candle.Time:yyyyMMdd_HHmm}_{closedBar}",
+                label,
+                true,
+                closedBar,
+                candle.High,
+                -75,
+                0,
+                textColor,
+                bgColor,
+                bgColor,
+                10,
                 DrawingText.TextAlign.Center,
                 true
             );
