@@ -58,7 +58,7 @@ namespace ATAS.Indicators
         public decimal MinFakeInitialBreakoutTicks { get; set; } = 40;
 
         [DisplayName("Min OR Body Quality %")]
-        public decimal MinORBodyQualityPercent { get; set; } = 50;
+        public decimal MinORBodyQualityPercent { get; set; } = 25;
 
         [DisplayName("Min Body Outside OR Ticks")]
         public decimal MinBodyOutsideORTicks { get; set; } = 35;
