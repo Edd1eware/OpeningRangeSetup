@@ -55,7 +55,7 @@ namespace ATAS.Indicators
         public int MaxFakeInitialBreakoutBars { get; set; } = 3;
 
         [DisplayName("Min Fake Initial Breakout Ticks")]
-        public decimal MinFakeInitialBreakoutTicks { get; set; } = 40;
+        public decimal MinFakeInitialBreakoutTicks { get; set; } = 10;
 
         [DisplayName("Min OR Body Quality %")]
         public decimal MinORBodyQualityPercent { get; set; } = 25;
@@ -302,21 +302,33 @@ namespace ATAS.Indicators
 
             if (bodyPercent < MinORBodyQualityPercent)
             {
-                _isWarningAbsorptionOR = true;
+                _isWarningAbsorptionOR = false;
 
-                label = $"WARNING ABSORPTION | B{bodyPercent:0}% | {bodyTicks:0}t";
-                bgColor = Color.DarkOrange;
+                label = $"HEALTHY BODY | B{bodyPercent:0}% | {bodyTicks:0}t";
+                bgColor = Color.DarkGreen;
 
-                if (bodyTicks <= 7m)
+                if (bodyTicks < 10m)
                 {
                     _isNoTradeNoiseOR = true;
+
+                    label = $"NO TRADE NOISE | {bodyTicks:0}t";
+                    bgColor = Color.DarkRed;
                 }
-                else if (bodyTicks <= 14m)
+                else if (bodyTicks >= 10m && bodyTicks <= 20m)
                 {
                     _isFakeBreakoutOR = true;
+
                     _fakeInitialOutsideDetected = false;
                     _waitingForFakeReentry = false;
                     _fakeBreakoutReentered = false;
+
+                    label = $"FAKE BREAKOUT SANO | {bodyTicks:0}t";
+                    bgColor = Color.Goldenrod;
+                }
+                else
+                {
+                    label = $"HEALTHY BODY | B{bodyPercent:0}% | {bodyTicks:0}t";
+                    bgColor = Color.DarkGreen;
                 }
             }
             else
@@ -874,16 +886,7 @@ namespace ATAS.Indicators
             decimal bodyHigh = Math.Max(candle.Open, candle.Close);
             decimal bodyLow = Math.Min(candle.Open, candle.Close);
 
-            if (_isWarningAbsorptionOR)
-            {
-                if (side == "BUY")
-                    return price < bodyLow;
-
-                if (side == "SELL")
-                    return price > bodyHigh;
-
-                return false;
-            }
+            
 
             if (side == "BUY")
                 return price >= _orHigh || price < bodyLow;
