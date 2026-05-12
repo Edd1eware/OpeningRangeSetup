@@ -188,15 +188,38 @@ namespace ATAS.Indicators
             bool noUpperWick = upperWickTicks <= 0;
             bool noLowerWick = lowerWickTicks <= 0;
 
-            if (!noUpperWick && !noLowerWick)
+            decimal orRangeTicks =
+                                (orCandle.High - orCandle.Low) / TickSize;
+
+            // EXHAUSTION DAY:
+            // - sin mecha superior O inferior
+            // - y OR menor a 100 ticks
+            bool isExhaustionStructure =
+                (noUpperWick || noLowerWick) &&
+                orRangeTicks < 100;
+
+            if (!isExhaustionStructure)
                 return;
 
             _isExhaustionDay = true;
             _exhaustionDayLabelDrawn = true;
 
+            decimal candleRange = orCandle.High - orCandle.Low;
+
+            if (candleRange <= 0)
+                return;
+
+            decimal body = Math.Abs(orCandle.Close - orCandle.Open);
+            decimal bodyTicks = body / TickSize;
+            decimal bodyPercent = body / candleRange * 100m;
+            decimal rangeTicks = candleRange / TickSize;
+
+            string label =
+                $"EXHAUSTION DAY | B{bodyPercent:0}% | {bodyTicks:0}t / OR {rangeTicks:0}t";
+
             AddText(
                 $"EXHAUSTION_DAY_LABEL_{time:yyyyMMdd}",
-                "EXHAUSTION DAY",
+                label,
                 true,
                 _orBar,
                 _orHigh,
@@ -235,6 +258,8 @@ namespace ATAS.Indicators
 
             Color bgColor =
                 classification == "NO TRADE" ? Color.Red : Color.DarkGreen;
+
+
 
             AddText(
                 $"OR_LABEL_{time:yyyyMMdd}",
