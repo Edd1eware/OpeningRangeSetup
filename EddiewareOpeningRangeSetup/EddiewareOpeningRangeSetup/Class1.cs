@@ -35,6 +35,7 @@ namespace ATAS.Indicators
         private bool _fakeBreakoutReentered;
         private bool _isFakeNoTradeOR;
         private bool _isExhaustionDay;
+        private bool _isORTicksTooLarge;
 
         private int _orBar = -1;
         private string _breakoutSide = "";
@@ -57,7 +58,7 @@ namespace ATAS.Indicators
         public decimal MinFakeInitialBreakoutTicks { get; set; } = 40;
 
         [DisplayName("Min OR Body Quality %")]
-        public decimal MinORBodyQualityPercent { get; set; } = 45;
+        public decimal MinORBodyQualityPercent { get; set; } = 50;
 
         [DisplayName("Min Body Outside OR Ticks")]
         public decimal MinBodyOutsideORTicks { get; set; } = 35;
@@ -88,6 +89,9 @@ namespace ATAS.Indicators
 
         [DisplayName("Min Signal Body Ticks")]
         public decimal MinSignalBodyTicks { get; set; } = 1;
+
+        [DisplayName("Max OR Range Ticks")]
+        public decimal MaxORRangeTicks { get; set; } = 210;
 
 
 
@@ -129,6 +133,7 @@ namespace ATAS.Indicators
                 _fakeBreakoutReentered = false;
                 _isFakeNoTradeOR = false;
                 _isExhaustionDay = false;
+                _isORTicksTooLarge = false;
 
                 _orBar = -1;
                 _breakoutSide = "";
@@ -218,10 +223,12 @@ namespace ATAS.Indicators
 
             decimal rangeTicks = (_orHigh - _orLow) / TickSize;
 
+            _isORTicksTooLarge = rangeTicks > MaxORRangeTicks;
+
             string classification =
                 _isNoTradeNoiseOR ? "NO TRADE" :
                 rangeTicks <= 100 ? "A+" :
-                rangeTicks <= 210 ? "B FUERTE" :
+                rangeTicks <= MaxORRangeTicks ? "B FUERTE" :
                 "NO TRADE";
 
             string label = $"{classification} | OR {rangeTicks:0}t";
@@ -323,6 +330,9 @@ namespace ATAS.Indicators
             int barsAfterOR = closedBar - _orBar;
 
             if (barsAfterOR > BreakoutScanBars)
+                return;
+
+            if (_isORTicksTooLarge)
                 return;
 
             if (_isExhaustionDay)
@@ -427,6 +437,9 @@ namespace ATAS.Indicators
 
             _breakoutSide = side;
             _breakoutLabelDrawn = true;
+
+            int recommendedContracts = GetRecommendedContracts(side, candle, imbalancePrice);
+            DrawPositionSizeDecisionLabel(side, recommendedContracts, candle, closedBar);
 
             string label = $"{side} A+ TRADE | {realBodyOutsideTicks:0}t";
 
@@ -578,6 +591,9 @@ namespace ATAS.Indicators
             _imbalanceLineDrawn = true;
             _breakoutLabelDrawn = true;
             _breakoutSide = side;
+
+            int recommendedContracts = GetRecommendedContracts(side, candle, absorptionPrice);
+            DrawPositionSizeDecisionLabel(side, recommendedContracts, candle, closedBar);
 
             string label = $"{side} EXH ABS | {aggressive:0}/{passive:0}";
 
@@ -988,6 +1004,64 @@ namespace ATAS.Indicators
             public decimal Price { get; set; }
             public decimal Bid { get; set; }
             public decimal Ask { get; set; }
+        }
+
+        private int GetRecommendedContracts(string side, dynamic signalCandle, decimal imbalancePrice)
+        {
+            decimal distanceTicks = GetImbalanceDistanceFromSignalCloseTicks(side, signalCandle, imbalancePrice);
+
+            // BUY:
+            //   2 contratos = la línea naranja quedó dentro de la zona azul, es decir,
+            //                a máximo 60 ticks debajo del close de señal.
+            //   1 contrato  = la línea naranja quedó debajo de la azul,
+            //                pero todavía dentro de la zona de 1 contrato.
+            //
+            // SELL:
+            //   misma lógica inversa: 2 contratos si el imbalance está a máximo
+            //   60 ticks arriba del close de señal.
+            if (distanceTicks <= TwoContractsDistanceTicks)
+                return 2;
+
+            return 1;
+        }
+
+        private decimal GetImbalanceDistanceFromSignalCloseTicks(string side, dynamic signalCandle, decimal imbalancePrice)
+        {
+            decimal distance = 0;
+
+            if (side == "BUY")
+                distance = signalCandle.Close - imbalancePrice;
+
+            if (side == "SELL")
+                distance = imbalancePrice - signalCandle.Close;
+
+            if (distance < 0)
+                distance = 0;
+
+            return distance / TickSize;
+        }
+
+        private void DrawPositionSizeDecisionLabel(string side, int contracts, dynamic candle, int closedBar)
+        {
+            string label = $"{side} {contracts}";
+            decimal textPrice = side == "BUY" ? candle.High : candle.Low;
+            int verticalOffset = side == "BUY" ? -65 : 65;
+
+            AddText(
+                $"POSITION_SIZE_DECISION_{candle.Time:yyyyMMdd_HHmm}_{closedBar}",
+                label,
+                true,
+                closedBar,
+                textPrice,
+                verticalOffset,
+                0,
+                Color.White,
+                contracts == 2 ? Color.Green : Color.DarkOrange,
+                contracts == 2 ? Color.Green : Color.DarkOrange,
+                32,
+                DrawingText.TextAlign.Center,
+                true
+            );
         }
 
         private void DrawFakeNoTradeLabel(dynamic candle, int closedBar)
