@@ -1,5 +1,4 @@
 from pywinauto import Desktop
-from pywinauto.keyboard import send_keys
 import time
 import pyperclip
 import os
@@ -10,9 +9,7 @@ import os
 
 DATES = [
 
-    "11/12/2025",
-    "12/12/2025",
-
+    "06/11/2025",
     "15/12/2025",
     "16/12/2025",
     "17/12/2025",
@@ -105,11 +102,6 @@ EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
 
 TARGET_FILE = os.path.join(EXPORT_FOLDER, "target_date.txt")
 
-# Cambia solo este número si el TAB no cae en FROM.
-# Si no escribe en FROM, prueba 2, 3, 4 o 5.
-TABS_TO_FROM = 3
-
-
 # =========================================================
 # FUNCIONES
 # =========================================================
@@ -151,13 +143,53 @@ def get_replay():
     time.sleep(1)
     return replay
 
+    candidates = app.windows(title_re=".*Replay.*", top_level_only=True)
+
+    if not candidates:
+        raise RuntimeError("No encontré ninguna ventana Replay abierta.")
+
+    print(f"Ventanas Replay encontradas: {len(candidates)}")
+
+    for w in candidates:
+        try:
+            if w.is_visible() and w.is_enabled():
+                print("Usando Replay:", w.window_text())
+                w.set_focus()
+                time.sleep(1)
+                return w
+        except Exception:
+            pass
+
+    # fallback: usar la primera si ninguna pasó filtros
+    replay = candidates[0]
+    print("Usando Replay fallback:", replay.window_text())
+    replay.set_focus()
+    time.sleep(1)
+    return replay
+
+
+def paste_text(control, value):
+    control.click_input()
+    time.sleep(0.3)
+
+    control.type_keys("^a")
+    time.sleep(0.3)
+
+    pyperclip.copy(value)
+    time.sleep(0.3)
+
+    control.type_keys("^v")
+    time.sleep(0.8)
+
 
 def get_controls():
     replay = get_replay()
 
+    edits = replay.descendants(control_type="Edit")
     buttons = replay.descendants(control_type="Button")
 
-    print(f"Buttons encontrados: {len(buttons)}")
+    from_box = edits[0]
+    to_box = edits[2]
 
     start_button = None
     stop_button = None
@@ -171,31 +203,7 @@ def get_controls():
         if txt == "Stop":
             stop_button = b
 
-    return replay, start_button, stop_button
-
-
-def paste_clipboard_text(value):
-    pyperclip.copy(value)
-    time.sleep(0.2)
-    send_keys("^a")
-    time.sleep(0.2)
-    send_keys("^v")
-    time.sleep(0.5)
-
-
-def set_replay_dates_by_keyboard(replay, from_value, to_value):
-    replay.set_focus()
-    time.sleep(0.8)
-
-    send_keys("{TAB " + str(TABS_TO_FROM) + "}")
-    time.sleep(0.4)
-
-    paste_clipboard_text(from_value)
-
-    send_keys("{TAB}")
-    time.sleep(0.4)
-
-    paste_clipboard_text(to_value)
+    return replay, from_box, to_box, start_button, stop_button
 
 
 def expected_csv_path(date_ddmmyyyy):
@@ -218,16 +226,21 @@ for date in DATES:
     print(f"PROCESANDO {date}")
     print("=" * 70)
 
+    # 1. Escribir fecha objetivo para que C# solo exporte ese día
     write_target_date(date)
 
+    # Pequeña pausa para que ATAS/C# pueda leer el txt
     time.sleep(1)
 
     from_value = f"{date} 09:30 a. m."
     to_value = f"{date} 10:35 a. m."
 
-    replay, start_button, stop_button = get_controls()
+    # 2. Obtener controles frescos
+    replay, from_box, to_box, start_button, stop_button = get_controls()
 
-    set_replay_dates_by_keyboard(replay, from_value, to_value)
+    # 3. Cambiar fechas
+    paste_text(from_box, from_value)
+    paste_text(to_box, to_value)
 
     print("Fechas configuradas:")
     print(f"FROM: {from_value}")
@@ -235,18 +248,22 @@ for date in DATES:
 
     time.sleep(2)
 
-    replay, start_button, stop_button = get_controls()
+    # 4. Releer controles antes de Start
+    replay, from_box, to_box, start_button, stop_button = get_controls()
 
     if start_button is None:
         raise Exception("No se encontró botón Start")
 
+    # 5. Start
     print("Iniciando replay...")
     start_button.click_input()
 
+    # 6. Esperar sesión completa
     print(f"Esperando {WAIT_SECONDS} segundos...")
     time.sleep(WAIT_SECONDS)
 
-    replay, start_button, stop_button = get_controls()
+    # 7. Stop
+    replay, from_box, to_box, start_button, stop_button = get_controls()
 
     if stop_button is not None:
         print("Deteniendo replay...")
@@ -256,6 +273,7 @@ for date in DATES:
 
     time.sleep(5)
 
+    # 8. Verificar CSV
     expected_file = expected_csv_path(date)
 
     if os.path.exists(expected_file):
@@ -263,7 +281,7 @@ for date in DATES:
         print(f"OK EXPORTADO: {expected_file}")
         print(f"Tamaño: {size_kb} KB")
     else:
-        print("WARNING: no encontré archivo esperado:")
+        print(f"WARNING: no encontré archivo esperado:")
         print(expected_file)
 
     print("Pausa antes del siguiente día...")
