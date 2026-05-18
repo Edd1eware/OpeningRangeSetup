@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -6,74 +7,128 @@ using ATAS.Indicators;
 
 namespace ATAS.Indicators
 {
-    public class ATASFootprintExporterPilot : Indicator
+    public class ATASFootprintSessionExporter : Indicator
     {
         private readonly string _exportFolder =
             @"C:\Users\k_99_\Desktop\codding\data_footprint_generator";
 
-        private readonly DateTime _targetDate =
-            new DateTime(2026, 5, 8);
+        private readonly string _targetDateFile =
+            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\target_date.txt";
 
-        // En UTC porque ATAS está entregando 13:30 = 09:30 NY
-        private readonly TimeSpan _targetCandleTimeUtc =
-            new TimeSpan(13, 30, 0);
+        // Horario NY directo
+        private readonly TimeSpan _startTimeNy = new TimeSpan(9, 30, 0);
+        private readonly TimeSpan _endTimeNy = new TimeSpan(10, 30, 0);
 
-        private bool _exported930 = false;
+        private readonly HashSet<string> _exportedBars = new HashSet<string>();
 
-        public ATASFootprintExporterPilot()
+        private readonly TimeZoneInfo _nyZone =
+            TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+        public ATASFootprintSessionExporter()
         {
-            Name = "ATAS Export Closed 930 Footprint";
+            Name = "ATAS Footprint Session Exporter Target Date NY 0930 1030";
             EnableCustomDrawing = false;
         }
 
         protected override void OnCalculate(int bar, decimal value)
         {
-            if (_exported930)
+            if (bar < 1)
                 return;
 
-            if (bar < 2)
+            int closedBar = bar - 1;
+
+            var c = GetCandle(closedBar);
+
+            DateTime nyTime = ConvertToNewYorkTime(c.Time);
+
+            var targetDate = ReadTargetDate();
+
+            if (targetDate == null)
                 return;
 
-            var current = GetCandle(bar);
-            var previous = GetCandle(bar - 1);
-
-            // Esperar a que ya estemos en una vela posterior a 9:30 UTC.
-            // Así la vela 9:30 ya cerró.
-            if (previous.Time.Date != _targetDate.Date)
+            if (nyTime.Date != targetDate.Value.Date)
                 return;
 
-            if (previous.Time.TimeOfDay != _targetCandleTimeUtc)
+            var t = nyTime.TimeOfDay;
+
+            if (t < _startTimeNy || t > _endTimeNy)
                 return;
 
-            if (current.Time.TimeOfDay <= _targetCandleTimeUtc)
+            string key = nyTime.ToString("yyyy-MM-dd") + "_" + closedBar;
+
+            if (_exportedBars.Contains(key))
                 return;
 
-            ExportClosedCandle(bar - 1);
+            ExportClosedCandle(closedBar, nyTime);
 
-            _exported930 = true;
+            _exportedBars.Add(key);
         }
 
-        private void ExportClosedCandle(int candleBar)
+        private DateTime ConvertToNewYorkTime(DateTime candleTime)
+        {
+            DateTime utcTime;
+
+            if (candleTime.Kind == DateTimeKind.Utc)
+                utcTime = candleTime;
+            else
+                utcTime = DateTime.SpecifyKind(candleTime, DateTimeKind.Utc);
+
+            return TimeZoneInfo.ConvertTimeFromUtc(utcTime, _nyZone);
+        }
+
+        private DateTime? ReadTargetDate()
+        {
+            if (!File.Exists(_targetDateFile))
+                return null;
+
+            string txt = File.ReadAllText(_targetDateFile).Trim();
+
+            if (DateTime.TryParseExact(
+                txt,
+                "yyyy-MM-dd",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out DateTime parsed))
+            {
+                return parsed.Date;
+            }
+
+            return null;
+        }
+
+        private void ExportClosedCandle(int candleBar, DateTime nyTime)
         {
             if (!Directory.Exists(_exportFolder))
                 Directory.CreateDirectory(_exportFolder);
 
             var c = GetCandle(candleBar);
 
+            string dateStr = nyTime.ToString("yyyy-MM-dd");
+
             string filePath = Path.Combine(
                 _exportFolder,
-                "closed_footprint_atas_2026-05-08_0930NY.csv"
+                $"footprint_atas_{dateStr}_0930_1030_NY.csv"
             );
 
-            using (var writer = new StreamWriter(filePath, false))
+            bool fileExists = File.Exists(filePath);
+
+            using (var writer = new StreamWriter(filePath, true))
             {
-                writer.WriteLine("date,time_utc,bar_index,price,bid,ask,volume,candle_open,candle_high,candle_low,candle_close,candle_delta,candle_volume");
+                if (!fileExists)
+                {
+                    writer.WriteLine(
+                        "date_ny,time_ny,date_utc,time_utc,bar_index,price,bid,ask,level_volume," +
+                        "candle_open,candle_high,candle_low,candle_close,candle_delta,candle_volume"
+                    );
+                }
 
                 var levels = c.GetAllPriceLevels();
 
                 foreach (var level in levels.OrderByDescending(x => x.Price))
                 {
                     writer.WriteLine(string.Join(",",
+                        nyTime.ToString("yyyy-MM-dd"),
+                        nyTime.ToString("HH:mm:ss"),
                         c.Time.ToString("yyyy-MM-dd"),
                         c.Time.ToString("HH:mm:ss"),
                         candleBar.ToString(CultureInfo.InvariantCulture),
