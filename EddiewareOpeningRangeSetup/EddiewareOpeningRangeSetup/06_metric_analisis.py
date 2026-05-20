@@ -4,7 +4,7 @@ import re
 import statistics
 
 from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 
@@ -20,21 +20,29 @@ OUTPUT_XLSX = Path(__file__).with_name("metric results.xlsx")
 OPENING_CANDLE_TIME = "09:30"
 TICK_SIZE = 0.25
 MIN_CONTINUATION_TICKS = 60
+MIN_TRADE_TICKS = 60
+MAX_TRADE_TICKS = 120
+
+COLOR_FOOTPRINT_FILES = True
+PROFIT_ZONE_FILL = "C6EFCE"
+RISK_ZONE_FILL = "FFC7CE"
+ENTRY_LINE_COLOR = "7030A0"
+SL_LINE_COLOR = "C00000"
+TP_LINE_COLOR = "00B050"
+ENTRY_MARKER_FILL = "FFE699"
+SL_MARKER_FILL = "FF0000"
+TP_MARKER_FILL = "00B050"
 
 BODY_FILLS = {
-    "00C6EFCE",  # bullish body
-    "00FFC7CE",  # bearish body
     "C6EFCE",
     "FFC7CE",
 }
 BODY_BORDER_COLORS = {
-    "0000B050",  # bullish body border
-    "00C00000",  # bearish body border
     "00B050",
     "C00000",
 }
-BULLISH_BODY_COLORS = {"00C6EFCE", "C6EFCE", "0000B050", "00B050"}
-BEARISH_BODY_COLORS = {"00FFC7CE", "FFC7CE", "00C00000", "C00000"}
+BULLISH_BODY_COLORS = {"C6EFCE", "00B050"}
+BEARISH_BODY_COLORS = {"FFC7CE", "C00000"}
 VOLUME_RE = re.compile(r"^\s*\d+\s*x\s*\d+\s*$", re.IGNORECASE)
 
 
@@ -51,16 +59,58 @@ def round_to_tick(value):
     return round(float(value) / TICK_SIZE, 2)
 
 
+def ticks_to_points(ticks):
+    return float(ticks) * TICK_SIZE
+
+
+def clamp_ticks(ticks, min_ticks=MIN_TRADE_TICKS, max_ticks=MAX_TRADE_TICKS):
+    return max(min_ticks, min(float(ticks), max_ticks))
+
+
 def safe_mean(values):
     values = [v for v in values if v is not None]
     return statistics.mean(values) if values else None
+
+
+def trade_risk_ticks(row):
+    entry = row.get("entry_price")
+    sl = row.get("SL_price")
+    if entry is None or sl is None:
+        return None
+    return round_to_tick(abs(float(entry) - float(sl)))
+
+
+def calculate_profit_factor(rows):
+    gross_profit = 0.0
+    gross_loss = 0.0
+
+    for row in rows:
+        if not row.get("filter_taken"):
+            continue
+
+        risk_ticks = trade_risk_ticks(row)
+        if risk_ticks is None:
+            continue
+
+        if row.get("continuation_60t"):
+            gross_profit += risk_ticks
+        else:
+            gross_loss += risk_ticks
+
+    if gross_loss == 0:
+        return "INF" if gross_profit > 0 else None
+
+    return gross_profit / gross_loss
 
 
 def rgb(color):
     if color is None:
         return None
     if color.type == "rgb":
-        return color.rgb
+        value = color.rgb
+        if value and len(value) == 8:
+            return value[-6:]
+        return value
     return None
 
 
@@ -69,34 +119,21 @@ def is_volume_cell(value):
 
 
 def is_body_cell(cell):
-    fill_rgb = rgb(cell.fill.fgColor)
-    if fill_rgb in BODY_FILLS:
-        return True
-
     left = cell.border.left
     right = cell.border.right
     left_rgb = rgb(left.color)
     right_rgb = rgb(right.color)
 
     return (
-        left.style == "medium"
-        and right.style == "medium"
-        and (left_rgb in BODY_BORDER_COLORS or right_rgb in BODY_BORDER_COLORS)
+        (left.style == "medium" and left_rgb in BODY_BORDER_COLORS)
+        or (right.style == "medium" and right_rgb in BODY_BORDER_COLORS)
     )
 
 
 def body_direction(cell):
-    fill_rgb = rgb(cell.fill.fgColor)
-    if fill_rgb in BULLISH_BODY_COLORS:
-        return "BUY"
-    if fill_rgb in BEARISH_BODY_COLORS:
-        return "SELL"
-
     colors = [
         rgb(cell.border.left.color),
         rgb(cell.border.right.color),
-        rgb(cell.border.top.color),
-        rgb(cell.border.bottom.color),
     ]
     if any(color in BULLISH_BODY_COLORS for color in colors):
         return "BUY"
@@ -110,6 +147,12 @@ def find_minute_column(ws, minute):
         if str(cell.value).strip() == minute:
             return cell.column
     return None
+
+
+def nearest_price_row(price_rows, target_price):
+    if target_price is None or not price_rows:
+        return None
+    return min(price_rows, key=lambda item: abs(item[1] - float(target_price)))[0]
 
 
 def get_minute_columns(ws):
@@ -293,14 +336,21 @@ def add_trade_simulation(row):
     entry_price = row.get("breakout_body_price")
 
     if side == "BUY" and entry_price is not None:
+        trade_ticks = clamp_ticks(round_to_tick(entry_price - row.get("or_low")))
+        trade_points = ticks_to_points(trade_ticks)
+        row["entry_time"] = row.get("breakout_time")
         row["entry_price"] = entry_price
-        row["SL_price"] = row.get("or_low")
-        row["TP_price"] = entry_price + (MIN_CONTINUATION_TICKS * TICK_SIZE)
+        row["SL_price"] = entry_price - trade_points
+        row["TP_price"] = entry_price + trade_points
     elif side == "SELL" and entry_price is not None:
+        trade_ticks = clamp_ticks(round_to_tick(row.get("or_high") - entry_price))
+        trade_points = ticks_to_points(trade_ticks)
+        row["entry_time"] = row.get("breakout_time")
         row["entry_price"] = entry_price
-        row["SL_price"] = row.get("or_high")
-        row["TP_price"] = entry_price - (MIN_CONTINUATION_TICKS * TICK_SIZE)
+        row["SL_price"] = entry_price + trade_points
+        row["TP_price"] = entry_price - trade_points
     else:
+        row["entry_time"] = None
         row["entry_price"] = None
         row["SL_price"] = None
         row["TP_price"] = None
@@ -395,6 +445,7 @@ def write_excel(rows, summary):
         "breakout_volume",
         "breakout_delta",
         "breakout_vwap",
+        "entry_time",
         "entry_price",
         "SL_price",
         "TP_price",
@@ -432,6 +483,7 @@ def write_excel(rows, summary):
         ("Trades tomados con filtro", summary["filter_taken_count"]),
         ("% trades tomados con filtro", summary["filter_taken_pct"]),
         ("% continuaciones capturadas por filtro", summary["filter_capture_pct"]),
+        ("Profit factor filtro", summary["profit_factor"]),
         ("Filtro usado", summary["filter_rule"]),
         ("Ruta analizada", str(FOOTPRINT_DIR)),
     ]
@@ -500,8 +552,104 @@ def write_excel(rows, summary):
     wb.save(OUTPUT_XLSX)
 
 
+def with_top_border(existing_border, color):
+    side = Side(style="thick", color=color)
+    return Border(
+        left=existing_border.left,
+        right=existing_border.right,
+        top=side,
+        bottom=existing_border.bottom,
+        diagonal=existing_border.diagonal,
+        diagonal_direction=existing_border.diagonal_direction,
+        diagonalUp=existing_border.diagonalUp,
+        diagonalDown=existing_border.diagonalDown,
+        outline=existing_border.outline,
+        vertical=existing_border.vertical,
+        horizontal=existing_border.horizontal,
+    )
+
+
+def color_trade_on_footprint(row):
+    if not row.get("filter_taken"):
+        return False
+
+    path = FOOTPRINT_DIR / row["file"]
+    if not path.exists() or path.name.startswith("~$"):
+        return False
+
+    wb = load_workbook(path, read_only=False, data_only=False)
+    if "Footprint" not in wb.sheetnames:
+        return False
+
+    ws = wb["Footprint"]
+    minute_columns = get_minute_columns(ws)
+    entry_time = row.get("entry_time")
+    entry_col = find_minute_column(ws, entry_time)
+    if entry_col is None:
+        return False
+
+    last_minute_col = max(column for _, column in minute_columns)
+    price_rows = list(iter_price_rows(ws))
+    entry_price = row.get("entry_price")
+    sl_price = row.get("SL_price")
+    tp_price = row.get("TP_price")
+    side = row.get("breakout_side")
+
+    if None in (entry_price, sl_price, tp_price) or side not in {"BUY", "SELL"}:
+        return False
+
+    profit_low, profit_high = sorted([float(entry_price), float(tp_price)])
+    risk_low, risk_high = sorted([float(entry_price), float(sl_price)])
+    profit_fill = PatternFill("solid", fgColor=PROFIT_ZONE_FILL)
+    risk_fill = PatternFill("solid", fgColor=RISK_ZONE_FILL)
+    entry_fill = PatternFill("solid", fgColor=ENTRY_MARKER_FILL)
+    sl_fill = PatternFill("solid", fgColor=SL_MARKER_FILL)
+    tp_fill = PatternFill("solid", fgColor=TP_MARKER_FILL)
+
+    for row_idx, price in price_rows:
+        if profit_low <= price <= profit_high:
+            fill = profit_fill
+        elif risk_low <= price <= risk_high:
+            fill = risk_fill
+        else:
+            continue
+
+        for col_idx in range(entry_col, last_minute_col + 1):
+            ws.cell(row=row_idx, column=col_idx).fill = fill
+
+    marker_rows = [
+        (nearest_price_row(price_rows, entry_price), ENTRY_LINE_COLOR, entry_fill),
+        (nearest_price_row(price_rows, sl_price), SL_LINE_COLOR, sl_fill),
+        (nearest_price_row(price_rows, tp_price), TP_LINE_COLOR, tp_fill),
+    ]
+
+    for marker_row, color, marker_fill in marker_rows:
+        if marker_row is None:
+            continue
+        for col_idx in range(entry_col, last_minute_col + 1):
+            cell = ws.cell(row=marker_row, column=col_idx)
+            cell.border = with_top_border(cell.border, color)
+            if marker_fill is not None:
+                cell.fill = marker_fill
+                cell.font = Font(color="FFFFFF", bold=True) if color != ENTRY_LINE_COLOR else Font(color="000000", bold=True)
+
+    wb.save(path)
+    return True
+
+
+def color_footprint_files(rows):
+    colored = 0
+    for row in rows:
+        if color_trade_on_footprint(row):
+            colored += 1
+    return colored
+
+
 def main():
-    files = sorted(FOOTPRINT_DIR.glob("*.xlsx"))
+    files = sorted(
+        path for path in FOOTPRINT_DIR.glob("*.xlsx")
+        if not path.name.startswith("~$")
+    )
     if not files:
         raise SystemExit(f"No se encontraron archivos .xlsx en: {FOOTPRINT_DIR}")
 
@@ -543,6 +691,7 @@ def main():
         "status=OK; breakout_time no vacio; breakout_side BUY/SELL; "
         "breakout body/volume/delta/vwap presentes; next_continuation_ticks >= 60"
     )
+    profit_factor = calculate_profit_factor(ok_rows)
     summary = {
         "ok_files": len(ok_rows),
         "total_files": len(rows),
@@ -555,10 +704,12 @@ def main():
         "filter_taken_count": len(filter_taken_rows),
         "filter_taken_pct": filter_taken_pct,
         "filter_capture_pct": filter_capture_pct,
+        "profit_factor": profit_factor,
         "filter_rule": filter_rule,
     }
 
     write_excel(rows, summary)
+    colored_files = color_footprint_files(rows) if COLOR_FOOTPRINT_FILES else 0
 
     print("============================================================")
     print("METRICAS VELA DE APERTURA 09:30")
@@ -576,6 +727,9 @@ def main():
         f"Trades tomados con filtro: {len(filter_taken_rows)} / {len(ok_rows)} "
         f"({format_number(filter_taken_pct)}%)"
     )
+    print(f"Profit factor filtro: {profit_factor}")
+    if COLOR_FOOTPRINT_FILES:
+        print(f"Footprints coloreados: {colored_files}")
     print(f"Excel guardado en: {OUTPUT_XLSX}")
 
     errors = [row for row in rows if row.get("status") != "OK"]
