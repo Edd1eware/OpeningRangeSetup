@@ -16,7 +16,8 @@ OUTPUT_DIR = RAW_DIR / "footprints_generados"
 
 START_TIME = "09:30"
 END_TIME = "10:30"
-PROCESS_ONLY_DATE = "2024-03-12"
+# Set to "YYYY-MM-DD" to process one date, or None to process every file.
+PROCESS_ONLY_DATE = None
 
 # ATAS style imbalance
 IMBALANCE_RATIO = 3.0
@@ -34,6 +35,14 @@ MAX_STACK_SPAN_LEVELS = 9999
 # NQ tick = 0.25, entonces 5 ticks = 1.25 puntos.
 TICK_SIZE = 0.25
 PRICE_GROUP_TICKS = 5
+
+# VWAP ATAS style
+DRAW_VWAP = True
+VWAP_SESSION_BEGIN = "09:30"
+VWAP_SESSION_END = "16:00"
+VWAP_BULLISH_COLOR = "2196F3"
+VWAP_BEARISH_COLOR = "B22222"
+VWAP_NEUTRAL_COLOR = "404040"
 
 OUTPUT_DIR.mkdir(exist_ok=True)
 
@@ -113,6 +122,7 @@ def read_raw_file(path):
     high_col = find_col(df, ["candle_high", "high"])
     low_col = find_col(df, ["candle_low", "low"])
     close_col = find_col(df, ["candle_close", "close"])
+    volume_col = find_col(df, ["candle_volume", "volume", "vol", "total_volume", "level_volume"])
 
     if time_col is None or price_col is None or bid_col is None or ask_col is None:
         raise ValueError("Faltan columnas necesarias: time/date, price, bid, ask.")
@@ -144,6 +154,11 @@ def read_raw_file(path):
         df["_high"] = None
         df["_low"] = None
         df["_close"] = None
+
+    if volume_col:
+        df["_volume"] = pd.to_numeric(df[volume_col], errors="coerce").fillna(0)
+    else:
+        df["_volume"] = df["_bid"] + df["_ask"]
 
     return df
 
@@ -490,9 +505,54 @@ def build_footprint(df, volume_filter_mode="winner"):
             "direction": "bullish" if c >= o else "bearish",
         }
 
+    vwap = {}
+    vwap_df = (
+        df[(df["_minute"] >= VWAP_SESSION_BEGIN[:5]) & (df["_minute"] <= VWAP_SESSION_END[:5])]
+        .groupby("_minute", as_index=False)
+        .agg(
+            close=("_close", "last"),
+            volume=("_volume", "first"),
+        )
+        .sort_values("_minute")
+    )
+
+    cumulative_pv = 0.0
+    cumulative_volume = 0.0
+    previous_vwap = None
+
+    for _, row in vwap_df.iterrows():
+        if pd.isna(row["close"]) or pd.isna(row["volume"]) or float(row["volume"]) <= 0:
+            continue
+
+        close = float(row["close"])
+        volume = float(row["volume"])
+        cumulative_pv += close * volume
+        cumulative_volume += volume
+
+        if cumulative_volume <= 0:
+            continue
+
+        raw_vwap = cumulative_pv / cumulative_volume
+        compressed_vwap = compress_price(raw_vwap)
+        direction = "neutral"
+
+        if previous_vwap is not None:
+            if raw_vwap > previous_vwap:
+                direction = "bullish"
+            elif raw_vwap < previous_vwap:
+                direction = "bearish"
+
+        vwap[row["_minute"]] = {
+            "raw": raw_vwap,
+            "price": compressed_vwap,
+            "direction": direction,
+        }
+
+        previous_vwap = raw_vwap
+
     imbalances = detect_diagonal_imbalances(prices, minutes, matrix, volume_filter_mode)
     candidates = collect_imbalance_candidates(prices, minutes, matrix)
-    return prices, minutes, matrix, summary, candles, imbalances, candidates
+    return prices, minutes, matrix, summary, candles, imbalances, candidates, vwap
 
 
 # ============================================================
@@ -521,11 +581,29 @@ def make_imbalance_border(imbalance):
     return Border(left=side, right=side, top=side, bottom=side)
 
 
+def make_vwap_border(existing_border, direction):
+    if direction == "bullish":
+        color = VWAP_BULLISH_COLOR
+    elif direction == "bearish":
+        color = VWAP_BEARISH_COLOR
+    else:
+        color = VWAP_NEUTRAL_COLOR
+
+    vwap_side = Side(style="thick", color=color)
+
+    return Border(
+        left=existing_border.left,
+        right=existing_border.right,
+        top=vwap_side,
+        bottom=vwap_side,
+    )
+
+
 # ============================================================
 # WRITE EXCEL
 # ============================================================
 
-def write_excel(output_path, title, prices, minutes, matrix, summary, candles, imbalances, candidates=None):
+def write_excel(output_path, title, prices, minutes, matrix, summary, candles, imbalances, candidates=None, vwap=None):
     wb = Workbook()
     ws = wb.active
     ws.title = "Footprint"
@@ -544,6 +622,18 @@ def write_excel(output_path, title, prices, minutes, matrix, summary, candles, i
 
     thin_side = Side(style="thin", color="B7B7B7")
     thin_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
+
+    vwap_price_by_minute = {}
+    if DRAW_VWAP and vwap:
+        for minute, item in vwap.items():
+            if not prices:
+                continue
+            nearest_price = min(prices, key=lambda p: abs(float(p) - float(item["price"])))
+            vwap_price_by_minute[minute] = {
+                "price": nearest_price,
+                "raw": item["raw"],
+                "direction": item["direction"],
+            }
 
     ws["A1"] = title
     ws["A1"].font = Font(bold=True, color=black, size=12)
@@ -624,7 +714,51 @@ def write_excel(output_path, title, prices, minutes, matrix, summary, candles, i
                     "05_footprint_generator_v34"
                 )
 
-    summary_row = start_row + len(prices) + 3
+            vwap_item = vwap_price_by_minute.get(minute)
+            if vwap_item and abs(float(price) - float(vwap_item["price"])) < 1e-9:
+                cell.border = make_vwap_border(cell.border, vwap_item["direction"])
+
+                vwap_text = (
+                    f"VWAP\n"
+                    f"Raw: {vwap_item['raw']:.2f}\n"
+                    f"Plotted price: {vwap_item['price']}\n"
+                    f"Direction: {vwap_item['direction']}"
+                )
+
+                if cell.comment:
+                    cell.comment = Comment(cell.comment.text + "\n\n" + vwap_text, cell.comment.author)
+                else:
+                    cell.comment = Comment(vwap_text, "05_footprint_generator_v34")
+
+    vwap_row = start_row + len(prices) + 2
+
+    ws.cell(row=vwap_row, column=1, value="VWAP")
+    ws.cell(row=vwap_row, column=1).font = Font(bold=True, color=black)
+    ws.cell(row=vwap_row, column=1).fill = PatternFill("solid", fgColor=header)
+    ws.cell(row=vwap_row, column=1).border = thin_border
+
+    for col_idx, minute in enumerate(minutes, start=2):
+        cell = ws.cell(row=vwap_row, column=col_idx)
+        cell.border = thin_border
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        vwap_item = vwap.get(minute) if vwap else None
+        if vwap_item:
+            cell.value = round(vwap_item["raw"], 2)
+
+            if vwap_item["direction"] == "bullish":
+                cell.fill = PatternFill("solid", fgColor=VWAP_BULLISH_COLOR)
+                cell.font = Font(color="FFFFFF", bold=True, size=9)
+            elif vwap_item["direction"] == "bearish":
+                cell.fill = PatternFill("solid", fgColor=VWAP_BEARISH_COLOR)
+                cell.font = Font(color="FFFFFF", bold=True, size=9)
+            else:
+                cell.fill = PatternFill("solid", fgColor="D9D9D9")
+                cell.font = Font(color=black, bold=True, size=9)
+        else:
+            cell.fill = PatternFill("solid", fgColor="F2F2F2")
+
+    summary_row = vwap_row + 2
 
     ws.cell(row=summary_row, column=1, value="DELTA / VOLUMEN POR MINUTO")
     ws.cell(row=summary_row, column=1).font = Font(bold=True, color=black)
@@ -752,16 +886,19 @@ def main():
         if f.is_file()
         and f.suffix.lower() in [".csv", ".xlsx", ".xls"]
         and not f.name.startswith("~$")
-        and PROCESS_ONLY_DATE in f.name
+        and (PROCESS_ONLY_DATE is None or PROCESS_ONLY_DATE in f.name)
     ]
 
-    print(f"\nArchivos encontrados para {PROCESS_ONLY_DATE}: {len(files)}")
+    if PROCESS_ONLY_DATE:
+        print(f"\nArchivos encontrados para {PROCESS_ONLY_DATE}: {len(files)}")
+    else:
+        print(f"\nArchivos encontrados para procesar: {len(files)}")
 
     for f in files:
         print(f"  - {f.name}")
 
     if not files:
-        print("\nNo encontré archivos para esa fecha.")
+        print("\nNo encontré archivos para procesar.")
         return
 
     for path in sorted(files):
@@ -778,7 +915,7 @@ def main():
             date_label = detect_date_from_filename(path)
 
             for volume_filter_mode in VOLUME_FILTER_MODES:
-                prices, minutes, matrix, summary, candles, imbalances, candidates = build_footprint(
+                prices, minutes, matrix, summary, candles, imbalances, candidates, vwap = build_footprint(
                     df,
                     volume_filter_mode=volume_filter_mode,
                 )
@@ -794,7 +931,7 @@ def main():
                     f"MINI_ATAS_FOOTPRINT_{date_label}_V34_FILTER_{mode_label}_DIAG.xlsx"
                 )
 
-                write_excel(output_path, title, prices, minutes, matrix, summary, candles, imbalances, candidates)
+                write_excel(output_path, title, prices, minutes, matrix, summary, candles, imbalances, candidates, vwap)
 
                 print(f"  OK generado ({mode_label}): {output_path}")
                 print(f"  Imbalances pintados ({mode_label}): {len(imbalances)}")
