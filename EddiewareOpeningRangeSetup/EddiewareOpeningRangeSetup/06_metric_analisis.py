@@ -23,7 +23,7 @@ MIN_CONTINUATION_TICKS = 60
 MIN_TRADE_TICKS = 60
 MAX_TRADE_TICKS = 120
 
-COLOR_FOOTPRINT_FILES = True
+COLOR_FOOTPRINT_FILES = False
 PROFIT_ZONE_FILL = "C6EFCE"
 RISK_ZONE_FILL = "FFC7CE"
 ENTRY_LINE_COLOR = "7030A0"
@@ -253,7 +253,7 @@ def read_candle(ws, minute, minute_col):
     }
 
 
-def find_breakout_continuation(candles, opening_candle):
+def find_breakout_signal(candles, opening_candle):
     or_high = opening_candle["high"]
     or_low = opening_candle["low"]
     minutes = sorted(candles)
@@ -273,30 +273,28 @@ def find_breakout_continuation(candles, opening_candle):
         if direction == "BUY" and close is not None and close > or_high:
             breakout_ticks = round_to_tick(close - or_high)
             continuation_ticks = round_to_tick(next_candle["high"] - close)
-            if continuation_ticks >= MIN_CONTINUATION_TICKS:
-                return {
-                    "breakout_time": minute,
-                    "breakout_side": "BUY",
-                    "breakout_body_price": close,
-                    "breakout_body_ticks": breakout_ticks,
-                    "next_candle_time": next_minute,
-                    "next_continuation_ticks": continuation_ticks,
-                    "continuation_60t": True,
-                }
+            return {
+                "breakout_time": minute,
+                "breakout_side": "BUY",
+                "breakout_body_price": close,
+                "breakout_body_ticks": breakout_ticks,
+                "next_candle_time": next_minute,
+                "next_continuation_ticks": continuation_ticks,
+                "continuation_60t": continuation_ticks >= MIN_CONTINUATION_TICKS,
+            }
 
         if direction == "SELL" and close is not None and close < or_low:
             breakout_ticks = round_to_tick(or_low - close)
             continuation_ticks = round_to_tick(close - next_candle["low"])
-            if continuation_ticks >= MIN_CONTINUATION_TICKS:
-                return {
-                    "breakout_time": minute,
-                    "breakout_side": "SELL",
-                    "breakout_body_price": close,
-                    "breakout_body_ticks": breakout_ticks,
-                    "next_candle_time": next_minute,
-                    "next_continuation_ticks": continuation_ticks,
-                    "continuation_60t": True,
-                }
+            return {
+                "breakout_time": minute,
+                "breakout_side": "SELL",
+                "breakout_body_price": close,
+                "breakout_body_ticks": breakout_ticks,
+                "next_candle_time": next_minute,
+                "next_continuation_ticks": continuation_ticks,
+                "continuation_60t": continuation_ticks >= MIN_CONTINUATION_TICKS,
+            }
 
     return {
         "breakout_time": None,
@@ -331,6 +329,71 @@ def add_breakout_metrics(breakout, volume_by_minute, delta_by_minute, vwap_by_mi
     return breakout
 
 
+def to_minutes(time_text):
+    if not time_text:
+        return None
+    parts = str(time_text).strip().split(":")
+    if len(parts) < 2:
+        return None
+    try:
+        return int(parts[0]) * 60 + int(parts[1])
+    except ValueError:
+        return None
+
+
+def get_breakout_imbalance_signal(wb, breakout_time, breakout_side, breakout_candle):
+    result = {
+        "Imbalance detected": False,
+        "imbalance_price": None,
+        "imbalance_zone": "",
+    }
+
+    if not breakout_time or breakout_side not in {"BUY", "SELL"}:
+        return result
+    if not breakout_candle:
+        return result
+    if "ImbalanceCandidates" not in wb.sheetnames:
+        return result
+
+    ws = wb["ImbalanceCandidates"]
+    headers = {
+        str(ws.cell(row=1, column=col).value or "").strip().lower(): col
+        for col in range(1, ws.max_column + 1)
+    }
+    minute_col = headers.get("minute")
+    side_col = headers.get("side")
+    price_col = headers.get("price")
+    if minute_col is None or side_col is None or price_col is None:
+        return result
+
+    midpoint = (breakout_candle["high"] + breakout_candle["low"]) / 2
+
+    for row_idx in range(2, ws.max_row + 1):
+        minute = str(ws.cell(row=row_idx, column=minute_col).value or "").strip()
+        side = str(ws.cell(row=row_idx, column=side_col).value or "").strip().upper()
+        if minute != breakout_time or side != breakout_side:
+            continue
+
+        try:
+            price = float(ws.cell(row=row_idx, column=price_col).value)
+        except (TypeError, ValueError):
+            continue
+
+        if breakout_side == "BUY" and price >= midpoint:
+            result["Imbalance detected"] = True
+            result["imbalance_price"] = price
+            result["imbalance_zone"] = "UPPER_50"
+            return result
+
+        if breakout_side == "SELL" and price <= midpoint:
+            result["Imbalance detected"] = True
+            result["imbalance_price"] = price
+            result["imbalance_zone"] = "LOWER_50"
+            return result
+
+    return result
+
+
 def add_trade_simulation(row):
     side = row.get("breakout_side")
     entry_price = row.get("breakout_body_price")
@@ -358,18 +421,67 @@ def add_trade_simulation(row):
     return row
 
 
-def passes_continuation_filter(row):
+def delta_aligned_with_side(row):
+    delta = row.get("breakout_delta")
+    side = row.get("breakout_side")
+    if delta is None or side not in {"BUY", "SELL"}:
+        return False
+    return (side == "BUY" and delta > 0) or (side == "SELL" and delta < 0)
+
+
+def vwap_aligned_with_side(row):
+    entry = row.get("entry_price")
+    vwap = row.get("breakout_vwap")
+    side = row.get("breakout_side")
+    if entry is None or vwap is None or side not in {"BUY", "SELL"}:
+        return False
+    return (side == "BUY" and entry >= vwap) or (side == "SELL" and entry <= vwap)
+
+
+def vwap_distance_ticks(row):
+    entry = row.get("entry_price")
+    vwap = row.get("breakout_vwap")
+    if entry is None or vwap is None:
+        return None
+    return round_to_tick(abs(float(entry) - float(vwap)))
+
+
+def passes_operation_filter(row):
+    distance_from_vwap = vwap_distance_ticks(row)
+
     return (
         row.get("status") == "OK"
         and row.get("breakout_time") is not None
+        and to_minutes(row.get("breakout_time")) is not None
+        and to_minutes(row.get("breakout_time")) >= to_minutes("09:32")
         and row.get("breakout_side") in {"BUY", "SELL"}
         and row.get("breakout_body_ticks") is not None
         and row.get("breakout_volume") is not None
         and row.get("breakout_delta") is not None
         and row.get("breakout_vwap") is not None
-        and row.get("next_continuation_ticks") is not None
-        and row.get("next_continuation_ticks") >= MIN_CONTINUATION_TICKS
+        and row.get("breakout_body_ticks") > 0
+        and row.get("Imbalance detected") is True
+        and vwap_aligned_with_side(row)
     )
+
+
+def passes_continuation_filter(row):
+    return passes_operation_filter(row)
+
+
+def detect_operation_setup(row):
+    if passes_operation_filter(row):
+        return "OPENING_RANGE_CONTINUATION_V1"
+
+    return ""
+
+
+def detect_trade_classification(row):
+    setup = row.get("Setup")
+    if setup == "OPENING_RANGE_CONTINUATION_V1":
+        return "CONTINUATION"
+
+    return ""
 
 
 def analyze_opening_candle(path):
@@ -389,7 +501,7 @@ def analyze_opening_candle(path):
     if opening_candle is None:
         raise ValueError(f"No hay datos de volumen en {OPENING_CANDLE_TIME}.")
 
-    breakout = find_breakout_continuation(candles, opening_candle)
+    breakout = find_breakout_signal(candles, opening_candle)
     volume_by_minute = read_metric_by_minute(ws, minute_columns, "Volumen")
     delta_by_minute = read_metric_by_minute(ws, minute_columns, "Delta")
     vwap_by_minute = read_metric_by_minute(ws, minute_columns, "VWAP")
@@ -399,6 +511,13 @@ def analyze_opening_candle(path):
         delta_by_minute,
         vwap_by_minute,
     )
+    imbalance_signal = get_breakout_imbalance_signal(
+        wb,
+        breakout.get("breakout_time"),
+        breakout.get("breakout_side"),
+        candles.get(breakout.get("breakout_time")),
+    )
+    breakout.update(imbalance_signal)
 
     row = {
         "date": detect_date_from_filename(path),
@@ -416,7 +535,11 @@ def analyze_opening_candle(path):
         "status": "OK",
         "error": "",
     }
-    return add_trade_simulation(row)
+    row = add_trade_simulation(row)
+    row["Setup"] = detect_operation_setup(row)
+    row["Trade_Clasification"] = detect_trade_classification(row)
+    row["Operation"] = "TRADE" if row["Setup"] else "NO TRADE"
+    return row
 
 
 def format_number(value, digits=2):
@@ -445,6 +568,12 @@ def write_excel(rows, summary):
         "breakout_volume",
         "breakout_delta",
         "breakout_vwap",
+        "Imbalance detected",
+        "imbalance_price",
+        "imbalance_zone",
+        "Setup",
+        "Trade_Clasification",
+        "Operation",
         "entry_time",
         "entry_price",
         "SL_price",
@@ -482,6 +611,7 @@ def write_excel(rows, summary):
         ("Promedio breakout con cuerpo (ticks)", summary["avg_breakout_body_ticks"]),
         ("Trades tomados con filtro", summary["filter_taken_count"]),
         ("% trades tomados con filtro", summary["filter_taken_pct"]),
+        ("Winrate filtro sin lookahead", summary["filter_winrate_pct"]),
         ("% continuaciones capturadas por filtro", summary["filter_capture_pct"]),
         ("Profit factor filtro", summary["profit_factor"]),
         ("Filtro usado", summary["filter_rule"]),
@@ -492,16 +622,18 @@ def write_excel(rows, summary):
         ws_summary.cell(row=row_idx, column=1, value=label).font = Font(bold=True)
         ws_summary.cell(row=row_idx, column=2, value=value)
 
-    ws_summary["C12"] = "equivale a trades"
-    ws_summary["C12"].font = Font(bold=True)
-    ws_summary["D12"] = summary["filter_taken_count"]
-    ws_summary["D12"].font = Font(bold=True)
-    ws_summary["D12"].fill = ok_fill
+    for row_idx in range(3, 3 + len(summary_rows)):
+        if ws_summary.cell(row=row_idx, column=1).value == "% trades tomados con filtro":
+            ws_summary.cell(row=row_idx, column=3, value="equivale a trades").font = Font(bold=True)
+            ws_summary.cell(row=row_idx, column=4, value=summary["filter_taken_count"]).font = Font(bold=True)
+            ws_summary.cell(row=row_idx, column=4).fill = ok_fill
+            break
 
     percent_labels = {
         "Promedio % body vela 09:30",
         "% continuaciones simples >= 60 ticks",
         "% trades tomados con filtro",
+        "Winrate filtro sin lookahead",
         "% continuaciones capturadas por filtro",
     }
 
@@ -670,6 +802,9 @@ def main():
 
     for row in rows:
         row["filter_taken"] = passes_continuation_filter(row)
+        row["Setup"] = detect_operation_setup(row)
+        row["Trade_Clasification"] = detect_trade_classification(row)
+        row["Operation"] = "TRADE" if row["Setup"] else "NO TRADE"
 
     ok_rows = [row for row in rows if row.get("status") == "OK"]
     avg_range_ticks = safe_mean([row.get("range_ticks") for row in ok_rows])
@@ -682,14 +817,24 @@ def main():
     )
     filter_taken_rows = [row for row in ok_rows if row.get("filter_taken")]
     filter_taken_pct = (len(filter_taken_rows) / len(ok_rows) * 100) if ok_rows else None
+    filter_winrate_pct = (
+        len([row for row in filter_taken_rows if row.get("continuation_60t")])
+        / len(filter_taken_rows)
+        * 100
+    ) if filter_taken_rows else None
     filter_capture_pct = (
         len([row for row in filter_taken_rows if row.get("continuation_60t")])
         / len(continuation_rows)
         * 100
     ) if continuation_rows else None
     filter_rule = (
-        "status=OK; breakout_time no vacio; breakout_side BUY/SELL; "
-        "breakout body/volume/delta/vwap presentes; next_continuation_ticks >= 60"
+        "SIN LOOKAHEAD: Operation=TRADE si hay breakout con cuerpo, "
+        "breakout_time>=09:32, Imbalance detected=True en la mitad correcta "
+        "de la vela de breakout (BUY upper 50%, SELL lower 50%) "
+        "y VWAP a favor del trade (BUY entry>=VWAP, SELL entry<=VWAP). "
+        "continuation_60t se usa solo como resultado posterior. "
+        "Setup actual: OPENING_RANGE_CONTINUATION_V1; futuros setups pendientes: "
+        "REVERSE_ABSORTION, CONTINUATION_PULLBACK, TREND_DAY_RUNNER."
     )
     profit_factor = calculate_profit_factor(ok_rows)
     summary = {
@@ -703,6 +848,7 @@ def main():
         "avg_breakout_body_ticks": avg_breakout_body_ticks,
         "filter_taken_count": len(filter_taken_rows),
         "filter_taken_pct": filter_taken_pct,
+        "filter_winrate_pct": filter_winrate_pct,
         "filter_capture_pct": filter_capture_pct,
         "profit_factor": profit_factor,
         "filter_rule": filter_rule,

@@ -3,12 +3,12 @@
   "WorkspaceRootPath": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{8D310DC7-7A48-92A1-A390-D34265CB253A}|EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup.csproj|c:\\users\\k_99_\\desktop\\codding\\openingrangesetup\\eddiewareopeningrangesetup\\eddiewareopeningrangesetup\\atasfootprintexporterpilot.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{8D310DC7-7A48-92A1-A390-D34265CB253A}|EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup.csproj|solutionrelative:eddiewareopeningrangesetup\\atasfootprintexporterpilot.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{8D310DC7-7A48-92A1-A390-D34265CB253A}|EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup.csproj|c:\\users\\k_99_\\desktop\\codding\\openingrangesetup\\eddiewareopeningrangesetup\\eddiewareopeningrangesetup\\class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{8D310DC7-7A48-92A1-A390-D34265CB253A}|EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup.csproj|solutionrelative:eddiewareopeningrangesetup\\class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{8D310DC7-7A48-92A1-A390-D34265CB253A}|EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup.csproj|c:\\users\\k_99_\\desktop\\codding\\openingrangesetup\\eddiewareopeningrangesetup\\eddiewareopeningrangesetup\\atasfootprintexporterpilot.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{8D310DC7-7A48-92A1-A390-D34265CB253A}|EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup.csproj|solutionrelative:eddiewareopeningrangesetup\\atasfootprintexporterpilot.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -18,32 +18,33 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 1,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "ATASFootprintExporterPilot.cs",
               "DocumentMoniker": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\ATASFootprintExporterPilot.cs",
               "RelativeDocumentMoniker": "EddiewareOpeningRangeSetup\\ATASFootprintExporterPilot.cs",
               "ToolTip": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\ATASFootprintExporterPilot.cs",
               "RelativeToolTip": "EddiewareOpeningRangeSetup\\ATASFootprintExporterPilot.cs",
-              "ViewState": "AgIAAIAAAAAAAAAAAAAwwJUAAAABAAAAAAAAAA==",
+              "ViewState": "AgIAAIAAAAAAAAAAAAAwwJQAAAAFAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-05-18T00:59:05.151Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 0,
               "Title": "Class1.cs",
               "DocumentMoniker": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\Class1.cs",
               "RelativeDocumentMoniker": "EddiewareOpeningRangeSetup\\Class1.cs",
               "ToolTip": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\Class1.cs",
               "RelativeToolTip": "EddiewareOpeningRangeSetup\\Class1.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAM0AAAAAAAAAAAAwwOIAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-04-27T21:36:58.296Z"
+              "WhenOpened": "2026-04-27T21:36:58.296Z",
+              "EditorCaption": ""
             }
           ]
         }
