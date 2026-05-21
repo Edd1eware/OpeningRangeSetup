@@ -1,24 +1,15 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using ATAS.Indicators;
 
 namespace ATAS.Indicators.Technical
 {
-    [DisplayName("Metric Results No LookAhead Filter")]
-    public class MetricResultsNoLookAheadFilter : Indicator
+    [DisplayName("Metric No LookAhead Score Manual TP SL")]
+    public class MetricNoLookAheadScoreManualTpSl : Indicator
     {
-        private readonly HashSet<string> ValidDates = new()
-        {
-            // "2023-11-07",
-            // "2023-11-08",
-        };
-
-        [DisplayName("Only Valid Dates")]
-        public bool OnlyValidDates { get; set; } = true;
-
-        [DisplayName("Min Score")]
-        public int MinScore { get; set; } = 3;
+        [DisplayName("Min Score / Cutoff Score")]
+        public int MinScore { get; set; } = 5;
 
         [DisplayName("Min OR Range Ticks")]
         public int MinOrRangeTicks { get; set; } = 40;
@@ -26,8 +17,8 @@ namespace ATAS.Indicators.Technical
         [DisplayName("Max OR Range Ticks")]
         public int MaxOrRangeTicks { get; set; } = 350;
 
-        [DisplayName("Min Breakout Body Ticks")]
-        public int MinBreakoutBodyTicks { get; set; } = 10;
+        [DisplayName("Min Body Breakout Ticks")]
+        public int MinBodyBreakoutTicks { get; set; } = 10;
 
         [DisplayName("Min Volume")]
         public decimal MinVolume { get; set; } = 800;
@@ -35,8 +26,17 @@ namespace ATAS.Indicators.Technical
         [DisplayName("Min Abs Delta")]
         public decimal MinAbsDelta { get; set; } = 25;
 
-        [DisplayName("Max Signal Minute")]
-        public int MaxSignalMinute { get; set; } = 50;
+        [DisplayName("Max Signal Minute NY")]
+        public int MaxSignalMinuteNy { get; set; } = 50;
+
+        [DisplayName("TP Ticks")]
+        public int TpTicks { get; set; } = 60;
+
+        [DisplayName("SL Ticks")]
+        public int SlTicks { get; set; } = 60;
+
+        [DisplayName("Line Length Bars")]
+        public int LineLengthBars { get; set; } = 20;
 
         private decimal _orHigh;
         private decimal _orLow;
@@ -45,6 +45,8 @@ namespace ATAS.Indicators.Technical
 
         private decimal _cumPv;
         private decimal _cumVol;
+
+        private readonly List<TradeLevels> _levels = new();
 
         private readonly ValueDataSeries _buySignals = new("BUY VALID")
         {
@@ -58,10 +60,31 @@ namespace ATAS.Indicators.Technical
             Width = 3
         };
 
-        public MetricResultsNoLookAheadFilter()
+        private readonly ValueDataSeries _entryLine = new("ENTRY ORANGE")
+        {
+            VisualType = VisualMode.Line,
+            Width = 2
+        };
+
+        private readonly ValueDataSeries _tpLine = new("TP GREEN")
+        {
+            VisualType = VisualMode.Line,
+            Width = 2
+        };
+
+        private readonly ValueDataSeries _slLine = new("SL RED")
+        {
+            VisualType = VisualMode.Line,
+            Width = 2
+        };
+
+        public MetricNoLookAheadScoreManualTpSl()
         {
             DataSeries[0] = _buySignals;
             DataSeries.Add(_sellSignals);
+            DataSeries.Add(_entryLine);
+            DataSeries.Add(_tpLine);
+            DataSeries.Add(_slLine);
         }
 
         protected override void OnCalculate(int bar, decimal value)
@@ -69,15 +92,12 @@ namespace ATAS.Indicators.Technical
             var candle = GetCandle(bar);
             var nyTime = ToNewYorkTime(candle.Time);
             var nyDate = nyTime.Date;
-            var dateKey = nyDate.ToString("yyyy-MM-dd");
-
-            if (OnlyValidDates && ValidDates.Count > 0 && !ValidDates.Contains(dateKey))
-                return;
 
             if (bar == 0 || nyDate != _currentNyDate)
                 ResetDay(nyDate);
 
             UpdateSessionVwap(candle);
+            PaintActiveLevels(bar);
 
             if (nyTime.Hour == 9 && nyTime.Minute == 30)
             {
@@ -93,7 +113,7 @@ namespace ATAS.Indicators.Technical
             if (nyTime.Hour != 9)
                 return;
 
-            if (nyTime.Minute < 31 || nyTime.Minute > MaxSignalMinute)
+            if (nyTime.Minute < 31 || nyTime.Minute > MaxSignalMinuteNy)
                 return;
 
             var vwap = GetVwap();
@@ -110,25 +130,25 @@ namespace ATAS.Indicators.Technical
                 orRangeTicks >= MinOrRangeTicks &&
                 orRangeTicks <= MaxOrRangeTicks;
 
-            var breakoutBodyTicks = 0;
+            var bodyBreakoutTicks = 0;
 
             if (longBreakout)
-                breakoutBodyTicks = ToTicks(candle.Close - Math.Max(candle.Open, _orHigh));
+                bodyBreakoutTicks = ToTicks(candle.Close - Math.Max(candle.Open, _orHigh));
 
             if (shortBreakout)
-                breakoutBodyTicks = ToTicks(Math.Min(candle.Open, _orLow) - candle.Close);
+                bodyBreakoutTicks = ToTicks(Math.Min(candle.Open, _orLow) - candle.Close);
 
-            if (breakoutBodyTicks < 0)
-                breakoutBodyTicks = 0;
+            if (bodyBreakoutTicks < 0)
+                bodyBreakoutTicks = 0;
 
-            var bodyOk = breakoutBodyTicks >= MinBreakoutBodyTicks;
+            var bodyOk = bodyBreakoutTicks >= MinBodyBreakoutTicks;
+            var volumeOk = candle.Volume >= MinVolume;
+            var deltaOk = Math.Abs(candle.Delta) >= MinAbsDelta;
+            var timeOk = nyTime.Minute <= MaxSignalMinuteNy;
 
             var vwapOk =
                 (longBreakout && candle.Close >= vwap) ||
                 (shortBreakout && candle.Close <= vwap);
-
-            var volumeOk = candle.Volume >= MinVolume;
-            var deltaOk = Math.Abs(candle.Delta) >= MinAbsDelta;
 
             var score = 0;
 
@@ -147,16 +167,56 @@ namespace ATAS.Indicators.Technical
             if (deltaOk)
                 score += 1;
 
+            if (timeOk)
+                score += 1;
+
             if (score < MinScore)
                 return;
 
             var tickSize = GetTickSize();
+            var entry = candle.Close;
+
+            decimal tp;
+            decimal sl;
 
             if (longBreakout)
-                _buySignals[bar] = candle.Low - tickSize * 10;
+            {
+                tp = entry + tickSize * TpTicks;
+                sl = entry - tickSize * SlTicks;
 
-            if (shortBreakout)
+                _buySignals[bar] = candle.Low - tickSize * 10;
+            }
+            else
+            {
+                tp = entry - tickSize * TpTicks;
+                sl = entry + tickSize * SlTicks;
+
                 _sellSignals[bar] = candle.High + tickSize * 10;
+            }
+
+            _levels.Add(new TradeLevels
+            {
+                StartBar = bar,
+                EndBar = bar + LineLengthBars,
+                Entry = entry,
+                Tp = tp,
+                Sl = sl
+            });
+
+            PaintActiveLevels(bar);
+        }
+
+        private void PaintActiveLevels(int bar)
+        {
+            foreach (var level in _levels)
+            {
+                if (bar < level.StartBar || bar > level.EndBar)
+                    continue;
+
+                _entryLine[bar] = level.Entry;
+                _tpLine[bar] = level.Tp;
+                _slLine[bar] = level.Sl;
+            }
         }
 
         private void ResetDay(DateTime nyDate)
@@ -167,12 +227,13 @@ namespace ATAS.Indicators.Technical
             _orReady = false;
             _cumPv = 0;
             _cumVol = 0;
+            _levels.Clear();
         }
 
         private void UpdateSessionVwap(dynamic candle)
         {
-            decimal typical = (candle.High + candle.Low + candle.Close) / 3m;
-            decimal volume = candle.Volume;
+            var typical = (candle.High + candle.Low + candle.Close) / 3m;
+            var volume = candle.Volume;
 
             if (volume <= 0)
                 return;
@@ -222,6 +283,15 @@ namespace ATAS.Indicators.Technical
             {
                 return time;
             }
+        }
+
+        private class TradeLevels
+        {
+            public int StartBar { get; set; }
+            public int EndBar { get; set; }
+            public decimal Entry { get; set; }
+            public decimal Tp { get; set; }
+            public decimal Sl { get; set; }
         }
     }
 }
