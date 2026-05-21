@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# 83%, 537 TRADE
 
 from pathlib import Path
 import pandas as pd
