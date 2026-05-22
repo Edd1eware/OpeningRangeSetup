@@ -20,6 +20,14 @@ namespace ATAS.Indicators
         private bool _tradeDrawn;
         private int _speedBar = -1;
         private DateTime _speedBarStartedAtUtc = DateTime.MinValue;
+        private bool _panicDrawn;
+        private int _tradeBar = -1;
+        private string _tradeSide = "";
+        private decimal _tradeEntry;
+        private decimal _bestFavorablePrice;
+        private decimal _lastManagePrice;
+        private DateTime _lastManageTimeUtc = DateTime.MinValue;
+        private DateTime _bestFavorableTimeUtc = DateTime.MinValue;
 
         [DisplayName("Opening Time UTC")]
         public TimeSpan OpeningTimeUtc { get; set; } = new TimeSpan(13, 30, 0);
@@ -72,6 +80,15 @@ namespace ATAS.Indicators
         [DisplayName("Min A+ Speed Ticks/Sec")]
         public decimal APlusSpeedTicksPerSecond { get; set; } = 5;
 
+        [DisplayName("Panic MFE Trigger Ticks")]
+        public decimal PanicMfeTriggerTicks { get; set; } = 20;
+
+        [DisplayName("Panic Pullback Ticks")]
+        public decimal PanicPullbackTicks { get; set; } = 10;
+
+        [DisplayName("Panic Adverse Speed Ticks/Sec")]
+        public decimal PanicAdverseSpeedTicksPerSecond { get; set; } = 3;
+
         public EddiewareOpeningRangeVisual()
         {
             Name = "Eddieware Opening Range Visual";
@@ -89,6 +106,12 @@ namespace ATAS.Indicators
                 ResetDay(candle.Time.Date);
 
             UpdateSpeedClock(bar);
+
+            if (_tradeDrawn)
+            {
+                ManageActiveTrade(bar, candle);
+                return;
+            }
 
             var closedBar = bar - 1;
 
@@ -151,7 +174,6 @@ namespace ATAS.Indicators
                 BodyOk = bodyBreakoutTicks >= MinBodyBreakoutTicks,
                 VolumeOk = candle.Volume >= MinVolume,
                 DeltaOk = Math.Abs(candle.Delta) >= MinAbsDelta,
-                TimeOk = IsSignalWindow(candle),
                 VwapOk =
                     (longBreakout && candle.Close >= vwap) ||
                     (shortBreakout && candle.Close <= vwap)
@@ -166,7 +188,7 @@ namespace ATAS.Indicators
             if (state.BodyOk) state.Value += 1;
             if (state.VolumeOk) state.Value += 1;
             if (state.DeltaOk) state.Value += 1;
-            if (state.TimeOk) state.Value += 1;
+            if (state.SpeedValid) state.Value += 1;
 
             return state;
         }
@@ -219,6 +241,138 @@ namespace ATAS.Indicators
             DrawTradeLabel($"EW_ENTRY_{candle.Time:yyyyMMdd_HHmm}_{bar}", $"ENTRY {entry:0.00}", bar, entry, Color.Black, Color.Gold);
             DrawTradeLabel($"EW_SL_{candle.Time:yyyyMMdd_HHmm}_{bar}", $"SL {sl:0.00} | {slTicks:0}t", bar, sl, Color.White, Color.Red);
             DrawTradeLabel($"EW_TP_{candle.Time:yyyyMMdd_HHmm}_{bar}", $"TP {tp:0.00} | {tpTicks:0}t", bar, tp, Color.White, Color.Green);
+
+            _tradeBar = bar;
+            _tradeSide = score.Side;
+            _tradeEntry = entry;
+            _bestFavorablePrice = entry;
+            _lastManagePrice = entry;
+            _lastManageTimeUtc = TryGetCandleUpdateTime(candle);
+            _bestFavorableTimeUtc = _lastManageTimeUtc;
+
+            DrawLiveExitSpeed(bar, candle, 0);
+        }
+
+        private void ManageActiveTrade(int bar, dynamic candle)
+        {
+            if (_tradeSide == "")
+                return;
+
+            var tickSize = GetTickSize();
+            var currentPrice = candle.Close;
+            var currentTime = TryGetCandleUpdateTime(candle);
+            var elapsedSeconds = (currentTime - _lastManageTimeUtc).TotalSeconds;
+
+            if (elapsedSeconds <= 0 || elapsedSeconds > 300)
+                elapsedSeconds = 1;
+
+            if (_tradeSide == "BUY")
+            {
+                if (candle.High > _bestFavorablePrice)
+                {
+                    _bestFavorablePrice = candle.High;
+                    _bestFavorableTimeUtc = currentTime;
+                }
+            }
+            else
+            {
+                if (_bestFavorablePrice == 0 || candle.Low < _bestFavorablePrice)
+                {
+                    _bestFavorablePrice = candle.Low;
+                    _bestFavorableTimeUtc = currentTime;
+                }
+            }
+
+            var adversePrice = _tradeSide == "BUY" ? candle.Low : candle.High;
+            var adverseElapsedSeconds = (currentTime - _bestFavorableTimeUtc).TotalSeconds;
+
+            if (adverseElapsedSeconds <= 0 || adverseElapsedSeconds > 300)
+                adverseElapsedSeconds = elapsedSeconds;
+
+            var mfeTicks = _tradeSide == "BUY"
+                ? RoundToTicks(_bestFavorablePrice - _tradeEntry)
+                : RoundToTicks(_tradeEntry - _bestFavorablePrice);
+
+            var pullbackTicks = _tradeSide == "BUY"
+                ? RoundToTicks(_bestFavorablePrice - adversePrice)
+                : RoundToTicks(adversePrice - _bestFavorablePrice);
+
+            var adverseMoveTicks = _tradeSide == "BUY"
+                ? RoundToTicks(Math.Max(0, _lastManagePrice - adversePrice))
+                : RoundToTicks(Math.Max(0, adversePrice - _lastManagePrice));
+
+            var adverseSpeed = Math.Max(
+                adverseMoveTicks / (decimal)elapsedSeconds,
+                pullbackTicks / (decimal)adverseElapsedSeconds);
+
+            DrawLiveExitSpeed(bar, candle, adverseSpeed);
+
+            _lastManagePrice = adversePrice;
+            _lastManageTimeUtc = currentTime;
+
+            if (_panicDrawn)
+                return;
+
+            if (mfeTicks < PanicMfeTriggerTicks ||
+                pullbackTicks < PanicPullbackTicks ||
+                adverseSpeed < PanicAdverseSpeedTicksPerSecond)
+                return;
+
+            var panicTriggerPrice = _tradeSide == "BUY"
+                ? _bestFavorablePrice - PanicPullbackTicks * GetTickSize()
+                : _bestFavorablePrice + PanicPullbackTicks * GetTickSize();
+
+            DrawPanicBreakEven(bar, panicTriggerPrice, mfeTicks, pullbackTicks, adverseSpeed);
+            _panicDrawn = true;
+        }
+
+        private void DrawLiveExitSpeed(int bar, dynamic candle, decimal adverseSpeed)
+        {
+            var tickSize = GetTickSize();
+            var price = _tradeSide == "BUY"
+                ? candle.Low - tickSize * 8
+                : candle.High + tickSize * 8;
+            var isValidSpeed = adverseSpeed >= PanicAdverseSpeedTicksPerSecond;
+
+            AddText(
+                "EW_SCORE_STATUS",
+                $"LIVE EXIT SPEED {_tradeSide} {adverseSpeed:0.00}t/s | SL {(isValidSpeed ? "VALID" : "WAIT")}",
+                true,
+                bar,
+                price,
+                0,
+                0,
+                Color.White,
+                isValidSpeed ? Color.Purple : Color.DimGray,
+                isValidSpeed ? Color.Purple : Color.DimGray,
+                12,
+                DrawingText.TextAlign.Center,
+                true);
+        }
+
+        private void DrawPanicBreakEven(int bar, decimal panicPrice, decimal mfeTicks, decimal pullbackTicks, decimal adverseSpeed)
+        {
+            var endBar = bar + LineLength;
+            var purple = Color.MediumPurple;
+
+            TrendLines.Add(new TrendLine(bar, panicPrice, endBar, panicPrice, new Pen(purple, 3)));
+            TrendLines.Add(new TrendLine(bar, _tradeEntry, endBar, _tradeEntry, new Pen(Color.Red, 4)));
+
+            DrawTradeLabel(
+                $"EW_PANIC_{_currentDate:yyyyMMdd}_{bar}",
+                $"PANIC {panicPrice:0.00} | MFE {mfeTicks:0}t PB {pullbackTicks:0}t {adverseSpeed:0.00}t/s",
+                bar,
+                panicPrice,
+                Color.White,
+                purple);
+
+            DrawTradeLabel(
+                $"EW_SL_BE_{_currentDate:yyyyMMdd}_{bar}",
+                $"SL BE {_tradeEntry:0.00}",
+                bar,
+                _tradeEntry,
+                Color.White,
+                Color.Red);
         }
 
         private void DrawOpeningRange()
@@ -261,7 +415,7 @@ namespace ATAS.Indicators
 
             AddText(
                 "EW_SCORE_STATUS",
-                $"{status} {side} S{score.Value}/7 | OR {score.OrRangeTicks:0}t BODY {score.BodyBreakoutTicks:0}t | {score.SpeedLabel} {score.SpeedTicksPerSecond:0.00}t/s | R{Flag(score.RangeOk)} B{Flag(score.BodyOk)} V{Flag(score.VolumeOk)} D{Flag(score.DeltaOk)} T{Flag(score.TimeOk)} VW{Flag(score.VwapOk)}",
+                $"{status} {side} S{score.Value}/7 | OR {score.OrRangeTicks:0}t BODY {score.BodyBreakoutTicks:0}t | {score.SpeedLabel} {score.SpeedTicksPerSecond:0.00}t/s | R{Flag(score.RangeOk)} B{Flag(score.BodyOk)} V{Flag(score.VolumeOk)} D{Flag(score.DeltaOk)} VW{Flag(score.VwapOk)} S{Flag(score.SpeedValid)}",
                 true,
                 bar,
                 price,
@@ -392,6 +546,14 @@ namespace ATAS.Indicators
             _tradeDrawn = false;
             _speedBar = -1;
             _speedBarStartedAtUtc = DateTime.MinValue;
+            _panicDrawn = false;
+            _tradeBar = -1;
+            _tradeSide = "";
+            _tradeEntry = 0;
+            _bestFavorablePrice = 0;
+            _lastManagePrice = 0;
+            _lastManageTimeUtc = DateTime.MinValue;
+            _bestFavorableTimeUtc = DateTime.MinValue;
         }
 
         private decimal RoundToTicks(decimal points)
@@ -439,7 +601,6 @@ namespace ATAS.Indicators
             public bool BodyOk { get; set; }
             public bool VolumeOk { get; set; }
             public bool DeltaOk { get; set; }
-            public bool TimeOk { get; set; }
             public bool VwapOk { get; set; }
             public decimal SpeedTicksPerSecond { get; set; }
             public string SpeedLabel { get; set; } = "";
