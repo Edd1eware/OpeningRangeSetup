@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Drawing;
 using ATAS.Indicators;
+using ATAS.Indicators.Drawing;
 
 namespace ATAS.Indicators.Technical
 {
-    [DisplayName("Metric No LookAhead Score Manual TP SL")]
-    public class MetricNoLookAheadScoreManualTpSl : Indicator
+    [DisplayName("Metric No LookAhead Score TP SL Contracts")]
+    public class MetricNoLookAheadScoreTpSlContracts : Indicator
     {
         [DisplayName("Min Score / Cutoff Score")]
         public int MinScore { get; set; } = 5;
@@ -29,59 +31,87 @@ namespace ATAS.Indicators.Technical
         [DisplayName("Max Signal Minute NY")]
         public int MaxSignalMinuteNy { get; set; } = 50;
 
-        [DisplayName("TP Ticks")]
-        public int TpTicks { get; set; } = 60;
-
-        [DisplayName("SL Ticks")]
-        public int SlTicks { get; set; } = 60;
+        [DisplayName("Risk Ticks 60=2 contratos / 120=1 contrato")]
+        public int RiskTicks { get; set; } = 60;
 
         [DisplayName("Line Length Bars")]
         public int LineLengthBars { get; set; } = 20;
+
+        [DisplayName("Signal Only After Candle Close")]
+        public bool SignalOnlyAfterCandleClose { get; set; } = false;
+
+        [DisplayName("Draw Levels From Next Bar")]
+        public bool DrawLevelsFromNextBar { get; set; } = false;
+
+        [DisplayName("Show Live Score Debug")]
+        public bool ShowLiveScoreDebug { get; set; } = true;
+
+        [DisplayName("Live Score Offset Ticks")]
+        public int LiveScoreOffsetTicks { get; set; } = 24;
 
         private decimal _orHigh;
         private decimal _orLow;
         private bool _orReady;
         private DateTime _currentNyDate;
 
-        private decimal _cumPv;
-        private decimal _cumVol;
-
         private readonly List<TradeLevels> _levels = new();
+        private readonly HashSet<int> _signaledBars = new();
 
-        private readonly ValueDataSeries _buySignals = new("BUY VALID")
+        private readonly ValueDataSeries _buy1Signals = new("BUY 1")
         {
             VisualType = VisualMode.UpArrow,
-            Width = 3
+            Width = 4,
+            RenderColor = Color.Blue
         };
 
-        private readonly ValueDataSeries _sellSignals = new("SELL VALID")
+        private readonly ValueDataSeries _buy2Signals = new("BUY 2")
+        {
+            VisualType = VisualMode.UpArrow,
+            Width = 4,
+            RenderColor = Color.Blue
+        };
+
+        private readonly ValueDataSeries _sell1Signals = new("SELL 1")
         {
             VisualType = VisualMode.DownArrow,
-            Width = 3
+            Width = 4,
+            RenderColor = Color.Red
+        };
+
+        private readonly ValueDataSeries _sell2Signals = new("SELL 2")
+        {
+            VisualType = VisualMode.DownArrow,
+            Width = 4,
+            RenderColor = Color.Red
         };
 
         private readonly ValueDataSeries _entryLine = new("ENTRY ORANGE")
         {
             VisualType = VisualMode.Line,
-            Width = 2
+            Width = 2,
+            RenderColor = Color.Orange
         };
 
         private readonly ValueDataSeries _tpLine = new("TP GREEN")
         {
             VisualType = VisualMode.Line,
-            Width = 2
+            Width = 2,
+            RenderColor = Color.Green
         };
 
         private readonly ValueDataSeries _slLine = new("SL RED")
         {
             VisualType = VisualMode.Line,
-            Width = 2
+            Width = 2,
+            RenderColor = Color.Red
         };
 
-        public MetricNoLookAheadScoreManualTpSl()
+        public MetricNoLookAheadScoreTpSlContracts()
         {
-            DataSeries[0] = _buySignals;
-            DataSeries.Add(_sellSignals);
+            DataSeries[0] = _buy1Signals;
+            DataSeries.Add(_buy2Signals);
+            DataSeries.Add(_sell1Signals);
+            DataSeries.Add(_sell2Signals);
             DataSeries.Add(_entryLine);
             DataSeries.Add(_tpLine);
             DataSeries.Add(_slLine);
@@ -96,7 +126,6 @@ namespace ATAS.Indicators.Technical
             if (bar == 0 || nyDate != _currentNyDate)
                 ResetDay(nyDate);
 
-            UpdateSessionVwap(candle);
             PaintActiveLevels(bar);
 
             if (nyTime.Hour == 9 && nyTime.Minute == 30)
@@ -110,25 +139,93 @@ namespace ATAS.Indicators.Technical
             if (!_orReady)
                 return;
 
-            if (nyTime.Hour != 9)
+            if (!IsSignalTime(nyTime))
                 return;
 
-            if (nyTime.Minute < 31 || nyTime.Minute > MaxSignalMinuteNy)
+            var setup = CalculateSetup(candle, bar, nyTime, nyDate);
+
+            if (ShowLiveScoreDebug)
+                DrawLiveScoreDebug(bar, candle, setup);
+
+            if (SignalOnlyAfterCandleClose && bar == CurrentBar - 1)
                 return;
 
-            var vwap = GetVwap();
+            if (!setup.IsBreakout || setup.Score < MinScore || _signaledBars.Contains(bar))
+                return;
 
+            var signalNumber = GetSignalNumber();
+
+            if (signalNumber == 0)
+                return;
+
+            var tickSize = GetTickSize();
+            var entry = candle.Close;
+
+            var tpTicks = RiskTicks;
+            var slTicks = RiskTicks;
+
+            decimal tp;
+            decimal sl;
+
+            if (setup.IsLong)
+            {
+                tp = entry + tickSize * tpTicks;
+                sl = entry - tickSize * slTicks;
+
+                var labelPrice = candle.Low - tickSize * 10;
+
+                if (signalNumber == 1)
+                    _buy1Signals[bar] = labelPrice;
+                else
+                    _buy2Signals[bar] = labelPrice;
+
+                AddSignalLabel(bar, $"BUY {signalNumber}", labelPrice, false, Color.Blue);
+            }
+            else
+            {
+                tp = entry - tickSize * tpTicks;
+                sl = entry + tickSize * slTicks;
+
+                var labelPrice = candle.High + tickSize * 10;
+
+                if (signalNumber == 1)
+                    _sell1Signals[bar] = labelPrice;
+                else
+                    _sell2Signals[bar] = labelPrice;
+
+                AddSignalLabel(bar, $"SELL {signalNumber}", labelPrice, true, Color.Red);
+            }
+
+            var levelsStartBar = DrawLevelsFromNextBar ? bar + 1 : bar;
+
+            _levels.Add(new TradeLevels
+            {
+                StartBar = levelsStartBar,
+                EndBar = levelsStartBar + LineLengthBars,
+                Entry = entry,
+                Tp = tp,
+                Sl = sl
+            });
+
+            _signaledBars.Add(bar);
+            PaintActiveLevels(bar);
+        }
+
+        private bool IsSignalTime(DateTime nyTime)
+        {
+            return
+                nyTime.Hour == 9 &&
+                nyTime.Minute >= 31 &&
+                nyTime.Minute <= MaxSignalMinuteNy;
+        }
+
+        private SetupState CalculateSetup(dynamic candle, int bar, DateTime nyTime, DateTime nyDate)
+        {
+            var vwap = GetSessionVwap(bar, nyDate);
             var longBreakout = candle.Close > _orHigh;
             var shortBreakout = candle.Close < _orLow;
-
-            if (!longBreakout && !shortBreakout)
-                return;
-
+            var isBreakout = longBreakout || shortBreakout;
             var orRangeTicks = ToTicks(_orHigh - _orLow);
-
-            var rangeOk =
-                orRangeTicks >= MinOrRangeTicks &&
-                orRangeTicks <= MaxOrRangeTicks;
 
             var bodyBreakoutTicks = 0;
 
@@ -141,69 +238,92 @@ namespace ATAS.Indicators.Technical
             if (bodyBreakoutTicks < 0)
                 bodyBreakoutTicks = 0;
 
-            var bodyOk = bodyBreakoutTicks >= MinBodyBreakoutTicks;
-            var volumeOk = candle.Volume >= MinVolume;
-            var deltaOk = Math.Abs(candle.Delta) >= MinAbsDelta;
-            var timeOk = nyTime.Minute <= MaxSignalMinuteNy;
+            var state = new SetupState
+            {
+                IsBreakout = isBreakout,
+                IsLong = longBreakout,
+                IsShort = shortBreakout,
+                Vwap = vwap,
+                OrRangeTicks = orRangeTicks,
+                BodyBreakoutTicks = bodyBreakoutTicks,
+                RangeOk = orRangeTicks >= MinOrRangeTicks && orRangeTicks <= MaxOrRangeTicks,
+                BodyOk = bodyBreakoutTicks >= MinBodyBreakoutTicks,
+                VolumeOk = candle.Volume >= MinVolume,
+                DeltaOk = Math.Abs(candle.Delta) >= MinAbsDelta,
+                TimeOk = nyTime.Minute <= MaxSignalMinuteNy,
+                VwapOk =
+                    (longBreakout && candle.Close >= vwap) ||
+                    (shortBreakout && candle.Close <= vwap)
+            };
 
-            var vwapOk =
-                (longBreakout && candle.Close >= vwap) ||
-                (shortBreakout && candle.Close <= vwap);
+            if (state.VwapOk) state.Score += 2;
+            if (state.RangeOk) state.Score += 1;
+            if (state.BodyOk) state.Score += 1;
+            if (state.VolumeOk) state.Score += 1;
+            if (state.DeltaOk) state.Score += 1;
+            if (state.TimeOk) state.Score += 1;
 
-            var score = 0;
+            return state;
+        }
 
-            if (vwapOk)
-                score += 2;
-
-            if (rangeOk)
-                score += 1;
-
-            if (bodyOk)
-                score += 1;
-
-            if (volumeOk)
-                score += 1;
-
-            if (deltaOk)
-                score += 1;
-
-            if (timeOk)
-                score += 1;
-
-            if (score < MinScore)
-                return;
-
+        private void DrawLiveScoreDebug(int bar, dynamic candle, SetupState setup)
+        {
             var tickSize = GetTickSize();
-            var entry = candle.Close;
+            var price = candle.High + tickSize * LiveScoreOffsetTicks;
+            var side = setup.IsLong ? "BUY" : setup.IsShort ? "SELL" : "NO BREAK";
+            var status = setup.IsBreakout && setup.Score >= MinScore ? "READY" : "WAIT";
+            var background = setup.IsBreakout && setup.Score >= MinScore
+                ? Color.DarkGreen
+                : setup.IsBreakout
+                    ? Color.DarkOrange
+                    : Color.DimGray;
 
-            decimal tp;
-            decimal sl;
+            AddText(
+                "metric-live-score",
+                $"{status} {side} S{setup.Score}/7 | OR {setup.OrRangeTicks}t | BODY {setup.BodyBreakoutTicks}t | V{Flag(setup.VolumeOk)} D{Flag(setup.DeltaOk)} VW{Flag(setup.VwapOk)}",
+                true,
+                bar,
+                price,
+                0,
+                0,
+                Color.White,
+                background,
+                background,
+                11,
+                DrawingText.TextAlign.Center,
+                true);
+        }
 
-            if (longBreakout)
-            {
-                tp = entry + tickSize * TpTicks;
-                sl = entry - tickSize * SlTicks;
+        private string Flag(bool value)
+        {
+            return value ? "+" : "-";
+        }
 
-                _buySignals[bar] = candle.Low - tickSize * 10;
-            }
-            else
-            {
-                tp = entry - tickSize * TpTicks;
-                sl = entry + tickSize * SlTicks;
+        private int GetSignalNumber()
+        {
+            if (RiskTicks == 120)
+                return 1;
 
-                _sellSignals[bar] = candle.High + tickSize * 10;
-            }
+            if (RiskTicks == 60)
+                return 2;
 
-            _levels.Add(new TradeLevels
-            {
-                StartBar = bar,
-                EndBar = bar + LineLengthBars,
-                Entry = entry,
-                Tp = tp,
-                Sl = sl
-            });
+            return 0;
+        }
 
-            PaintActiveLevels(bar);
+        private void AddSignalLabel(int bar, string text, decimal price, bool isAbovePrice, Color color)
+        {
+            AddText(
+                $"metric-signal-{bar}",
+                text,
+                isAbovePrice,
+                bar,
+                price,
+                Color.White,
+                Color.Black,
+                color,
+                10,
+                DrawingText.TextAlign.Center,
+                true);
         }
 
         private void PaintActiveLevels(int bar)
@@ -225,29 +345,38 @@ namespace ATAS.Indicators.Technical
             _orHigh = 0;
             _orLow = 0;
             _orReady = false;
-            _cumPv = 0;
-            _cumVol = 0;
             _levels.Clear();
+            _signaledBars.Clear();
         }
 
-        private void UpdateSessionVwap(dynamic candle)
+        private decimal GetSessionVwap(int bar, DateTime nyDate)
         {
-            var typical = (candle.High + candle.Low + candle.Close) / 3m;
-            var volume = candle.Volume;
+            decimal cumPv = 0;
+            decimal cumVol = 0;
 
-            if (volume <= 0)
-                return;
+            for (var i = bar; i >= 0; i--)
+            {
+                var candle = GetCandle(i);
+                var candleNyTime = ToNewYorkTime(candle.Time);
 
-            _cumPv += typical * volume;
-            _cumVol += volume;
-        }
+                if (candleNyTime.Date != nyDate)
+                    break;
 
-        private decimal GetVwap()
-        {
-            if (_cumVol <= 0)
+                var volume = candle.Volume;
+
+                if (volume <= 0)
+                    continue;
+
+                var typical = (candle.High + candle.Low + candle.Close) / 3m;
+
+                cumPv += typical * volume;
+                cumVol += volume;
+            }
+
+            if (cumVol <= 0)
                 return 0;
 
-            return _cumPv / _cumVol;
+            return cumPv / cumVol;
         }
 
         private int ToTicks(decimal priceDistance)
@@ -292,6 +421,23 @@ namespace ATAS.Indicators.Technical
             public decimal Entry { get; set; }
             public decimal Tp { get; set; }
             public decimal Sl { get; set; }
+        }
+
+        private class SetupState
+        {
+            public bool IsBreakout { get; set; }
+            public bool IsLong { get; set; }
+            public bool IsShort { get; set; }
+            public decimal Vwap { get; set; }
+            public int OrRangeTicks { get; set; }
+            public int BodyBreakoutTicks { get; set; }
+            public bool RangeOk { get; set; }
+            public bool BodyOk { get; set; }
+            public bool VolumeOk { get; set; }
+            public bool DeltaOk { get; set; }
+            public bool TimeOk { get; set; }
+            public bool VwapOk { get; set; }
+            public int Score { get; set; }
         }
     }
 }

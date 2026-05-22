@@ -40,6 +40,45 @@ namespace ATAS.Indicators
         [DisplayName("Show Entry SL TP")]
         public bool ShowEntrySlTp { get; set; } = true;
 
+        [DisplayName("Show Live Score Debug")]
+        public bool ShowLiveScoreDebug { get; set; } = true;
+
+        [DisplayName("Use Live Score For Trade")]
+        public bool UseLiveScoreForTrade { get; set; } = true;
+
+        [DisplayName("Use Continuation Confirmation")]
+        public bool UseContinuationConfirmation { get; set; } = false;
+
+        [DisplayName("Require Body Ok For Trade")]
+        public bool RequireBodyOkForTrade { get; set; } = true;
+
+        [DisplayName("Require VWAP Ok For Trade")]
+        public bool RequireVwapOkForTrade { get; set; } = false;
+
+        [DisplayName("Min Score / Cutoff Score")]
+        public int MinScore { get; set; } = 5;
+
+        [DisplayName("Min OR Range Ticks")]
+        public decimal MinOrRangeTicks { get; set; } = 40;
+
+        [DisplayName("Max OR Range Ticks")]
+        public decimal MaxOrRangeTicks { get; set; } = 350;
+
+        [DisplayName("Min Body Breakout Ticks")]
+        public decimal MinBodyBreakoutTicks { get; set; } = 10;
+
+        [DisplayName("Min Volume")]
+        public decimal MinVolume { get; set; } = 800;
+
+        [DisplayName("Min Abs Delta")]
+        public decimal MinAbsDelta { get; set; } = 25;
+
+        [DisplayName("Max Signal Minute UTC")]
+        public int MaxSignalMinuteUtc { get; set; } = 50;
+
+        [DisplayName("Live Score Offset Ticks")]
+        public decimal LiveScoreOffsetTicks { get; set; } = 35;
+
         public EddiewareOpeningRangeVisual()
         {
             Name = "Eddieware Opening Range Visual";
@@ -80,7 +119,27 @@ namespace ATAS.Indicators
                 return;
             }
 
+            ScoreState? liveScore = null;
+
+            if (_orReady && bar > _orBar && IsSignalWindow(current))
+            {
+                liveScore = CalculateLiveScore(current, bar);
+
+                if (ShowLiveScoreDebug)
+                    DrawLiveScoreDebug(bar, current, liveScore);
+
+                if (UseLiveScoreForTrade && !_tradeDrawn && liveScore.IsReady)
+                {
+                    DrawLiveScoreTrade(bar, current, liveScore);
+                    _tradeDrawn = true;
+                    return;
+                }
+            }
+
             if (!_orReady || _tradeDrawn || closedBar <= _orBar)
+                return;
+
+            if (!UseContinuationConfirmation)
                 return;
 
             if (_pendingBreakout != null)
@@ -100,6 +159,152 @@ namespace ATAS.Indicators
             var time = candle.Time.TimeOfDay;
             return time.Hours == OpeningTimeUtc.Hours &&
                    time.Minutes == OpeningTimeUtc.Minutes;
+        }
+
+        private bool IsSignalWindow(dynamic candle)
+        {
+            var time = candle.Time.TimeOfDay;
+
+            return time.Hours == OpeningTimeUtc.Hours &&
+                   time.Minutes > OpeningTimeUtc.Minutes &&
+                   time.Minutes <= MaxSignalMinuteUtc;
+        }
+
+        private ScoreState CalculateLiveScore(dynamic candle, int bar)
+        {
+            decimal bodyHigh = Math.Max(candle.Open, candle.Close);
+            decimal bodyLow = Math.Min(candle.Open, candle.Close);
+            bool bullishBreakout = bodyHigh > _orHigh;
+            bool bearishBreakout = bodyLow < _orLow;
+            decimal vwap = GetSessionVwap(bar, candle.Time.Date);
+            decimal orRangeTicks = RoundToTicks(_orHigh - _orLow);
+            decimal bodyBreakoutTicks = 0;
+
+            if (bullishBreakout)
+                bodyBreakoutTicks = RoundToTicks(bodyHigh - _orHigh);
+
+            if (bearishBreakout)
+                bodyBreakoutTicks = RoundToTicks(_orLow - bodyLow);
+
+            if (bodyBreakoutTicks < 0)
+                bodyBreakoutTicks = 0;
+
+            var state = new ScoreState
+            {
+                IsBreakout = bullishBreakout || bearishBreakout,
+                Side = bullishBreakout ? "BUY" : bearishBreakout ? "SELL" : "NO BREAK",
+                EntryPrice = bullishBreakout ? bodyHigh : bearishBreakout ? bodyLow : candle.Close,
+                OrRangeTicks = orRangeTicks,
+                BodyBreakoutTicks = bodyBreakoutTicks,
+                RangeOk = orRangeTicks >= MinOrRangeTicks && orRangeTicks <= MaxOrRangeTicks,
+                BodyOk = bodyBreakoutTicks >= MinBodyBreakoutTicks,
+                VolumeOk = candle.Volume >= MinVolume,
+                DeltaOk = Math.Abs(candle.Delta) >= MinAbsDelta,
+                TimeOk = IsSignalWindow(candle),
+                VwapOk =
+                    (bullishBreakout && candle.Close >= vwap) ||
+                    (bearishBreakout && candle.Close <= vwap)
+            };
+
+            if (state.VwapOk) state.Score += 2;
+            if (state.RangeOk) state.Score += 1;
+            if (state.BodyOk) state.Score += 1;
+            if (state.VolumeOk) state.Score += 1;
+            if (state.DeltaOk) state.Score += 1;
+            if (state.TimeOk) state.Score += 1;
+
+            state.IsReady =
+                state.IsBreakout &&
+                state.Score >= MinScore &&
+                (!RequireBodyOkForTrade || state.BodyOk) &&
+                (!RequireVwapOkForTrade || state.VwapOk);
+
+            return state;
+        }
+
+        private void DrawLiveScoreDebug(int bar, dynamic candle, ScoreState score)
+        {
+            var price = candle.High + LiveScoreOffsetTicks * SetupTickSize;
+            var status = score.IsReady
+                ? "READY"
+                : score.IsBreakout && score.Score >= MinScore
+                    ? "BLOCK"
+                    : "WAIT";
+            var background = score.IsReady
+                ? Color.DarkGreen
+                : score.IsBreakout && score.Score >= MinScore
+                    ? Color.DarkRed
+                    : score.IsBreakout
+                    ? Color.DarkOrange
+                    : Color.DimGray;
+
+            AddText(
+                "EW_LIVE_SCORE",
+                $"{status} {score.Side} S{score.Score}/7 | OR {score.OrRangeTicks:0}t BODY {score.BodyBreakoutTicks:0}t | R{Flag(score.RangeOk)} B{Flag(score.BodyOk)} V{Flag(score.VolumeOk)} D{Flag(score.DeltaOk)} T{Flag(score.TimeOk)} VW{Flag(score.VwapOk)}",
+                true,
+                bar,
+                price,
+                0,
+                0,
+                Color.White,
+                background,
+                background,
+                12,
+                DrawingText.TextAlign.Center,
+                true
+            );
+        }
+
+        private void DrawLiveScoreTrade(int bar, dynamic candle, ScoreState score)
+        {
+            if (!ShowEntrySlTp)
+                return;
+
+            var breakout = new PendingBreakout
+            {
+                Bar = bar,
+                Time = candle.Time,
+                Side = score.Side,
+                EntryPrice = score.EntryPrice,
+                BreakoutBodyTicks = score.BodyBreakoutTicks
+            };
+
+            var trade = BuildTradeLevels(breakout);
+            DrawTrade(trade, bar, 0, "SCORE");
+        }
+
+        private string Flag(bool value)
+        {
+            return value ? "+" : "-";
+        }
+
+        private decimal GetSessionVwap(int bar, DateTime date)
+        {
+            decimal cumPv = 0;
+            decimal cumVol = 0;
+
+            for (var i = bar; i >= 0; i--)
+            {
+                var candle = GetCandle(i);
+
+                if (candle.Time.Date != date)
+                    break;
+
+                decimal volume = candle.Volume;
+
+                if (volume <= 0)
+                    continue;
+
+                decimal typical = (candle.High + candle.Low + candle.Close) / 3m;
+
+                cumPv += typical * volume;
+                cumVol += volume;
+            }
+
+            if (cumVol <= 0)
+                return 0;
+
+            return cumPv / cumVol;
         }
 
         private void TryCreatePendingBreakout(int closedBar, dynamic candle)
@@ -151,7 +356,7 @@ namespace ATAS.Indicators
                 return;
 
             var trade = BuildTradeLevels(_pendingBreakout);
-            DrawTrade(trade, confirmationBar, continuationTicks);
+            DrawTrade(trade, confirmationBar, continuationTicks, "CONF");
             _tradeDrawn = true;
         }
 
@@ -228,7 +433,7 @@ namespace ATAS.Indicators
             );
         }
 
-        private void DrawTrade(TradeLevels trade, int confirmationBar, decimal continuationTicks)
+        private void DrawTrade(TradeLevels trade, int confirmationBar, decimal continuationTicks, string signalSource)
         {
             if (!ShowEntrySlTp)
                 return;
@@ -288,7 +493,9 @@ namespace ATAS.Indicators
 
             AddText(
                 $"EW_CONFIRM_{trade.Time:yyyyMMdd_HHmm}",
-                $"CONF +{continuationTicks:0}t | BODY {trade.BreakoutBodyTicks:0}t",
+                signalSource == "SCORE"
+                    ? $"SCORE ENTRY | BODY {trade.BreakoutBodyTicks:0}t"
+                    : $"CONF +{continuationTicks:0}t | BODY {trade.BreakoutBodyTicks:0}t",
                 true,
                 confirmationBar,
                 trade.Side == "BUY" ? trade.TakeProfitPrice : trade.StopLossPrice,
@@ -347,6 +554,23 @@ namespace ATAS.Indicators
             public decimal TakeProfitPrice { get; set; }
             public decimal TradeTicks { get; set; }
             public decimal BreakoutBodyTicks { get; set; }
+        }
+
+        private class ScoreState
+        {
+            public bool IsBreakout { get; set; }
+            public bool IsReady { get; set; }
+            public string Side { get; set; } = "";
+            public decimal EntryPrice { get; set; }
+            public decimal OrRangeTicks { get; set; }
+            public decimal BodyBreakoutTicks { get; set; }
+            public bool RangeOk { get; set; }
+            public bool BodyOk { get; set; }
+            public bool VolumeOk { get; set; }
+            public bool DeltaOk { get; set; }
+            public bool TimeOk { get; set; }
+            public bool VwapOk { get; set; }
+            public int Score { get; set; }
         }
     }
 }
