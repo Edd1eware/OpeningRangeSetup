@@ -11,6 +11,7 @@ namespace ATAS.Indicators
     {
         private const decimal FallbackTickSize = 0.25m;
         private const decimal HardMaxTradeTicks = 120m;
+        private const decimal APlusStopTicks = 100m;
 
         private DateTime _currentDate = DateTime.MinValue;
         private decimal _orHigh;
@@ -34,6 +35,9 @@ namespace ATAS.Indicators
         private TrendLine _trailingExitLine;
         private bool _tradeIsAPlusSpeed;
         private bool _trailingExitHit;
+        private decimal _tradeSl;
+        private decimal _tradeTp;
+        private bool _tradeHitDrawn;
 
         [DisplayName("Opening Time UTC")]
         public TimeSpan OpeningTimeUtc { get; set; } = new TimeSpan(13, 30, 0);
@@ -93,10 +97,19 @@ namespace ATAS.Indicators
         public decimal PanicPullbackTicks { get; set; } = 10;
 
         [DisplayName("Panic Adverse Speed Ticks/Sec")]
-        public decimal PanicAdverseSpeedTicksPerSecond { get; set; } = 3;
+        public decimal PanicAdverseSpeedTicksPerSecond { get; set; } = 6;
 
         [DisplayName("Trailing Exit Ticks")]
         public decimal TrailingExitTicks { get; set; } = 10;
+
+        [DisplayName("Half MFE Exit Min MFE Ticks")]
+        public decimal HalfMfeExitMinMfeTicks { get; set; } = 40;
+
+        [DisplayName("Imbalance Ratio")]
+        public decimal ImbalanceRatio { get; set; } = 3m;
+
+        [DisplayName("Imbalance Compare Min Volume")]
+        public decimal ImbalanceCompareMinVolume { get; set; } = 5m;
 
         public EddiewareOpeningRangeVisual()
         {
@@ -207,19 +220,58 @@ namespace ATAS.Indicators
             if (!ShowEntrySlTp || score.Side == "")
                 return;
 
-            var tradeTicks = score.Side == "BUY"
-                ? ClampTicks(RoundToTicks(score.Entry - _orLow))
-                : ClampTicks(RoundToTicks(_orHigh - score.Entry));
+            var isAPlusSpeed = score.SpeedLabel == "A+ speed";
+            var isNormalSpeed = score.SpeedLabel == "normal speed";
+            var tradeTicks = isAPlusSpeed
+                ? HardMaxTradeTicks
+                : score.Side == "BUY"
+                    ? ClampTicks(RoundToTicks(score.Entry - _orLow))
+                    : ClampTicks(RoundToTicks(_orHigh - score.Entry));
             var tickSize = GetTickSize();
             var tradePoints = tradeTicks * tickSize;
             var entry = score.Entry;
-            var sl = score.Side == "BUY" ? entry - tradePoints : entry + tradePoints;
+            var slPoints = isAPlusSpeed
+                ? APlusStopTicks * tickSize
+                : isNormalSpeed
+                    ? MinTradeTicks * tickSize
+                    : tradePoints;
+            var sl = score.Side == "BUY" ? entry - slPoints : entry + slPoints;
             var tp = score.Side == "BUY" ? entry + tradePoints : entry - tradePoints;
+            var imbalanceStop = isAPlusSpeed || isNormalSpeed ? null : TryGetImbalanceStop(candle, score.Side);
+            var entryProfile = isNormalSpeed ? $"{score.Side}1" : score.Side;
 
-            if (score.Side == "SELL" && sl > _orHigh)
+            if (imbalanceStop != null)
+            {
+                var imbalanceRiskTicks = RoundToTicks(Math.Abs(entry - imbalanceStop.StopPrice));
+
+                if (score.SpeedLabel != "A+ speed" && imbalanceRiskTicks <= 60)
+                {
+                    sl = imbalanceStop.StopPrice;
+                    tp = score.Side == "BUY"
+                        ? entry + 60m * tickSize
+                        : entry - 60m * tickSize;
+                    entryProfile = $"{score.Side} 2";
+                }
+                else if (imbalanceRiskTicks <= HardMaxTradeTicks)
+                {
+                    sl = imbalanceStop.StopPrice;
+                    tp = score.Side == "BUY"
+                        ? entry + HardMaxTradeTicks * tickSize
+                        : entry - HardMaxTradeTicks * tickSize;
+                    entryProfile = $"{score.Side} 1";
+                }
+                else
+                {
+                    imbalanceStop = null;
+                }
+            }
+
+            if (imbalanceStop == null && score.Side == "SELL" && sl > _orHigh)
                 sl = _orHigh;
 
-            sl = ClampExitDistance(entry, sl, score.Side == "BUY" ? -1 : 1);
+            if (imbalanceStop == null)
+                sl = ClampExitDistance(entry, sl, score.Side == "BUY" ? -1 : 1);
+
             tp = ClampExitDistance(entry, tp, score.Side == "BUY" ? 1 : -1);
 
             var slTicks = RoundToTicks(Math.Abs(entry - sl));
@@ -230,7 +282,7 @@ namespace ATAS.Indicators
 
             AddText(
                 $"EW_SCORE_ENTRY_{candle.Time:yyyyMMdd_HHmm}_{bar}",
-                $"{score.Side} ENTRY {entry:0.00} | S{score.Value} | {score.SpeedLabel}",
+                $"{entryProfile} ENTRY {entry:0.00} | S{score.Value} | {score.SpeedLabel}",
                 score.Side == "SELL",
                 bar,
                 labelPrice,
@@ -248,12 +300,14 @@ namespace ATAS.Indicators
             TrendLines.Add(new TrendLine(bar, tp, endBar, tp, new Pen(Color.LimeGreen, 3)));
 
             DrawTradeLabel($"EW_ENTRY_{candle.Time:yyyyMMdd_HHmm}_{bar}", $"ENTRY {entry:0.00}", bar, entry, Color.Black, Color.Gold, -30);
-            DrawTradeLabel($"EW_SL_{candle.Time:yyyyMMdd_HHmm}_{bar}", $"SL {sl:0.00} | {slTicks:0}t", bar + 1, sl, Color.White, Color.Red, -38);
+            DrawTradeLabel($"EW_SL_{candle.Time:yyyyMMdd_HHmm}_{bar}", $"SL {sl:0.00} | {slTicks:0}t{(imbalanceStop != null ? " IMB" : "")}", bar + 1, sl, Color.White, Color.Red, -38);
             DrawTradeLabel($"EW_TP_{candle.Time:yyyyMMdd_HHmm}_{bar}", $"TP {tp:0.00} | {tpTicks:0}t", bar + 1, tp, Color.White, Color.Green, 16);
 
             _tradeBar = bar;
             _tradeSide = score.Side;
             _tradeEntry = entry;
+            _tradeSl = sl;
+            _tradeTp = tp;
             _bestFavorablePrice = entry;
             _lastManagePrice = entry;
             _lastManageTimeUtc = TryGetCandleUpdateTime(candle);
@@ -264,10 +318,89 @@ namespace ATAS.Indicators
                 DrawLiveExitSpeed(bar, candle, 0);
         }
 
+        private ImbalanceStop TryGetImbalanceStop(dynamic candle, string side)
+        {
+            var tickSize = GetTickSize();
+            var levels = GetSortedPriceLevels(candle);
+
+            if (levels.Count < 2)
+                return null;
+
+            decimal? imbalancePrice = null;
+
+            for (var i = 0; i < levels.Count; i++)
+            {
+                var level = levels[i];
+
+                if (side == "BUY" && i > 0)
+                {
+                    var lowerLevel = levels[i - 1];
+
+                    if (lowerLevel.Bid >= ImbalanceCompareMinVolume &&
+                        level.Ask >= lowerLevel.Bid * ImbalanceRatio)
+                    {
+                        if (!imbalancePrice.HasValue || level.Price > imbalancePrice.Value)
+                            imbalancePrice = level.Price;
+                    }
+                }
+
+                if (side == "SELL" && i < levels.Count - 1)
+                {
+                    var upperLevel = levels[i + 1];
+
+                    if (upperLevel.Ask >= ImbalanceCompareMinVolume &&
+                        level.Bid >= upperLevel.Ask * ImbalanceRatio)
+                    {
+                        if (!imbalancePrice.HasValue || level.Price < imbalancePrice.Value)
+                            imbalancePrice = level.Price;
+                    }
+                }
+            }
+
+            if (!imbalancePrice.HasValue)
+                return null;
+
+            return new ImbalanceStop
+            {
+                ImbalancePrice = imbalancePrice.Value,
+                StopPrice = side == "BUY"
+                    ? imbalancePrice.Value - tickSize
+                    : imbalancePrice.Value + tickSize
+            };
+        }
+
+        private List<FootprintLevel> GetSortedPriceLevels(dynamic candle)
+        {
+            var result = new List<FootprintLevel>();
+
+            try
+            {
+                foreach (var level in candle.GetAllPriceLevels())
+                {
+                    result.Add(new FootprintLevel
+                    {
+                        Price = Convert.ToDecimal(level.Price),
+                        Bid = Convert.ToDecimal(level.Bid),
+                        Ask = Convert.ToDecimal(level.Ask)
+                    });
+                }
+            }
+            catch
+            {
+                return result;
+            }
+
+            result.Sort((left, right) => left.Price.CompareTo(right.Price));
+
+            return result;
+        }
+
         private void ManageActiveTrade(int bar, dynamic candle)
         {
             if (_tradeSide == "")
                 return;
+
+            TryDrawFirstTradeHit(bar, candle);
 
             if (_tradeIsAPlusSpeed)
                 return;
@@ -327,57 +460,129 @@ namespace ATAS.Indicators
             _lastManagePrice = adversePrice;
             _lastManageTimeUtc = currentTime;
 
-            if (_panicDrawn)
-            {
-                if (IsTrailingExitTouched(candle))
-                {
-                    DrawTrailingExitHit(bar, _trailingExitPrice);
-                    _trailingExitHit = true;
-                    return;
-                }
-
-                UpdateTrailingExit(bar);
+            if (TryDrawHalfMfeExit(bar, adversePrice, mfeTicks))
                 return;
-            }
 
-            var speedPanic = adverseSpeed >= PanicAdverseSpeedTicksPerSecond;
-            var volumeDeltaFailed = candle.Volume < MinVolume && Math.Abs(candle.Delta) < MinAbsDelta;
+            if (_panicDrawn)
+                return;
+
+            var speedPanic = adverseSpeed > PanicAdverseSpeedTicksPerSecond;
+            var weakDelta = candle.Delta <= 0 && candle.Delta > -MinAbsDelta;
+            var weakVolume = candle.Volume >= 0 && candle.Volume < MinVolume;
+            var vwapFailed = HasVwapFailed(bar, candle);
+            var weakFlowPanic = weakDelta && weakVolume && vwapFailed;
 
             if (mfeTicks < PanicMfeTriggerTicks ||
                 pullbackTicks < PanicPullbackTicks ||
-                (!speedPanic && !volumeDeltaFailed))
+                !speedPanic ||
+                !weakFlowPanic)
                 return;
 
             var panicTriggerPrice = _tradeSide == "BUY"
                 ? _bestFavorablePrice - PanicPullbackTicks * GetTickSize()
                 : _bestFavorablePrice + PanicPullbackTicks * GetTickSize();
-            var panicReason = speedPanic ? "SPEED" : "VOL+DELTA";
+            var panicReason = "SPEED+FLOW";
 
             DrawPanicBreakEven(bar, panicTriggerPrice, mfeTicks, pullbackTicks, adverseSpeed, panicReason);
             _panicDrawn = true;
-            UpdateTrailingExit(bar);
         }
 
-        private bool IsTrailingExitTouched(dynamic candle)
+        private bool TryDrawHalfMfeExit(int bar, decimal adversePrice, decimal mfeTicks)
         {
-            if (_trailingExitPrice == 0)
+            if (mfeTicks < HalfMfeExitMinMfeTicks)
                 return false;
 
-            return _tradeSide == "BUY"
-                ? candle.Low <= _trailingExitPrice
-                : candle.High >= _trailingExitPrice;
+            var halfMfeExit = _tradeSide == "BUY"
+                ? _tradeEntry + (_bestFavorablePrice - _tradeEntry) / 2m
+                : _tradeEntry - (_tradeEntry - _bestFavorablePrice) / 2m;
+
+            var touched = _tradeSide == "BUY"
+                ? adversePrice <= halfMfeExit
+                : adversePrice >= halfMfeExit;
+
+            if (!touched)
+                return false;
+
+            _trailingExitPrice = halfMfeExit;
+            DrawTrailingExit(bar, halfMfeExit);
+            DrawTradeHit(bar, "EXIT HIT", halfMfeExit, Color.Orange, Color.Black, 18);
+            _trailingExitHit = true;
+            _tradeHitDrawn = true;
+
+            return true;
         }
 
-        private void DrawTrailingExitHit(int bar, decimal exitPrice)
+        private void TryDrawFirstTradeHit(int bar, dynamic candle)
+        {
+            if (_tradeHitDrawn)
+                return;
+
+            if (_tradeSide == "BUY")
+            {
+                if (_tradeTp != 0 && candle.High >= _tradeTp)
+                {
+                    DrawTradeHit(bar, "TP HIT", _tradeTp, Color.LimeGreen, Color.White, 18);
+                    _tradeHitDrawn = true;
+                    return;
+                }
+
+                if (_tradeSl != 0 && candle.Low <= _tradeSl)
+                {
+                    DrawTradeHit(bar, "SL HIT", _tradeSl, Color.Red, Color.White, -54);
+                    _tradeHitDrawn = true;
+                    return;
+                }
+            }
+            else if (_tradeSide == "SELL")
+            {
+                if (_tradeTp != 0 && candle.Low <= _tradeTp)
+                {
+                    DrawTradeHit(bar, "TP HIT", _tradeTp, Color.LimeGreen, Color.White, 18);
+                    _tradeHitDrawn = true;
+                    return;
+                }
+
+                if (_tradeSl != 0 && candle.High >= _tradeSl)
+                {
+                    DrawTradeHit(bar, "SL HIT", _tradeSl, Color.Red, Color.White, -54);
+                    _tradeHitDrawn = true;
+                    return;
+                }
+            }
+
+            if (_trailingExitPrice == 0)
+                return;
+
+            var exitTouched = _tradeSide == "BUY"
+                ? candle.Low <= _trailingExitPrice
+                : candle.High >= _trailingExitPrice;
+
+            if (!exitTouched)
+                return;
+
+            DrawTradeHit(bar, "EXIT HIT", _trailingExitPrice, Color.Orange, Color.Black, 18);
+            _tradeHitDrawn = true;
+        }
+
+        private void DrawTradeHit(int bar, string text, decimal price, Color bgColor, Color textColor, int yOffset)
         {
             DrawTradeLabel(
-                $"EW_TRAIL_EXIT_HIT_{_currentDate:yyyyMMdd}",
-                $"EXIT HIT {exitPrice:0.00}",
+                $"EW_{text.Replace(" ", "_")}_{_currentDate:yyyyMMdd}",
+                $"{text} {price:0.00}",
                 bar + 2,
-                exitPrice,
-                Color.Black,
-                Color.Orange,
-                16);
+                price,
+                textColor,
+                bgColor,
+                yOffset);
+        }
+
+        private bool HasVwapFailed(int bar, dynamic candle)
+        {
+            var vwap = GetSessionVwap(bar, candle.Time.Date);
+
+            return _tradeSide == "BUY"
+                ? candle.Close < vwap
+                : candle.Close > vwap;
         }
 
         private void DrawLiveExitSpeed(int bar, dynamic candle, decimal adverseSpeed)
@@ -687,6 +892,9 @@ namespace ATAS.Indicators
             _trailingExitLine = null;
             _tradeIsAPlusSpeed = false;
             _trailingExitHit = false;
+            _tradeSl = 0;
+            _tradeTp = 0;
+            _tradeHitDrawn = false;
         }
 
         private decimal RoundToTicks(decimal points)
@@ -739,6 +947,19 @@ namespace ATAS.Indicators
             public string SpeedLabel { get; set; } = "";
             public bool SpeedValid { get; set; }
             public int Value { get; set; }
+        }
+
+        private class FootprintLevel
+        {
+            public decimal Price { get; set; }
+            public decimal Bid { get; set; }
+            public decimal Ask { get; set; }
+        }
+
+        private class ImbalanceStop
+        {
+            public decimal ImbalancePrice { get; set; }
+            public decimal StopPrice { get; set; }
         }
     }
 }
