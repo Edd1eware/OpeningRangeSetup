@@ -17,7 +17,7 @@ namespace ATAS.Indicators
             TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
 
         private const decimal SetupTickSize = 0.25m;
-        private const string ExporterVersion = "score-exporter-debug-2026-05-22-e-x10";
+        private const string ExporterVersion = "score-exporter-2026-05-22-sync-visual-speed";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
@@ -391,9 +391,6 @@ namespace ATAS.Indicators
 
             if (elapsedSeconds <= 0)
                 elapsedSeconds = 1;
-
-            if (usedReplayFallback && ReplaySpeedMultiplier > 0)
-                elapsedSeconds *= (double)ReplaySpeedMultiplier;
 
             return new SpeedState
             {

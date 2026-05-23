@@ -3,7 +3,7 @@ import csv
 import os
 import time
 import pyperclip
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 
@@ -14,6 +14,9 @@ from openpyxl.utils import get_column_letter
 # Prueba pequena en horario DST de Nueva York 2026.
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 DATES_DST = [
+    
+    "11/05/2026",
+    "12/05/2026",
     "13/05/2026",
     "14/05/2026",
     "15/05/2026",
@@ -344,15 +347,26 @@ def get_csv_headers_for_dates():
 
 
 def update_score_workbook():
-    wb = load_workbook(SCORE_WORKBOOK)
+    if os.path.exists(SCORE_WORKBOOK):
+        wb = load_workbook(SCORE_WORKBOOK)
+    elif os.path.exists(SCORE_WORKBOOK_FALLBACK):
+        wb = load_workbook(SCORE_WORKBOOK_FALLBACK)
+    else:
+        os.makedirs(os.path.dirname(SCORE_WORKBOOK), exist_ok=True)
+        wb = Workbook()
+
     ws = wb.active
 
     headers = get_or_create_headers(ws)
 
     for row_offset, date in enumerate(DATES_DST, start=4):
         result = read_trade_result(expected_result_path(date), date)
+        missing_result_file = result.get("result TP SL BE") in ("NO_CSV", "EMPTY_CSV")
+
         for col, header in enumerate(headers, start=1):
             if header not in result:
+                if missing_result_file:
+                    ws.cell(row=row_offset, column=col).value = None
                 continue
 
             value = to_number(result.get(header))
