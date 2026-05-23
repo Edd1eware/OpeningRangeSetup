@@ -180,6 +180,12 @@ namespace ATAS.Indicators
             UpdateTradeExcursion(candle);
             UpdateBestFavorablePrice(candle);
 
+            if (TryApplyHalfMfeExit(candle))
+            {
+                WriteTradeFile(_currentNyDate);
+                return;
+            }
+
             var hitTp = _trade.Side == "BUY"
                 ? candle.High >= _trade.Tp
                 : candle.Low <= _trade.Tp;
@@ -189,12 +195,7 @@ namespace ATAS.Indicators
                 : candle.High >= _trade.Sl;
 
             if (!hitTp && !hitSl)
-            {
-                if (TryApplyHalfMfeExit(candle))
-                    WriteTradeFile(_currentNyDate);
-
                 return;
-            }
 
             _trade.Result = hitTp ? "TP" : "SL";
             _trade.ExitPrice = hitTp ? _trade.Tp : _trade.Sl;
@@ -301,34 +302,13 @@ namespace ATAS.Indicators
             var bearishBreakout = candle.Close < _orLow;
             var vwap = GetSessionVwap(bar, nyTime.Date);
             var orRangeTicks = RoundToTicks(_orHigh - _orLow);
-            decimal entryPrice = candle.Close;
             decimal bodyBreakoutTicks = 0;
 
             if (bullishBreakout)
-            {
-                if (candle.Open > _orHigh)
-                {
-                    entryPrice = candle.Open;
-                    bodyBreakoutTicks = RoundToTicks(candle.Open - _orHigh);
-                }
-                else
-                {
-                    bodyBreakoutTicks = RoundToTicks(candle.Close - Math.Max(candle.Open, _orHigh));
-                }
-            }
+                bodyBreakoutTicks = RoundToTicks(candle.Close - Math.Max(candle.Open, _orHigh));
 
             if (bearishBreakout)
-            {
-                if (candle.Open < _orLow)
-                {
-                    entryPrice = candle.Open;
-                    bodyBreakoutTicks = RoundToTicks(_orLow - candle.Open);
-                }
-                else
-                {
-                    bodyBreakoutTicks = RoundToTicks(Math.Min(candle.Open, _orLow) - candle.Close);
-                }
-            }
+                bodyBreakoutTicks = RoundToTicks(Math.Min(candle.Open, _orLow) - candle.Close);
 
             if (bodyBreakoutTicks < 0)
                 bodyBreakoutTicks = 0;
@@ -339,7 +319,7 @@ namespace ATAS.Indicators
             {
                 IsBreakout = bullishBreakout || bearishBreakout,
                 Side = bullishBreakout ? "BUY" : bearishBreakout ? "SELL" : "",
-                EntryPrice = entryPrice,
+                EntryPrice = candle.Close,
                 OrLow = _orLow,
                 OrHigh = _orHigh,
                 OrRangeTicks = orRangeTicks,
@@ -357,8 +337,8 @@ namespace ATAS.Indicators
                 DeltaOk = Math.Abs(candle.Delta) >= MinAbsDelta,
                 TimeOk = IsSignalWindow(nyTime),
                 VwapOk =
-                    (bullishBreakout && entryPrice >= vwap) ||
-                    (bearishBreakout && entryPrice <= vwap)
+                    (bullishBreakout && candle.Close >= vwap) ||
+                    (bearishBreakout && candle.Close <= vwap)
             };
 
             state.SpeedLabel = GetSpeedLabel(state.BreakoutSpeed);

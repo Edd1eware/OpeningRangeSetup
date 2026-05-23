@@ -400,10 +400,11 @@ namespace ATAS.Indicators
             if (_tradeSide == "")
                 return;
 
-            TryDrawFirstTradeHit(bar, candle);
-
             if (_tradeIsAPlusSpeed)
+            {
+                TryDrawFirstTradeHit(bar, candle);
                 return;
+            }
 
             if (_trailingExitHit)
                 return;
@@ -462,6 +463,8 @@ namespace ATAS.Indicators
 
             if (TryDrawHalfMfeExit(bar, adversePrice, mfeTicks))
                 return;
+
+            TryDrawFirstTradeHit(bar, candle);
 
             if (_panicDrawn)
                 return;
