@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <Reference Include="ATAS.Indicators">
-      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\ATAS Platform\ATAS.Indicators.dll</HintPath>
+      <HintPath>C:\Program Files (x86)\ATAS Platform\ATAS.Indicators.dll</HintPath>
     </Reference>
   </ItemGroup>
 

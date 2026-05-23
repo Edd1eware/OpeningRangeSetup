@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "4W+Su7t+7Z0=",
+  "dgSpecHash": "G7fRLiKyYlM=",
   "success": true,
-  "projectFilePath": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup.csproj",
+  "projectFilePath": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\k_99_\\.nuget\\packages\\microsoft.win32.systemevents\\10.0.7\\microsoft.win32.systemevents.10.0.7.nupkg.sha512",
     "C:\\Users\\k_99_\\.nuget\\packages\\system.drawing.common\\10.0.7\\system.drawing.common.10.0.7.nupkg.sha512",

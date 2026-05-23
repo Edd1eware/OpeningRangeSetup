@@ -14,7 +14,6 @@ from openpyxl.utils import get_column_letter
 # Prueba pequena en horario DST de Nueva York 2026.
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 DATES_DST = [
-    
     "11/05/2026",
     "12/05/2026",
     "13/05/2026",
@@ -30,8 +29,9 @@ POLL_SECONDS = 1
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
 RESULTS_FOLDER = os.path.join(EXPORT_FOLDER, "trade_results_score")
 TARGET_FILE = os.path.join(EXPORT_FOLDER, "target_trade_result_date.txt")
-SCORE_WORKBOOK = r"C:\Users\k_99_\Desktop\codding\OpeningRangeSetup\EddiewareOpeningRangeSetup\EddiewareOpeningRangeSetup\Score_indicator_results.xlsx"
-SCORE_WORKBOOK_FALLBACK = r"C:\Users\k_99_\Desktop\codding\OpeningRangeSetup\EddiewareOpeningRangeSetup\EddiewareOpeningRangeSetup\Score_indicator_results_updated.xlsx"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SCORE_WORKBOOK = os.path.join(BASE_DIR, "Score_indicator_results_updated.xlsx")
+SCORE_WORKBOOK_FALLBACK = os.path.join(BASE_DIR, "Score_indicator_results_updated_fallback.xlsx")
 
 
 # =========================================================
@@ -358,8 +358,14 @@ def update_score_workbook():
     ws = wb.active
 
     headers = get_or_create_headers(ws)
+    first_row = 4
+    last_row = first_row + len(DATES_DST) - 1
 
-    for row_offset, date in enumerate(DATES_DST, start=4):
+    for row in range(first_row, ws.max_row + 1):
+        for col in range(1, ws.max_column + 1):
+            ws.cell(row=row, column=col).value = None
+
+    for row_offset, date in enumerate(DATES_DST, start=first_row):
         result = read_trade_result(expected_result_path(date), date)
         missing_result_file = result.get("result TP SL BE") in ("NO_CSV", "EMPTY_CSV")
 
@@ -376,8 +382,6 @@ def update_score_workbook():
 
             ws.cell(row=row_offset, column=col).value = value
 
-    first_row = 4
-    last_row = first_row + len(DATES_DST) - 1
     result_col = headers.index("result TP SL BE") + 1
     result_letter = get_column_letter(result_col)
 

@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup.csproj": {}
+    "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup.csproj": {}
   },
   "projects": {
-    "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup.csproj": {
+    "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup.csproj",
+        "projectUniqueName": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup.csproj",
         "projectName": "EddiewareOpeningRangeSetup",
-        "projectPath": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup.csproj",
+        "projectPath": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup.csproj",
         "packagesPath": "C:\\Users\\k_99_\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\obj\\",
+        "outputPath": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\k_99_\\AppData\\Roaming\\NuGet\\NuGet.Config",

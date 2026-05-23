@@ -17,7 +17,7 @@ namespace ATAS.Indicators
             TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
 
         private const decimal SetupTickSize = 0.25m;
-        private const string ExporterVersion = "score-exporter-2026-05-22-sync-visual-speed";
+        private const string ExporterVersion = "score-exporter-2026-05-22-first-break-sync";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
@@ -47,7 +47,7 @@ namespace ATAS.Indicators
         public decimal MinTradeTicks { get; set; } = 60;
         public decimal MaxTradeTicks { get; set; } = 120;
         public decimal HalfMfeExitMinMfeTicks { get; set; } = 40;
-        public bool RequireBodyOkForTrade { get; set; } = true;
+        public bool RequireBodyOkForTrade { get; set; } = false;
         public bool RequireVwapOkForTrade { get; set; } = false;
 
         public ATASScoreTradeResultExporter()
@@ -301,13 +301,34 @@ namespace ATAS.Indicators
             var bearishBreakout = candle.Close < _orLow;
             var vwap = GetSessionVwap(bar, nyTime.Date);
             var orRangeTicks = RoundToTicks(_orHigh - _orLow);
+            decimal entryPrice = candle.Close;
             decimal bodyBreakoutTicks = 0;
 
             if (bullishBreakout)
-                bodyBreakoutTicks = RoundToTicks(candle.Close - Math.Max(candle.Open, _orHigh));
+            {
+                if (candle.Open > _orHigh)
+                {
+                    entryPrice = candle.Open;
+                    bodyBreakoutTicks = RoundToTicks(candle.Open - _orHigh);
+                }
+                else
+                {
+                    bodyBreakoutTicks = RoundToTicks(candle.Close - Math.Max(candle.Open, _orHigh));
+                }
+            }
 
             if (bearishBreakout)
-                bodyBreakoutTicks = RoundToTicks(Math.Min(candle.Open, _orLow) - candle.Close);
+            {
+                if (candle.Open < _orLow)
+                {
+                    entryPrice = candle.Open;
+                    bodyBreakoutTicks = RoundToTicks(_orLow - candle.Open);
+                }
+                else
+                {
+                    bodyBreakoutTicks = RoundToTicks(Math.Min(candle.Open, _orLow) - candle.Close);
+                }
+            }
 
             if (bodyBreakoutTicks < 0)
                 bodyBreakoutTicks = 0;
@@ -318,7 +339,7 @@ namespace ATAS.Indicators
             {
                 IsBreakout = bullishBreakout || bearishBreakout,
                 Side = bullishBreakout ? "BUY" : bearishBreakout ? "SELL" : "",
-                EntryPrice = candle.Close,
+                EntryPrice = entryPrice,
                 OrLow = _orLow,
                 OrHigh = _orHigh,
                 OrRangeTicks = orRangeTicks,
@@ -336,8 +357,8 @@ namespace ATAS.Indicators
                 DeltaOk = Math.Abs(candle.Delta) >= MinAbsDelta,
                 TimeOk = IsSignalWindow(nyTime),
                 VwapOk =
-                    (bullishBreakout && candle.Close >= vwap) ||
-                    (bearishBreakout && candle.Close <= vwap)
+                    (bullishBreakout && entryPrice >= vwap) ||
+                    (bearishBreakout && entryPrice <= vwap)
             };
 
             state.SpeedLabel = GetSpeedLabel(state.BreakoutSpeed);
