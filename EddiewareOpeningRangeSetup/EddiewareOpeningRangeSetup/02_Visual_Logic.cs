@@ -495,13 +495,12 @@ namespace ATAS.Indicators
             if (mfeTicks < HalfMfeExitMinMfeTicks)
                 return false;
 
-            var halfMfeExit = _tradeSide == "BUY"
-                ? _tradeEntry + (_bestFavorablePrice - _tradeEntry) / 2m
-                : _tradeEntry - (_tradeEntry - _bestFavorablePrice) / 2m;
+            var halfMfeExit = TradeManagerTpSlBeExit.CalculateHalfMfeExit(
+                _tradeSide,
+                _tradeEntry,
+                _bestFavorablePrice);
 
-            var touched = _tradeSide == "BUY"
-                ? adversePrice <= halfMfeExit
-                : adversePrice >= halfMfeExit;
+            var touched = TradeManagerTpSlBeExit.IsHalfMfeExitTouched(_tradeSide, adversePrice, halfMfeExit);
 
             if (!touched)
                 return false;
@@ -522,14 +521,14 @@ namespace ATAS.Indicators
 
             if (_tradeSide == "BUY")
             {
-                if (_tradeTp != 0 && candle.High >= _tradeTp)
+                if (_tradeTp != 0 && TradeManagerTpSlBeExit.IsTpHit(_tradeSide, candle.High, candle.Low, _tradeTp))
                 {
                     DrawTradeHit(bar, "TP HIT", _tradeTp, Color.LimeGreen, Color.White, 18);
                     _tradeHitDrawn = true;
                     return;
                 }
 
-                if (_tradeSl != 0 && candle.Low <= _tradeSl)
+                if (_tradeSl != 0 && TradeManagerTpSlBeExit.IsSlHit(_tradeSide, candle.High, candle.Low, _tradeSl))
                 {
                     DrawTradeHit(bar, "SL HIT", _tradeSl, Color.Red, Color.White, -54);
                     _tradeHitDrawn = true;
@@ -538,14 +537,14 @@ namespace ATAS.Indicators
             }
             else if (_tradeSide == "SELL")
             {
-                if (_tradeTp != 0 && candle.Low <= _tradeTp)
+                if (_tradeTp != 0 && TradeManagerTpSlBeExit.IsTpHit(_tradeSide, candle.High, candle.Low, _tradeTp))
                 {
                     DrawTradeHit(bar, "TP HIT", _tradeTp, Color.LimeGreen, Color.White, 18);
                     _tradeHitDrawn = true;
                     return;
                 }
 
-                if (_tradeSl != 0 && candle.High >= _tradeSl)
+                if (_tradeSl != 0 && TradeManagerTpSlBeExit.IsSlHit(_tradeSide, candle.High, candle.Low, _tradeSl))
                 {
                     DrawTradeHit(bar, "SL HIT", _tradeSl, Color.Red, Color.White, -54);
                     _tradeHitDrawn = true;
@@ -799,42 +798,20 @@ namespace ATAS.Indicators
 
         private decimal CalculateBreakoutSpeed(dynamic candle, decimal bodyBreakoutTicks)
         {
-            if (bodyBreakoutTicks <= 0)
-                return 0;
-
-            var currentTime = TryGetCandleUpdateTime(candle);
-            var startTime = candle.Time;
-            var elapsedSeconds = (currentTime - startTime).TotalSeconds;
-
-            if (elapsedSeconds <= 0 || elapsedSeconds > 300)
-                elapsedSeconds = (DateTime.UtcNow - _speedBarStartedAtUtc).TotalSeconds;
-
-            if (elapsedSeconds <= 0)
-                elapsedSeconds = 1;
-
-            return bodyBreakoutTicks / (decimal)elapsedSeconds;
+            return SpeedClasification.CalculateBreakoutSpeed(candle, bodyBreakoutTicks, _speedBarStartedAtUtc);
         }
 
         private DateTime TryGetCandleUpdateTime(dynamic candle)
         {
-            try { return candle.LastTime; } catch { }
-            try { return candle.LastTradeTime; } catch { }
-            try { return candle.TimeLast; } catch { }
-            try { return candle.CloseTime; } catch { }
-            try { return candle.LastUpdateTime; } catch { }
-
-            return DateTime.UtcNow;
+            return SpeedClasification.TryGetCandleUpdateTime(candle);
         }
 
         private string GetSpeedLabel(decimal speedTicksPerSecond)
         {
-            if (speedTicksPerSecond <= MinNormalSpeedTicksPerSecond)
-                return "invalid speed";
-
-            if (speedTicksPerSecond <= APlusSpeedTicksPerSecond)
-                return "normal speed";
-
-            return "A+ speed";
+            return SpeedClasification.GetSpeedLabel(
+                speedTicksPerSecond,
+                MinNormalSpeedTicksPerSecond,
+                APlusSpeedTicksPerSecond);
         }
 
         private bool IsSignalWindow(dynamic candle)
