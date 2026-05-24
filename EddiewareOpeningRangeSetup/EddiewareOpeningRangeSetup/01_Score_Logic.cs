@@ -7,7 +7,7 @@ using ATAS.Indicators.Drawing;
 
 namespace ATAS.Indicators.Technical
 {
-    [DisplayName("Metric No LookAhead Score TP SL Contracts")]
+    [DisplayName("01_Score_Logic")]
     public class MetricNoLookAheadScoreTpSlContracts : Indicator
     {
         [DisplayName("Min Score / Cutoff Score")]

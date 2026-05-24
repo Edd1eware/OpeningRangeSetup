@@ -33,6 +33,9 @@ namespace ATAS.Indicators
         private int _speedBar = -1;
         private DateTime _speedBarStartedAtUtc = DateTime.MinValue;
         private TradeState? _trade;
+        private ScoreState? _pendingAPlusScore;
+        private int _pendingAPlusBar = -1;
+        private DateTime _pendingAPlusNyTime = DateTime.MinValue;
 
         public int MinScore { get; set; } = 5;
         public decimal MinOrRangeTicks { get; set; } = 40;
@@ -92,6 +95,12 @@ namespace ATAS.Indicators
             if (!_orReady)
                 return;
 
+            if (!_tradeCreated && _pendingAPlusScore != null && bar > _pendingAPlusBar)
+            {
+                CreateTrade(_pendingAPlusBar, _pendingAPlusNyTime, _pendingAPlusScore);
+                ClearPendingAPlus();
+            }
+
             UpdateTradeResult(bar, current);
 
             if (_tradeCreated || bar <= _orBar || !IsSignalWindow(currentNyTime))
@@ -102,33 +111,35 @@ namespace ATAS.Indicators
             if (!score.IsReady)
                 return;
 
+            if (score.SpeedLabel == "A+ speed")
+            {
+                _pendingAPlusScore = score;
+                _pendingAPlusBar = bar;
+                _pendingAPlusNyTime = currentNyTime;
+                return;
+            }
+
+            ClearPendingAPlus();
             CreateTrade(bar, currentNyTime, score);
         }
 
         private void CreateTrade(int bar, DateTime nyTime, ScoreState score)
         {
-            var tpTicks = score.SpeedLabel == "A+ speed"
-                ? HardMaxTradeTicks
-                : score.Side == "BUY"
-                    ? ClampTicks(RoundToTicks(score.EntryPrice - _orLow))
-                    : ClampTicks(RoundToTicks(_orHigh - score.EntryPrice));
-
-            var slTicks = score.SpeedLabel == "A+ speed"
-                ? APlusStopTicks
-                : MinTradeTicks;
-
-            var sl = score.Side == "BUY"
-                ? score.EntryPrice - slTicks * SetupTickSize
-                : score.EntryPrice + slTicks * SetupTickSize;
-
-            var tp = score.Side == "BUY"
-                ? score.EntryPrice + tpTicks * SetupTickSize
-                : score.EntryPrice - tpTicks * SetupTickSize;
-
-            sl = ClampExitDistance(score.EntryPrice, sl, score.Side == "BUY" ? -1 : 1);
-            tp = ClampExitDistance(score.EntryPrice, tp, score.Side == "BUY" ? 1 : -1);
-            slTicks = RoundToTicks(Math.Abs(score.EntryPrice - sl));
-            tpTicks = RoundToTicks(Math.Abs(score.EntryPrice - tp));
+            var plan = TradeManagerTpSlBeExit.CreateInitialPlan(new TradeManagerTpSlBeExit.TradePlanRequest
+            {
+                Side = score.Side,
+                SpeedLabel = score.SpeedLabel,
+                Entry = score.EntryPrice,
+                OrLow = _orLow,
+                OrHigh = _orHigh,
+                TickSize = SetupTickSize,
+                MinTradeTicks = MinTradeTicks,
+                MaxTradeTicks = MaxTradeTicks,
+                HardMaxTradeTicks = HardMaxTradeTicks,
+                APlusStopTicks = APlusStopTicks,
+                CapSellStopAtOrHigh = false,
+                EnforceMinExitDistance = true
+            });
 
             _trade = new TradeState
             {
@@ -157,10 +168,10 @@ namespace ATAS.Indicators
                 SpeedValid = score.SpeedValid,
                 Score = score.Score,
                 Entry = score.EntryPrice,
-                Sl = sl,
-                Tp = tp,
-                SlTicks = slTicks,
-                TpTicks = tpTicks,
+                Sl = plan.Sl,
+                Tp = plan.Tp,
+                SlTicks = plan.SlTicks,
+                TpTicks = plan.TpTicks,
                 BestFavorablePrice = score.EntryPrice,
                 Result = "OPEN"
             };
@@ -186,13 +197,8 @@ namespace ATAS.Indicators
                 return;
             }
 
-            var hitTp = _trade.Side == "BUY"
-                ? candle.High >= _trade.Tp
-                : candle.Low <= _trade.Tp;
-
-            var hitSl = _trade.Side == "BUY"
-                ? candle.Low <= _trade.Sl
-                : candle.High >= _trade.Sl;
+            var hitTp = TradeManagerTpSlBeExit.IsTpHit(_trade.Side, candle.High, candle.Low, _trade.Tp);
+            var hitSl = TradeManagerTpSlBeExit.IsSlHit(_trade.Side, candle.High, candle.Low, _trade.Sl);
 
             if (!hitTp && !hitSl)
                 return;
@@ -207,19 +213,13 @@ namespace ATAS.Indicators
             if (_trade == null)
                 return 0;
 
-            if (_trade.Result == "TP")
-                return _trade.TpTicks;
-
-            if (_trade.Result == "SL")
-                return -_trade.SlTicks;
-
-            if (_trade.Result == "EXIT" && _trade.ExitPrice != 0)
-                return RoundToTicks(Math.Abs(_trade.ExitPrice - _trade.Entry));
-
-            if (_trade.Result == "BE")
-                return 0;
-
-            return 0;
+            return TradeManagerTpSlBeExit.TradeResultTicks(
+                _trade.Result,
+                _trade.Entry,
+                _trade.TpTicks,
+                _trade.SlTicks,
+                _trade.ExitPrice,
+                SetupTickSize);
         }
 
         private void UpdateBestFavorablePrice(dynamic candle)
@@ -244,23 +244,23 @@ namespace ATAS.Indicators
             if (_trade == null || _trade.Result != "OPEN")
                 return false;
 
-            if (_trade.SpeedLabel == "A+ speed")
+            if (!TradeManagerTpSlBeExit.TryCalculateHalfMfeExit(
+                    _trade.Side,
+                    _trade.SpeedLabel,
+                    _trade.Entry,
+                    _trade.BestFavorablePrice,
+                    HalfMfeExitMinMfeTicks,
+                    SetupTickSize,
+                    out var halfMfeExit,
+                    out _))
+            {
                 return false;
+            }
 
-            var mfeTicks = _trade.Side == "BUY"
-                ? RoundToTicks(_trade.BestFavorablePrice - _trade.Entry)
-                : RoundToTicks(_trade.Entry - _trade.BestFavorablePrice);
-
-            if (mfeTicks < HalfMfeExitMinMfeTicks)
-                return false;
-
-            var halfMfeExit = _trade.Side == "BUY"
-                ? _trade.Entry + (_trade.BestFavorablePrice - _trade.Entry) / 2m
-                : _trade.Entry - (_trade.Entry - _trade.BestFavorablePrice) / 2m;
-
-            var touched = _trade.Side == "BUY"
-                ? candle.Low <= halfMfeExit
-                : candle.High >= halfMfeExit;
+            var touched = TradeManagerTpSlBeExit.IsHalfMfeExitTouched(
+                _trade.Side,
+                _trade.Side == "BUY" ? candle.Low : candle.High,
+                halfMfeExit);
 
             if (!touched)
                 return false;
@@ -372,57 +372,31 @@ namespace ATAS.Indicators
 
         private SpeedState CalculateBreakoutSpeed(dynamic candle, decimal bodyBreakoutTicks)
         {
-            if (bodyBreakoutTicks <= 0)
-                return new SpeedState();
-
-            string timingSource;
-            var currentTime = TryGetCandleUpdateTime(candle, out timingSource);
-            var startTime = candle.Time;
-            var elapsedSeconds = (currentTime - startTime).TotalSeconds;
-            var usedReplayFallback = false;
-
-            if (elapsedSeconds <= 0 || elapsedSeconds > 300)
-            {
-                elapsedSeconds = (DateTime.UtcNow - _speedBarStartedAtUtc).TotalSeconds;
-                usedReplayFallback = true;
-                timingSource = ReplaySpeedMultiplier > 0
-                    ? $"replay-fallback-x{ReplaySpeedMultiplier.ToString("0.##", CultureInfo.InvariantCulture)}"
-                    : "replay-fallback";
-            }
-
-            if (elapsedSeconds <= 0)
-                elapsedSeconds = 1;
+            var speedState = SpeedClasification.CalculateBreakoutSpeedState(
+                candle,
+                bodyBreakoutTicks,
+                _speedBarStartedAtUtc);
 
             return new SpeedState
             {
-                TicksPerSecond = bodyBreakoutTicks / (decimal)elapsedSeconds,
-                ElapsedSeconds = (decimal)elapsedSeconds,
-                UsedReplayFallback = usedReplayFallback,
-                TimingSource = timingSource
+                TicksPerSecond = speedState.TicksPerSecond,
+                ElapsedSeconds = speedState.ElapsedSeconds,
+                UsedReplayFallback = speedState.UsedReplayFallback,
+                TimingSource = speedState.TimingSource
             };
         }
 
         private DateTime TryGetCandleUpdateTime(dynamic candle, out string timingSource)
         {
-            try { timingSource = "LastTime"; return candle.LastTime; } catch { }
-            try { timingSource = "LastTradeTime"; return candle.LastTradeTime; } catch { }
-            try { timingSource = "TimeLast"; return candle.TimeLast; } catch { }
-            try { timingSource = "CloseTime"; return candle.CloseTime; } catch { }
-            try { timingSource = "LastUpdateTime"; return candle.LastUpdateTime; } catch { }
-
-            timingSource = "UtcNow";
-            return DateTime.UtcNow;
+            return SpeedClasification.TryGetCandleUpdateTime(candle, out timingSource);
         }
 
         private string GetSpeedLabel(decimal speedTicksPerSecond)
         {
-            if (speedTicksPerSecond <= MinNormalSpeedTicksPerSecond)
-                return "invalid speed";
-
-            if (speedTicksPerSecond <= APlusSpeedTicksPerSecond)
-                return "normal speed";
-
-            return "A+ speed";
+            return SpeedClasification.GetSpeedLabel(
+                speedTicksPerSecond,
+                MinNormalSpeedTicksPerSecond,
+                APlusSpeedTicksPerSecond);
         }
 
         private bool IsSignalWindow(DateTime nyTime)
@@ -560,6 +534,14 @@ namespace ATAS.Indicators
             _speedBar = -1;
             _speedBarStartedAtUtc = DateTime.MinValue;
             _trade = null;
+            ClearPendingAPlus();
+        }
+
+        private void ClearPendingAPlus()
+        {
+            _pendingAPlusScore = null;
+            _pendingAPlusBar = -1;
+            _pendingAPlusNyTime = DateTime.MinValue;
         }
 
         private decimal RoundToTicks(decimal points)
@@ -595,10 +577,7 @@ namespace ATAS.Indicators
 
         private string GetEntryProfile(string side, string speedLabel)
         {
-            if (speedLabel == "normal speed")
-                return $"{side}1";
-
-            return side;
+            return TradeManagerTpSlBeExit.GetEntryProfile(side, speedLabel);
         }
 
         private string FormatPrice(decimal price)

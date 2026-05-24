@@ -7,6 +7,7 @@ using ATAS.Indicators.Drawing;
 
 namespace ATAS.Indicators
 {
+    [DisplayName("02_Visual_Logic")]
     public class EddiewareOpeningRangeVisual : Indicator
     {
         private const decimal FallbackTickSize = 0.25m;
@@ -113,7 +114,7 @@ namespace ATAS.Indicators
 
         public EddiewareOpeningRangeVisual()
         {
-            Name = "Eddieware Opening Range Visual";
+            Name = "02_Visual_Logic";
             DrawAbovePrice = true;
         }
 
@@ -220,69 +221,36 @@ namespace ATAS.Indicators
             if (!ShowEntrySlTp || score.Side == "")
                 return;
 
-            var isAPlusSpeed = score.SpeedLabel == "A+ speed";
-            var isNormalSpeed = score.SpeedLabel == "normal speed";
-            var tradeTicks = isAPlusSpeed
-                ? HardMaxTradeTicks
-                : score.Side == "BUY"
-                    ? ClampTicks(RoundToTicks(score.Entry - _orLow))
-                    : ClampTicks(RoundToTicks(_orHigh - score.Entry));
             var tickSize = GetTickSize();
-            var tradePoints = tradeTicks * tickSize;
-            var entry = score.Entry;
-            var slPoints = isAPlusSpeed
-                ? APlusStopTicks * tickSize
-                : isNormalSpeed
-                    ? MinTradeTicks * tickSize
-                    : tradePoints;
-            var sl = score.Side == "BUY" ? entry - slPoints : entry + slPoints;
-            var tp = score.Side == "BUY" ? entry + tradePoints : entry - tradePoints;
-            var imbalanceStop = isAPlusSpeed || isNormalSpeed ? null : TryGetImbalanceStop(candle, score.Side);
-            var entryProfile = isNormalSpeed ? $"{score.Side}1" : score.Side;
-
-            if (imbalanceStop != null)
+            var rawImbalanceStop = score.SpeedLabel == "A+ speed" || score.SpeedLabel == "normal speed"
+                ? null
+                : TryGetImbalanceStop(candle, score.Side);
+            var plan = TradeManagerTpSlBeExit.CreateInitialPlan(new TradeManagerTpSlBeExit.TradePlanRequest
             {
-                var imbalanceRiskTicks = RoundToTicks(Math.Abs(entry - imbalanceStop.StopPrice));
-
-                if (score.SpeedLabel != "A+ speed" && imbalanceRiskTicks <= 60)
-                {
-                    sl = imbalanceStop.StopPrice;
-                    tp = score.Side == "BUY"
-                        ? entry + 60m * tickSize
-                        : entry - 60m * tickSize;
-                    entryProfile = $"{score.Side} 2";
-                }
-                else if (imbalanceRiskTicks <= HardMaxTradeTicks)
-                {
-                    sl = imbalanceStop.StopPrice;
-                    tp = score.Side == "BUY"
-                        ? entry + HardMaxTradeTicks * tickSize
-                        : entry - HardMaxTradeTicks * tickSize;
-                    entryProfile = $"{score.Side} 1";
-                }
-                else
-                {
-                    imbalanceStop = null;
-                }
-            }
-
-            if (imbalanceStop == null && score.Side == "SELL" && sl > _orHigh)
-                sl = _orHigh;
-
-            if (imbalanceStop == null)
-                sl = ClampExitDistance(entry, sl, score.Side == "BUY" ? -1 : 1);
-
-            tp = ClampExitDistance(entry, tp, score.Side == "BUY" ? 1 : -1);
-
-            var slTicks = RoundToTicks(Math.Abs(entry - sl));
-            var tpTicks = RoundToTicks(Math.Abs(entry - tp));
+                Side = score.Side,
+                SpeedLabel = score.SpeedLabel,
+                Entry = score.Entry,
+                OrLow = _orLow,
+                OrHigh = _orHigh,
+                TickSize = tickSize,
+                MinTradeTicks = MinTradeTicks,
+                MaxTradeTicks = Math.Min(MaxTradeTicks, HardMaxTradeTicks),
+                HardMaxTradeTicks = HardMaxTradeTicks,
+                APlusStopTicks = APlusStopTicks,
+                ImbalanceStopPrice = rawImbalanceStop?.StopPrice,
+                CapSellStopAtOrHigh = true,
+                EnforceMinExitDistance = false
+            });
+            var entry = plan.Entry;
+            var sl = plan.Sl;
+            var tp = plan.Tp;
             var labelPrice = score.Side == "BUY"
                 ? candle.Low - tickSize * 10
                 : candle.High + tickSize * 10;
 
             AddText(
                 $"EW_SCORE_ENTRY_{candle.Time:yyyyMMdd_HHmm}_{bar}",
-                $"{entryProfile} ENTRY {entry:0.00} | S{score.Value} | {score.SpeedLabel}",
+                $"{plan.EntryProfile} ENTRY {entry:0.00} | S{score.Value} | {score.SpeedLabel}",
                 score.Side == "SELL",
                 bar,
                 labelPrice,
@@ -300,8 +268,8 @@ namespace ATAS.Indicators
             TrendLines.Add(new TrendLine(bar, tp, endBar, tp, new Pen(Color.LimeGreen, 3)));
 
             DrawTradeLabel($"EW_ENTRY_{candle.Time:yyyyMMdd_HHmm}_{bar}", $"ENTRY {entry:0.00}", bar, entry, Color.Black, Color.Gold, -30);
-            DrawTradeLabel($"EW_SL_{candle.Time:yyyyMMdd_HHmm}_{bar}", $"SL {sl:0.00} | {slTicks:0}t{(imbalanceStop != null ? " IMB" : "")}", bar + 1, sl, Color.White, Color.Red, -38);
-            DrawTradeLabel($"EW_TP_{candle.Time:yyyyMMdd_HHmm}_{bar}", $"TP {tp:0.00} | {tpTicks:0}t", bar + 1, tp, Color.White, Color.Green, 16);
+            DrawTradeLabel($"EW_SL_{candle.Time:yyyyMMdd_HHmm}_{bar}", $"SL {sl:0.00} | {plan.SlTicks:0}t{(plan.UsesImbalanceStop ? " IMB" : "")}", bar + 1, sl, Color.White, Color.Red, -38);
+            DrawTradeLabel($"EW_TP_{candle.Time:yyyyMMdd_HHmm}_{bar}", $"TP {tp:0.00} | {plan.TpTicks:0}t", bar + 1, tp, Color.White, Color.Green, 16);
 
             _tradeBar = bar;
             _tradeSide = score.Side;
@@ -312,7 +280,7 @@ namespace ATAS.Indicators
             _lastManagePrice = entry;
             _lastManageTimeUtc = TryGetCandleUpdateTime(candle);
             _bestFavorableTimeUtc = _lastManageTimeUtc;
-            _tradeIsAPlusSpeed = score.SpeedLabel == "A+ speed";
+            _tradeIsAPlusSpeed = plan.IsAPlusSpeed;
 
             if (!_tradeIsAPlusSpeed)
                 DrawLiveExitSpeed(bar, candle, 0);
