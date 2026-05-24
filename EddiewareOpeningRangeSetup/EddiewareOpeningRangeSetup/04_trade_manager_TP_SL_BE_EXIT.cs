@@ -32,6 +32,33 @@ namespace ATAS.Indicators
             public bool IsNormalSpeed { get; set; }
         }
 
+        public sealed class TradeExitRequest
+        {
+            public string Side { get; set; } = "";
+            public string SpeedLabel { get; set; } = "";
+            public decimal Entry { get; set; }
+            public decimal Sl { get; set; }
+            public decimal Tp { get; set; }
+            public decimal SlTicks { get; set; }
+            public decimal TpTicks { get; set; }
+            public decimal BestFavorablePrice { get; set; }
+            public decimal CandleHigh { get; set; }
+            public decimal CandleLow { get; set; }
+            public decimal HalfMfeExitMinMfeTicks { get; set; }
+            public decimal TickSize { get; set; }
+        }
+
+        public sealed class TradeExitDecision
+        {
+            public bool IsClosed { get; set; }
+            public string Result { get; set; } = "OPEN";
+            public decimal ExitPrice { get; set; }
+            public decimal ResultTicks { get; set; }
+            public decimal MfeTicks { get; set; }
+            public decimal HalfMfeExitPrice { get; set; }
+            public bool IsHalfMfeExit { get; set; }
+        }
+
         public static TradePlan CreateInitialPlan(TradePlanRequest request)
         {
             var isAPlusSpeed = request.SpeedLabel == "A+ speed";
@@ -110,6 +137,73 @@ namespace ATAS.Indicators
                 UsesImbalanceStop = usesImbalanceStop,
                 IsAPlusSpeed = isAPlusSpeed,
                 IsNormalSpeed = isNormalSpeed
+            };
+        }
+
+        public static TradeExitDecision EvaluateExit(TradeExitRequest request)
+        {
+            if (TryCalculateHalfMfeExit(
+                    request.Side,
+                    request.SpeedLabel,
+                    request.Entry,
+                    request.BestFavorablePrice,
+                    request.HalfMfeExitMinMfeTicks,
+                    request.TickSize,
+                    out var halfMfeExit,
+                    out var mfeTicks))
+            {
+                var adversePrice = request.Side == "BUY" ? request.CandleLow : request.CandleHigh;
+
+                if (IsHalfMfeExitTouched(request.Side, adversePrice, halfMfeExit))
+                {
+                    return new TradeExitDecision
+                    {
+                        IsClosed = true,
+                        Result = "EXIT",
+                        ExitPrice = halfMfeExit,
+                        ResultTicks = TradeResultTicks(
+                            "EXIT",
+                            request.Entry,
+                            request.TpTicks,
+                            request.SlTicks,
+                            halfMfeExit,
+                            request.TickSize),
+                        MfeTicks = mfeTicks,
+                        HalfMfeExitPrice = halfMfeExit,
+                        IsHalfMfeExit = true
+                    };
+                }
+            }
+
+            var hitTp = IsTpHit(request.Side, request.CandleHigh, request.CandleLow, request.Tp);
+            var hitSl = IsSlHit(request.Side, request.CandleHigh, request.CandleLow, request.Sl);
+
+            if (!hitTp && !hitSl)
+            {
+                return new TradeExitDecision
+                {
+                    MfeTicks = mfeTicks,
+                    HalfMfeExitPrice = halfMfeExit
+                };
+            }
+
+            var result = hitTp ? "TP" : "SL";
+            var exitPrice = hitTp ? request.Tp : request.Sl;
+
+            return new TradeExitDecision
+            {
+                IsClosed = true,
+                Result = result,
+                ExitPrice = exitPrice,
+                ResultTicks = TradeResultTicks(
+                    result,
+                    request.Entry,
+                    request.TpTicks,
+                    request.SlTicks,
+                    exitPrice,
+                    request.TickSize),
+                MfeTicks = mfeTicks,
+                HalfMfeExitPrice = halfMfeExit
             };
         }
 

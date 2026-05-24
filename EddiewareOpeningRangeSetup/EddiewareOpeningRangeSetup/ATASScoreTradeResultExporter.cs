@@ -191,20 +191,27 @@ namespace ATAS.Indicators
             UpdateTradeExcursion(candle);
             UpdateBestFavorablePrice(candle);
 
-            if (TryApplyHalfMfeExit(candle))
+            var decision = TradeManagerTpSlBeExit.EvaluateExit(new TradeManagerTpSlBeExit.TradeExitRequest
             {
-                WriteTradeFile(_currentNyDate);
+                Side = _trade.Side,
+                SpeedLabel = _trade.SpeedLabel,
+                Entry = _trade.Entry,
+                Sl = _trade.Sl,
+                Tp = _trade.Tp,
+                SlTicks = _trade.SlTicks,
+                TpTicks = _trade.TpTicks,
+                BestFavorablePrice = _trade.BestFavorablePrice,
+                CandleHigh = candle.High,
+                CandleLow = candle.Low,
+                HalfMfeExitMinMfeTicks = HalfMfeExitMinMfeTicks,
+                TickSize = SetupTickSize
+            });
+
+            if (!decision.IsClosed)
                 return;
-            }
 
-            var hitTp = TradeManagerTpSlBeExit.IsTpHit(_trade.Side, candle.High, candle.Low, _trade.Tp);
-            var hitSl = TradeManagerTpSlBeExit.IsSlHit(_trade.Side, candle.High, candle.Low, _trade.Sl);
-
-            if (!hitTp && !hitSl)
-                return;
-
-            _trade.Result = hitTp ? "TP" : "SL";
-            _trade.ExitPrice = hitTp ? _trade.Tp : _trade.Sl;
+            _trade.Result = decision.Result;
+            _trade.ExitPrice = decision.ExitPrice;
             WriteTradeFile(_currentNyDate);
         }
 
@@ -237,37 +244,6 @@ namespace ATAS.Indicators
                 if (_trade.BestFavorablePrice == 0 || candle.Low < _trade.BestFavorablePrice)
                     _trade.BestFavorablePrice = candle.Low;
             }
-        }
-
-        private bool TryApplyHalfMfeExit(dynamic candle)
-        {
-            if (_trade == null || _trade.Result != "OPEN")
-                return false;
-
-            if (!TradeManagerTpSlBeExit.TryCalculateHalfMfeExit(
-                    _trade.Side,
-                    _trade.SpeedLabel,
-                    _trade.Entry,
-                    _trade.BestFavorablePrice,
-                    HalfMfeExitMinMfeTicks,
-                    SetupTickSize,
-                    out var halfMfeExit,
-                    out _))
-            {
-                return false;
-            }
-
-            var touched = TradeManagerTpSlBeExit.IsHalfMfeExitTouched(
-                _trade.Side,
-                _trade.Side == "BUY" ? candle.Low : candle.High,
-                halfMfeExit);
-
-            if (!touched)
-                return false;
-
-            _trade.Result = "EXIT";
-            _trade.ExitPrice = halfMfeExit;
-            return true;
         }
 
         private void UpdateTradeExcursion(dynamic candle)
