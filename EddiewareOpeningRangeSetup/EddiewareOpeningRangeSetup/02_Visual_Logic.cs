@@ -33,6 +33,7 @@ namespace ATAS.Indicators
         private DateTime _lastManageTimeUtc = DateTime.MinValue;
         private DateTime _bestFavorableTimeUtc = DateTime.MinValue;
         private decimal _trailingExitPrice;
+        private int _trailingExitActivatedBar = -1;
         private decimal _lastDrawnTrailingExitPrice;
         private decimal _lastTrailingStepPrice;
         private TrendLine _trailingExitLine;
@@ -454,7 +455,7 @@ namespace ATAS.Indicators
             if (TryDrawFastExit(bar, mfeTicks, pullbackTicks, speedPanic, slTouched))
                 return;
 
-            if (TryDrawHalfMfeExit(bar, exitTouchPrice, mfeTicks))
+            if (TryDrawHalfMfeExit(bar, candle, mfeTicks))
                 return;
 
             TryDrawFirstTradeHit(bar, candle);
@@ -510,13 +511,19 @@ namespace ATAS.Indicators
             if (resultTicks <= 0)
                 return false;
 
-            _trailingExitPrice = exitPrice;
-            DrawTrailingExit(bar, exitPrice);
+            var activatedNow = _trailingExitPrice != exitPrice;
 
-            return false;
+            if (activatedNow)
+            {
+                _trailingExitPrice = exitPrice;
+                _trailingExitActivatedBar = bar;
+                DrawTrailingExit(bar, exitPrice);
+            }
+
+            return activatedNow;
         }
 
-        private bool TryDrawHalfMfeExit(int bar, decimal adversePrice, decimal mfeTicks)
+        private bool TryDrawHalfMfeExit(int bar, dynamic candle, decimal mfeTicks)
         {
             if (_tradeHitDrawn)
                 return false;
@@ -529,13 +536,21 @@ namespace ATAS.Indicators
                 _tradeEntry,
                 _bestFavorablePrice);
 
-            var touched = TradeManagerTpSlBeExit.IsHalfMfeExitTouched(_tradeSide, adversePrice, halfMfeExit);
+            var activatedNow = _trailingExitPrice != halfMfeExit;
+
+            if (activatedNow)
+            {
+                _trailingExitPrice = halfMfeExit;
+                _trailingExitActivatedBar = bar;
+                DrawTrailingExit(bar, halfMfeExit);
+                return true;
+            }
+
+            var touched = IsTrailingExitTouched(candle, halfMfeExit);
 
             if (!touched)
                 return false;
 
-            _trailingExitPrice = halfMfeExit;
-            DrawTrailingExit(bar, halfMfeExit);
             DrawTradeHit(bar, "EXIT HIT", halfMfeExit, Color.Orange, Color.Black, 18);
             _trailingExitHit = true;
             _tradeHitDrawn = true;
@@ -588,15 +603,20 @@ namespace ATAS.Indicators
             if (_trailingExitPrice == 0)
                 return;
 
-            var exitTouched = _tradeSide == "BUY"
-                ? hitLow <= _trailingExitPrice
-                : hitHigh >= _trailingExitPrice;
+            var exitTouched = IsTrailingExitTouched(candle, _trailingExitPrice);
 
             if (!exitTouched)
                 return;
 
             DrawTradeHit(bar, "EXIT HIT", _trailingExitPrice, Color.Orange, Color.Black, 18);
             _tradeHitDrawn = true;
+        }
+
+        private bool IsTrailingExitTouched(dynamic candle, decimal exitPrice)
+        {
+            return _tradeSide == "BUY"
+                ? candle.Close <= exitPrice
+                : candle.Close >= exitPrice;
         }
 
         private void DrawTradeHit(int bar, string text, decimal price, Color bgColor, Color textColor, int yOffset)
@@ -718,14 +738,21 @@ namespace ATAS.Indicators
             if (_trailingExitPrice == 0)
             {
                 _trailingExitPrice = nextExit;
+                _trailingExitActivatedBar = bar;
             }
             else if (_tradeSide == "BUY")
             {
-                _trailingExitPrice = Math.Max(_trailingExitPrice, nextExit);
+                var updatedExit = Math.Max(_trailingExitPrice, nextExit);
+                if (updatedExit != _trailingExitPrice)
+                    _trailingExitActivatedBar = bar;
+                _trailingExitPrice = updatedExit;
             }
             else
             {
-                _trailingExitPrice = Math.Min(_trailingExitPrice, nextExit);
+                var updatedExit = Math.Min(_trailingExitPrice, nextExit);
+                if (updatedExit != _trailingExitPrice)
+                    _trailingExitActivatedBar = bar;
+                _trailingExitPrice = updatedExit;
             }
 
             if (_lastDrawnTrailingExitPrice == _trailingExitPrice)
@@ -931,6 +958,7 @@ namespace ATAS.Indicators
             _lastManageTimeUtc = DateTime.MinValue;
             _bestFavorableTimeUtc = DateTime.MinValue;
             _trailingExitPrice = 0;
+            _trailingExitActivatedBar = -1;
             _lastDrawnTrailingExitPrice = 0;
             _lastTrailingStepPrice = 0;
             _trailingExitLine = null;

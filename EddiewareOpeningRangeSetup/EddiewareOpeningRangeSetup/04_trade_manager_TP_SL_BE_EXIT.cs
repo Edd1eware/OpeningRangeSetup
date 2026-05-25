@@ -44,6 +44,7 @@ namespace ATAS.Indicators
             public decimal BestFavorablePrice { get; set; }
             public decimal CandleHigh { get; set; }
             public decimal CandleLow { get; set; }
+            public decimal CurrentPrice { get; set; }
             public decimal HalfMfeExitMinMfeTicks { get; set; }
             public decimal FastExitMinMfeTicks { get; set; }
             public decimal FastExitPullbackTicks { get; set; }
@@ -180,11 +181,9 @@ namespace ATAS.Indicators
                 {
                     return new TradeExitDecision
                     {
-                        IsClosed = true,
-                        Result = "EXIT",
-                        ExitPrice = fastExitPrice,
-                        ResultTicks = resultTicks,
+                        IsClosed = false,
                         MfeTicks = mfeTicks,
+                        HalfMfeExitPrice = fastExitPrice,
                         IsFastExit = true
                     };
                 }
@@ -200,7 +199,7 @@ namespace ATAS.Indicators
                     out var halfMfeExit,
                     out mfeTicks))
             {
-                var adversePrice = request.Side == "BUY" ? request.CandleLow : request.CandleHigh;
+                var adversePrice = request.CurrentPrice;
 
                 if (IsHalfMfeExitTouched(request.Side, adversePrice, halfMfeExit))
                 {
