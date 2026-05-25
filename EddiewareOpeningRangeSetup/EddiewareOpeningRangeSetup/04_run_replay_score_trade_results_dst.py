@@ -14,7 +14,7 @@ from openpyxl.utils import get_column_letter
 # Prueba pequena en horario DST de Nueva York 2026.
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 DATES_DST = [
-    "21/05/2026",
+    "13/05/2026",
 ]
 
 # Replay recomendado para esta prueba: X1.
