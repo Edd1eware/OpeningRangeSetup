@@ -450,6 +450,7 @@ namespace ATAS.Indicators
                 state.IsBreakout &&
                 state.Score >= MinScore &&
                 state.SpeedValid &&
+                state.VolumeOk &&
                 (!RequireBodyOkForTrade || state.BodyOk) &&
                 (!RequireVwapOkForTrade || state.VwapOk);
 

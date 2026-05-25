@@ -168,7 +168,7 @@ namespace ATAS.Indicators
             if (ShowScoreLabel)
                 DrawScoreLabel(bar, candle, score);
 
-            if (!score.IsBreakout || score.Value < MinScore || !score.SpeedValid)
+            if (!score.IsBreakout || score.Value < MinScore || !score.SpeedValid || !score.VolumeOk)
                 return;
 
             DrawTrade(bar, candle, score);
