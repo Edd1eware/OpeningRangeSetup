@@ -1,8 +1,8 @@
-from pywinauto import Desktop
 import csv
 import os
-import time
-import pyperclip
+import re
+from copy import copy
+from datetime import datetime
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
@@ -11,132 +11,80 @@ from openpyxl.utils import get_column_letter
 # CONFIG
 # =========================================================
 
-# Prueba pequena en horario DST de Nueva York 2026.
-# Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
-DATES_DST = [
-    "21/05/2026",
-]
-
-# Replay recomendado para esta prueba: X1.
-# Ventana por dia: 09:30 a 10:30. Si no hay setup/resultado, se pasa al siguiente dia.
-WAIT_SECONDS = 3600
-POLL_SECONDS = 1
-
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
 RESULTS_FOLDER = os.path.join(EXPORT_FOLDER, "trade_results_score")
-TARGET_FILE = os.path.join(EXPORT_FOLDER, "target_trade_result_date.txt")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SCORE_WORKBOOK = os.path.join(BASE_DIR, "Score_indicator_results_updated.xlsx")
-SCORE_WORKBOOK_FALLBACK = os.path.join(BASE_DIR, "Score_indicator_results_updated_fallback.xlsx")
+SCORE_WORKBOOK_NAME = "Score_indicator_results_from_root_folder"
+SCORE_WORKBOOK = os.path.join(BASE_DIR, f"{SCORE_WORKBOOK_NAME}.xlsx")
+FORMAT_TEMPLATE_WORKBOOK = os.path.join(BASE_DIR, "Score_indicator_results_updated_fallback.xlsx")
+RESULT_FILE_RE = re.compile(r"^score_trade_result_(\d{4})-(\d{2})-(\d{2})_NY\.csv$", re.IGNORECASE)
 
 
 # =========================================================
 # FUNCIONES
 # =========================================================
 
-def write_target_date(date_ddmmyyyy):
-    dd, mm, yyyy = date_ddmmyyyy.split("/")
-    target = f"{yyyy}-{mm}-{dd}"
+def discover_result_files():
+    files = []
 
-    os.makedirs(EXPORT_FOLDER, exist_ok=True)
-    os.makedirs(RESULTS_FOLDER, exist_ok=True)
+    if not os.path.isdir(RESULTS_FOLDER):
+        raise FileNotFoundError(f"No existe la carpeta de resultados: {RESULTS_FOLDER}")
 
-    with open(TARGET_FILE, "w", encoding="utf-8") as f:
-        f.write(target)
+    for filename in os.listdir(RESULTS_FOLDER):
+        match = RESULT_FILE_RE.match(filename)
 
-    print(f"Fecha objetivo escrita para ATAS: {target}")
+        if not match:
+            continue
 
+        yyyy, mm, dd = match.groups()
+        files.append({
+            "date_ddmmyyyy": f"{dd}/{mm}/{yyyy}",
+            "date_iso": f"{yyyy}-{mm}-{dd}",
+            "path": os.path.join(RESULTS_FOLDER, filename),
+        })
 
-def get_replay():
-    desktop = Desktop(backend="uia")
-    candidates = desktop.windows(title_re=".*Replay.*", visible_only=True)
-
-    if not candidates:
-        raise RuntimeError("No encontre ninguna ventana Replay visible. Abre Replay en ATAS antes de correr el script.")
-
-    print(f"Ventanas Replay encontradas: {len(candidates)}")
-
-    for w in candidates:
-        try:
-            if w.is_visible() and w.is_enabled():
-                print("Usando Replay:", w.window_text())
-                w.set_focus()
-                time.sleep(1)
-                return w
-        except Exception:
-            pass
-
-    replay = candidates[0]
-    replay.set_focus()
-    time.sleep(1)
-    return replay
+    return sorted(files, key=lambda item: item["date_iso"])
 
 
-def paste_text(control, value):
-    control.click_input()
-    time.sleep(0.3)
-
-    control.type_keys("^a")
-    time.sleep(0.3)
-
-    pyperclip.copy(value)
-    time.sleep(0.3)
-
-    control.type_keys("^v")
-    time.sleep(0.8)
+def get_new_workbook_copy_path():
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return os.path.join(BASE_DIR, f"{SCORE_WORKBOOK_NAME}_{timestamp}.xlsx")
 
 
-def get_controls():
-    replay = get_replay()
+def load_score_workbook_template():
+    if os.path.exists(FORMAT_TEMPLATE_WORKBOOK):
+        print(f"Usando formato base: {FORMAT_TEMPLATE_WORKBOOK}")
+        return load_workbook(FORMAT_TEMPLATE_WORKBOOK)
 
-    edits = replay.descendants(control_type="Edit")
-    buttons = replay.descendants(control_type="Button")
+    if os.path.exists(SCORE_WORKBOOK):
+        print(f"Usando workbook existente: {SCORE_WORKBOOK}")
+        return load_workbook(SCORE_WORKBOOK)
 
-    from_box = edits[0]
-    to_box = edits[2]
-
-    start_button = None
-    stop_button = None
-
-    for b in buttons:
-        txt = b.window_text()
-
-        if txt == "Start":
-            start_button = b
-
-        if txt == "Stop":
-            stop_button = b
-
-    return replay, from_box, to_box, start_button, stop_button
+    os.makedirs(os.path.dirname(SCORE_WORKBOOK), exist_ok=True)
+    return Workbook()
 
 
-def expected_result_path(date_ddmmyyyy):
-    dd, mm, yyyy = date_ddmmyyyy.split("/")
-
-    return os.path.join(
-        RESULTS_FOLDER,
-        f"score_trade_result_{yyyy}-{mm}-{dd}_NY.csv"
-    )
-
-
-def print_result_file(path):
-    if not os.path.exists(path):
-        print("WARNING: no encontre archivo esperado:")
-        print(path)
+def copy_row_format(ws, source_row, target_row):
+    if source_row == target_row:
         return
 
-    size_kb = round(os.path.getsize(path) / 1024, 2)
-    print(f"OK EXPORTADO: {path}")
-    print(f"Tamano: {size_kb} KB")
+    ws.row_dimensions[target_row].height = ws.row_dimensions[source_row].height
 
-    with open(path, "r", encoding="utf-8") as f:
-        print(f.read().strip())
+    for col in range(1, ws.max_column + 1):
+        source_cell = ws.cell(row=source_row, column=col)
+        target_cell = ws.cell(row=target_row, column=col)
 
+        if source_cell.has_style:
+            target_cell._style = copy(source_cell._style)
 
-def clear_previous_result(path):
-    if os.path.exists(path):
-        os.remove(path)
-        print(f"Resultado anterior eliminado: {path}")
+        if source_cell.number_format:
+            target_cell.number_format = source_cell.number_format
+
+        if source_cell.alignment:
+            target_cell.alignment = copy(source_cell.alignment)
+
+        if source_cell.protection:
+            target_cell.protection = copy(source_cell.protection)
 
 
 def parse_result_ticks(value):
@@ -179,40 +127,6 @@ def read_result_ticks(path):
 
     value = row.get("result TP SL BE") or row.get("RESULT")
     return parse_result_ticks(value)
-
-
-def result_is_terminal(path):
-    ticks = read_result_ticks(path)
-
-    if ticks is None:
-        return False
-
-    return ticks != 0
-
-
-def stop_replay():
-    replay, from_box, to_box, start_button, stop_button = get_controls()
-
-    if stop_button is not None:
-        print("Deteniendo replay...")
-        stop_button.click_input()
-        return
-
-    print("No encontre boton Stop; probablemente el replay ya termino.")
-
-
-def wait_until_result_or_timeout(path):
-    deadline = time.time() + WAIT_SECONDS
-
-    while time.time() < deadline:
-        if result_is_terminal(path):
-            print("Resultado terminal detectado en CSV; paso al siguiente dia.")
-            return True
-
-        time.sleep(POLL_SECONDS)
-
-    print(f"No se detecto TP/SL/EXIT en {WAIT_SECONDS} segundos.")
-    return False
 
 
 def read_trade_result(path, date_ddmmyyyy):
@@ -283,7 +197,31 @@ def to_number(value):
         return value
 
 
-def get_or_create_headers(ws):
+def get_csv_headers_for_result_files(result_files):
+    headers = []
+
+    for result_file in result_files:
+        path = result_file["path"]
+
+        if not os.path.exists(path):
+            continue
+
+        try:
+            with open(path, "r", encoding="utf-8-sig", newline="") as f:
+                reader = csv.DictReader(f)
+                if not reader.fieldnames:
+                    continue
+
+                for field in reader.fieldnames:
+                    if field and field not in headers:
+                        headers.append(field)
+        except OSError:
+            continue
+
+    return headers
+
+
+def get_or_create_headers(ws, result_files):
     default_headers = [
         "fecha",
         "or_low",
@@ -322,7 +260,7 @@ def get_or_create_headers(ws):
         if header not in headers:
             headers.append(header)
 
-    for csv_header in get_csv_headers_for_dates():
+    for csv_header in get_csv_headers_for_result_files(result_files):
         if csv_header not in headers:
             headers.append(csv_header)
 
@@ -335,51 +273,29 @@ def get_or_create_headers(ws):
     return headers
 
 
-def get_csv_headers_for_dates():
-    headers = []
-
-    for date in DATES_DST:
-        path = expected_result_path(date)
-
-        if not os.path.exists(path):
-            continue
-
-        try:
-            with open(path, "r", encoding="utf-8-sig", newline="") as f:
-                reader = csv.DictReader(f)
-                if not reader.fieldnames:
-                    continue
-
-                for field in reader.fieldnames:
-                    if field and field not in headers:
-                        headers.append(field)
-        except OSError:
-            continue
-
-    return headers
-
-
 def update_score_workbook():
-    if os.path.exists(SCORE_WORKBOOK):
-        wb = load_workbook(SCORE_WORKBOOK)
-    elif os.path.exists(SCORE_WORKBOOK_FALLBACK):
-        wb = load_workbook(SCORE_WORKBOOK_FALLBACK)
-    else:
-        os.makedirs(os.path.dirname(SCORE_WORKBOOK), exist_ok=True)
-        wb = Workbook()
+    result_files = discover_result_files()
+
+    if not result_files:
+        print(f"No encontre CSV de resultados en: {RESULTS_FOLDER}")
+        return
+
+    wb = load_score_workbook_template()
 
     ws = wb.active
 
-    headers = get_or_create_headers(ws)
+    headers = get_or_create_headers(ws, result_files)
     first_row = 4
-    last_row = first_row + len(DATES_DST) - 1
+    last_row = first_row + len(result_files) - 1
 
-    for row in range(first_row, ws.max_row + 1):
+    for row in range(first_row, max(ws.max_row, last_row) + 1):
+        copy_row_format(ws, first_row, row)
+
         for col in range(1, ws.max_column + 1):
             ws.cell(row=row, column=col).value = None
 
-    for row_offset, date in enumerate(DATES_DST, start=first_row):
-        result = read_trade_result(expected_result_path(date), date)
+    for row_offset, result_file in enumerate(result_files, start=first_row):
+        result = read_trade_result(result_file["path"], result_file["date_ddmmyyyy"])
         missing_result_file = result.get("result TP SL BE") in ("NO_CSV", "EMPTY_CSV")
 
         for col, header in enumerate(headers, start=1):
@@ -435,61 +351,20 @@ def update_score_workbook():
         wb.save(SCORE_WORKBOOK)
         print(f"Excel actualizado: {SCORE_WORKBOOK}")
     except PermissionError:
-        wb.save(SCORE_WORKBOOK_FALLBACK)
-        print("WARNING: Excel original bloqueado/abierto; guarde copia actualizada en:")
-        print(SCORE_WORKBOOK_FALLBACK)
+        new_workbook_path = get_new_workbook_copy_path()
+        wb.save(new_workbook_path)
+        print("WARNING: Excel principal bloqueado/abierto; cree un archivo nuevo en:")
+        print(new_workbook_path)
+
+    print(f"Resultados leidos sin borrar archivos: {len(result_files)}")
+    print(f"Carpeta fuente: {RESULTS_FOLDER}")
 
 
 # =========================================================
 # LOOP PRINCIPAL
 # =========================================================
 
-print("\nINICIANDO REPLAY DST PARA SCORE TRADE RESULTS\n")
-
-for date in DATES_DST:
-    print("\n" + "=" * 70)
-    print(f"PROCESANDO {date}")
-    print("=" * 70)
-
-    result_path = expected_result_path(date)
-    clear_previous_result(result_path)
-
-    write_target_date(date)
-    time.sleep(1)
-
-    from_value = f"{date} 09:30 a. m."
-    to_value = f"{date} 10:30 a. m."
-
-    replay, from_box, to_box, start_button, stop_button = get_controls()
-
-    paste_text(from_box, from_value)
-    paste_text(to_box, to_value)
-
-    print("Fechas configuradas:")
-    print(f"FROM: {from_value}")
-    print(f"TO:   {to_value}")
-
-    time.sleep(2)
-
-    replay, from_box, to_box, start_button, stop_button = get_controls()
-
-    if start_button is None:
-        raise RuntimeError("No se encontro boton Start")
-
-    print("Iniciando replay...")
-    start_button.click_input()
-
-    print(f"Esperando hasta {WAIT_SECONDS} segundos o hasta detectar TP/SL/EXIT...")
-    wait_until_result_or_timeout(result_path)
-    stop_replay()
-
-    time.sleep(5)
-
-    print_result_file(result_path)
-
-    print("Pausa antes del siguiente dia...")
-    time.sleep(10)
-
-update_score_workbook()
-
-print("\nTERMINO LA PRUEBA DST.\n")
+if __name__ == "__main__":
+    print("\nLEYENDO SCORE TRADE RESULTS DESDE CARPETA RAIZ\n")
+    update_score_workbook()
+    print("\nTERMINO LA LECTURA DE RESULTADOS.\n")
