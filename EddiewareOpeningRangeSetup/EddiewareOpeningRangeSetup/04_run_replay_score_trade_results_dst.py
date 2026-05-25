@@ -17,9 +17,9 @@ DATES_DST = [
     "15/05/2026",
 ]
 
-# Replay recomendado para esta prueba: X10.
-# A X10, una ventana de 09:30 a 10:35 puede tardar varios minutos reales si no hay salida temprana.
-WAIT_SECONDS = 420
+# Replay recomendado para esta prueba: X1.
+# A X1, una ventana de 09:30 a 10:35 puede tardar varios minutos reales si no hay salida temprana.
+WAIT_SECONDS = 600
 POLL_SECONDS = 1
 
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
@@ -254,7 +254,23 @@ def read_trade_result(path, date_ddmmyyyy):
 
     row["fecha"] = row.get("fecha") or default_row["fecha"]
     row["result TP SL BE"] = row.get("result TP SL BE") or "OPEN"
+    row["Exit_price"] = row.get("Exit_price") or calculate_exit_price(row)
     return row
+
+
+def calculate_exit_price(row):
+    result_label = str(row.get("Result_Label") or row.get("RESULT") or "").strip().upper()
+
+    if result_label == "TP":
+        return row.get("TP_price") or row.get("TP") or ""
+
+    if result_label == "SL":
+        return row.get("SL_price") or row.get("SL") or ""
+
+    if result_label != "EXIT":
+        return ""
+
+    return ""
 
 
 def to_number(value):
@@ -285,6 +301,7 @@ def get_or_create_headers(ws):
         "TP_price",
         "SL_ticks",
         "TP_ticks",
+        "Exit_price",
         "result TP SL BE",
         "Side",
         "Speed_Profile",

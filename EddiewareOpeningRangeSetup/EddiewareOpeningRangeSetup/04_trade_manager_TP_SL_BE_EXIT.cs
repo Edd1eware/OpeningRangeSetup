@@ -45,6 +45,10 @@ namespace ATAS.Indicators
             public decimal CandleHigh { get; set; }
             public decimal CandleLow { get; set; }
             public decimal HalfMfeExitMinMfeTicks { get; set; }
+            public decimal FastExitMinMfeTicks { get; set; }
+            public decimal FastExitPullbackTicks { get; set; }
+            public decimal FastExitAdverseSpeedTicksPerSecond { get; set; }
+            public decimal AdverseSpeedTicksPerSecond { get; set; }
             public decimal TickSize { get; set; }
         }
 
@@ -57,6 +61,7 @@ namespace ATAS.Indicators
             public decimal MfeTicks { get; set; }
             public decimal HalfMfeExitPrice { get; set; }
             public bool IsHalfMfeExit { get; set; }
+            public bool IsFastExit { get; set; }
         }
 
         public static TradePlan CreateInitialPlan(TradePlanRequest request)
@@ -142,6 +147,49 @@ namespace ATAS.Indicators
 
         public static TradeExitDecision EvaluateExit(TradeExitRequest request)
         {
+            var mfeTicks = CalculateMfeTicks(
+                request.Side,
+                request.Entry,
+                request.BestFavorablePrice,
+                request.TickSize);
+            var pullbackTicks = CalculatePullbackTicks(
+                request.Side,
+                request.BestFavorablePrice,
+                request.CandleHigh,
+                request.CandleLow,
+                request.TickSize);
+
+            if (request.SpeedLabel != "A+ speed" &&
+                mfeTicks >= request.FastExitMinMfeTicks &&
+                pullbackTicks >= request.FastExitPullbackTicks &&
+                (request.AdverseSpeedTicksPerSecond >= request.FastExitAdverseSpeedTicksPerSecond ||
+                 IsSlHit(request.Side, request.CandleHigh, request.CandleLow, request.Sl)))
+            {
+                var fastExitPrice = request.Side == "BUY"
+                    ? request.BestFavorablePrice - request.FastExitPullbackTicks * request.TickSize
+                    : request.BestFavorablePrice + request.FastExitPullbackTicks * request.TickSize;
+                var resultTicks = TradeResultTicks(
+                    "EXIT",
+                    request.Entry,
+                    request.TpTicks,
+                    request.SlTicks,
+                    fastExitPrice,
+                    request.TickSize);
+
+                if (resultTicks > 0)
+                {
+                    return new TradeExitDecision
+                    {
+                        IsClosed = true,
+                        Result = "EXIT",
+                        ExitPrice = fastExitPrice,
+                        ResultTicks = resultTicks,
+                        MfeTicks = mfeTicks,
+                        IsFastExit = true
+                    };
+                }
+            }
+
             if (TryCalculateHalfMfeExit(
                     request.Side,
                     request.SpeedLabel,
@@ -150,7 +198,7 @@ namespace ATAS.Indicators
                     request.HalfMfeExitMinMfeTicks,
                     request.TickSize,
                     out var halfMfeExit,
-                    out var mfeTicks))
+                    out mfeTicks))
             {
                 var adversePrice = request.Side == "BUY" ? request.CandleLow : request.CandleHigh;
 
@@ -239,6 +287,27 @@ namespace ATAS.Indicators
 
             halfMfeExit = CalculateHalfMfeExit(side, entry, bestFavorablePrice);
             return true;
+        }
+
+        public static decimal CalculateMfeTicks(string side, decimal entry, decimal bestFavorablePrice, decimal tickSize)
+        {
+            return side == "BUY"
+                ? RoundToTicks(bestFavorablePrice - entry, tickSize)
+                : RoundToTicks(entry - bestFavorablePrice, tickSize);
+        }
+
+        public static decimal CalculatePullbackTicks(
+            string side,
+            decimal bestFavorablePrice,
+            decimal candleHigh,
+            decimal candleLow,
+            decimal tickSize)
+        {
+            var pullbackPoints = side == "BUY"
+                ? bestFavorablePrice - candleLow
+                : candleHigh - bestFavorablePrice;
+
+            return System.Math.Max(0, RoundToTicks(pullbackPoints, tickSize));
         }
 
         public static bool IsHalfMfeExitTouched(string side, decimal adversePrice, decimal halfMfeExit)

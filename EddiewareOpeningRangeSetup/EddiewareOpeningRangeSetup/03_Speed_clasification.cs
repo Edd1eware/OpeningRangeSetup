@@ -12,12 +12,12 @@ namespace ATAS.Indicators
             public string TimingSource { get; set; } = "";
         }
 
-        public static decimal CalculateBreakoutSpeed(dynamic candle, decimal bodyBreakoutTicks, DateTime speedBarStartedAtUtc)
+        public static decimal CalculateBreakoutSpeed(dynamic candle, decimal bodyBreakoutTicks, DateTime speedBarStartedAtUtc, decimal replaySpeedMultiplier = 1)
         {
-            return CalculateBreakoutSpeedState(candle, bodyBreakoutTicks, speedBarStartedAtUtc).TicksPerSecond;
+            return CalculateBreakoutSpeedState(candle, bodyBreakoutTicks, speedBarStartedAtUtc, replaySpeedMultiplier).TicksPerSecond;
         }
 
-        public static SpeedState CalculateBreakoutSpeedState(dynamic candle, decimal bodyBreakoutTicks, DateTime speedBarStartedAtUtc)
+        public static SpeedState CalculateBreakoutSpeedState(dynamic candle, decimal bodyBreakoutTicks, DateTime speedBarStartedAtUtc, decimal replaySpeedMultiplier = 1)
         {
             if (bodyBreakoutTicks <= 0)
                 return new SpeedState();
@@ -38,6 +38,8 @@ namespace ATAS.Indicators
             if (elapsedSeconds <= 0)
                 elapsedSeconds = 1;
 
+            elapsedSeconds *= (double)NormalizeReplaySpeedMultiplier(replaySpeedMultiplier);
+
             return new SpeedState
             {
                 TicksPerSecond = bodyBreakoutTicks / (decimal)elapsedSeconds,
@@ -45,6 +47,11 @@ namespace ATAS.Indicators
                 UsedReplayFallback = usedReplayFallback,
                 TimingSource = timingSource
             };
+        }
+
+        private static decimal NormalizeReplaySpeedMultiplier(decimal replaySpeedMultiplier)
+        {
+            return replaySpeedMultiplier <= 0 ? 1 : replaySpeedMultiplier;
         }
 
         public static string GetSpeedLabel(

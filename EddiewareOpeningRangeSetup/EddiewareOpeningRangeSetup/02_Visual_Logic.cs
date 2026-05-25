@@ -26,6 +26,8 @@ namespace ATAS.Indicators
         private int _tradeBar = -1;
         private string _tradeSide = "";
         private decimal _tradeEntry;
+        private decimal _entryBarHighAtEntry;
+        private decimal _entryBarLowAtEntry;
         private decimal _bestFavorablePrice;
         private decimal _lastManagePrice;
         private DateTime _lastManageTimeUtc = DateTime.MinValue;
@@ -90,6 +92,9 @@ namespace ATAS.Indicators
 
         [DisplayName("Min A+ Speed Ticks/Sec")]
         public decimal APlusSpeedTicksPerSecond { get; set; } = 5;
+
+        [DisplayName("Replay Speed Multiplier")]
+        public decimal ReplaySpeedMultiplier { get; set; } = 1;
 
         [DisplayName("Panic MFE Trigger Ticks")]
         public decimal PanicMfeTriggerTicks { get; set; } = 20;
@@ -274,6 +279,8 @@ namespace ATAS.Indicators
             _tradeBar = bar;
             _tradeSide = score.Side;
             _tradeEntry = entry;
+            _entryBarHighAtEntry = candle.High;
+            _entryBarLowAtEntry = candle.Low;
             _tradeSl = sl;
             _tradeTp = tp;
             _bestFavorablePrice = entry;
@@ -368,6 +375,9 @@ namespace ATAS.Indicators
             if (_tradeSide == "")
                 return;
 
+            if (_tradeHitDrawn)
+                return;
+
             if (_tradeIsAPlusSpeed)
             {
                 TryDrawFirstTradeHit(bar, candle);
@@ -379,11 +389,14 @@ namespace ATAS.Indicators
 
             var tickSize = GetTickSize();
             var currentPrice = candle.Close;
-            var currentTime = TryGetCandleUpdateTime(candle);
+            string timingSource;
+            var currentTime = TryGetCandleUpdateTime(candle, out timingSource);
             var elapsedSeconds = (currentTime - _lastManageTimeUtc).TotalSeconds;
 
             if (elapsedSeconds <= 0 || elapsedSeconds > 300)
                 elapsedSeconds = 1;
+            else if (timingSource == "UtcNow" || elapsedSeconds < 1)
+                elapsedSeconds *= (double)NormalizeReplaySpeedMultiplier();
 
             if (_tradeSide == "BUY")
             {
@@ -407,6 +420,8 @@ namespace ATAS.Indicators
 
             if (adverseElapsedSeconds <= 0 || adverseElapsedSeconds > 300)
                 adverseElapsedSeconds = elapsedSeconds;
+            else if (timingSource == "UtcNow" || adverseElapsedSeconds < 1)
+                adverseElapsedSeconds *= (double)NormalizeReplaySpeedMultiplier();
 
             var mfeTicks = _tradeSide == "BUY"
                 ? RoundToTicks(_bestFavorablePrice - _tradeEntry)
@@ -429,15 +444,27 @@ namespace ATAS.Indicators
             _lastManagePrice = adversePrice;
             _lastManageTimeUtc = currentTime;
 
-            if (TryDrawHalfMfeExit(bar, adversePrice, mfeTicks))
+            decimal hitHigh;
+            decimal hitLow;
+            GetPostEntryHitRange(bar, candle, out hitHigh, out hitLow);
+            var exitTouchPrice = _tradeSide == "BUY" ? hitLow : hitHigh;
+            var speedPanic = adverseSpeed > PanicAdverseSpeedTicksPerSecond;
+            var slTouched = _tradeSl != 0 && TradeManagerTpSlBeExit.IsSlHit(_tradeSide, hitHigh, hitLow, _tradeSl);
+
+            if (TryDrawFastExit(bar, mfeTicks, pullbackTicks, speedPanic, slTouched))
+                return;
+
+            if (TryDrawHalfMfeExit(bar, exitTouchPrice, mfeTicks))
                 return;
 
             TryDrawFirstTradeHit(bar, candle);
 
+            if (_tradeHitDrawn)
+                return;
+
             if (_panicDrawn)
                 return;
 
-            var speedPanic = adverseSpeed > PanicAdverseSpeedTicksPerSecond;
             var weakDelta = candle.Delta <= 0 && candle.Delta > -MinAbsDelta;
             var weakVolume = candle.Volume >= 0 && candle.Volume < MinVolume;
             var vwapFailed = HasVwapFailed(bar, candle);
@@ -458,8 +485,42 @@ namespace ATAS.Indicators
             _panicDrawn = true;
         }
 
+        private bool TryDrawFastExit(int bar, decimal mfeTicks, decimal pullbackTicks, bool speedPanic, bool slTouched)
+        {
+            if (_tradeHitDrawn)
+                return false;
+
+            if (mfeTicks < HalfMfeExitMinMfeTicks ||
+                pullbackTicks < PanicPullbackTicks ||
+                (!speedPanic && !slTouched))
+                return false;
+
+            var exitPrice = TradeManagerTpSlBeExit.CalculateHalfMfeExit(
+                _tradeSide,
+                _tradeEntry,
+                _bestFavorablePrice);
+            var resultTicks = TradeManagerTpSlBeExit.TradeResultTicks(
+                "EXIT",
+                _tradeEntry,
+                RoundToTicks(Math.Abs(_tradeEntry - _tradeTp)),
+                RoundToTicks(Math.Abs(_tradeEntry - _tradeSl)),
+                exitPrice,
+                GetTickSize());
+
+            if (resultTicks <= 0)
+                return false;
+
+            _trailingExitPrice = exitPrice;
+            DrawTrailingExit(bar, exitPrice);
+
+            return false;
+        }
+
         private bool TryDrawHalfMfeExit(int bar, decimal adversePrice, decimal mfeTicks)
         {
+            if (_tradeHitDrawn)
+                return false;
+
             if (mfeTicks < HalfMfeExitMinMfeTicks)
                 return false;
 
@@ -487,16 +548,20 @@ namespace ATAS.Indicators
             if (_tradeHitDrawn)
                 return;
 
+            decimal hitHigh;
+            decimal hitLow;
+            GetPostEntryHitRange(bar, candle, out hitHigh, out hitLow);
+
             if (_tradeSide == "BUY")
             {
-                if (_tradeTp != 0 && TradeManagerTpSlBeExit.IsTpHit(_tradeSide, candle.High, candle.Low, _tradeTp))
+                if (_tradeTp != 0 && TradeManagerTpSlBeExit.IsTpHit(_tradeSide, hitHigh, hitLow, _tradeTp))
                 {
                     DrawTradeHit(bar, "TP HIT", _tradeTp, Color.LimeGreen, Color.White, 18);
                     _tradeHitDrawn = true;
                     return;
                 }
 
-                if (_tradeSl != 0 && TradeManagerTpSlBeExit.IsSlHit(_tradeSide, candle.High, candle.Low, _tradeSl))
+                if (_tradeSl != 0 && TradeManagerTpSlBeExit.IsSlHit(_tradeSide, hitHigh, hitLow, _tradeSl))
                 {
                     DrawTradeHit(bar, "SL HIT", _tradeSl, Color.Red, Color.White, -54);
                     _tradeHitDrawn = true;
@@ -505,14 +570,14 @@ namespace ATAS.Indicators
             }
             else if (_tradeSide == "SELL")
             {
-                if (_tradeTp != 0 && TradeManagerTpSlBeExit.IsTpHit(_tradeSide, candle.High, candle.Low, _tradeTp))
+                if (_tradeTp != 0 && TradeManagerTpSlBeExit.IsTpHit(_tradeSide, hitHigh, hitLow, _tradeTp))
                 {
                     DrawTradeHit(bar, "TP HIT", _tradeTp, Color.LimeGreen, Color.White, 18);
                     _tradeHitDrawn = true;
                     return;
                 }
 
-                if (_tradeSl != 0 && TradeManagerTpSlBeExit.IsSlHit(_tradeSide, candle.High, candle.Low, _tradeSl))
+                if (_tradeSl != 0 && TradeManagerTpSlBeExit.IsSlHit(_tradeSide, hitHigh, hitLow, _tradeSl))
                 {
                     DrawTradeHit(bar, "SL HIT", _tradeSl, Color.Red, Color.White, -54);
                     _tradeHitDrawn = true;
@@ -524,8 +589,8 @@ namespace ATAS.Indicators
                 return;
 
             var exitTouched = _tradeSide == "BUY"
-                ? candle.Low <= _trailingExitPrice
-                : candle.High >= _trailingExitPrice;
+                ? hitLow <= _trailingExitPrice
+                : hitHigh >= _trailingExitPrice;
 
             if (!exitTouched)
                 return;
@@ -544,6 +609,25 @@ namespace ATAS.Indicators
                 textColor,
                 bgColor,
                 yOffset);
+        }
+
+        private void GetPostEntryHitRange(int bar, dynamic candle, out decimal hitHigh, out decimal hitLow)
+        {
+            if (bar != _tradeBar)
+            {
+                hitHigh = candle.High;
+                hitLow = candle.Low;
+                return;
+            }
+
+            hitHigh = candle.Close;
+            hitLow = candle.Close;
+
+            if (candle.High > _entryBarHighAtEntry)
+                hitHigh = candle.High;
+
+            if (candle.Low < _entryBarLowAtEntry)
+                hitLow = candle.Low;
         }
 
         private bool HasVwapFailed(int bar, dynamic candle)
@@ -766,12 +850,22 @@ namespace ATAS.Indicators
 
         private decimal CalculateBreakoutSpeed(dynamic candle, decimal bodyBreakoutTicks)
         {
-            return SpeedClasification.CalculateBreakoutSpeed(candle, bodyBreakoutTicks, _speedBarStartedAtUtc);
+            return SpeedClasification.CalculateBreakoutSpeed(candle, bodyBreakoutTicks, _speedBarStartedAtUtc, ReplaySpeedMultiplier);
         }
 
         private DateTime TryGetCandleUpdateTime(dynamic candle)
         {
             return SpeedClasification.TryGetCandleUpdateTime(candle);
+        }
+
+        private DateTime TryGetCandleUpdateTime(dynamic candle, out string timingSource)
+        {
+            return SpeedClasification.TryGetCandleUpdateTime(candle, out timingSource);
+        }
+
+        private decimal NormalizeReplaySpeedMultiplier()
+        {
+            return ReplaySpeedMultiplier <= 0 ? 1 : ReplaySpeedMultiplier;
         }
 
         private string GetSpeedLabel(decimal speedTicksPerSecond)
@@ -830,6 +924,8 @@ namespace ATAS.Indicators
             _tradeBar = -1;
             _tradeSide = "";
             _tradeEntry = 0;
+            _entryBarHighAtEntry = 0;
+            _entryBarLowAtEntry = 0;
             _bestFavorablePrice = 0;
             _lastManagePrice = 0;
             _lastManageTimeUtc = DateTime.MinValue;
