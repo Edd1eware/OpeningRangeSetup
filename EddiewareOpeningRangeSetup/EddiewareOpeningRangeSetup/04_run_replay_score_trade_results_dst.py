@@ -14,12 +14,21 @@ from openpyxl.utils import get_column_letter
 # Prueba pequena en horario DST de Nueva York 2026.
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 DATES_DST = [
+    "11/05/2026",
+    "12/05/2026",
+    "13/05/2026",
+    "14/05/2026",
     "15/05/2026",
+    "18/05/2026",
+    "19/05/2026",
+    "20/05/2026",
+    "21/05/2026",
+    "22/05/2026",
 ]
 
 # Replay recomendado para esta prueba: X1.
-# A X1, una ventana de 09:30 a 10:35 puede tardar varios minutos reales si no hay salida temprana.
-WAIT_SECONDS = 600
+# Ventana por dia: 09:30 a 10:30. Si no hay setup/resultado, se pasa al siguiente dia.
+WAIT_SECONDS = 3600
 POLL_SECONDS = 1
 
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
@@ -458,7 +467,7 @@ for date in DATES_DST:
     time.sleep(1)
 
     from_value = f"{date} 09:30 a. m."
-    to_value = f"{date} 10:35 a. m."
+    to_value = f"{date} 10:30 a. m."
 
     replay, from_box, to_box, start_button, stop_button = get_controls()
 
