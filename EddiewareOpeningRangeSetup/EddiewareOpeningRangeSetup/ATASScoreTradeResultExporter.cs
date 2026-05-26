@@ -21,6 +21,7 @@ namespace ATAS.Indicators
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
+        private readonly TimeSpan _signalEndNy = new TimeSpan(10, 31, 0);
         private const decimal HardMaxTradeTicks = 120m;
         private const decimal APlusStopTicks = 100m;
 
@@ -45,7 +46,6 @@ namespace ATAS.Indicators
         public decimal MinBodyBreakoutTicks { get; set; } = 10;
         public decimal MinVolume { get; set; } = 800;
         public decimal MinAbsDelta { get; set; } = 25;
-        public int MaxSignalMinuteNy { get; set; } = 50;
         public decimal MinNormalSpeedTicksPerSecond { get; set; } = 2;
         public decimal APlusSpeedTicksPerSecond { get; set; } = 5;
         public decimal ReplaySpeedMultiplier { get; set; } = 1;
@@ -506,8 +506,7 @@ namespace ATAS.Indicators
             var time = nyTime.TimeOfDay;
 
             return time >= _signalStartNy &&
-                   nyTime.Hour == 9 &&
-                   nyTime.Minute <= MaxSignalMinuteNy;
+                   time <= _signalEndNy;
         }
 
         private decimal GetSessionVwap(int bar, DateTime nyDate)

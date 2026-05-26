@@ -14,7 +14,7 @@ from openpyxl.utils import get_column_letter
 # Prueba pequena en horario DST de Nueva York 2026.
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 DATES_DST = [
-    "13/05/2026",
+    "21/05/2026",
 ]
 
 # Replay recomendado para esta prueba: X1.
@@ -446,50 +446,52 @@ def update_score_workbook():
 
 print("\nINICIANDO REPLAY DST PARA SCORE TRADE RESULTS\n")
 
-for date in DATES_DST:
-    print("\n" + "=" * 70)
-    print(f"PROCESANDO {date}")
-    print("=" * 70)
+try:
+    for date in DATES_DST:
+        print("\n" + "=" * 70)
+        print(f"PROCESANDO {date}")
+        print("=" * 70)
 
-    result_path = expected_result_path(date)
-    clear_previous_result(result_path)
+        result_path = expected_result_path(date)
+        clear_previous_result(result_path)
 
-    write_target_date(date)
-    time.sleep(1)
+        write_target_date(date)
+        time.sleep(1)
 
-    from_value = f"{date} 09:30 a. m."
-    to_value = f"{date} 10:30 a. m."
+        from_value = f"{date} 09:30 a. m."
+        to_value = f"{date} 10:30 a. m."
 
-    replay, from_box, to_box, start_button, stop_button = get_controls()
+        replay, from_box, to_box, start_button, stop_button = get_controls()
 
-    paste_text(from_box, from_value)
-    paste_text(to_box, to_value)
+        paste_text(from_box, from_value)
+        paste_text(to_box, to_value)
 
-    print("Fechas configuradas:")
-    print(f"FROM: {from_value}")
-    print(f"TO:   {to_value}")
+        print("Fechas configuradas:")
+        print(f"FROM: {from_value}")
+        print(f"TO:   {to_value}")
 
-    time.sleep(2)
+        time.sleep(2)
 
-    replay, from_box, to_box, start_button, stop_button = get_controls()
+        replay, from_box, to_box, start_button, stop_button = get_controls()
 
-    if start_button is None:
-        raise RuntimeError("No se encontro boton Start")
+        if start_button is None:
+            raise RuntimeError("No se encontro boton Start")
 
-    print("Iniciando replay...")
-    start_button.click_input()
+        print("Iniciando replay...")
+        start_button.click_input()
 
-    print(f"Esperando hasta {WAIT_SECONDS} segundos o hasta detectar TP/SL/EXIT...")
-    wait_until_result_or_timeout(result_path)
-    stop_replay()
+        print(f"Esperando hasta {WAIT_SECONDS} segundos o hasta detectar TP/SL/EXIT...")
+        wait_until_result_or_timeout(result_path)
+        stop_replay()
 
-    time.sleep(5)
+        time.sleep(5)
 
-    print_result_file(result_path)
+        print_result_file(result_path)
 
-    print("Pausa antes del siguiente dia...")
-    time.sleep(10)
+        print("Pausa antes del siguiente dia...")
+        time.sleep(10)
 
-update_score_workbook()
+finally:
+    update_score_workbook()
 
 print("\nTERMINO LA PRUEBA DST.\n")
