@@ -72,7 +72,9 @@ namespace ATAS.Indicators
             var entry = request.Entry;
             var tradeTicks = isAPlusSpeed
                 ? request.HardMaxTradeTicks
-                : request.Side == "BUY"
+                : isNormalSpeed
+                    ? request.MinTradeTicks
+                    : request.Side == "BUY"
                     ? ClampTicks(RoundToTicks(entry - request.OrLow, request.TickSize), request.MinTradeTicks, request.MaxTradeTicks)
                     : ClampTicks(RoundToTicks(request.OrHigh - entry, request.TickSize), request.MinTradeTicks, request.MaxTradeTicks);
 
