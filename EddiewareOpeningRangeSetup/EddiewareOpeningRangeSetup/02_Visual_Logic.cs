@@ -13,6 +13,7 @@ namespace ATAS.Indicators
         private const decimal FallbackTickSize = 0.25m;
         private const decimal HardMaxTradeTicks = 120m;
         private const decimal APlusStopTicks = 100m;
+        private readonly ScoreTradeSignalEngine _signalEngine = new ScoreTradeSignalEngine();
 
         private DateTime _currentDate = DateTime.MinValue;
         private decimal _orHigh;
@@ -20,8 +21,6 @@ namespace ATAS.Indicators
         private int _orBar = -1;
         private bool _orReady;
         private bool _tradeDrawn;
-        private int _speedBar = -1;
-        private DateTime _speedBarStartedAtUtc = DateTime.MinValue;
         private bool _panicDrawn;
         private int _tradeBar = -1;
         private string _tradeSide = "";
@@ -168,61 +167,38 @@ namespace ATAS.Indicators
             if (ShowScoreLabel)
                 DrawScoreLabel(bar, candle, score);
 
-            if (!score.IsBreakout || score.Value < MinScore || !score.SpeedValid || !score.VolumeOk)
+            if (!score.IsReady)
                 return;
 
             DrawTrade(bar, candle, score);
             _tradeDrawn = true;
         }
 
-        private ScoreState CalculateScore(dynamic candle, int bar)
+        private ScoreTradeSignal CalculateScore(dynamic candle, int bar)
         {
-            var vwap = GetSessionVwap(bar, candle.Time.Date);
-            var longBreakout = candle.Close > _orHigh;
-            var shortBreakout = candle.Close < _orLow;
-            var orRangeTicks = RoundToTicks(_orHigh - _orLow);
-            decimal bodyBreakoutTicks = 0;
-
-            if (longBreakout)
-                bodyBreakoutTicks = RoundToTicks(candle.Close - Math.Max(candle.Open, _orHigh));
-
-            if (shortBreakout)
-                bodyBreakoutTicks = RoundToTicks(Math.Min(candle.Open, _orLow) - candle.Close);
-
-            if (bodyBreakoutTicks < 0)
-                bodyBreakoutTicks = 0;
-
-            var state = new ScoreState
+            return _signalEngine.Calculate(bar, candle, new Func<int, dynamic>(GetCandle), new ScoreTradeSignalRequest
             {
-                IsBreakout = longBreakout || shortBreakout,
-                Side = longBreakout ? "BUY" : shortBreakout ? "SELL" : "",
-                Entry = candle.Close,
-                OrRangeTicks = orRangeTicks,
-                BodyBreakoutTicks = bodyBreakoutTicks,
-                RangeOk = orRangeTicks >= MinOrRangeTicks && orRangeTicks <= MaxOrRangeTicks,
-                BodyOk = bodyBreakoutTicks >= MinBodyBreakoutTicks,
-                VolumeOk = candle.Volume >= MinVolume,
-                DeltaOk = Math.Abs(candle.Delta) >= MinAbsDelta,
-                VwapOk =
-                    (longBreakout && candle.Close >= vwap) ||
-                    (shortBreakout && candle.Close <= vwap)
-            };
-
-            state.SpeedTicksPerSecond = CalculateBreakoutSpeed(candle, bodyBreakoutTicks);
-            state.SpeedLabel = GetSpeedLabel(state.SpeedTicksPerSecond);
-            state.SpeedValid = state.SpeedLabel == "normal speed" || state.SpeedLabel == "A+ speed";
-
-            if (state.VwapOk) state.Value += 2;
-            if (state.RangeOk) state.Value += 1;
-            if (state.BodyOk) state.Value += 1;
-            if (state.VolumeOk) state.Value += 1;
-            if (state.DeltaOk) state.Value += 1;
-            if (state.SpeedValid) state.Value += 1;
-
-            return state;
+                OrLow = _orLow,
+                OrHigh = _orHigh,
+                CurrentTime = candle.Time,
+                SessionDate = candle.Time.Date,
+                GetSessionTime = c => c.Time,
+                SignalStartTime = OpeningTimeUtc,
+                SignalEndTime = MaxSignalTimeUtc,
+                TickSize = GetTickSize(),
+                MinScore = MinScore,
+                MinOrRangeTicks = MinOrRangeTicks,
+                MaxOrRangeTicks = MaxOrRangeTicks,
+                MinBodyBreakoutTicks = MinBodyBreakoutTicks,
+                MinVolume = MinVolume,
+                MinAbsDelta = MinAbsDelta,
+                MinNormalSpeedTicksPerSecond = MinNormalSpeedTicksPerSecond,
+                APlusSpeedTicksPerSecond = APlusSpeedTicksPerSecond,
+                ReplaySpeedMultiplier = ReplaySpeedMultiplier
+            });
         }
 
-        private void DrawTrade(int bar, dynamic candle, ScoreState score)
+        private void DrawTrade(int bar, dynamic candle, ScoreTradeSignal score)
         {
             if (!ShowEntrySlTp || score.Side == "")
                 return;
@@ -235,7 +211,7 @@ namespace ATAS.Indicators
             {
                 Side = score.Side,
                 SpeedLabel = score.SpeedLabel,
-                Entry = score.Entry,
+                Entry = score.EntryPrice,
                 OrLow = _orLow,
                 OrHigh = _orHigh,
                 TickSize = tickSize,
@@ -256,7 +232,7 @@ namespace ATAS.Indicators
 
             AddText(
                 $"EW_SCORE_ENTRY_{candle.Time:yyyyMMdd_HHmm}_{bar}",
-                $"{plan.EntryProfile} ENTRY {entry:0.00} | S{score.Value} | {score.SpeedLabel}",
+                $"{plan.EntryProfile} ENTRY {entry:0.00} | S{score.Score} | {score.SpeedLabel}",
                 score.Side == "SELL",
                 bar,
                 labelPrice,
@@ -280,8 +256,8 @@ namespace ATAS.Indicators
             _tradeBar = bar;
             _tradeSide = score.Side;
             _tradeEntry = entry;
-            _entryBarHighAtEntry = candle.High;
-            _entryBarLowAtEntry = candle.Low;
+            _entryBarHighAtEntry = score.EntryBarHighAtEntry;
+            _entryBarLowAtEntry = score.EntryBarLowAtEntry;
             _tradeSl = sl;
             _tradeTp = tp;
             _bestFavorablePrice = entry;
@@ -807,15 +783,15 @@ namespace ATAS.Indicators
                 true);
         }
 
-        private void DrawScoreLabel(int bar, dynamic candle, ScoreState score)
+        private void DrawScoreLabel(int bar, dynamic candle, ScoreTradeSignal score)
         {
             var tickSize = GetTickSize();
             var price = candle.High + ScoreLabelOffsetTicks * tickSize;
-            var status = score.IsBreakout && score.Value >= MinScore && score.SpeedValid ? "VALID" : "WAIT";
+            var status = score.IsReady ? "VALID" : "WAIT";
             var side = score.Side == "" ? "NO BREAK" : score.Side;
-            var background = score.IsBreakout && score.Value >= MinScore && score.SpeedValid
+            var background = score.IsReady
                 ? Color.DarkGreen
-                : score.IsBreakout && score.Value >= MinScore
+                : score.IsBreakout && score.Score >= MinScore
                     ? Color.DarkRed
                     : score.IsBreakout
                     ? Color.DarkOrange
@@ -823,7 +799,7 @@ namespace ATAS.Indicators
 
             AddText(
                 "EW_SCORE_STATUS",
-                $"{status} {side} S{score.Value}/7 | OR {score.OrRangeTicks:0}t BODY {score.BodyBreakoutTicks:0}t | {score.SpeedLabel} {score.SpeedTicksPerSecond:0.00}t/s | R{Flag(score.RangeOk)} B{Flag(score.BodyOk)} V{Flag(score.VolumeOk)} D{Flag(score.DeltaOk)} VW{Flag(score.VwapOk)} S{Flag(score.SpeedValid)}",
+                $"{status} {side} S{score.Score}/7 | OR {score.OrRangeTicks:0}t BODY {score.BodyBreakoutTicks:0}t | {score.SpeedLabel} {score.BreakoutSpeed:0.00}t/s | R{Flag(score.RangeOk)} B{Flag(score.BodyOk)} V{Flag(score.VolumeOk)} D{Flag(score.DeltaOk)} VW{Flag(score.VwapOk)} S{Flag(score.SpeedValid)}",
                 true,
                 bar,
                 price,
@@ -868,16 +844,12 @@ namespace ATAS.Indicators
 
         private void UpdateSpeedClock(int bar)
         {
-            if (bar == _speedBar)
-                return;
-
-            _speedBar = bar;
-            _speedBarStartedAtUtc = DateTime.UtcNow;
+            _signalEngine.UpdateSpeedClock(bar);
         }
 
         private decimal CalculateBreakoutSpeed(dynamic candle, decimal bodyBreakoutTicks)
         {
-            return SpeedClasification.CalculateBreakoutSpeed(candle, bodyBreakoutTicks, _speedBarStartedAtUtc, ReplaySpeedMultiplier);
+            return SpeedClasification.CalculateBreakoutSpeed(candle, bodyBreakoutTicks, DateTime.UtcNow, ReplaySpeedMultiplier);
         }
 
         private DateTime TryGetCandleUpdateTime(dynamic candle)
@@ -945,8 +917,7 @@ namespace ATAS.Indicators
             _orBar = -1;
             _orReady = false;
             _tradeDrawn = false;
-            _speedBar = -1;
-            _speedBarStartedAtUtc = DateTime.MinValue;
+            _signalEngine.ResetDay();
             _panicDrawn = false;
             _tradeBar = -1;
             _tradeSide = "";
@@ -1001,24 +972,6 @@ namespace ATAS.Indicators
         private string Flag(bool value)
         {
             return value ? "+" : "-";
-        }
-
-        private class ScoreState
-        {
-            public bool IsBreakout { get; set; }
-            public string Side { get; set; } = "";
-            public decimal Entry { get; set; }
-            public decimal OrRangeTicks { get; set; }
-            public decimal BodyBreakoutTicks { get; set; }
-            public bool RangeOk { get; set; }
-            public bool BodyOk { get; set; }
-            public bool VolumeOk { get; set; }
-            public bool DeltaOk { get; set; }
-            public bool VwapOk { get; set; }
-            public decimal SpeedTicksPerSecond { get; set; }
-            public string SpeedLabel { get; set; } = "";
-            public bool SpeedValid { get; set; }
-            public int Value { get; set; }
         }
 
         private class FootprintLevel

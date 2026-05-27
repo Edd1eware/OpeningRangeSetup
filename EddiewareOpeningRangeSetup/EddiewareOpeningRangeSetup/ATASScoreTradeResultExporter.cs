@@ -24,6 +24,7 @@ namespace ATAS.Indicators
         private readonly TimeSpan _signalEndNy = new TimeSpan(10, 31, 0);
         private const decimal HardMaxTradeTicks = 120m;
         private const decimal APlusStopTicks = 100m;
+        private readonly ScoreTradeSignalEngine _signalEngine = new ScoreTradeSignalEngine();
 
         private DateTime _currentNyDate = DateTime.MinValue;
         private decimal _orHigh;
@@ -31,10 +32,8 @@ namespace ATAS.Indicators
         private int _orBar = -1;
         private bool _orReady;
         private bool _tradeCreated;
-        private int _speedBar = -1;
-        private DateTime _speedBarStartedAtUtc = DateTime.MinValue;
         private TradeState? _trade;
-        private ScoreState? _pendingScore;
+        private ScoreTradeSignal? _pendingScore;
         private int _pendingScoreBar = -1;
         private DateTime _pendingScoreNyTime = DateTime.MinValue;
         private decimal _lastManagePrice;
@@ -114,7 +113,7 @@ namespace ATAS.Indicators
             CreateTrade(bar, currentNyTime, score);
         }
 
-        private void CreateTrade(int bar, DateTime nyTime, ScoreState score)
+        private void CreateTrade(int bar, DateTime nyTime, ScoreTradeSignal score)
         {
             var plan = TradeManagerTpSlBeExit.CreateInitialPlan(new TradeManagerTpSlBeExit.TradePlanRequest
             {
@@ -389,98 +388,35 @@ namespace ATAS.Indicators
                 tradeLow = candle.Low;
         }
 
-        private ScoreState CalculateLiveScore(dynamic candle, int bar, DateTime nyTime)
+        private ScoreTradeSignal CalculateLiveScore(dynamic candle, int bar, DateTime nyTime)
         {
-            var bullishBreakout = candle.Close > _orHigh;
-            var bearishBreakout = candle.Close < _orLow;
-            var vwap = GetSessionVwap(bar, nyTime.Date);
-            var orRangeTicks = RoundToTicks(_orHigh - _orLow);
-            decimal bodyBreakoutTicks = 0;
-
-            if (bullishBreakout)
-                bodyBreakoutTicks = RoundToTicks(candle.Close - Math.Max(candle.Open, _orHigh));
-
-            if (bearishBreakout)
-                bodyBreakoutTicks = RoundToTicks(Math.Min(candle.Open, _orLow) - candle.Close);
-
-            if (bodyBreakoutTicks < 0)
-                bodyBreakoutTicks = 0;
-
-            var speedState = CalculateBreakoutSpeed(candle, bodyBreakoutTicks);
-
-            var state = new ScoreState
+            return _signalEngine.Calculate(bar, candle, new Func<int, dynamic>(GetCandle), new ScoreTradeSignalRequest
             {
-                IsBreakout = bullishBreakout || bearishBreakout,
-                Side = bullishBreakout ? "BUY" : bearishBreakout ? "SELL" : "",
-                EntryPrice = candle.Close,
-                EntryBarHighAtEntry = candle.High,
-                EntryBarLowAtEntry = candle.Low,
                 OrLow = _orLow,
                 OrHigh = _orHigh,
-                OrRangeTicks = orRangeTicks,
-                Vwap = vwap,
-                BodyBreakoutTicks = bodyBreakoutTicks,
-                BreakoutSpeed = speedState.TicksPerSecond,
-                SpeedElapsedSeconds = speedState.ElapsedSeconds,
-                SpeedUsedReplayFallback = speedState.UsedReplayFallback,
-                SpeedTimingSource = speedState.TimingSource,
-                Volume = candle.Volume,
-                Delta = candle.Delta,
-                RangeOk = orRangeTicks >= MinOrRangeTicks && orRangeTicks <= MaxOrRangeTicks,
-                BodyOk = bodyBreakoutTicks >= MinBodyBreakoutTicks,
-                VolumeOk = candle.Volume >= MinVolume,
-                DeltaOk = Math.Abs(candle.Delta) >= MinAbsDelta,
-                TimeOk = IsSignalWindow(nyTime),
-                VwapOk =
-                    (bullishBreakout && candle.Close >= vwap) ||
-                    (bearishBreakout && candle.Close <= vwap)
-            };
-
-            state.SpeedLabel = GetSpeedLabel(state.BreakoutSpeed);
-            state.SpeedValid = state.SpeedLabel == "normal speed" || state.SpeedLabel == "A+ speed";
-
-            if (state.VwapOk) state.Score += 2;
-            if (state.RangeOk) state.Score += 1;
-            if (state.BodyOk) state.Score += 1;
-            if (state.VolumeOk) state.Score += 1;
-            if (state.DeltaOk) state.Score += 1;
-            if (state.SpeedValid) state.Score += 1;
-
-            state.IsReady =
-                state.IsBreakout &&
-                state.Score >= MinScore &&
-                state.SpeedValid &&
-                state.VolumeOk &&
-                (!RequireBodyOkForTrade || state.BodyOk) &&
-                (!RequireVwapOkForTrade || state.VwapOk);
-
-            return state;
+                CurrentTime = nyTime,
+                SessionDate = nyTime.Date,
+                GetSessionTime = c => ConvertToNewYorkTime(c.Time),
+                SignalStartTime = _signalStartNy,
+                SignalEndTime = _signalEndNy,
+                TickSize = SetupTickSize,
+                MinScore = MinScore,
+                MinOrRangeTicks = MinOrRangeTicks,
+                MaxOrRangeTicks = MaxOrRangeTicks,
+                MinBodyBreakoutTicks = MinBodyBreakoutTicks,
+                MinVolume = MinVolume,
+                MinAbsDelta = MinAbsDelta,
+                MinNormalSpeedTicksPerSecond = MinNormalSpeedTicksPerSecond,
+                APlusSpeedTicksPerSecond = APlusSpeedTicksPerSecond,
+                ReplaySpeedMultiplier = ReplaySpeedMultiplier,
+                RequireBodyOkForTrade = RequireBodyOkForTrade,
+                RequireVwapOkForTrade = RequireVwapOkForTrade
+            });
         }
 
         private void UpdateSpeedClock(int bar)
         {
-            if (bar == _speedBar)
-                return;
-
-            _speedBar = bar;
-            _speedBarStartedAtUtc = DateTime.UtcNow;
-        }
-
-        private SpeedState CalculateBreakoutSpeed(dynamic candle, decimal bodyBreakoutTicks)
-        {
-            var speedState = SpeedClasification.CalculateBreakoutSpeedState(
-                candle,
-                bodyBreakoutTicks,
-                _speedBarStartedAtUtc,
-                ReplaySpeedMultiplier);
-
-            return new SpeedState
-            {
-                TicksPerSecond = speedState.TicksPerSecond,
-                ElapsedSeconds = speedState.ElapsedSeconds,
-                UsedReplayFallback = speedState.UsedReplayFallback,
-                TimingSource = speedState.TimingSource
-            };
+            _signalEngine.UpdateSpeedClock(bar);
         }
 
         private DateTime TryGetCandleUpdateTime(dynamic candle, out string timingSource)
@@ -493,50 +429,12 @@ namespace ATAS.Indicators
             return ReplaySpeedMultiplier <= 0 ? 1 : ReplaySpeedMultiplier;
         }
 
-        private string GetSpeedLabel(decimal speedTicksPerSecond)
-        {
-            return SpeedClasification.GetSpeedLabel(
-                speedTicksPerSecond,
-                MinNormalSpeedTicksPerSecond,
-                APlusSpeedTicksPerSecond);
-        }
-
         private bool IsSignalWindow(DateTime nyTime)
         {
             var time = nyTime.TimeOfDay;
 
             return time >= _signalStartNy &&
                    time <= _signalEndNy;
-        }
-
-        private decimal GetSessionVwap(int bar, DateTime nyDate)
-        {
-            decimal cumPv = 0;
-            decimal cumVol = 0;
-
-            for (var i = bar; i >= 0; i--)
-            {
-                var candle = GetCandle(i);
-                var candleNyTime = ConvertToNewYorkTime(candle.Time);
-
-                if (candleNyTime.Date != nyDate)
-                    break;
-
-                decimal volume = candle.Volume;
-
-                if (volume <= 0)
-                    continue;
-
-                var typical = (candle.High + candle.Low + candle.Close) / 3m;
-
-                cumPv += typical * volume;
-                cumVol += volume;
-            }
-
-            if (cumVol <= 0)
-                return 0;
-
-            return cumPv / cumVol;
         }
 
         private DateTime ConvertToNewYorkTime(DateTime candleTime)
@@ -633,8 +531,7 @@ namespace ATAS.Indicators
             _orBar = -1;
             _orReady = false;
             _tradeCreated = false;
-            _speedBar = -1;
-            _speedBarStartedAtUtc = DateTime.MinValue;
+            _signalEngine.ResetDay();
             _trade = null;
             _lastManagePrice = 0;
             _lastManageTimeUtc = DateTime.MinValue;
@@ -734,36 +631,6 @@ namespace ATAS.Indicators
             return ticks.ToString("+0.##;-0.##;0", CultureInfo.InvariantCulture);
         }
 
-        private class ScoreState
-        {
-            public bool IsBreakout { get; set; }
-            public bool IsReady { get; set; }
-            public string Side { get; set; } = "";
-            public decimal EntryPrice { get; set; }
-            public decimal EntryBarHighAtEntry { get; set; }
-            public decimal EntryBarLowAtEntry { get; set; }
-            public decimal OrLow { get; set; }
-            public decimal OrHigh { get; set; }
-            public decimal OrRangeTicks { get; set; }
-            public decimal Vwap { get; set; }
-            public decimal BodyBreakoutTicks { get; set; }
-            public decimal BreakoutSpeed { get; set; }
-            public decimal SpeedElapsedSeconds { get; set; }
-            public bool SpeedUsedReplayFallback { get; set; }
-            public string SpeedTimingSource { get; set; } = "";
-            public string SpeedLabel { get; set; } = "";
-            public decimal Volume { get; set; }
-            public decimal Delta { get; set; }
-            public bool RangeOk { get; set; }
-            public bool BodyOk { get; set; }
-            public bool VolumeOk { get; set; }
-            public bool DeltaOk { get; set; }
-            public bool TimeOk { get; set; }
-            public bool VwapOk { get; set; }
-            public bool SpeedValid { get; set; }
-            public int Score { get; set; }
-        }
-
         private class TradeState
         {
             public int EntryBar { get; set; }
@@ -804,12 +671,5 @@ namespace ATAS.Indicators
             public decimal MfeTicks { get; set; }
         }
 
-        private class SpeedState
-        {
-            public decimal TicksPerSecond { get; set; }
-            public decimal ElapsedSeconds { get; set; }
-            public bool UsedReplayFallback { get; set; }
-            public string TimingSource { get; set; } = "";
-        }
     }
 }
