@@ -24,10 +24,10 @@ namespace ATAS.Indicators
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
-        private readonly TimeSpan _signalEndNy = new TimeSpan(10, 31, 0);
+        private readonly TimeSpan _signalEndNy = new TimeSpan(9, 38, 0);
         private readonly TimeSpan _normalSpeedAllowedUntilNy = new TimeSpan(9, 33, 59); // time limit
-        private const decimal HardMaxTradeTicks = 120m;
-        private const decimal APlusStopTicks = 100m;
+        private const decimal HardMaxTradeTicks = 60m;
+        private const decimal APlusStopTicks = 60m;
         private readonly ScoreTradeSignalEngine _signalEngine = new ScoreTradeSignalEngine();
 
         private DateTime _currentNyDate = DateTime.MinValue;
@@ -54,8 +54,10 @@ namespace ATAS.Indicators
         public decimal MinNormalSpeedTicksPerSecond { get; set; } = 2;
         public decimal APlusSpeedTicksPerSecond { get; set; } = 5;
         public decimal ReplaySpeedMultiplier { get; set; } = 1;
+        public decimal ImbalanceRatio { get; set; } = 3m;
+        public decimal ImbalanceCompareMinVolume { get; set; } = 5m;
         public decimal MinTradeTicks { get; set; } = 60;
-        public decimal MaxTradeTicks { get; set; } = 120;
+        public decimal MaxTradeTicks { get; set; } = 60;
         public decimal HalfMfeExitMinMfeTicks { get; set; } = 40;
         public decimal FastExitMinMfeTicks { get; set; } = 40;
         public decimal FastExitPullbackTicks { get; set; } = 10;
@@ -471,6 +473,8 @@ namespace ATAS.Indicators
                 MinNormalSpeedTicksPerSecond = MinNormalSpeedTicksPerSecond,
                 APlusSpeedTicksPerSecond = APlusSpeedTicksPerSecond,
                 ReplaySpeedMultiplier = ReplaySpeedMultiplier,
+                ImbalanceRatio = ImbalanceRatio,
+                ImbalanceCompareMinVolume = ImbalanceCompareMinVolume,
                 RequireBodyOkForTrade = RequireBodyOkForTrade,
                 RequireVwapOkForTrade = RequireVwapOkForTrade
             });

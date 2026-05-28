@@ -82,13 +82,25 @@ namespace ATAS.Indicators
                 state.SpeedLabel,
                 signalTime.TimeOfDay,
                 request.NormalSpeedAllowedUntilTime);
+            var imbalance = ImbalanceDetector.Detect(candle, new ImbalanceDetectorRequest
+            {
+                Side = state.Side,
+                Ratio = request.ImbalanceRatio,
+                CompareMinVolume = request.ImbalanceCompareMinVolume
+            });
+            state.HasBuy_ImbalanceUnTouched = imbalance.HasBuy_ImbalanceUnTouched;
+            state.HasSell_ImbalanceUnTouched = imbalance.HasSell_ImbalanceUnTouched;
+            state.HasBuy3_ImbalanceGroup = imbalance.HasBuy3_ImbalanceGroup;
+            state.HasSell3_ImbalanceGroup = imbalance.HasSell3_ImbalanceGroup;
+            state.ImbalanceScore = imbalance.Score;
 
             if (state.VwapOk) state.Score += 2;
             if (state.RangeOk) state.Score += 1;
             if (state.BodyOk) state.Score += 1;
             if (state.VolumeOk) state.Score += 1;
             if (state.DeltaOk) state.Score += 1;
-            if (state.SpeedValid) state.Score += 1;
+            if (state.SpeedValid) state.Score += state.SpeedLabel == "A+ speed" ? 2 : 1;
+            state.Score += state.ImbalanceScore;
 
             state.IsReady =
                 state.IsBreakout &&
@@ -166,6 +178,8 @@ namespace ATAS.Indicators
         public decimal MinNormalSpeedTicksPerSecond { get; set; }
         public decimal APlusSpeedTicksPerSecond { get; set; }
         public decimal ReplaySpeedMultiplier { get; set; }
+        public decimal ImbalanceRatio { get; set; } = 3m;
+        public decimal ImbalanceCompareMinVolume { get; set; } = 5m;
         public bool RequireBodyOkForTrade { get; set; }
         public bool RequireVwapOkForTrade { get; set; }
     }
@@ -197,6 +211,11 @@ namespace ATAS.Indicators
         public bool TimeOk { get; set; }
         public bool VwapOk { get; set; }
         public bool SpeedValid { get; set; }
+        public bool HasBuy_ImbalanceUnTouched { get; set; }
+        public bool HasSell_ImbalanceUnTouched { get; set; }
+        public bool HasBuy3_ImbalanceGroup { get; set; }
+        public bool HasSell3_ImbalanceGroup { get; set; }
+        public int ImbalanceScore { get; set; }
         public int Score { get; set; }
     }
 }

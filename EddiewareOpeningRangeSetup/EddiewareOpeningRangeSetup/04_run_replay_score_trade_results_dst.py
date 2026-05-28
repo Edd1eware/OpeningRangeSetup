@@ -11,7 +11,7 @@ from openpyxl.utils import get_column_letter
 # CONFIG
 # =========================================================
 
-# Fechas operables en horario DST de Nueva York 2026.
+# Fechas de validacion para confirmar que BreakOut_SPEED conserve normal speed.
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 DATES_DST = [
     "24/04/2026",

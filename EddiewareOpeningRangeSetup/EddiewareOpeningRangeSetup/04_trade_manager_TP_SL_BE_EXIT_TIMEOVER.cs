@@ -90,7 +90,7 @@ namespace ATAS.Indicators
             var tp = request.Side == "BUY"
                 ? entry + tradeTicks * request.TickSize
                 : entry - tradeTicks * request.TickSize;
-            var entryProfile = isNormalSpeed ? $"{request.Side}1" : request.Side;
+            var entryProfile = GetTradeClassification(request.SpeedLabel);
             var usesImbalanceStop = false;
 
             if (!isAPlusSpeed && !isNormalSpeed && request.ImbalanceStopPrice.HasValue)
@@ -103,7 +103,7 @@ namespace ATAS.Indicators
                     tp = request.Side == "BUY"
                         ? entry + 60m * request.TickSize
                         : entry - 60m * request.TickSize;
-                    entryProfile = $"{request.Side} 2";
+                    entryProfile = GetTradeClassification(request.SpeedLabel);
                     usesImbalanceStop = true;
                 }
                 else if (imbalanceRiskTicks <= request.HardMaxTradeTicks)
@@ -112,7 +112,7 @@ namespace ATAS.Indicators
                     tp = request.Side == "BUY"
                         ? entry + request.HardMaxTradeTicks * request.TickSize
                         : entry - request.HardMaxTradeTicks * request.TickSize;
-                    entryProfile = $"{request.Side} 1";
+                    entryProfile = GetTradeClassification(request.SpeedLabel);
                     usesImbalanceStop = true;
                 }
             }
@@ -160,74 +160,7 @@ namespace ATAS.Indicators
                 request.Entry,
                 request.BestFavorablePrice,
                 request.TickSize);
-            var pullbackTicks = CalculatePullbackTicks(
-                request.Side,
-                request.BestFavorablePrice,
-                request.CandleHigh,
-                request.CandleLow,
-                request.TickSize);
-
-            if (request.SpeedLabel != "A+ speed" &&
-                mfeTicks >= request.FastExitMinMfeTicks &&
-                pullbackTicks >= request.FastExitPullbackTicks &&
-                (request.AdverseSpeedTicksPerSecond >= request.FastExitAdverseSpeedTicksPerSecond ||
-                 IsSlHit(request.Side, request.CandleHigh, request.CandleLow, request.Sl)))
-            {
-                var fastExitPrice = request.Side == "BUY"
-                    ? request.BestFavorablePrice - request.FastExitPullbackTicks * request.TickSize
-                    : request.BestFavorablePrice + request.FastExitPullbackTicks * request.TickSize;
-                var resultTicks = TradeResultTicks(
-                    "EXIT",
-                    request.Entry,
-                    request.TpTicks,
-                    request.SlTicks,
-                    fastExitPrice,
-                    request.TickSize);
-
-                if (resultTicks > 0)
-                {
-                    return new TradeExitDecision
-                    {
-                        IsClosed = false,
-                        MfeTicks = mfeTicks,
-                        HalfMfeExitPrice = fastExitPrice,
-                        IsFastExit = true
-                    };
-                }
-            }
-
-            if (TryCalculateHalfMfeExit(
-                    request.Side,
-                    request.SpeedLabel,
-                    request.Entry,
-                    request.BestFavorablePrice,
-                    request.HalfMfeExitMinMfeTicks,
-                    request.TickSize,
-                    out var halfMfeExit,
-                    out mfeTicks))
-            {
-                var adversePrice = request.CurrentPrice;
-
-                if (IsHalfMfeExitTouched(request.Side, adversePrice, halfMfeExit))
-                {
-                    return new TradeExitDecision
-                    {
-                        IsClosed = true,
-                        Result = "EXIT",
-                        ExitPrice = halfMfeExit,
-                        ResultTicks = TradeResultTicks(
-                            "EXIT",
-                            request.Entry,
-                            request.TpTicks,
-                            request.SlTicks,
-                            halfMfeExit,
-                            request.TickSize),
-                        MfeTicks = mfeTicks,
-                        HalfMfeExitPrice = halfMfeExit,
-                        IsHalfMfeExit = true
-                    };
-                }
-            }
+            decimal halfMfeExit = 0;
 
             var hitTp = IsTpHit(request.Side, request.CandleHigh, request.CandleLow, request.Tp);
             var hitSl = IsSlHit(request.Side, request.CandleHigh, request.CandleLow, request.Sl);
@@ -363,7 +296,18 @@ namespace ATAS.Indicators
 
         public static string GetEntryProfile(string side, string speedLabel)
         {
-            return speedLabel == "normal speed" ? $"{side}1" : side;
+            return GetTradeClassification(speedLabel);
+        }
+
+        public static string GetTradeClassification(string speedLabel)
+        {
+            if (speedLabel == "normal speed")
+                return "SCALP_NORMAL";
+
+            if (speedLabel == "A+ speed")
+                return "POTENTIAL_RUNNER";
+
+            return "UNCLASSIFIED";
         }
 
         private static decimal ClampTicks(decimal ticks, decimal minTradeTicks, decimal maxTradeTicks)
