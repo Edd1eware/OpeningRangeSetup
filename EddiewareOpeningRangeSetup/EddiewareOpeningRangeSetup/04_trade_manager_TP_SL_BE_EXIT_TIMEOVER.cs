@@ -7,6 +7,16 @@ namespace ATAS.Indicators
             return currentTime.TimeOfDay >= timeOverTime && !hasOpenTrade;
         }
 
+        public static bool HasCumDeltaExitCondition(CumDeltaState state)
+        {
+            return state.ShouldExit;
+        }
+
+        public static bool HasAbsorptionExitCondition(AbsorptionState state)
+        {
+            return state.ShouldExit;
+        }
+
         public sealed class TradePlanRequest
         {
             public string Side { get; set; } = "";

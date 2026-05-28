@@ -29,6 +29,7 @@ namespace ATAS.Indicators
         private decimal _entryBarLowAtEntry;
         private decimal _bestFavorablePrice;
         private decimal _lastManagePrice;
+        private decimal _bestCumDeltaManagementValue;
         private DateTime _lastManageTimeUtc = DateTime.MinValue;
         private DateTime _bestFavorableTimeUtc = DateTime.MinValue;
         private bool _tradeIsAPlusSpeed;
@@ -36,6 +37,8 @@ namespace ATAS.Indicators
         private decimal _tradeTp;
         private bool _tradeHitDrawn;
         private bool _timeOverDrawn;
+        private readonly HashSet<string> _drawnImbalanceLines = new();
+        private readonly HashSet<string> _drawnAbsorptionLines = new();
 
         [DisplayName("Opening Time UTC")]
         public TimeSpan OpeningTimeUtc { get; set; } = new TimeSpan(13, 30, 0);
@@ -164,6 +167,7 @@ namespace ATAS.Indicators
                 return;
 
             var score = CalculateScore(candle, bar);
+            DrawImbalanceLines(bar, score);
 
             if (ShowScoreLabel)
                 DrawScoreLabel(bar, candle, score);
@@ -358,6 +362,9 @@ namespace ATAS.Indicators
 
             if (_tradeHitDrawn)
                 return;
+
+            DrawLiveCumDeltaManagement(bar, candle);
+            DrawLiveAbsorptionManagement(bar, candle);
 
             if (_tradeIsAPlusSpeed)
             {
@@ -564,6 +571,133 @@ namespace ATAS.Indicators
                 true);
         }
 
+        private void DrawLiveCumDeltaManagement(int bar, dynamic candle)
+        {
+            var tradeCumDelta = CalculateTradeCumDelta(bar);
+            var state = CumDeltaDetector.DetectTradeManagement(tradeCumDelta, _bestCumDeltaManagementValue, _tradeSide, MinAbsDelta);
+            _bestCumDeltaManagementValue = state.BestManagementValue;
+            var tickSize = GetTickSize();
+            var price = _tradeSide == "BUY"
+                ? candle.Close - tickSize * 22
+                : candle.Close + tickSize * 22;
+            var hasExitCondition = TradeManagerTpSlBeExit.HasCumDeltaExitCondition(state);
+            var bgColor = hasExitCondition
+                ? Color.DarkRed
+                : state.Status == "WEAKENING"
+                    ? Color.DarkOrange
+                    : Color.DarkGreen;
+
+            AddText(
+                "EW_CUM_DELTA_STATUS",
+                $"LIVE CUM DELTA {_tradeSide} {state.Status} {state.WeaknessPercent:0}% | {state.ManagementValue:0}/{state.BestManagementValue:0}",
+                true,
+                bar,
+                price,
+                _tradeSide == "BUY" ? 24 : -24,
+                0,
+                Color.White,
+                bgColor,
+                bgColor,
+                12,
+                DrawingText.TextAlign.Center,
+                true);
+        }
+
+        private decimal CalculateTradeCumDelta(int bar)
+        {
+            if (_tradeBar < 0 || bar < _tradeBar)
+                return 0;
+
+            decimal cumDelta = 0;
+
+            for (var i = _tradeBar; i <= bar; i++)
+            {
+                try
+                {
+                    cumDelta += Convert.ToDecimal(GetCandle(i).Delta);
+                }
+                catch
+                {
+                    return cumDelta;
+                }
+            }
+
+            return cumDelta;
+        }
+
+        private void DrawLiveAbsorptionManagement(int bar, dynamic candle)
+        {
+            var tickSize = GetTickSize();
+            var state = AbsorptionDetector.DetectTradeManagement(new AbsorptionDetectorRequest
+            {
+                Side = _tradeSide,
+                Open = candle.Open,
+                High = candle.High,
+                Low = candle.Low,
+                Close = candle.Close,
+                Volume = candle.Volume,
+                Delta = candle.Delta,
+                BestFavorablePrice = _bestFavorablePrice,
+                TickSize = tickSize,
+                MinVolume = MinVolume,
+                MinAbsDelta = MinAbsDelta
+            });
+            var hasExitCondition = TradeManagerTpSlBeExit.HasAbsorptionExitCondition(state);
+            var price = _tradeSide == "BUY"
+                ? candle.Close - tickSize * 30
+                : candle.Close + tickSize * 30;
+            var bgColor = hasExitCondition ? Color.DarkRed : Color.DimGray;
+
+            if (hasExitCondition)
+                DrawAbsorptionLine(bar, candle, state);
+
+            AddText(
+                "EW_ABSORPTION_STATUS",
+                $"LIVE ABSORPTION {state.Status} | REJ {state.RejectionTicks:0}t PROG {state.ProgressTicks:0}t",
+                true,
+                bar,
+                price,
+                _tradeSide == "BUY" ? 30 : -30,
+                0,
+                Color.White,
+                bgColor,
+                bgColor,
+                12,
+                DrawingText.TextAlign.Center,
+                true);
+        }
+
+        private void DrawAbsorptionLine(int bar, dynamic candle, AbsorptionState state)
+        {
+            var absorptionPrice = _tradeSide == "BUY"
+                ? candle.High
+                : candle.Low;
+            var bodyHigh = Math.Max(Convert.ToDecimal(candle.Open), Convert.ToDecimal(candle.Close));
+            var bodyLow = Math.Min(Convert.ToDecimal(candle.Open), Convert.ToDecimal(candle.Close));
+
+            if (_tradeSide == "BUY" && absorptionPrice <= bodyHigh)
+                return;
+
+            if (_tradeSide == "SELL" && absorptionPrice >= bodyLow)
+                return;
+
+            var id = $"ABSORPTION_{_currentDate:yyyyMMdd}_{bar}_{absorptionPrice:0.00}";
+
+            if (!_drawnAbsorptionLines.Add(id))
+                return;
+
+            var endBar = bar + LineLength;
+            TrendLines.Add(new TrendLine(bar, absorptionPrice, endBar, absorptionPrice, new Pen(Color.White, 3)));
+            DrawTradeLabel(
+                $"EW_{id}",
+                $"ABSORPTION {state.RejectionTicks:0}t",
+                bar,
+                absorptionPrice,
+                Color.Black,
+                Color.White,
+                _tradeSide == "BUY" ? 18 : -18);
+        }
+
         private void DrawPanicBreakEven(int bar, decimal panicPrice, decimal mfeTicks, decimal pullbackTicks, decimal adverseSpeed, string reason)
         {
             var endBar = bar + LineLength;
@@ -702,6 +836,33 @@ namespace ATAS.Indicators
                 true);
         }
 
+        private void DrawImbalanceLines(int bar, ScoreTradeSignal score)
+        {
+            var singleStartBar = Math.Max(0, bar - 1);
+
+            if (score.HasBuy_ImbalanceUnTouched && score.Buy_ImbalanceUnTouchedPrice.HasValue)
+                DrawImbalanceLine("BUY_SINGLE", singleStartBar, score.Buy_ImbalanceUnTouchedPrice.Value, Color.Magenta);
+
+            if (score.HasSell_ImbalanceUnTouched && score.Sell_ImbalanceUnTouchedPrice.HasValue)
+                DrawImbalanceLine("SELL_SINGLE", singleStartBar, score.Sell_ImbalanceUnTouchedPrice.Value, Color.Orange);
+
+            if (score.HasBuy3_ImbalanceGroup && score.Buy3_ImbalanceGroupPrice.HasValue)
+                DrawImbalanceLine("BUY_GROUP3", bar, score.Buy3_ImbalanceGroupPrice.Value, Color.Magenta);
+
+            if (score.HasSell3_ImbalanceGroup && score.Sell3_ImbalanceGroupPrice.HasValue)
+                DrawImbalanceLine("SELL_GROUP3", bar, score.Sell3_ImbalanceGroupPrice.Value, Color.Orange);
+        }
+
+        private void DrawImbalanceLine(string kind, int bar, decimal price, Color color)
+        {
+            var id = $"{kind}_{_currentDate:yyyyMMdd}_{bar}_{price:0.00}";
+
+            if (!_drawnImbalanceLines.Add(id))
+                return;
+
+            TrendLines.Add(new TrendLine(bar, price, bar + LineLength, price, new Pen(color, 3)));
+        }
+
         private bool IsOpeningCandle(dynamic candle)
         {
             var time = candle.Time.TimeOfDay;
@@ -792,6 +953,7 @@ namespace ATAS.Indicators
             _entryBarLowAtEntry = 0;
             _bestFavorablePrice = 0;
             _lastManagePrice = 0;
+            _bestCumDeltaManagementValue = 0;
             _lastManageTimeUtc = DateTime.MinValue;
             _bestFavorableTimeUtc = DateTime.MinValue;
             _tradeIsAPlusSpeed = false;
@@ -799,6 +961,8 @@ namespace ATAS.Indicators
             _tradeTp = 0;
             _tradeHitDrawn = false;
             _timeOverDrawn = false;
+            _drawnImbalanceLines.Clear();
+            _drawnAbsorptionLines.Clear();
         }
 
         private decimal RoundToTicks(decimal points)

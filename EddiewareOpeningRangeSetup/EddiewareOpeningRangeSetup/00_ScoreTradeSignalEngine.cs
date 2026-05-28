@@ -82,7 +82,8 @@ namespace ATAS.Indicators
                 state.SpeedLabel,
                 signalTime.TimeOfDay,
                 request.NormalSpeedAllowedUntilTime);
-            var imbalance = ImbalanceDetector.Detect(candle, new ImbalanceDetectorRequest
+            var previousCandle = bar > 0 ? getCandle(bar - 1) : null;
+            var imbalance = ImbalanceDetector.DetectForScore(candle, previousCandle, new ImbalanceDetectorRequest
             {
                 Side = state.Side,
                 Ratio = request.ImbalanceRatio,
@@ -92,6 +93,10 @@ namespace ATAS.Indicators
             state.HasSell_ImbalanceUnTouched = imbalance.HasSell_ImbalanceUnTouched;
             state.HasBuy3_ImbalanceGroup = imbalance.HasBuy3_ImbalanceGroup;
             state.HasSell3_ImbalanceGroup = imbalance.HasSell3_ImbalanceGroup;
+            state.Buy_ImbalanceUnTouchedPrice = imbalance.Buy_ImbalanceUnTouchedPrice;
+            state.Sell_ImbalanceUnTouchedPrice = imbalance.Sell_ImbalanceUnTouchedPrice;
+            state.Buy3_ImbalanceGroupPrice = imbalance.Buy3_ImbalanceGroupPrice;
+            state.Sell3_ImbalanceGroupPrice = imbalance.Sell3_ImbalanceGroupPrice;
             state.ImbalanceScore = imbalance.Score;
 
             if (state.VwapOk) state.Score += 2;
@@ -108,6 +113,7 @@ namespace ATAS.Indicators
                 state.Score >= request.MinScore &&
                 state.SpeedValid &&
                 state.VolumeOk &&
+                (state.SpeedLabel != "normal speed" || (state.BodyOk && state.VwapOk)) &&
                 (!request.RequireBodyOkForTrade || state.BodyOk) &&
                 (!request.RequireVwapOkForTrade || state.VwapOk);
 
@@ -215,6 +221,10 @@ namespace ATAS.Indicators
         public bool HasSell_ImbalanceUnTouched { get; set; }
         public bool HasBuy3_ImbalanceGroup { get; set; }
         public bool HasSell3_ImbalanceGroup { get; set; }
+        public decimal? Buy_ImbalanceUnTouchedPrice { get; set; }
+        public decimal? Sell_ImbalanceUnTouchedPrice { get; set; }
+        public decimal? Buy3_ImbalanceGroupPrice { get; set; }
+        public decimal? Sell3_ImbalanceGroupPrice { get; set; }
         public int ImbalanceScore { get; set; }
         public int Score { get; set; }
     }
