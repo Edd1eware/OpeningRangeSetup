@@ -11,7 +11,7 @@ from openpyxl.utils import get_column_letter
 # CONFIG
 # =========================================================
 
-# Prueba pequena en horario DST de Nueva York 2026.
+# Fechas operables en horario DST de Nueva York 2026.
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 DATES_DST = [
     "21/04/2026",
@@ -22,11 +22,6 @@ DATES_DST = [
     "28/04/2026",
     "29/04/2026",
     "30/04/2026",
-
-    # =========================
-    # DST — MAYO 2026
-    # =========================
-
     "01/05/2026",
     "04/05/2026",
     "05/05/2026",
@@ -42,17 +37,17 @@ DATES_DST = [
     "19/05/2026",
     "20/05/2026",
     "21/05/2026",
-
 ]
 
 # Replay recomendado para esta prueba: X1.
-# Ventana por dia: 09:30 a 10:30. Si no hay setup/resultado, se pasa al siguiente dia.
-WAIT_SECONDS = 3600
+# Ventana por dia: 09:30 a 10:32. Visual Logic marca TIME OVER a las 10:30 si no hay trade.
+REPLAY_END_TIME = "10:32"
 POLL_SECONDS = 1
 
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
 RESULTS_FOLDER = os.path.join(EXPORT_FOLDER, "trade_results_score")
 TARGET_FILE = os.path.join(EXPORT_FOLDER, "target_trade_result_date.txt")
+REPLAY_STARTED_FILE = os.path.join(EXPORT_FOLDER, "replay_trade_result_started_at.txt")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCORE_WORKBOOK = os.path.join(BASE_DIR, "Score_indicator_results_updated.xlsx")
 SCORE_WORKBOOK_FALLBACK = os.path.join(BASE_DIR, "Score_indicator_results_updated_fallback.xlsx")
@@ -73,6 +68,13 @@ def write_target_date(date_ddmmyyyy):
         f.write(target)
 
     print(f"Fecha objetivo escrita para ATAS: {target}")
+
+
+def write_replay_started_marker():
+    os.makedirs(EXPORT_FOLDER, exist_ok=True)
+    with open(REPLAY_STARTED_FILE, "w", encoding="utf-8") as f:
+        f.write(str(time.time()))
+    print("Marcador de inicio de replay escrito.")
 
 
 def get_replay():
@@ -209,9 +211,28 @@ def read_result_ticks(path):
     return parse_result_ticks(value)
 
 
-def result_is_terminal(path):
-    ticks = read_result_ticks(path)
+def result_is_terminal(path, min_modified_time=None):
+    if not os.path.exists(path):
+        return False
 
+    if min_modified_time is not None and os.path.getmtime(path) < min_modified_time:
+        return False
+
+    try:
+        with open(path, "r", encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            row = next(reader, None)
+    except (OSError, PermissionError):
+        return False
+
+    if not row:
+        return False
+
+    result_label = str(row.get("Result_Label") or row.get("RESULT") or "").strip().upper()
+    if result_label in ("TP", "SL", "EXIT", "BE", "TIME_OVER"):
+        return True
+
+    ticks = parse_result_ticks(row.get("result TP SL BE") or row.get("RESULT"))
     if ticks is None:
         return False
 
@@ -229,18 +250,19 @@ def stop_replay():
     print("No encontre boton Stop; probablemente el replay ya termino.")
 
 
-def wait_until_result_or_timeout(path):
-    deadline = time.time() + WAIT_SECONDS
+def wait_until_result(path, min_modified_time=None):
+    print("Esperando resultado terminal en CSV; si el trade esta OPEN no se cambia de dia.")
+    dot_count = 0
 
-    while time.time() < deadline:
-        if result_is_terminal(path):
+    while True:
+        if result_is_terminal(path, min_modified_time):
+            print("\rEsperando... listo.   ")
             print("Resultado terminal detectado en CSV; paso al siguiente dia.")
             return True
 
+        dot_count = dot_count % 3 + 1
+        print(f"\rEsperando{'.' * dot_count}{' ' * (3 - dot_count)}", end="", flush=True)
         time.sleep(POLL_SECONDS)
-
-    print(f"No se detecto TP/SL/EXIT en {WAIT_SECONDS} segundos.")
-    return False
 
 
 def read_trade_result(path, date_ddmmyyyy):
@@ -481,13 +503,12 @@ try:
         print("=" * 70)
 
         result_path = expected_result_path(date)
-        clear_previous_result(result_path)
 
         write_target_date(date)
         time.sleep(1)
 
         from_value = f"{date} 09:30 a. m."
-        to_value = f"{date} 10:30 a. m."
+        to_value = f"{date} {REPLAY_END_TIME} a. m."
 
         replay, from_box, to_box, start_button, stop_button = get_controls()
 
@@ -505,11 +526,15 @@ try:
         if start_button is None:
             raise RuntimeError("No se encontro boton Start")
 
+        clear_previous_result(result_path)
+        write_replay_started_marker()
+
         print("Iniciando replay...")
+        started_at = time.time()
         start_button.click_input()
 
-        print(f"Esperando hasta {WAIT_SECONDS} segundos o hasta detectar TP/SL/EXIT...")
-        wait_until_result_or_timeout(result_path)
+        print("Esperando hasta detectar TP/SL/EXIT/BE/TIME_OVER...")
+        wait_until_result(result_path, started_at)
         stop_replay()
 
         time.sleep(5)

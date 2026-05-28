@@ -2,6 +2,11 @@ namespace ATAS.Indicators
 {
     internal static class TradeManagerTpSlBeExit
     {
+        public static bool IsTimeOver(System.DateTime currentTime, bool hasOpenTrade, System.TimeSpan timeOverTime)
+        {
+            return currentTime.TimeOfDay >= timeOverTime && !hasOpenTrade;
+        }
+
         public sealed class TradePlanRequest
         {
             public string Side { get; set; } = "";

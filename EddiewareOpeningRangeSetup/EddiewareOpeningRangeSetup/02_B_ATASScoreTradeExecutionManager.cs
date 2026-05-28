@@ -106,6 +106,7 @@ namespace ATAS.Indicators
                 GetSessionTime = c => c.Time,
                 SignalStartTime = OpeningTimeUtc,
                 SignalEndTime = MaxSignalTimeUtc,
+                NormalSpeedAllowedUntilTime = OpeningTimeUtc.Add(new TimeSpan(0, 3, 59)),
                 TickSize = SetupTickSize,
                 MinScore = MinScore,
                 MinOrRangeTicks = MinOrRangeTicks,

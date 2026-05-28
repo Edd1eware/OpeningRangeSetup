@@ -41,6 +41,7 @@ namespace ATAS.Indicators
         private decimal _tradeSl;
         private decimal _tradeTp;
         private bool _tradeHitDrawn;
+        private bool _timeOverDrawn;
 
         [DisplayName("Opening Time UTC")]
         public TimeSpan OpeningTimeUtc { get; set; } = new TimeSpan(13, 30, 0);
@@ -159,7 +160,13 @@ namespace ATAS.Indicators
                 }
             }
 
-            if (!_orReady || _tradeDrawn || bar <= _orBar || !IsSignalWindow(candle))
+            if (TryDrawTimeOver(bar, candle))
+                return;
+
+            if (!_orReady)
+                return;
+
+            if (_tradeDrawn || bar <= _orBar || !IsSignalWindow(candle))
                 return;
 
             var score = CalculateScore(candle, bar);
@@ -185,6 +192,7 @@ namespace ATAS.Indicators
                 GetSessionTime = c => c.Time,
                 SignalStartTime = OpeningTimeUtc,
                 SignalEndTime = MaxSignalTimeUtc,
+                NormalSpeedAllowedUntilTime = OpeningTimeUtc.Add(new TimeSpan(0, 3, 59)),
                 TickSize = GetTickSize(),
                 MinScore = MinScore,
                 MinOrRangeTicks = MinOrRangeTicks,
@@ -836,6 +844,40 @@ namespace ATAS.Indicators
                 true);
         }
 
+        private bool TryDrawTimeOver(int bar, dynamic candle)
+        {
+            var time = candle.Time.TimeOfDay;
+
+            if (_timeOverDrawn ||
+                _tradeDrawn ||
+                time < MaxSignalTimeUtc)
+            {
+                return false;
+            }
+
+            _timeOverDrawn = true;
+            DrawTimeOverLabel(bar, candle);
+            return true;
+        }
+
+        private void DrawTimeOverLabel(int bar, dynamic candle)
+        {
+            AddText(
+                $"EW_TIME_OVER_{_currentDate:yyyyMMdd}_{bar}",
+                "TIME OVER",
+                true,
+                bar,
+                candle.High + GetTickSize() * ScoreLabelOffsetTicks,
+                0,
+                0,
+                Color.White,
+                Color.Blue,
+                Color.Blue,
+                14,
+                DrawingText.TextAlign.Center,
+                true);
+        }
+
         private bool IsOpeningCandle(dynamic candle)
         {
             var time = candle.Time.TimeOfDay;
@@ -938,6 +980,7 @@ namespace ATAS.Indicators
             _tradeSl = 0;
             _tradeTp = 0;
             _tradeHitDrawn = false;
+            _timeOverDrawn = false;
         }
 
         private decimal RoundToTicks(decimal points)

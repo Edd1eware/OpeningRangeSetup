@@ -78,7 +78,10 @@ namespace ATAS.Indicators
                 state.BreakoutSpeed,
                 request.MinNormalSpeedTicksPerSecond,
                 request.APlusSpeedTicksPerSecond);
-            state.SpeedValid = state.SpeedLabel == "normal speed" || state.SpeedLabel == "A+ speed";
+            state.SpeedValid = IsSpeedValidForSignalTime(
+                state.SpeedLabel,
+                signalTime.TimeOfDay,
+                request.NormalSpeedAllowedUntilTime);
 
             if (state.VwapOk) state.Score += 2;
             if (state.RangeOk) state.Score += 1;
@@ -103,6 +106,14 @@ namespace ATAS.Indicators
         {
             var time = signalTime.TimeOfDay;
             return time >= signalStartTime && time <= signalEndTime;
+        }
+
+        internal static bool IsSpeedValidForSignalTime(string speedLabel, TimeSpan signalTime, TimeSpan normalSpeedAllowedUntilTime)
+        {
+            if (signalTime <= normalSpeedAllowedUntilTime)
+                return speedLabel == "normal speed" || speedLabel == "A+ speed";
+
+            return speedLabel == "A+ speed";
         }
 
         private static decimal GetSessionVwap(int bar, DateTime sessionDate, Func<int, dynamic> getCandle, Func<dynamic, DateTime> getSessionTime)
@@ -147,6 +158,7 @@ namespace ATAS.Indicators
         public Func<dynamic, DateTime> GetSessionTime { get; set; } = candle => candle.Time;
         public TimeSpan SignalStartTime { get; set; }
         public TimeSpan SignalEndTime { get; set; }
+        public TimeSpan NormalSpeedAllowedUntilTime { get; set; }
         public decimal TickSize { get; set; }
         public int MinScore { get; set; }
         public decimal MinOrRangeTicks { get; set; }

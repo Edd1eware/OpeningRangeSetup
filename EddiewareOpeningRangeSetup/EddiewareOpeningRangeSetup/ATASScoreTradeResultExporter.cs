@@ -13,15 +13,19 @@ namespace ATAS.Indicators
         private readonly string _targetDateFile =
             @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\target_trade_result_date.txt";
 
+        private readonly string _replayStartedFile =
+            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\replay_trade_result_started_at.txt";
+
         private readonly TimeZoneInfo _nyZone =
             TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
 
         private const decimal SetupTickSize = 0.25m;
-        private const string ExporterVersion = "score-exporter-2026-05-25-fast-exit-half-mfe";
+        private const string ExporterVersion = "score-exporter-2026-05-27-strict-speed-window";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
         private readonly TimeSpan _signalEndNy = new TimeSpan(10, 31, 0);
+        private readonly TimeSpan _normalSpeedAllowedUntilNy = new TimeSpan(9, 33, 59); // time limit
         private const decimal HardMaxTradeTicks = 120m;
         private const decimal APlusStopTicks = 100m;
         private readonly ScoreTradeSignalEngine _signalEngine = new ScoreTradeSignalEngine();
@@ -32,6 +36,8 @@ namespace ATAS.Indicators
         private int _orBar = -1;
         private bool _orReady;
         private bool _tradeCreated;
+        private bool _timeOverWritten;
+        private bool _isRecalculating;
         private TradeState? _trade;
         private ScoreTradeSignal? _pendingScore;
         private int _pendingScoreBar = -1;
@@ -54,6 +60,8 @@ namespace ATAS.Indicators
         public decimal FastExitMinMfeTicks { get; set; } = 40;
         public decimal FastExitPullbackTicks { get; set; } = 10;
         public decimal FastExitAdverseSpeedTicksPerSecond { get; set; } = 6;
+        public TimeSpan TimeOverTimeUtc { get; set; } = new TimeSpan(14, 30, 0);
+        public int MinTimeOverRealtimeSeconds { get; set; } = 20;
         public bool RequireBodyOkForTrade { get; set; } = false;
         public bool RequireVwapOkForTrade { get; set; } = false;
 
@@ -61,6 +69,18 @@ namespace ATAS.Indicators
         {
             Name = "ATAS Score Trade Result Exporter ENTRY SL TP RESULT";
             EnableCustomDrawing = false;
+        }
+
+        protected override void OnRecalculate()
+        {
+            _isRecalculating = true;
+            base.OnRecalculate();
+        }
+
+        protected override void OnFinishRecalculate()
+        {
+            base.OnFinishRecalculate();
+            _isRecalculating = false;
         }
 
         protected override void OnCalculate(int bar, decimal value)
@@ -78,7 +98,7 @@ namespace ATAS.Indicators
             if (currentNyTime.Date != _currentNyDate)
                 ResetDay(currentNyTime.Date);
 
-            if (currentNyTime.Date != targetDate.Value.Date)
+            if (current.Time.Date != targetDate.Value.Date)
                 return;
 
             UpdateSpeedClock(bar);
@@ -96,10 +116,13 @@ namespace ATAS.Indicators
                 return;
             }
 
-            if (!_orReady)
+            UpdateTradeResult(bar, current);
+
+            if (TryWriteTimeOver(bar, current, current.Time))
                 return;
 
-            UpdateTradeResult(bar, current);
+            if (!_orReady)
+                return;
 
             if (_tradeCreated || bar <= _orBar || !IsSignalWindow(currentNyTime))
                 return;
@@ -115,6 +138,9 @@ namespace ATAS.Indicators
 
         private void CreateTrade(int bar, DateTime nyTime, ScoreTradeSignal score)
         {
+            if (!ScoreTradeSignalEngine.IsSpeedValidForSignalTime(score.SpeedLabel, nyTime.TimeOfDay, _normalSpeedAllowedUntilNy))
+                return;
+
             var plan = TradeManagerTpSlBeExit.CreateInitialPlan(new TradeManagerTpSlBeExit.TradePlanRequest
             {
                 Side = score.Side,
@@ -326,6 +352,41 @@ namespace ATAS.Indicators
                 SetupTickSize);
         }
 
+        private bool TryWriteTimeOver(int bar, dynamic candle, DateTime nyTime)
+        {
+            var hasOpenTrade = _trade != null && _trade.Result == "OPEN";
+
+            if (_timeOverWritten ||
+                _isRecalculating ||
+                !HasReplayStartDelayElapsed() ||
+                _tradeCreated ||
+                hasOpenTrade ||
+                nyTime.TimeOfDay < TimeOverTimeUtc)
+            {
+                return false;
+            }
+
+            _timeOverWritten = true;
+            WriteTimeOverFile(nyTime.Date, nyTime);
+            return true;
+        }
+
+        private bool HasReplayStartDelayElapsed()
+        {
+            if (!File.Exists(_replayStartedFile))
+                return true;
+
+            try
+            {
+                var startedAt = File.GetLastWriteTime(_replayStartedFile);
+                return DateTime.Now - startedAt >= TimeSpan.FromSeconds(MinTimeOverRealtimeSeconds);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private void UpdateBestFavorablePrice(decimal high, decimal low)
         {
             if (_trade == null)
@@ -399,6 +460,7 @@ namespace ATAS.Indicators
                 GetSessionTime = c => ConvertToNewYorkTime(c.Time),
                 SignalStartTime = _signalStartNy,
                 SignalEndTime = _signalEndNy,
+                NormalSpeedAllowedUntilTime = _normalSpeedAllowedUntilNy,
                 TickSize = SetupTickSize,
                 MinScore = MinScore,
                 MinOrRangeTicks = MinOrRangeTicks,
@@ -523,6 +585,60 @@ namespace ATAS.Indicators
             );
         }
 
+        private void WriteTimeOverFile(DateTime nyDate, DateTime nyTime)
+        {
+            if (!Directory.Exists(_exportFolder))
+                Directory.CreateDirectory(_exportFolder);
+
+            var filePath = Path.Combine(
+                _exportFolder,
+                $"score_trade_result_{nyDate:yyyy-MM-dd}_NY.csv"
+            );
+
+            File.WriteAllText(
+                filePath,
+                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks" + Environment.NewLine +
+                string.Join(",",
+                    ExporterVersion,
+                    nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    nyTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
+                    "",
+                    FormatPrice(_orLow),
+                    FormatPrice(_orHigh),
+                    FormatTicks(RoundToTicks(_orHigh - _orLow)),
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "TRUE",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "TIME_OVER",
+                    "",
+                    "TIME_OVER",
+                    "",
+                    ""
+                ) + Environment.NewLine
+            );
+        }
+
         private void ResetDay(DateTime nyDate)
         {
             _currentNyDate = nyDate;
@@ -531,6 +647,7 @@ namespace ATAS.Indicators
             _orBar = -1;
             _orReady = false;
             _tradeCreated = false;
+            _timeOverWritten = false;
             _signalEngine.ResetDay();
             _trade = null;
             _lastManagePrice = 0;
