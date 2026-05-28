@@ -110,10 +110,7 @@ namespace ATAS.Indicators
 
         internal static bool IsSpeedValidForSignalTime(string speedLabel, TimeSpan signalTime, TimeSpan normalSpeedAllowedUntilTime)
         {
-            if (signalTime <= normalSpeedAllowedUntilTime)
-                return speedLabel == "normal speed" || speedLabel == "A+ speed";
-
-            return speedLabel == "A+ speed";
+            return speedLabel == "normal speed" || speedLabel == "A+ speed";
         }
 
         private static decimal GetSessionVwap(int bar, DateTime sessionDate, Func<int, dynamic> getCandle, Func<dynamic, DateTime> getSessionTime)

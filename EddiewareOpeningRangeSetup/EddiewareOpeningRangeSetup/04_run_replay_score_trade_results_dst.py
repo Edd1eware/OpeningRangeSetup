@@ -14,29 +14,9 @@ from openpyxl.utils import get_column_letter
 # Fechas operables en horario DST de Nueva York 2026.
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 DATES_DST = [
-    "21/04/2026",
-    "22/04/2026",
-    "23/04/2026",
     "24/04/2026",
     "27/04/2026",
     "28/04/2026",
-    "29/04/2026",
-    "30/04/2026",
-    "01/05/2026",
-    "04/05/2026",
-    "05/05/2026",
-    "06/05/2026",
-    "07/05/2026",
-    "08/05/2026",
-    "11/05/2026",
-    "12/05/2026",
-    "13/05/2026",
-    "14/05/2026",
-    "15/05/2026",
-    "18/05/2026",
-    "19/05/2026",
-    "20/05/2026",
-    "21/05/2026",
 ]
 
 # Replay recomendado para esta prueba: X1.
@@ -51,6 +31,7 @@ REPLAY_STARTED_FILE = os.path.join(EXPORT_FOLDER, "replay_trade_result_started_a
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCORE_WORKBOOK = os.path.join(BASE_DIR, "Score_indicator_results_updated.xlsx")
 SCORE_WORKBOOK_FALLBACK = os.path.join(BASE_DIR, "Score_indicator_results_updated_fallback.xlsx")
+RUN_STARTED_AT = time.time()
 
 
 # =========================================================
@@ -169,6 +150,11 @@ def clear_previous_result(path):
         print(f"Resultado anterior eliminado: {path}")
 
 
+def clear_expected_results():
+    for date in DATES_DST:
+        clear_previous_result(expected_result_path(date))
+
+
 def parse_result_ticks(value):
     if value in (None, "", "OPEN", "NO_TRADE"):
         return None
@@ -274,6 +260,10 @@ def read_trade_result(path, date_ddmmyyyy):
 
     if not os.path.exists(path):
         print(f"Sin CSV para {default_row['fecha']}; no se sobrescriben columnas de datos.")
+        return default_row
+
+    if os.path.getmtime(path) < RUN_STARTED_AT:
+        print(f"CSV viejo ignorado para {default_row['fecha']}: {path}")
         return default_row
 
     with open(path, "r", encoding="utf-8-sig", newline="") as f:
@@ -497,6 +487,8 @@ def update_score_workbook():
 print("\nINICIANDO REPLAY DST PARA SCORE TRADE RESULTS\n")
 
 try:
+    clear_expected_results()
+
     for date in DATES_DST:
         print("\n" + "=" * 70)
         print(f"PROCESANDO {date}")
