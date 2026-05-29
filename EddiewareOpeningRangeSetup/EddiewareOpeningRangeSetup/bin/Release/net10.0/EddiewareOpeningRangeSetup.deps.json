@@ -9,7 +9,7 @@
       "EddiewareOpeningRangeSetup/1.0.0": {
         "dependencies": {
           "System.Drawing.Common": "10.0.7",
-          "ATAS.Indicators": "8.0.13.387"
+          "ATAS.Indicators": "8.0.13.386"
         },
         "runtime": {
           "EddiewareOpeningRangeSetup.dll": {}
@@ -55,11 +55,11 @@
           }
         }
       },
-      "ATAS.Indicators/8.0.13.387": {
+      "ATAS.Indicators/8.0.13.386": {
         "runtime": {
           "ATAS.Indicators.dll": {
-            "assemblyVersion": "8.0.13.387",
-            "fileVersion": "8.0.13.387"
+            "assemblyVersion": "8.0.13.386",
+            "fileVersion": "8.0.13.386"
           }
         }
       },
@@ -87,19 +87,19 @@
           }
         }
       },
-      "ATAS.DataFeedsCore/8.0.13.387": {
+      "ATAS.DataFeedsCore/8.0.13.386": {
         "runtime": {
           "ATAS.DataFeedsCore.dll": {
-            "assemblyVersion": "8.0.13.387",
-            "fileVersion": "8.0.13.387"
+            "assemblyVersion": "8.0.13.386",
+            "fileVersion": "8.0.13.386"
           }
         }
       },
-      "OFT.Rendering/8.0.13.387": {
+      "OFT.Rendering/8.0.13.386": {
         "runtime": {
           "OFT.Rendering.dll": {
-            "assemblyVersion": "8.0.13.387",
-            "fileVersion": "8.0.13.387"
+            "assemblyVersion": "8.0.13.386",
+            "fileVersion": "8.0.13.386"
           }
         }
       },
@@ -265,7 +265,7 @@
       "path": "system.drawing.common/10.0.7",
       "hashPath": "system.drawing.common.10.0.7.nupkg.sha512"
     },
-    "ATAS.Indicators/8.0.13.387": {
+    "ATAS.Indicators/8.0.13.386": {
       "type": "reference",
       "serviceable": false,
       "sha512": ""
@@ -285,12 +285,12 @@
       "serviceable": false,
       "sha512": ""
     },
-    "ATAS.DataFeedsCore/8.0.13.387": {
+    "ATAS.DataFeedsCore/8.0.13.386": {
       "type": "reference",
       "serviceable": false,
       "sha512": ""
     },
-    "OFT.Rendering/8.0.13.387": {
+    "OFT.Rendering/8.0.13.386": {
       "type": "reference",
       "serviceable": false,
       "sha512": ""
