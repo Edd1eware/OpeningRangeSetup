@@ -12,7 +12,7 @@ namespace ATAS.Indicators
     {
         private const decimal FallbackTickSize = 0.25m;
         private const decimal HardMaxTradeTicks = 120m;
-        private const decimal APlusStopTicks = 60m;
+        private const decimal APlusStopTicks = 100m;
         private readonly ScoreTradeSignalEngine _signalEngine = new ScoreTradeSignalEngine();
 
         private DateTime _currentDate = DateTime.MinValue;
@@ -47,7 +47,7 @@ namespace ATAS.Indicators
         public TimeSpan OpeningTimeUtc { get; set; } = new TimeSpan(13, 30, 0);
 
         [DisplayName("Max Signal Time UTC")]
-        public TimeSpan MaxSignalTimeUtc { get; set; } = new TimeSpan(13, 40, 0);
+        public TimeSpan MaxSignalTimeUtc { get; set; } = new TimeSpan(14, 30, 0);
 
         [DisplayName("Min Score / Cutoff Score")]
         public int MinScore { get; set; } = 5;
@@ -118,15 +118,6 @@ namespace ATAS.Indicators
         [DisplayName("Imbalance Compare Min Volume")]
         public decimal ImbalanceCompareMinVolume { get; set; } = 5m;
 
-        [DisplayName("Use Imbalance Score")]
-        public bool UseImbalanceScore { get; set; } = true;
-
-        [DisplayName("Require Imbalance For Trade")]
-        public bool RequireImbalanceForTrade { get; set; } = false;
-
-        [DisplayName("Show A+ Structure Label")]
-        public bool ShowAPlusStructureLabel { get; set; } = true;
-
         public EddiewareOpeningRangeVisual()
         {
             Name = "02_Visual_Logic";
@@ -183,9 +174,6 @@ namespace ATAS.Indicators
             if (ShowScoreLabel)
                 DrawScoreLabel(bar, candle, score);
 
-            if (ShowAPlusStructureLabel && score.HasAPlusStructure)
-                DrawAPlusStructureLabel(bar, candle, score);
-
             if (!score.IsReady)
                 return;
 
@@ -214,32 +202,8 @@ namespace ATAS.Indicators
                 MinAbsDelta = MinAbsDelta,
                 MinNormalSpeedTicksPerSecond = MinNormalSpeedTicksPerSecond,
                 APlusSpeedTicksPerSecond = APlusSpeedTicksPerSecond,
-                ReplaySpeedMultiplier = ReplaySpeedMultiplier,
-                ImbalanceRatio = ImbalanceRatio,
-                ImbalanceCompareMinVolume = ImbalanceCompareMinVolume,
-                UseImbalanceScore = UseImbalanceScore,
-                RequireImbalanceForTrade = RequireImbalanceForTrade
+                ReplaySpeedMultiplier = ReplaySpeedMultiplier
             });
-        }
-
-
-        private void DrawAPlusStructureLabel(int bar, dynamic candle, ScoreTradeSignal score)
-        {
-            var tickSize = GetTickSize();
-            var price = score.APlusStructurePrice.HasValue
-                ? score.APlusStructurePrice.Value
-                : score.Side == "BUY"
-                    ? candle.Low - tickSize * 6
-                    : candle.High + tickSize * 6;
-
-            DrawTradeLabel(
-                $"EW_APLUS_STRUCTURE_{candle.Time:yyyyMMdd_HHmm}_{bar}",
-                "A+ structure",
-                bar,
-                price,
-                Color.White,
-                Color.Purple,
-                score.Side == "BUY" ? -22 : 22);
         }
 
         private void DrawTrade(int bar, dynamic candle, ScoreTradeSignal score)
@@ -264,7 +228,6 @@ namespace ATAS.Indicators
                 HardMaxTradeTicks = HardMaxTradeTicks,
                 APlusStopTicks = APlusStopTicks,
                 ImbalanceStopPrice = rawImbalanceStop?.StopPrice,
-                HasAPlusStructure = score.HasAPlusStructure,
                 CapSellStopAtOrHigh = true,
                 EnforceMinExitDistance = false
             });
@@ -277,7 +240,7 @@ namespace ATAS.Indicators
 
             AddText(
                 $"EW_SCORE_ENTRY_{candle.Time:yyyyMMdd_HHmm}_{bar}",
-                $"{plan.EntryProfile} ENTRY {entry:0.00} | S{score.Score} | {score.SpeedLabel}{(score.HasAPlusStructure ? " | A+ structure" : "")}",
+                $"{plan.EntryProfile} ENTRY {entry:0.00} | S{score.Score} | {score.SpeedLabel}",
                 score.Side == "SELL",
                 bar,
                 labelPrice,
@@ -844,7 +807,7 @@ namespace ATAS.Indicators
 
             AddText(
                 "EW_SCORE_STATUS",
-                $"{status} {side} S{score.Score}/9 | IMB {score.ImbalanceScore} | OR {score.OrRangeTicks:0}t BODY {score.BodyBreakoutTicks:0}t | {score.SpeedLabel} {score.BreakoutSpeed:0.00}t/s | R{Flag(score.RangeOk)} B{Flag(score.BodyOk)} V{Flag(score.VolumeOk)} D{Flag(score.DeltaOk)} VW{Flag(score.VwapOk)} S{Flag(score.SpeedValid)}",
+                $"{status} {side} S{score.Score}/7 | OR {score.OrRangeTicks:0}t BODY {score.BodyBreakoutTicks:0}t | {score.SpeedLabel} {score.BreakoutSpeed:0.00}t/s | R{Flag(score.RangeOk)} B{Flag(score.BodyOk)} V{Flag(score.VolumeOk)} D{Flag(score.DeltaOk)} VW{Flag(score.VwapOk)} S{Flag(score.SpeedValid)}",
                 true,
                 bar,
                 price,

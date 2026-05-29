@@ -20,7 +20,6 @@ namespace ATAS.Indicators
             public decimal HardMaxTradeTicks { get; set; }
             public decimal APlusStopTicks { get; set; }
             public decimal? ImbalanceStopPrice { get; set; }
-            public bool HasAPlusStructure { get; set; }
             public bool CapSellStopAtOrHigh { get; set; }
             public bool EnforceMinExitDistance { get; set; }
         }
@@ -57,10 +56,6 @@ namespace ATAS.Indicators
             public decimal FastExitAdverseSpeedTicksPerSecond { get; set; }
             public decimal AdverseSpeedTicksPerSecond { get; set; }
             public decimal TickSize { get; set; }
-            // Trailing stop state (A+ and normal speed)
-            public bool PartialCloseTriggered { get; set; }
-            public decimal TrailingStopPrice { get; set; }
-            public decimal BeOffsetTicks { get; set; } = 10m;
         }
 
         public sealed class TradeExitDecision
@@ -73,43 +68,32 @@ namespace ATAS.Indicators
             public decimal HalfMfeExitPrice { get; set; }
             public bool IsHalfMfeExit { get; set; }
             public bool IsFastExit { get; set; }
-            // Trailing stop state updates
-            public bool TriggerPartialClose { get; set; }
-            public decimal UpdatedTrailingStopPrice { get; set; }
         }
 
         public static TradePlan CreateInitialPlan(TradePlanRequest request)
         {
             var isAPlusSpeed = request.SpeedLabel == "A+ speed";
-            var isAPlusStructure = request.HasAPlusStructure;
-            var isAPlusPlan = isAPlusSpeed || isAPlusStructure;
             var isNormalSpeed = request.SpeedLabel == "normal speed";
             var entry = request.Entry;
-            // A+ structure entra en automático con perfil fijo 60/60 ticks.
-            // A+ speed conserva el perfil runner anterior usando HardMaxTradeTicks.
-            var tradeTicks = isAPlusStructure
-                ? request.MinTradeTicks
-                : isAPlusSpeed
-                    ? request.HardMaxTradeTicks
-                    : isNormalSpeed
-                        ? request.MinTradeTicks
-                        : request.Side == "BUY"
-                        ? ClampTicks(RoundToTicks(entry - request.OrLow, request.TickSize), request.MinTradeTicks, request.MaxTradeTicks)
-                        : ClampTicks(RoundToTicks(request.OrHigh - entry, request.TickSize), request.MinTradeTicks, request.MaxTradeTicks);
+            var tradeTicks = isAPlusSpeed
+                ? request.HardMaxTradeTicks
+                : isNormalSpeed
+                    ? request.MinTradeTicks
+                    : request.Side == "BUY"
+                    ? ClampTicks(RoundToTicks(entry - request.OrLow, request.TickSize), request.MinTradeTicks, request.MaxTradeTicks)
+                    : ClampTicks(RoundToTicks(request.OrHigh - entry, request.TickSize), request.MinTradeTicks, request.MaxTradeTicks);
 
-            var slTicks = isAPlusStructure ? request.MinTradeTicks : isAPlusSpeed ? request.APlusStopTicks : request.MinTradeTicks;
+            var slTicks = isAPlusSpeed ? request.APlusStopTicks : request.MinTradeTicks;
             var sl = request.Side == "BUY"
                 ? entry - slTicks * request.TickSize
                 : entry + slTicks * request.TickSize;
             var tp = request.Side == "BUY"
                 ? entry + tradeTicks * request.TickSize
                 : entry - tradeTicks * request.TickSize;
-            var entryProfile = isAPlusStructure
-                ? $"{request.Side} A+ STRUCTURE"
-                : isNormalSpeed ? $"{request.Side}1" : request.Side;
+            var entryProfile = isNormalSpeed ? $"{request.Side}1" : request.Side;
             var usesImbalanceStop = false;
 
-            if (!isAPlusPlan && !isNormalSpeed && request.ImbalanceStopPrice.HasValue)
+            if (!isAPlusSpeed && !isNormalSpeed && request.ImbalanceStopPrice.HasValue)
             {
                 var imbalanceRiskTicks = RoundToTicks(System.Math.Abs(entry - request.ImbalanceStopPrice.Value), request.TickSize);
 
@@ -164,7 +148,7 @@ namespace ATAS.Indicators
                 SlTicks = RoundToTicks(System.Math.Abs(entry - sl), request.TickSize),
                 TpTicks = RoundToTicks(System.Math.Abs(entry - tp), request.TickSize),
                 UsesImbalanceStop = usesImbalanceStop,
-                IsAPlusSpeed = isAPlusPlan,
+                IsAPlusSpeed = isAPlusSpeed,
                 IsNormalSpeed = isNormalSpeed
             };
         }
@@ -176,14 +160,6 @@ namespace ATAS.Indicators
                 request.Entry,
                 request.BestFavorablePrice,
                 request.TickSize);
-
-            var isAPlus  = request.SpeedLabel == "A+ speed";
-            var isNormal = request.SpeedLabel == "normal speed";
-
-            if (isAPlus || isNormal)
-                return EvaluateTrailingExit(request, mfeTicks, isAPlus);
-
-            // ── Lógica original para otros speed types ──────────────────────
             var pullbackTicks = CalculatePullbackTicks(
                 request.Side,
                 request.BestFavorablePrice,
@@ -191,7 +167,8 @@ namespace ATAS.Indicators
                 request.CandleLow,
                 request.TickSize);
 
-            if (mfeTicks >= request.FastExitMinMfeTicks &&
+            if (request.SpeedLabel != "A+ speed" &&
+                mfeTicks >= request.FastExitMinMfeTicks &&
                 pullbackTicks >= request.FastExitPullbackTicks &&
                 (request.AdverseSpeedTicksPerSecond >= request.FastExitAdverseSpeedTicksPerSecond ||
                  IsSlHit(request.Side, request.CandleHigh, request.CandleLow, request.Sl)))
@@ -199,128 +176,89 @@ namespace ATAS.Indicators
                 var fastExitPrice = request.Side == "BUY"
                     ? request.BestFavorablePrice - request.FastExitPullbackTicks * request.TickSize
                     : request.BestFavorablePrice + request.FastExitPullbackTicks * request.TickSize;
+                var resultTicks = TradeResultTicks(
+                    "EXIT",
+                    request.Entry,
+                    request.TpTicks,
+                    request.SlTicks,
+                    fastExitPrice,
+                    request.TickSize);
 
-                if (TradeResultTicks("EXIT", request.Entry, request.TpTicks, request.SlTicks, fastExitPrice, request.TickSize) > 0)
-                    return new TradeExitDecision { IsClosed = false, MfeTicks = mfeTicks, HalfMfeExitPrice = fastExitPrice, IsFastExit = true };
-            }
-
-            decimal halfMfeExit = 0;
-            if (TryCalculateHalfMfeExit(request.Side, request.SpeedLabel, request.Entry, request.BestFavorablePrice,
-                    request.HalfMfeExitMinMfeTicks, request.TickSize, out halfMfeExit, out mfeTicks))
-            {
-                if (IsHalfMfeExitTouched(request.Side, request.CurrentPrice, halfMfeExit))
+                if (resultTicks > 0)
+                {
                     return new TradeExitDecision
                     {
-                        IsClosed = true, Result = "EXIT", ExitPrice = halfMfeExit,
-                        ResultTicks = TradeResultTicks("EXIT", request.Entry, request.TpTicks, request.SlTicks, halfMfeExit, request.TickSize),
-                        MfeTicks = mfeTicks, HalfMfeExitPrice = halfMfeExit, IsHalfMfeExit = true
+                        IsClosed = false,
+                        MfeTicks = mfeTicks,
+                        HalfMfeExitPrice = fastExitPrice,
+                        IsFastExit = true
                     };
+                }
+            }
+
+            if (TryCalculateHalfMfeExit(
+                    request.Side,
+                    request.SpeedLabel,
+                    request.Entry,
+                    request.BestFavorablePrice,
+                    request.HalfMfeExitMinMfeTicks,
+                    request.TickSize,
+                    out var halfMfeExit,
+                    out mfeTicks))
+            {
+                var adversePrice = request.CurrentPrice;
+
+                if (IsHalfMfeExitTouched(request.Side, adversePrice, halfMfeExit))
+                {
+                    return new TradeExitDecision
+                    {
+                        IsClosed = true,
+                        Result = "EXIT",
+                        ExitPrice = halfMfeExit,
+                        ResultTicks = TradeResultTicks(
+                            "EXIT",
+                            request.Entry,
+                            request.TpTicks,
+                            request.SlTicks,
+                            halfMfeExit,
+                            request.TickSize),
+                        MfeTicks = mfeTicks,
+                        HalfMfeExitPrice = halfMfeExit,
+                        IsHalfMfeExit = true
+                    };
+                }
             }
 
             var hitTp = IsTpHit(request.Side, request.CandleHigh, request.CandleLow, request.Tp);
             var hitSl = IsSlHit(request.Side, request.CandleHigh, request.CandleLow, request.Sl);
 
             if (!hitTp && !hitSl)
-                return new TradeExitDecision { MfeTicks = mfeTicks, HalfMfeExitPrice = halfMfeExit };
-
-            var result = hitTp ? "TP" : "SL";
-            var exitPrice = hitTp ? request.Tp : request.Sl;
-            return new TradeExitDecision
             {
-                IsClosed = true, Result = result, ExitPrice = exitPrice,
-                ResultTicks = TradeResultTicks(result, request.Entry, request.TpTicks, request.SlTicks, exitPrice, request.TickSize),
-                MfeTicks = mfeTicks, HalfMfeExitPrice = halfMfeExit
-            };
-        }
-
-        // ── Trailing stop para A+ speed y normal speed ───────────────────────
-        // A+ speed : threshold = TpTicks/2 = 60t, step = 30t
-        // Normal speed: threshold = TpTicks/2 = 30t, step = 20t
-        // Al alcanzar el threshold se activa trailing en BE+10t.
-        // Cada <step> ticks adicionales de MFE el trailing sube <step> ticks.
-        private static TradeExitDecision EvaluateTrailingExit(TradeExitRequest request, decimal mfeTicks, bool isAPlus)
-        {
-            var trailingStep      = isAPlus ? 30m : 20m;
-            var partialThreshold  = request.TpTicks / 2m;
-
-            // TP siempre gana
-            if (IsTpHit(request.Side, request.CandleHigh, request.CandleLow, request.Tp))
-                return new TradeExitDecision
-                {
-                    IsClosed = true, Result = "TP", ExitPrice = request.Tp,
-                    ResultTicks = TradeResultTicks("TP", request.Entry, request.TpTicks, request.SlTicks, request.Tp, request.TickSize),
-                    MfeTicks = mfeTicks
-                };
-
-            if (!request.PartialCloseTriggered)
-            {
-                // SL original sigue activo antes del partial close
-                if (IsSlHit(request.Side, request.CandleHigh, request.CandleLow, request.Sl))
-                    return new TradeExitDecision
-                    {
-                        IsClosed = true, Result = "SL", ExitPrice = request.Sl,
-                        ResultTicks = TradeResultTicks("SL", request.Entry, request.TpTicks, request.SlTicks, request.Sl, request.TickSize),
-                        MfeTicks = mfeTicks
-                    };
-
-                // ¿Llegó al 50% del TP?
-                if (mfeTicks >= partialThreshold)
-                {
-                    var initialTrailing = request.Side == "BUY"
-                        ? request.Entry + request.BeOffsetTicks * request.TickSize
-                        : request.Entry - request.BeOffsetTicks * request.TickSize;
-                    return new TradeExitDecision
-                    {
-                        MfeTicks = mfeTicks,
-                        TriggerPartialClose = true,
-                        UpdatedTrailingStopPrice = initialTrailing
-                    };
-                }
-
-                return new TradeExitDecision { MfeTicks = mfeTicks };
-            }
-            else
-            {
-                // Trailing stop activo
-                var trailingStop = request.TrailingStopPrice;
-
-                if (IsExitHit(request.Side, request.CandleHigh, request.CandleLow, trailingStop))
-                    return new TradeExitDecision
-                    {
-                        IsClosed = true, Result = "EXIT", ExitPrice = trailingStop,
-                        ResultTicks = TradeResultTicks("EXIT", request.Entry, request.TpTicks, request.SlTicks, trailingStop, request.TickSize),
-                        MfeTicks = mfeTicks
-                    };
-
-                var newTrailing = AdvanceTrailingStop(
-                    request.Side, request.Entry, mfeTicks,
-                    trailingStop, request.BeOffsetTicks, partialThreshold, trailingStep, request.TickSize);
-
                 return new TradeExitDecision
                 {
                     MfeTicks = mfeTicks,
-                    UpdatedTrailingStopPrice = newTrailing != trailingStop ? newTrailing : 0
+                    HalfMfeExitPrice = halfMfeExit
                 };
             }
-        }
 
-        private static decimal AdvanceTrailingStop(
-            string side, decimal entry, decimal mfeTicks,
-            decimal currentStop, decimal beOffsetTicks, decimal partialThreshold,
-            decimal trailingStep, decimal tickSize)
-        {
-            if (mfeTicks <= partialThreshold)
-                return currentStop;
+            var result = hitTp ? "TP" : "SL";
+            var exitPrice = hitTp ? request.Tp : request.Sl;
 
-            var steps = (int)System.Math.Floor((mfeTicks - partialThreshold) / trailingStep);
-            var targetOffsetTicks = beOffsetTicks + steps * trailingStep;
-            var newStop = side == "BUY"
-                ? entry + targetOffsetTicks * tickSize
-                : entry - targetOffsetTicks * tickSize;
-
-            return side == "BUY"
-                ? System.Math.Max(currentStop, newStop)
-                : System.Math.Min(currentStop, newStop);
+            return new TradeExitDecision
+            {
+                IsClosed = true,
+                Result = result,
+                ExitPrice = exitPrice,
+                ResultTicks = TradeResultTicks(
+                    result,
+                    request.Entry,
+                    request.TpTicks,
+                    request.SlTicks,
+                    exitPrice,
+                    request.TickSize),
+                MfeTicks = mfeTicks,
+                HalfMfeExitPrice = halfMfeExit
+            };
         }
 
         public static decimal CalculateHalfMfeExit(string side, decimal entry, decimal bestFavorablePrice)
