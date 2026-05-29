@@ -107,7 +107,44 @@ namespace ATAS.Indicators
             if (state.SpeedValid) state.Score += state.SpeedLabel == "A+ speed" ? 2 : 1;
             state.Score += state.ImbalanceScore;
 
-            state.IsReady =
+            // ---- Imbalances diagonales del footprint (ver 05_Imbalance_Detector.cs) ----
+            // Se calcula siempre (para verlo/exportarlo) pero solo afecta el trade si se activan los flags.
+            var imbalance = ImbalanceDetector.Detect(candle, new ImbalanceDetectorRequest
+            {
+                Side = state.Side,
+                Ratio = request.ImbalanceRatio,
+                CompareMinVolume = request.ImbalanceCompareMinVolume
+            });
+
+            state.ImbalanceScore = imbalance.Score;
+            state.BuyImbalanceCount = imbalance.BuyImbalanceCount;
+            state.SellImbalanceCount = imbalance.SellImbalanceCount;
+            state.HasBuy3_ImbalanceGroup = imbalance.HasBuy3_ImbalanceGroup;
+            state.HasSell3_ImbalanceGroup = imbalance.HasSell3_ImbalanceGroup;
+            state.HasBuy3_Separated = imbalance.HasBuy3_Separated;
+            state.HasSell3_Separated = imbalance.HasSell3_Separated;
+            state.Buy3_ImbalanceGroupPrice = imbalance.Buy3_ImbalanceGroupPrice;
+            state.Sell3_ImbalanceGroupPrice = imbalance.Sell3_ImbalanceGroupPrice;
+            state.HasAPlusStructure =
+                (state.Side == "BUY" && imbalance.HasBuy3_ImbalanceGroup) ||
+                (state.Side == "SELL" && imbalance.HasSell3_ImbalanceGroup);
+            state.APlusStructurePrice = state.Side == "BUY"
+                ? imbalance.Buy3_ImbalanceGroupPrice
+                : imbalance.Sell3_ImbalanceGroupPrice;
+
+            // Suma el score de imbalances al score total solo si se pide explicitamente.
+            if (request.UseImbalanceScore)
+                state.Score += imbalance.Score;
+
+            // Entrada automática por estructura:
+            // Si aparece el label "A+ structure" (3+ imbalances pegados a favor),
+            // Visual Logic debe disparar el trade aunque el score/speed normal no haya pasado.
+            var aPlusStructureReady =
+                state.IsBreakout &&
+                state.TimeOk &&
+                state.HasAPlusStructure;
+
+            var normalReady =
                 state.IsBreakout &&
                 state.TimeOk &&
                 state.Score >= request.MinScore &&
@@ -115,7 +152,10 @@ namespace ATAS.Indicators
                 state.VolumeOk &&
                 (state.SpeedLabel != "normal speed" || (state.BodyOk && state.VwapOk)) &&
                 (!request.RequireBodyOkForTrade || state.BodyOk) &&
-                (!request.RequireVwapOkForTrade || state.VwapOk);
+                (!request.RequireVwapOkForTrade || state.VwapOk) &&
+                (!request.RequireImbalanceForTrade || state.ImbalanceScore >= 1);
+
+            state.IsReady = aPlusStructureReady || normalReady;
 
             return state;
         }
@@ -188,6 +228,16 @@ namespace ATAS.Indicators
         public decimal ImbalanceCompareMinVolume { get; set; } = 5m;
         public bool RequireBodyOkForTrade { get; set; }
         public bool RequireVwapOkForTrade { get; set; }
+
+        // ---- Imbalances (footprint) ----
+        public decimal ImbalanceRatio { get; set; } = 3m;
+        public decimal ImbalanceCompareMinVolume { get; set; } = 5m;
+
+        // Si true: suma el score de imbalances (0/1/2) al score total del setup.
+        public bool UseImbalanceScore { get; set; }
+
+        // Si true: no permite la entrada salvo que haya imbalance a favor (score imbalance >= 1).
+        public bool RequireImbalanceForTrade { get; set; }
     }
 
     internal sealed class ScoreTradeSignal
@@ -227,5 +277,21 @@ namespace ATAS.Indicators
         public decimal? Sell3_ImbalanceGroupPrice { get; set; }
         public int ImbalanceScore { get; set; }
         public int Score { get; set; }
+
+        // ---- Imbalances (footprint) ----
+        public int ImbalanceScore { get; set; }
+        public int BuyImbalanceCount { get; set; }
+        public int SellImbalanceCount { get; set; }
+        public bool HasBuy3_ImbalanceGroup { get; set; }
+        public bool HasSell3_ImbalanceGroup { get; set; }
+        public bool HasBuy3_Separated { get; set; }
+        public bool HasSell3_Separated { get; set; }
+        public decimal? Buy3_ImbalanceGroupPrice { get; set; }
+        public decimal? Sell3_ImbalanceGroupPrice { get; set; }
+
+        // Señal limpia para Visual Logic / Trade Manager:
+        // 3+ imbalances PEGADOS a favor del breakout = A+ structure.
+        public bool HasAPlusStructure { get; set; }
+        public decimal? APlusStructurePrice { get; set; }
     }
 }
