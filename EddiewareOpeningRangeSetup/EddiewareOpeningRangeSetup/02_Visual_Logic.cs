@@ -115,6 +115,12 @@ namespace ATAS.Indicators
         [DisplayName("Show A+ Structure Label")]
         public bool ShowAPlusStructureLabel { get; set; } = true;
 
+        [DisplayName("Show A+ Structure Debug Label")]
+        public bool ShowAPlusStructureDebugLabel { get; set; } = false;
+
+        [DisplayName("A+ Structure Debug Label Offset Ticks")]
+        public decimal APlusStructureDebugLabelOffsetTicks { get; set; } = 65m;
+
         [DisplayName("A+ Structure Label Offset Ticks")]
         public decimal APlusStructureLabelOffsetTicks { get; set; } = 25m;
 
@@ -135,8 +141,6 @@ namespace ATAS.Indicators
                 ResetDay(candle.Time.Date);
 
             UpdateSpeedClock(bar);
-
-            TryDrawAPlusStructureLabel(bar, candle);
 
             if (_tradeDrawn)
             {
@@ -172,6 +176,10 @@ namespace ATAS.Indicators
                 return;
 
             var score = CalculateScore(candle, bar);
+
+            // A+ Structure visual label is now filtered by the current setup side.
+            // This prevents opposite-side imbalance groups from printing before/around the trade.
+            TryDrawAPlusStructureLabel(bar, candle, score.Side);
 
             if (ShowScoreLabel)
                 DrawScoreLabel(bar, candle, score);
@@ -210,7 +218,7 @@ namespace ATAS.Indicators
             });
         }
 
-        private void TryDrawAPlusStructureLabel(int bar, dynamic candle)
+        private void TryDrawAPlusStructureLabel(int bar, dynamic candle, string setupSide)
         {
             if (!ShowAPlusStructureLabel)
                 return;
@@ -223,7 +231,11 @@ namespace ATAS.Indicators
 
             var tickSize = GetTickSize();
 
-            if (state.HasBuy3_ImbalanceGroup)
+            var sideToDraw = ResolveAPlusStructureSide(candle, state, setupSide);
+
+            TryDrawAPlusStructureDebugLabel(bar, candle, state, sideToDraw);
+
+            if (sideToDraw == "BUY")
             {
                 var price = state.Buy3_ImbalanceGroupPrice ?? candle.Low;
                 var labelPrice = Math.Min(price, candle.Low) - tickSize * APlusStructureLabelOffsetTicks;
@@ -243,8 +255,7 @@ namespace ATAS.Indicators
                     DrawingText.TextAlign.Center,
                     true);
             }
-
-            if (state.HasSell3_ImbalanceGroup)
+            else if (sideToDraw == "SELL")
             {
                 var price = state.Sell3_ImbalanceGroupPrice ?? candle.High;
                 var labelPrice = Math.Max(price, candle.High) + tickSize * APlusStructureLabelOffsetTicks;
@@ -264,6 +275,129 @@ namespace ATAS.Indicators
                     DrawingText.TextAlign.Center,
                     true);
             }
+        }
+
+        private void TryDrawAPlusStructureDebugLabel(int bar, dynamic candle, ImbalanceState state, string sideToDraw)
+        {
+            if (!ShowAPlusStructureDebugLabel)
+                return;
+
+            if (!state.HasBuy3_ImbalanceGroup && !state.HasSell3_ImbalanceGroup)
+                return;
+
+            var debug = CalculateImbalanceDebugInfo(candle);
+            var tickSize = GetTickSize();
+            var labelPrice = candle.High + tickSize * APlusStructureDebugLabelOffsetTicks;
+            var bodySide = "DOJI";
+
+            try
+            {
+                if (candle.Close > candle.Open)
+                    bodySide = "BUY";
+                else if (candle.Close < candle.Open)
+                    bodySide = "SELL";
+            }
+            catch
+            {
+                bodySide = "?";
+            }
+
+            AddText(
+                $"EW_APLUS_IMBALANCE_DEBUG_{candle.Time:yyyyMMdd_HHmm}_{bar}",
+                $"DBG IMB | BUY3={state.HasBuy3_ImbalanceGroup}({debug.MaxBuyStreak}) @{FormatNullablePrice(state.Buy3_ImbalanceGroupPrice)} | SELL3={state.HasSell3_ImbalanceGroup}({debug.MaxSellStreak}) @{FormatNullablePrice(state.Sell3_ImbalanceGroupPrice)} | DRAW={sideToDraw} | BODY={bodySide}",
+                true,
+                bar,
+                labelPrice,
+                0,
+                0,
+                Color.Black,
+                Color.Yellow,
+                Color.Yellow,
+                10,
+                DrawingText.TextAlign.Center,
+                true);
+        }
+
+        private ImbalanceDebugInfo CalculateImbalanceDebugInfo(dynamic candle)
+        {
+            var info = new ImbalanceDebugInfo();
+            var levels = GetSortedPriceLevels(candle);
+
+            if (levels.Count < 2)
+                return info;
+
+            var buyStreak = 0;
+            var sellStreak = 0;
+
+            for (var i = 0; i < levels.Count; i++)
+            {
+                var level = levels[i];
+                var buyImbalance = false;
+                var sellImbalance = false;
+
+                if (i > 0)
+                {
+                    var lowerLevel = levels[i - 1];
+                    buyImbalance =
+                        lowerLevel.Bid >= ImbalanceCompareMinVolume &&
+                        level.Ask >= lowerLevel.Bid * ImbalanceRatio;
+                }
+
+                if (i < levels.Count - 1)
+                {
+                    var upperLevel = levels[i + 1];
+                    sellImbalance =
+                        upperLevel.Ask >= ImbalanceCompareMinVolume &&
+                        level.Bid >= upperLevel.Ask * ImbalanceRatio;
+                }
+
+                if (buyImbalance)
+                {
+                    buyStreak++;
+                    if (buyStreak > info.MaxBuyStreak)
+                        info.MaxBuyStreak = buyStreak;
+                }
+                else
+                {
+                    buyStreak = 0;
+                }
+
+                if (sellImbalance)
+                {
+                    sellStreak++;
+                    if (sellStreak > info.MaxSellStreak)
+                        info.MaxSellStreak = sellStreak;
+                }
+                else
+                {
+                    sellStreak = 0;
+                }
+            }
+
+            return info;
+        }
+
+        private string FormatNullablePrice(decimal? price)
+        {
+            return price.HasValue ? price.Value.ToString("0.00") : "NA";
+        }
+
+        private string ResolveAPlusStructureSide(dynamic candle, ImbalanceState state, string setupSide)
+        {
+            if (string.IsNullOrWhiteSpace(setupSide))
+                return "";
+
+            setupSide = setupSide.Trim().ToUpperInvariant();
+
+            // Only print the A+ Structure label when the 3+ imbalance group
+            // matches the current setup/entry side.
+            if (setupSide == "BUY" && state.HasBuy3_ImbalanceGroup)
+                return "BUY";
+
+            if (setupSide == "SELL" && state.HasSell3_ImbalanceGroup)
+                return "SELL";
+
+            return "";
         }
 
         private void DrawTrade(int bar, dynamic candle, ScoreTradeSignal score)
@@ -897,6 +1031,12 @@ namespace ATAS.Indicators
         private string Flag(bool value)
         {
             return value ? "+" : "-";
+        }
+
+        private sealed class ImbalanceDebugInfo
+        {
+            public int MaxBuyStreak { get; set; }
+            public int MaxSellStreak { get; set; }
         }
 
         private class FootprintLevel

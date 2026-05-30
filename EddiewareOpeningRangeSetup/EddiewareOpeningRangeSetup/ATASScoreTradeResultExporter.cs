@@ -20,7 +20,7 @@ namespace ATAS.Indicators
             TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
 
         private const decimal SetupTickSize = 0.25m;
-        private const string ExporterVersion = "score-exporter-2026-05-30-time-over-0940-ny";
+        private const string ExporterVersion = "score-exporter-2026-05-30-aplus-structure-export";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
@@ -38,6 +38,10 @@ namespace ATAS.Indicators
         private bool _tradeCreated;
         private bool _timeOverWritten;
         private bool _isRecalculating;
+        private bool _hasAPlusStructure;
+        private string _aPlusStructureSide = "";
+        private decimal? _aPlusStructurePrice;
+        private int _aPlusStructureCount;
         private TradeState? _trade;
         private ScoreTradeSignal? _pendingScore;
         private int _pendingScoreBar = -1;
@@ -105,9 +109,13 @@ namespace ATAS.Indicators
 
             UpdateSpeedClock(bar);
 
+            UpdateAPlusStructureFromBar(bar, current, currentNyTime);
+
             var closedBar = bar - 1;
             var closedCandle = GetCandle(closedBar);
             var closedNyTime = ConvertToNewYorkTime(closedCandle.Time);
+
+            UpdateAPlusStructureFromBar(closedBar, closedCandle, closedNyTime);
 
             if (!_orReady && closedNyTime.TimeOfDay == _openingTimeNy)
             {
@@ -193,7 +201,11 @@ namespace ATAS.Indicators
                 EntryBarHighAtEntry = score.EntryBarHighAtEntry,
                 EntryBarLowAtEntry = score.EntryBarLowAtEntry,
                 BestFavorablePrice = score.EntryPrice,
-                Result = "OPEN"
+                Result = "OPEN",
+                APlusStructure = _hasAPlusStructure,
+                ImbalanceGroup3 = _aPlusStructureSide,
+                ImbalanceGroupPrice = _aPlusStructurePrice,
+                ImbalanceCount = _aPlusStructureCount
             };
 
             _lastManagePrice = score.EntryPrice;
@@ -585,10 +597,10 @@ namespace ATAS.Indicators
                     FormatSignedTicks(TradeResultTicks()),
                     FormatTicks(_trade.MaeTicks),
                     FormatTicks(_trade.MfeTicks),
-                    FormatBool(_trade.APlusStructure),
-                    _trade.ImbalanceGroup3,
-                    FormatNullablePrice(_trade.ImbalanceGroupPrice),
-                    _trade.ImbalanceCount.ToString(CultureInfo.InvariantCulture),
+                    FormatBool(_trade.APlusStructure || _hasAPlusStructure),
+                    string.IsNullOrEmpty(_trade.ImbalanceGroup3) ? _aPlusStructureSide : _trade.ImbalanceGroup3,
+                    FormatNullablePrice(_trade.ImbalanceGroupPrice ?? _aPlusStructurePrice),
+                    Math.Max(_trade.ImbalanceCount, _aPlusStructureCount).ToString(CultureInfo.InvariantCulture),
                     FormatBool(_trade.SpeedIgnoredByStructure)
                 ) + Environment.NewLine
             );
@@ -644,10 +656,10 @@ namespace ATAS.Indicators
                     "TIME_OVER",
                     "",
                     "",
-                    "FALSE",
-                    "",
-                    "",
-                    "0",
+                    FormatBool(_hasAPlusStructure),
+                    _aPlusStructureSide,
+                    FormatNullablePrice(_aPlusStructurePrice),
+                    _aPlusStructureCount.ToString(CultureInfo.InvariantCulture),
                     "FALSE"
                 ) + Environment.NewLine
             );
@@ -663,6 +675,10 @@ namespace ATAS.Indicators
             _tradeCreated = false;
             _timeOverWritten = false;
             _signalEngine.ResetDay();
+            _hasAPlusStructure = false;
+            _aPlusStructureSide = "";
+            _aPlusStructurePrice = null;
+            _aPlusStructureCount = 0;
             _trade = null;
             _lastManagePrice = 0;
             _lastManageTimeUtc = DateTime.MinValue;
@@ -674,6 +690,39 @@ namespace ATAS.Indicators
             _pendingScore = null;
             _pendingScoreBar = -1;
             _pendingScoreNyTime = DateTime.MinValue;
+        }
+
+        private void UpdateAPlusStructureFromBar(int bar, dynamic candle, DateTime nyTime)
+        {
+            if (_hasAPlusStructure || !_orReady || bar <= _orBar)
+                return;
+
+            if (nyTime.TimeOfDay < _signalStartNy || nyTime.TimeOfDay > TimeOverTimeNy)
+                return;
+
+            var state = ImbalanceDetector.Detect(candle, new ImbalanceDetectorRequest
+            {
+                Side = "",
+                Ratio = ImbalanceRatio,
+                CompareMinVolume = ImbalanceCompareMinVolume
+            });
+
+            if (state.HasBuy3_ImbalanceGroup)
+            {
+                _hasAPlusStructure = true;
+                _aPlusStructureSide = "BUY";
+                _aPlusStructurePrice = state.Buy3_ImbalanceGroupPrice;
+                _aPlusStructureCount = 3;
+                return;
+            }
+
+            if (state.HasSell3_ImbalanceGroup)
+            {
+                _hasAPlusStructure = true;
+                _aPlusStructureSide = "SELL";
+                _aPlusStructurePrice = state.Sell3_ImbalanceGroupPrice;
+                _aPlusStructureCount = 3;
+            }
         }
 
         private void CreatePendingScoreIfExpired(int bar, dynamic candle)
