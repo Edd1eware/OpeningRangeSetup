@@ -14,9 +14,37 @@ from openpyxl.utils import get_column_letter
 # Fechas de validacion para confirmar que BreakOut_SPEED conserve normal speed.
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 DATES_DST = [
+    "21/04/2026",
+    "22/04/2026",
     "23/04/2026",
     "24/04/2026",
+
     "27/04/2026",
+    "28/04/2026",
+    "29/04/2026",
+    "30/04/2026",
+
+    # =========================
+    # DST — MAYO 2026
+    # =========================
+
+    "01/05/2026",
+
+    "04/05/2026",
+    "05/05/2026",
+    "06/05/2026",
+    "07/05/2026",
+    "08/05/2026",
+
+    "11/05/2026",
+    "12/05/2026",
+    "13/05/2026",
+    "14/05/2026",
+    "15/05/2026",
+
+    "18/05/2026",
+    "19/05/2026",
+    "20/05/2026",
 ]
 
 # Replay recomendado para esta prueba: X1.
@@ -215,10 +243,14 @@ def result_is_terminal(path, min_modified_time=None):
         return False
 
     result_label = str(row.get("Result_Label") or row.get("RESULT") or "").strip().upper()
-    if result_label in ("TP", "SL", "EXIT", "BE", "TIME_OVER"):
+    if result_label in ("TP", "SL", "EXIT", "BE", "TIME_OVER", "NO_TRADE"):
         return True
 
-    ticks = parse_result_ticks(row.get("result TP SL BE") or row.get("RESULT"))
+    result_value = str(row.get("result TP SL BE") or row.get("RESULT") or "").strip().upper()
+    if result_value in ("TIME_OVER", "NO_TRADE"):
+        return True
+
+    ticks = parse_result_ticks(result_value)
     if ticks is None:
         return False
 
@@ -534,15 +566,18 @@ try:
         start_button.click_input()
 
         print("Esperando hasta detectar TP/SL/EXIT/BE/TIME_OVER...")
-        wait_until_result(result_path, started_at)
+        found = wait_until_result(result_path, started_at)
         stop_replay()
 
-        time.sleep(5)
+        if found:
+            time.sleep(1)
+        else:
+            time.sleep(3)
 
         print_result_file(result_path)
 
-        print("Pausa antes del siguiente dia...")
-        time.sleep(10)
+        print("Siguiente dia...")
+        time.sleep(2)
 
 finally:
     update_score_workbook()
