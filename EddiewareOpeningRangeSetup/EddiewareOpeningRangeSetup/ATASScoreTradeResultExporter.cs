@@ -20,11 +20,11 @@ namespace ATAS.Indicators
             TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
 
         private const decimal SetupTickSize = 0.25m;
-        private const string ExporterVersion = "score-exporter-2026-05-27-strict-speed-window";
+        private const string ExporterVersion = "score-exporter-2026-05-30-time-over-0940-ny";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
-        private readonly TimeSpan _signalEndNy = new TimeSpan(9, 40, 0);
+        private readonly TimeSpan _signalEndNy = new TimeSpan(9, 38, 0);
         private readonly TimeSpan _normalSpeedAllowedUntilNy = new TimeSpan(9, 33, 59); // time limit
         private const decimal HardMaxTradeTicks = 60m;
         private const decimal APlusStopTicks = 60m;
@@ -62,8 +62,8 @@ namespace ATAS.Indicators
         public decimal FastExitMinMfeTicks { get; set; } = 40;
         public decimal FastExitPullbackTicks { get; set; } = 10;
         public decimal FastExitAdverseSpeedTicksPerSecond { get; set; } = 6;
-        public TimeSpan TimeOverTimeUtc { get; set; } = new TimeSpan(13, 41, 0);
-        public int MinTimeOverRealtimeSeconds { get; set; } = 20;
+        public TimeSpan TimeOverTimeNy { get; set; } = new TimeSpan(9, 40, 0);
+        public int MinTimeOverRealtimeSeconds { get; set; } = 5;
         public bool RequireBodyOkForTrade { get; set; } = false;
         public bool RequireVwapOkForTrade { get; set; } = false;
 
@@ -100,7 +100,7 @@ namespace ATAS.Indicators
             if (currentNyTime.Date != _currentNyDate)
                 ResetDay(currentNyTime.Date);
 
-            if (current.Time.Date != targetDate.Value.Date)
+            if (currentNyTime.Date != targetDate.Value.Date)
                 return;
 
             UpdateSpeedClock(bar);
@@ -120,7 +120,7 @@ namespace ATAS.Indicators
 
             UpdateTradeResult(bar, current);
 
-            if (TryWriteTimeOver(bar, current, current.Time))
+            if (TryWriteTimeOver(bar, current, currentNyTime))
                 return;
 
             if (!_orReady)
@@ -363,7 +363,7 @@ namespace ATAS.Indicators
                 !HasReplayStartDelayElapsed() ||
                 _tradeCreated ||
                 hasOpenTrade ||
-                nyTime.TimeOfDay < TimeOverTimeUtc)
+                nyTime.TimeOfDay < TimeOverTimeNy)
             {
                 return false;
             }
@@ -547,7 +547,7 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     _trade.EntryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
@@ -584,7 +584,12 @@ namespace ATAS.Indicators
                     FormatExitPrice(),
                     FormatSignedTicks(TradeResultTicks()),
                     FormatTicks(_trade.MaeTicks),
-                    FormatTicks(_trade.MfeTicks)
+                    FormatTicks(_trade.MfeTicks),
+                    FormatBool(_trade.APlusStructure),
+                    _trade.ImbalanceGroup3,
+                    FormatNullablePrice(_trade.ImbalanceGroupPrice),
+                    _trade.ImbalanceCount.ToString(CultureInfo.InvariantCulture),
+                    FormatBool(_trade.SpeedIgnoredByStructure)
                 ) + Environment.NewLine
             );
         }
@@ -601,7 +606,7 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
@@ -638,7 +643,12 @@ namespace ATAS.Indicators
                     "",
                     "TIME_OVER",
                     "",
-                    ""
+                    "",
+                    "FALSE",
+                    "",
+                    "",
+                    "0",
+                    "FALSE"
                 ) + Environment.NewLine
             );
         }
@@ -724,6 +734,13 @@ namespace ATAS.Indicators
             return price.ToString("0.00", CultureInfo.InvariantCulture);
         }
 
+        private string FormatNullablePrice(decimal? price)
+        {
+            return price.HasValue
+                ? price.Value.ToString("0.00", CultureInfo.InvariantCulture)
+                : "";
+        }
+
         private string FormatExitPrice()
         {
             if (_trade == null || _trade.Result == "OPEN" || _trade.Result == "NO_TRADE" || _trade.ExitPrice == 0)
@@ -790,6 +807,11 @@ namespace ATAS.Indicators
             public string Result { get; set; } = "";
             public decimal MaeTicks { get; set; }
             public decimal MfeTicks { get; set; }
+            public bool APlusStructure { get; set; }
+            public string ImbalanceGroup3 { get; set; } = "";
+            public decimal? ImbalanceGroupPrice { get; set; }
+            public int ImbalanceCount { get; set; }
+            public bool SpeedIgnoredByStructure { get; set; }
         }
 
     }

@@ -11,45 +11,16 @@ from openpyxl.utils import get_column_letter
 # CONFIG
 # =========================================================
 
-# Fechas de validacion para confirmar que BreakOut_SPEED conserve normal speed.
+# Fechas operables en horario DST de Nueva York 2026.
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 DATES_DST = [
-    "21/04/2026",
     "22/04/2026",
-    "23/04/2026",
-    "24/04/2026",
-
-    "27/04/2026",
-    "28/04/2026",
-    "29/04/2026",
-    "30/04/2026",
-
-    # =========================
-    # DST — MAYO 2026
-    # =========================
-
-    "01/05/2026",
-
-    "04/05/2026",
-    "05/05/2026",
-    "06/05/2026",
-    "07/05/2026",
-    "08/05/2026",
-
-    "11/05/2026",
-    "12/05/2026",
-    "13/05/2026",
-    "14/05/2026",
-    "15/05/2026",
-
-    "18/05/2026",
-    "19/05/2026",
-    "20/05/2026",
+    
 ]
 
 # Replay recomendado para esta prueba: X1.
-# Ventana por dia: 09:30 a 9:40. Visual Logic marca TIME OVER a las 10:30 si no hay trade.
-REPLAY_END_TIME = "09:45"
+# Ventana por dia: 09:30 a 09:40 NY. El exporter escribe TIME_OVER si no hay trade antes/de 09:40.
+REPLAY_END_TIME = "09:40"
 POLL_SECONDS = 1
 
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
@@ -246,11 +217,7 @@ def result_is_terminal(path, min_modified_time=None):
     if result_label in ("TP", "SL", "EXIT", "BE", "TIME_OVER", "NO_TRADE"):
         return True
 
-    result_value = str(row.get("result TP SL BE") or row.get("RESULT") or "").strip().upper()
-    if result_value in ("TIME_OVER", "NO_TRADE"):
-        return True
-
-    ticks = parse_result_ticks(result_value)
+    ticks = parse_result_ticks(row.get("result TP SL BE") or row.get("RESULT"))
     if ticks is None:
         return False
 
@@ -295,7 +262,7 @@ def read_trade_result(path, date_ddmmyyyy):
     dd, mm, yyyy = date_ddmmyyyy.split("/")
     default_row = {
         "fecha": f"{yyyy}-{mm}-{dd}",
-        "result TP SL BE": "NO_TRADE",
+        "result TP SL BE": "NO_CSV",
     }
 
     if not os.path.exists(path):
@@ -566,18 +533,15 @@ try:
         start_button.click_input()
 
         print("Esperando hasta detectar TP/SL/EXIT/BE/TIME_OVER...")
-        found = wait_until_result(result_path, started_at)
+        wait_until_result(result_path, started_at)
         stop_replay()
 
-        if found:
-            time.sleep(1)
-        else:
-            time.sleep(3)
+        time.sleep(5)
 
         print_result_file(result_path)
 
-        print("Siguiente dia...")
-        time.sleep(2)
+        print("Pausa antes del siguiente dia...")
+        time.sleep(10)
 
 finally:
     update_score_workbook()
