@@ -42,6 +42,14 @@ namespace ATAS.Indicators
         private string _aPlusStructureSide = "";
         private decimal? _aPlusStructurePrice;
         private int _aPlusStructureCount;
+
+        private bool _hasBuyAPlusStructure;
+        private decimal? _buyAPlusStructurePrice;
+        private int _buyAPlusStructureCount;
+
+        private bool _hasSellAPlusStructure;
+        private decimal? _sellAPlusStructurePrice;
+        private int _sellAPlusStructureCount;
         private TradeState? _trade;
         private ScoreTradeSignal? _pendingScore;
         private int _pendingScoreBar = -1;
@@ -167,6 +175,18 @@ namespace ATAS.Indicators
                 EnforceMinExitDistance = true
             });
 
+            bool hasMatchingAPlusStructure;
+            string matchingAPlusSide;
+            decimal? matchingAPlusPrice;
+            int matchingAPlusCount;
+
+            GetAPlusStructureForSide(
+                score.Side,
+                out hasMatchingAPlusStructure,
+                out matchingAPlusSide,
+                out matchingAPlusPrice,
+                out matchingAPlusCount);
+
             _trade = new TradeState
             {
                 EntryBar = bar,
@@ -202,10 +222,10 @@ namespace ATAS.Indicators
                 EntryBarLowAtEntry = score.EntryBarLowAtEntry,
                 BestFavorablePrice = score.EntryPrice,
                 Result = "OPEN",
-                APlusStructure = _hasAPlusStructure,
-                ImbalanceGroup3 = _aPlusStructureSide,
-                ImbalanceGroupPrice = _aPlusStructurePrice,
-                ImbalanceCount = _aPlusStructureCount
+                APlusStructure = hasMatchingAPlusStructure,
+                ImbalanceGroup3 = matchingAPlusSide,
+                ImbalanceGroupPrice = matchingAPlusPrice,
+                ImbalanceCount = matchingAPlusCount
             };
 
             _lastManagePrice = score.EntryPrice;
@@ -597,10 +617,10 @@ namespace ATAS.Indicators
                     FormatSignedTicks(TradeResultTicks()),
                     FormatTicks(_trade.MaeTicks),
                     FormatTicks(_trade.MfeTicks),
-                    FormatBool(_trade.APlusStructure || _hasAPlusStructure),
-                    string.IsNullOrEmpty(_trade.ImbalanceGroup3) ? _aPlusStructureSide : _trade.ImbalanceGroup3,
-                    FormatNullablePrice(_trade.ImbalanceGroupPrice ?? _aPlusStructurePrice),
-                    Math.Max(_trade.ImbalanceCount, _aPlusStructureCount).ToString(CultureInfo.InvariantCulture),
+                    FormatBool(_trade.APlusStructure),
+                    _trade.ImbalanceGroup3,
+                    FormatNullablePrice(_trade.ImbalanceGroupPrice),
+                    _trade.ImbalanceCount.ToString(CultureInfo.InvariantCulture),
                     FormatBool(_trade.SpeedIgnoredByStructure)
                 ) + Environment.NewLine
             );
@@ -679,6 +699,12 @@ namespace ATAS.Indicators
             _aPlusStructureSide = "";
             _aPlusStructurePrice = null;
             _aPlusStructureCount = 0;
+            _hasBuyAPlusStructure = false;
+            _buyAPlusStructurePrice = null;
+            _buyAPlusStructureCount = 0;
+            _hasSellAPlusStructure = false;
+            _sellAPlusStructurePrice = null;
+            _sellAPlusStructureCount = 0;
             _trade = null;
             _lastManagePrice = 0;
             _lastManageTimeUtc = DateTime.MinValue;
@@ -694,7 +720,10 @@ namespace ATAS.Indicators
 
         private void UpdateAPlusStructureFromBar(int bar, dynamic candle, DateTime nyTime)
         {
-            if (_hasAPlusStructure || !_orReady || bar <= _orBar)
+            if (!_orReady || bar <= _orBar)
+                return;
+
+            if (_hasBuyAPlusStructure && _hasSellAPlusStructure)
                 return;
 
             if (nyTime.TimeOfDay < _signalStartNy || nyTime.TimeOfDay > TimeOverTimeNy)
@@ -707,22 +736,75 @@ namespace ATAS.Indicators
                 CompareMinVolume = ImbalanceCompareMinVolume
             });
 
-            if (state.HasBuy3_ImbalanceGroup)
+            if (state.HasBuy3_ImbalanceGroup && !_hasBuyAPlusStructure)
             {
-                _hasAPlusStructure = true;
-                _aPlusStructureSide = "BUY";
-                _aPlusStructurePrice = state.Buy3_ImbalanceGroupPrice;
-                _aPlusStructureCount = 3;
+                _hasBuyAPlusStructure = true;
+                _buyAPlusStructurePrice = state.Buy3_ImbalanceGroupPrice;
+                _buyAPlusStructureCount = 3;
+            }
+
+            if (state.HasSell3_ImbalanceGroup && !_hasSellAPlusStructure)
+            {
+                _hasSellAPlusStructure = true;
+                _sellAPlusStructurePrice = state.Sell3_ImbalanceGroupPrice;
+                _sellAPlusStructureCount = 3;
+            }
+
+            SyncAnyAPlusStructure();
+        }
+
+        private void GetAPlusStructureForSide(string side, out bool hasStructure, out string structureSide, out decimal? price, out int count)
+        {
+            var normalizedSide = (side ?? "").Trim().ToUpperInvariant();
+
+            if (normalizedSide == "BUY" && _hasBuyAPlusStructure)
+            {
+                hasStructure = true;
+                structureSide = "BUY";
+                price = _buyAPlusStructurePrice;
+                count = _buyAPlusStructureCount;
                 return;
             }
 
-            if (state.HasSell3_ImbalanceGroup)
+            if (normalizedSide == "SELL" && _hasSellAPlusStructure)
+            {
+                hasStructure = true;
+                structureSide = "SELL";
+                price = _sellAPlusStructurePrice;
+                count = _sellAPlusStructureCount;
+                return;
+            }
+
+            hasStructure = false;
+            structureSide = "";
+            price = null;
+            count = 0;
+        }
+
+        private void SyncAnyAPlusStructure()
+        {
+            if (_hasBuyAPlusStructure)
+            {
+                _hasAPlusStructure = true;
+                _aPlusStructureSide = "BUY";
+                _aPlusStructurePrice = _buyAPlusStructurePrice;
+                _aPlusStructureCount = _buyAPlusStructureCount;
+                return;
+            }
+
+            if (_hasSellAPlusStructure)
             {
                 _hasAPlusStructure = true;
                 _aPlusStructureSide = "SELL";
-                _aPlusStructurePrice = state.Sell3_ImbalanceGroupPrice;
-                _aPlusStructureCount = 3;
+                _aPlusStructurePrice = _sellAPlusStructurePrice;
+                _aPlusStructureCount = _sellAPlusStructureCount;
+                return;
             }
+
+            _hasAPlusStructure = false;
+            _aPlusStructureSide = "";
+            _aPlusStructurePrice = null;
+            _aPlusStructureCount = 0;
         }
 
         private void CreatePendingScoreIfExpired(int bar, dynamic candle)
