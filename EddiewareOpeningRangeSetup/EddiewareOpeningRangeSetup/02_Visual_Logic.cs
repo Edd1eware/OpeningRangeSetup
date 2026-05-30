@@ -41,7 +41,7 @@ namespace ATAS.Indicators
         public TimeSpan OpeningTimeUtc { get; set; } = new TimeSpan(13, 30, 0);
 
         [DisplayName("Max Signal Time UTC")]
-        public TimeSpan MaxSignalTimeUtc { get; set; } = new TimeSpan(14, 30, 0);
+        public TimeSpan MaxSignalTimeUtc { get; set; } = new TimeSpan(13, 41, 0);
 
         [DisplayName("Signal End Time UTC")]
         public TimeSpan SignalEndTimeUtc { get; set; } = new TimeSpan(13, 40, 0);

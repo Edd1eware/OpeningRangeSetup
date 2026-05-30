@@ -62,7 +62,7 @@ namespace ATAS.Indicators
         public decimal FastExitMinMfeTicks { get; set; } = 40;
         public decimal FastExitPullbackTicks { get; set; } = 10;
         public decimal FastExitAdverseSpeedTicksPerSecond { get; set; } = 6;
-        public TimeSpan TimeOverTimeUtc { get; set; } = new TimeSpan(14, 30, 0);
+        public TimeSpan TimeOverTimeUtc { get; set; } = new TimeSpan(13, 41, 0);
         public int MinTimeOverRealtimeSeconds { get; set; } = 20;
         public bool RequireBodyOkForTrade { get; set; } = false;
         public bool RequireVwapOkForTrade { get; set; } = false;

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/k_99_/Desktop/codding/OpeningRangeSetup/EddiewareOpeningRangeSetup/**)",
+      "Bash(dotnet build *)",
+      "Bash(copy \"C:\\\\Users\\\\k_99_\\\\Desktop\\\\codding\\\\OpeningRangeSetup\\\\EddiewareOpeningRangeSetup\\\\EddiewareOpeningRangeSetup\\\\bin\\\\Debug\\\\net8.0\\\\EddiewareOpeningRangeSetup.dll\" \"C:\\\\Users\\\\k_99_\\\\AppData\\\\Roaming\\\\ATAS\\\\Indicators\\\\\")",
+      "PowerShell(Copy-Item \"C:\\\\Users\\\\k_99_\\\\Desktop\\\\codding\\\\OpeningRangeSetup\\\\EddiewareOpeningRangeSetup\\\\EddiewareOpeningRangeSetup\\\\bin\\\\Debug\\\\net10.0\\\\EddiewareOpeningRangeSetup.dll\" \"C:\\\\Users\\\\k_99_\\\\AppData\\\\Roaming\\\\ATAS\\\\Indicators\\\\\")",
+      "Bash(python -c ' *)"
+    ]
+  }
+}

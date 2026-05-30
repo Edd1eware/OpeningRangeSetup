@@ -14,14 +14,14 @@ from openpyxl.utils import get_column_letter
 # Fechas de validacion para confirmar que BreakOut_SPEED conserve normal speed.
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 DATES_DST = [
-    "14/05/2026",
-    "15/05/2026",
-    "18/05/2026",
+    "23/04/2026",
+    "24/04/2026",
+    "27/04/2026",
 ]
 
 # Replay recomendado para esta prueba: X1.
 # Ventana por dia: 09:30 a 9:40. Visual Logic marca TIME OVER a las 10:30 si no hay trade.
-REPLAY_END_TIME = "09:41"
+REPLAY_END_TIME = "09:45"
 POLL_SECONDS = 1
 
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
@@ -236,7 +236,7 @@ def stop_replay():
     print("No encontre boton Stop; probablemente el replay ya termino.")
 
 
-MAX_WAIT_SECONDS = 120
+MAX_WAIT_SECONDS = 90
 
 def wait_until_result(path, min_modified_time=None):
     print("Esperando resultado terminal en CSV; si el trade esta OPEN no se cambia de dia.")
@@ -263,7 +263,7 @@ def read_trade_result(path, date_ddmmyyyy):
     dd, mm, yyyy = date_ddmmyyyy.split("/")
     default_row = {
         "fecha": f"{yyyy}-{mm}-{dd}",
-        "result TP SL BE": "NO_CSV",
+        "result TP SL BE": "NO_TRADE",
     }
 
     if not os.path.exists(path):
