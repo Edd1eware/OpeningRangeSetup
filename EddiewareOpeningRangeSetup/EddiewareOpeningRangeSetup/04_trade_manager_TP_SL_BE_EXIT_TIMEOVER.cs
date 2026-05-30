@@ -72,10 +72,13 @@ namespace ATAS.Indicators
 
         public static TradePlan CreateInitialPlan(TradePlanRequest request)
         {
-            var isAPlusSpeed = request.SpeedLabel == "A+ speed";
-            var isNormalSpeed = request.SpeedLabel == "normal speed";
+            var normalizedSpeedLabel = NormalizeSpeedLabel(request.SpeedLabel);
+            var isAPlusSpeed = normalizedSpeedLabel == "a+ speed";
+            var isAPlusStructure = normalizedSpeedLabel == "a+ structure";
+            var isPotentialRunner = isAPlusSpeed || isAPlusStructure;
+            var isNormalSpeed = normalizedSpeedLabel == "normal speed";
             var entry = request.Entry;
-            var tradeTicks = isAPlusSpeed
+            var tradeTicks = isPotentialRunner
                 ? request.HardMaxTradeTicks
                 : isNormalSpeed
                     ? request.MinTradeTicks
@@ -83,7 +86,7 @@ namespace ATAS.Indicators
                     ? ClampTicks(RoundToTicks(entry - request.OrLow, request.TickSize), request.MinTradeTicks, request.MaxTradeTicks)
                     : ClampTicks(RoundToTicks(request.OrHigh - entry, request.TickSize), request.MinTradeTicks, request.MaxTradeTicks);
 
-            var slTicks = isAPlusSpeed ? request.APlusStopTicks : request.MinTradeTicks;
+            var slTicks = isPotentialRunner ? request.APlusStopTicks : request.MinTradeTicks;
             var sl = request.Side == "BUY"
                 ? entry - slTicks * request.TickSize
                 : entry + slTicks * request.TickSize;
@@ -148,7 +151,7 @@ namespace ATAS.Indicators
                 SlTicks = RoundToTicks(System.Math.Abs(entry - sl), request.TickSize),
                 TpTicks = RoundToTicks(System.Math.Abs(entry - tp), request.TickSize),
                 UsesImbalanceStop = usesImbalanceStop,
-                IsAPlusSpeed = isAPlusSpeed,
+                IsAPlusSpeed = isPotentialRunner,
                 IsNormalSpeed = isNormalSpeed
             };
         }
@@ -214,7 +217,9 @@ namespace ATAS.Indicators
             halfMfeExit = 0;
             mfeTicks = 0;
 
-            if (speedLabel == "A+ speed")
+            var normalizedSpeedLabel = NormalizeSpeedLabel(speedLabel);
+
+            if (normalizedSpeedLabel == "a+ speed" || normalizedSpeedLabel == "a+ structure")
                 return false;
 
             mfeTicks = side == "BUY"
@@ -301,13 +306,20 @@ namespace ATAS.Indicators
 
         public static string GetTradeClassification(string speedLabel)
         {
-            if (speedLabel == "normal speed")
+            var normalizedSpeedLabel = NormalizeSpeedLabel(speedLabel);
+
+            if (normalizedSpeedLabel == "normal speed")
                 return "SCALP_NORMAL";
 
-            if (speedLabel == "A+ speed")
+            if (normalizedSpeedLabel == "a+ speed" || normalizedSpeedLabel == "a+ structure")
                 return "POTENTIAL_RUNNER";
 
             return "UNCLASSIFIED";
+        }
+
+        private static string NormalizeSpeedLabel(string speedLabel)
+        {
+            return (speedLabel ?? "").Trim().ToLowerInvariant();
         }
 
         private static decimal ClampTicks(decimal ticks, decimal minTradeTicks, decimal maxTradeTicks)

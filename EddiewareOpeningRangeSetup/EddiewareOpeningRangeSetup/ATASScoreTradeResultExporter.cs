@@ -20,7 +20,7 @@ namespace ATAS.Indicators
             TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
 
         private const decimal SetupTickSize = 0.25m;
-        private const string ExporterVersion = "score-exporter-2026-05-30-aplus-structure-export";
+        private const string ExporterVersion = "score-exporter-2026-05-30-aplus-bypass-speed";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
@@ -38,18 +38,6 @@ namespace ATAS.Indicators
         private bool _tradeCreated;
         private bool _timeOverWritten;
         private bool _isRecalculating;
-        private bool _hasAPlusStructure;
-        private string _aPlusStructureSide = "";
-        private decimal? _aPlusStructurePrice;
-        private int _aPlusStructureCount;
-
-        private bool _hasBuyAPlusStructure;
-        private decimal? _buyAPlusStructurePrice;
-        private int _buyAPlusStructureCount;
-
-        private bool _hasSellAPlusStructure;
-        private decimal? _sellAPlusStructurePrice;
-        private int _sellAPlusStructureCount;
         private TradeState? _trade;
         private ScoreTradeSignal? _pendingScore;
         private int _pendingScoreBar = -1;
@@ -117,13 +105,9 @@ namespace ATAS.Indicators
 
             UpdateSpeedClock(bar);
 
-            UpdateAPlusStructureFromBar(bar, current, currentNyTime);
-
             var closedBar = bar - 1;
             var closedCandle = GetCandle(closedBar);
             var closedNyTime = ConvertToNewYorkTime(closedCandle.Time);
-
-            UpdateAPlusStructureFromBar(closedBar, closedCandle, closedNyTime);
 
             if (!_orReady && closedNyTime.TimeOfDay == _openingTimeNy)
             {
@@ -156,7 +140,18 @@ namespace ATAS.Indicators
 
         private void CreateTrade(int bar, DateTime nyTime, ScoreTradeSignal score)
         {
-            if (!ScoreTradeSignalEngine.IsSpeedValidForSignalTime(score.SpeedLabel, nyTime.TimeOfDay, _normalSpeedAllowedUntilNy))
+            var hasMatchingAPlusStructure =
+                (score.Side == "BUY" && score.HasBuy3_ImbalanceGroup) ||
+                (score.Side == "SELL" && score.HasSell3_ImbalanceGroup);
+
+            var speedAllowsTrade = ScoreTradeSignalEngine.IsSpeedValidForSignalTime(
+                score.SpeedLabel,
+                nyTime.TimeOfDay,
+                _normalSpeedAllowedUntilNy);
+
+            // Nueva regla: A+ Structure del mismo lado permite crear/exportar el trade
+            // aunque SpeedValid sea false. Sin A+, se conserva el filtro viejo de velocidad.
+            if (!hasMatchingAPlusStructure && !speedAllowsTrade)
                 return;
 
             var plan = TradeManagerTpSlBeExit.CreateInitialPlan(new TradeManagerTpSlBeExit.TradePlanRequest
@@ -174,18 +169,6 @@ namespace ATAS.Indicators
                 CapSellStopAtOrHigh = false,
                 EnforceMinExitDistance = true
             });
-
-            bool hasMatchingAPlusStructure;
-            string matchingAPlusSide;
-            decimal? matchingAPlusPrice;
-            int matchingAPlusCount;
-
-            GetAPlusStructureForSide(
-                score.Side,
-                out hasMatchingAPlusStructure,
-                out matchingAPlusSide,
-                out matchingAPlusPrice,
-                out matchingAPlusCount);
 
             _trade = new TradeState
             {
@@ -223,9 +206,10 @@ namespace ATAS.Indicators
                 BestFavorablePrice = score.EntryPrice,
                 Result = "OPEN",
                 APlusStructure = hasMatchingAPlusStructure,
-                ImbalanceGroup3 = matchingAPlusSide,
-                ImbalanceGroupPrice = matchingAPlusPrice,
-                ImbalanceCount = matchingAPlusCount
+                ImbalanceGroup3 = hasMatchingAPlusStructure ? score.Side : "",
+                ImbalanceGroupPrice = null,
+                ImbalanceCount = hasMatchingAPlusStructure ? 3 : 0,
+                SpeedIgnoredByStructure = hasMatchingAPlusStructure && !speedAllowsTrade
             };
 
             _lastManagePrice = score.EntryPrice;
@@ -676,10 +660,10 @@ namespace ATAS.Indicators
                     "TIME_OVER",
                     "",
                     "",
-                    FormatBool(_hasAPlusStructure),
-                    _aPlusStructureSide,
-                    FormatNullablePrice(_aPlusStructurePrice),
-                    _aPlusStructureCount.ToString(CultureInfo.InvariantCulture),
+                    "FALSE",
+                    "",
+                    "",
+                    "0",
                     "FALSE"
                 ) + Environment.NewLine
             );
@@ -695,16 +679,6 @@ namespace ATAS.Indicators
             _tradeCreated = false;
             _timeOverWritten = false;
             _signalEngine.ResetDay();
-            _hasAPlusStructure = false;
-            _aPlusStructureSide = "";
-            _aPlusStructurePrice = null;
-            _aPlusStructureCount = 0;
-            _hasBuyAPlusStructure = false;
-            _buyAPlusStructurePrice = null;
-            _buyAPlusStructureCount = 0;
-            _hasSellAPlusStructure = false;
-            _sellAPlusStructurePrice = null;
-            _sellAPlusStructureCount = 0;
             _trade = null;
             _lastManagePrice = 0;
             _lastManageTimeUtc = DateTime.MinValue;
@@ -716,95 +690,6 @@ namespace ATAS.Indicators
             _pendingScore = null;
             _pendingScoreBar = -1;
             _pendingScoreNyTime = DateTime.MinValue;
-        }
-
-        private void UpdateAPlusStructureFromBar(int bar, dynamic candle, DateTime nyTime)
-        {
-            if (!_orReady || bar <= _orBar)
-                return;
-
-            if (_hasBuyAPlusStructure && _hasSellAPlusStructure)
-                return;
-
-            if (nyTime.TimeOfDay < _signalStartNy || nyTime.TimeOfDay > TimeOverTimeNy)
-                return;
-
-            var state = ImbalanceDetector.Detect(candle, new ImbalanceDetectorRequest
-            {
-                Side = "",
-                Ratio = ImbalanceRatio,
-                CompareMinVolume = ImbalanceCompareMinVolume
-            });
-
-            if (state.HasBuy3_ImbalanceGroup && !_hasBuyAPlusStructure)
-            {
-                _hasBuyAPlusStructure = true;
-                _buyAPlusStructurePrice = state.Buy3_ImbalanceGroupPrice;
-                _buyAPlusStructureCount = 3;
-            }
-
-            if (state.HasSell3_ImbalanceGroup && !_hasSellAPlusStructure)
-            {
-                _hasSellAPlusStructure = true;
-                _sellAPlusStructurePrice = state.Sell3_ImbalanceGroupPrice;
-                _sellAPlusStructureCount = 3;
-            }
-
-            SyncAnyAPlusStructure();
-        }
-
-        private void GetAPlusStructureForSide(string side, out bool hasStructure, out string structureSide, out decimal? price, out int count)
-        {
-            var normalizedSide = (side ?? "").Trim().ToUpperInvariant();
-
-            if (normalizedSide == "BUY" && _hasBuyAPlusStructure)
-            {
-                hasStructure = true;
-                structureSide = "BUY";
-                price = _buyAPlusStructurePrice;
-                count = _buyAPlusStructureCount;
-                return;
-            }
-
-            if (normalizedSide == "SELL" && _hasSellAPlusStructure)
-            {
-                hasStructure = true;
-                structureSide = "SELL";
-                price = _sellAPlusStructurePrice;
-                count = _sellAPlusStructureCount;
-                return;
-            }
-
-            hasStructure = false;
-            structureSide = "";
-            price = null;
-            count = 0;
-        }
-
-        private void SyncAnyAPlusStructure()
-        {
-            if (_hasBuyAPlusStructure)
-            {
-                _hasAPlusStructure = true;
-                _aPlusStructureSide = "BUY";
-                _aPlusStructurePrice = _buyAPlusStructurePrice;
-                _aPlusStructureCount = _buyAPlusStructureCount;
-                return;
-            }
-
-            if (_hasSellAPlusStructure)
-            {
-                _hasAPlusStructure = true;
-                _aPlusStructureSide = "SELL";
-                _aPlusStructurePrice = _sellAPlusStructurePrice;
-                _aPlusStructureCount = _sellAPlusStructureCount;
-                return;
-            }
-
-            _hasAPlusStructure = false;
-            _aPlusStructureSide = "";
-            _aPlusStructurePrice = null;
-            _aPlusStructureCount = 0;
         }
 
         private void CreatePendingScoreIfExpired(int bar, dynamic candle)

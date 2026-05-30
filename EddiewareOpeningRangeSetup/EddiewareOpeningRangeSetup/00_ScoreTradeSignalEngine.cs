@@ -102,12 +102,19 @@ namespace ATAS.Indicators
             if (state.SpeedValid) state.Score += state.SpeedLabel == "A+ speed" ? 2 : 1;
             state.Score += state.ImbalanceScore;
 
+            var hasMatchingAPlusStructure =
+                (state.Side == "BUY" && state.HasBuy3_ImbalanceGroup) ||
+                (state.Side == "SELL" && state.HasSell3_ImbalanceGroup);
+
+            if (hasMatchingAPlusStructure)
+                state.SpeedLabel = "A+ structure";
+
             state.IsReady =
                 state.IsBreakout &&
                 state.TimeOk &&
                 state.Score >= request.MinScore &&
-                state.SpeedValid &&
                 state.VolumeOk &&
+                hasMatchingAPlusStructure &&
                 (!request.RequireBodyOkForTrade || state.BodyOk) &&
                 (!request.RequireVwapOkForTrade || state.VwapOk);
 

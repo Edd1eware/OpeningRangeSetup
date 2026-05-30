@@ -230,7 +230,9 @@ namespace ATAS.Indicators
             if (!ShowNoAPlusStructureReadyDebugLabel)
                 return;
 
-            if (score == null || !score.IsReady || string.IsNullOrWhiteSpace(score.Side))
+            // Debug only for actual BUY/SELL setup candidates that did NOT become a ready signal.
+            // This tells us exactly which filter blocked the trade before touching the Trade Manager.
+            if (score == null || score.IsReady || string.IsNullOrWhiteSpace(score.Side))
                 return;
 
             var state = ImbalanceDetector.Detect(candle, new ImbalanceDetectorRequest
@@ -240,9 +242,7 @@ namespace ATAS.Indicators
             });
 
             var matchingSide = ResolveAPlusStructureSide(candle, state, score.Side);
-
-            if (!string.IsNullOrWhiteSpace(matchingSide))
-                return;
+            var hasMatchingAPlusStructure = !string.IsNullOrWhiteSpace(matchingSide);
 
             var tickSize = GetTickSize();
             var labelPrice = score.Side == "BUY"
@@ -250,8 +250,8 @@ namespace ATAS.Indicators
                 : candle.High + tickSize * NoAPlusStructureReadyDebugLabelOffsetTicks;
 
             AddText(
-                $"EW_NO_APLUS_READY_DEBUG_{candle.Time:yyyyMMdd_HHmm}_{bar}",
-                $"READY=False | NO A+ STRUCTURE | {score.Side}",
+                $"EW_NO_ENTRY_DEBUG_{candle.Time:yyyyMMdd_HHmm}_{bar}",
+                $"NO ENTRY | SCORE={score.Score} | MIN={MinScore} | A+={hasMatchingAPlusStructure} | SPEED={score.SpeedValid} | VOL={score.VolumeOk}",
                 true,
                 bar,
                 labelPrice,
