@@ -112,6 +112,12 @@ namespace ATAS.Indicators
         [DisplayName("Imbalance Compare Min Volume")]
         public decimal ImbalanceCompareMinVolume { get; set; } = 5m;
 
+        [DisplayName("Show A+ Structure Label")]
+        public bool ShowAPlusStructureLabel { get; set; } = true;
+
+        [DisplayName("A+ Structure Label Offset Ticks")]
+        public decimal APlusStructureLabelOffsetTicks { get; set; } = 25m;
+
         public EddiewareOpeningRangeVisual()
         {
             Name = "02_Visual_Logic";
@@ -129,6 +135,8 @@ namespace ATAS.Indicators
                 ResetDay(candle.Time.Date);
 
             UpdateSpeedClock(bar);
+
+            TryDrawAPlusStructureLabel(bar, candle);
 
             if (_tradeDrawn)
             {
@@ -200,6 +208,62 @@ namespace ATAS.Indicators
                 ImbalanceRatio = ImbalanceRatio,
                 ImbalanceCompareMinVolume = ImbalanceCompareMinVolume
             });
+        }
+
+        private void TryDrawAPlusStructureLabel(int bar, dynamic candle)
+        {
+            if (!ShowAPlusStructureLabel)
+                return;
+
+            var state = ImbalanceDetector.Detect(candle, new ImbalanceDetectorRequest
+            {
+                Ratio = ImbalanceRatio,
+                CompareMinVolume = ImbalanceCompareMinVolume
+            });
+
+            var tickSize = GetTickSize();
+
+            if (state.HasBuy3_ImbalanceGroup)
+            {
+                var price = state.Buy3_ImbalanceGroupPrice ?? candle.Low;
+                var labelPrice = Math.Min(price, candle.Low) - tickSize * APlusStructureLabelOffsetTicks;
+
+                AddText(
+                    $"EW_APLUS_IMBALANCE_BUY_{candle.Time:yyyyMMdd_HHmm}_{bar}",
+                    "A+ STRUCTURE",
+                    true,
+                    bar,
+                    labelPrice,
+                    0,
+                    0,
+                    Color.White,
+                    Color.Blue,
+                    Color.Blue,
+                    12,
+                    DrawingText.TextAlign.Center,
+                    true);
+            }
+
+            if (state.HasSell3_ImbalanceGroup)
+            {
+                var price = state.Sell3_ImbalanceGroupPrice ?? candle.High;
+                var labelPrice = Math.Max(price, candle.High) + tickSize * APlusStructureLabelOffsetTicks;
+
+                AddText(
+                    $"EW_APLUS_IMBALANCE_SELL_{candle.Time:yyyyMMdd_HHmm}_{bar}",
+                    "A+ STRUCTURE",
+                    true,
+                    bar,
+                    labelPrice,
+                    0,
+                    0,
+                    Color.White,
+                    Color.DeepPink,
+                    Color.DeepPink,
+                    12,
+                    DrawingText.TextAlign.Center,
+                    true);
+            }
         }
 
         private void DrawTrade(int bar, dynamic candle, ScoreTradeSignal score)
