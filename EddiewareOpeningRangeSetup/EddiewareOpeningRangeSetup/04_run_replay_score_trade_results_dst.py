@@ -11,46 +11,17 @@ from openpyxl.utils import get_column_letter
 # CONFIG
 # =========================================================
 
-# Fechas operables en horario DST de Nueva York 2026.
+# Fechas de validacion para confirmar que BreakOut_SPEED conserve normal speed.
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 DATES_DST = [
-    "21/04/2026",
-    "22/04/2026",
-    "23/04/2026",
-    "24/04/2026",
-
-    "27/04/2026",
-    "28/04/2026",
-    "29/04/2026",
-    "30/04/2026",
-
-    # =========================
-    # DST — MAYO 2026
-    # =========================
-
-    "01/05/2026",
-
-    "04/05/2026",
-    "05/05/2026",
-    "06/05/2026",
-    "07/05/2026",
-    "08/05/2026",
-
-    "11/05/2026",
-    "12/05/2026",
-    "13/05/2026",
     "14/05/2026",
     "15/05/2026",
-
     "18/05/2026",
-    "19/05/2026",
-    "20/05/2026",
-    "21/05/2026",
 ]
 
 # Replay recomendado para esta prueba: X1.
-# Ventana por dia: 09:30 a 10:32. Visual Logic marca TIME OVER a las 10:30 si no hay trade.
-REPLAY_END_TIME = "10:32"
+# Ventana por dia: 09:30 a 9:40. Visual Logic marca TIME OVER a las 10:30 si no hay trade.
+REPLAY_END_TIME = "09:41"
 POLL_SECONDS = 1
 
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
@@ -265,15 +236,23 @@ def stop_replay():
     print("No encontre boton Stop; probablemente el replay ya termino.")
 
 
+MAX_WAIT_SECONDS = 120
+
 def wait_until_result(path, min_modified_time=None):
     print("Esperando resultado terminal en CSV; si el trade esta OPEN no se cambia de dia.")
     dot_count = 0
+    start = time.time()
 
     while True:
         if result_is_terminal(path, min_modified_time):
             print("\rEsperando... listo.   ")
             print("Resultado terminal detectado en CSV; paso al siguiente dia.")
             return True
+
+        elapsed = time.time() - start
+        if elapsed > MAX_WAIT_SECONDS:
+            print(f"\rTimeout ({MAX_WAIT_SECONDS}s) esperando resultado terminal. Saltando al siguiente dia.")
+            return False
 
         dot_count = dot_count % 3 + 1
         print(f"\rEsperando{'.' * dot_count}{' ' * (3 - dot_count)}", end="", flush=True)

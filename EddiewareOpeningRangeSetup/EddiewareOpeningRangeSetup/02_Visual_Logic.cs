@@ -11,8 +11,8 @@ namespace ATAS.Indicators
     public class EddiewareOpeningRangeVisual : Indicator
     {
         private const decimal FallbackTickSize = 0.25m;
-        private const decimal HardMaxTradeTicks = 120m;
-        private const decimal APlusStopTicks = 100m;
+        private const decimal HardMaxTradeTicks = 60m;
+        private const decimal APlusStopTicks = 60m;
         private readonly ScoreTradeSignalEngine _signalEngine = new ScoreTradeSignalEngine();
 
         private DateTime _currentDate = DateTime.MinValue;
@@ -31,13 +31,7 @@ namespace ATAS.Indicators
         private decimal _lastManagePrice;
         private DateTime _lastManageTimeUtc = DateTime.MinValue;
         private DateTime _bestFavorableTimeUtc = DateTime.MinValue;
-        private decimal _trailingExitPrice;
-        private int _trailingExitActivatedBar = -1;
-        private decimal _lastDrawnTrailingExitPrice;
-        private decimal _lastTrailingStepPrice;
-        private TrendLine _trailingExitLine;
         private bool _tradeIsAPlusSpeed;
-        private bool _trailingExitHit;
         private decimal _tradeSl;
         private decimal _tradeTp;
         private bool _tradeHitDrawn;
@@ -48,6 +42,9 @@ namespace ATAS.Indicators
 
         [DisplayName("Max Signal Time UTC")]
         public TimeSpan MaxSignalTimeUtc { get; set; } = new TimeSpan(14, 30, 0);
+
+        [DisplayName("Signal End Time UTC")]
+        public TimeSpan SignalEndTimeUtc { get; set; } = new TimeSpan(13, 40, 0);
 
         [DisplayName("Min Score / Cutoff Score")]
         public int MinScore { get; set; } = 5;
@@ -71,7 +68,7 @@ namespace ATAS.Indicators
         public decimal MinTradeTicks { get; set; } = 60;
 
         [DisplayName("Max SL/TP Ticks")]
-        public decimal MaxTradeTicks { get; set; } = 120;
+        public decimal MaxTradeTicks { get; set; } = 60;
 
         [DisplayName("Line Length (bars)")]
         public int LineLength { get; set; } = 80;
@@ -105,9 +102,6 @@ namespace ATAS.Indicators
 
         [DisplayName("Panic Adverse Speed Ticks/Sec")]
         public decimal PanicAdverseSpeedTicksPerSecond { get; set; } = 6;
-
-        [DisplayName("Trailing Exit Ticks")]
-        public decimal TrailingExitTicks { get; set; } = 10;
 
         [DisplayName("Half MFE Exit Min MFE Ticks")]
         public decimal HalfMfeExitMinMfeTicks { get; set; } = 40;
@@ -191,7 +185,7 @@ namespace ATAS.Indicators
                 SessionDate = candle.Time.Date,
                 GetSessionTime = c => c.Time,
                 SignalStartTime = OpeningTimeUtc,
-                SignalEndTime = MaxSignalTimeUtc,
+                SignalEndTime = SignalEndTimeUtc,
                 NormalSpeedAllowedUntilTime = OpeningTimeUtc.Add(new TimeSpan(0, 3, 59)),
                 TickSize = GetTickSize(),
                 MinScore = MinScore,
@@ -202,7 +196,9 @@ namespace ATAS.Indicators
                 MinAbsDelta = MinAbsDelta,
                 MinNormalSpeedTicksPerSecond = MinNormalSpeedTicksPerSecond,
                 APlusSpeedTicksPerSecond = APlusSpeedTicksPerSecond,
-                ReplaySpeedMultiplier = ReplaySpeedMultiplier
+                ReplaySpeedMultiplier = ReplaySpeedMultiplier,
+                ImbalanceRatio = ImbalanceRatio,
+                ImbalanceCompareMinVolume = ImbalanceCompareMinVolume
             });
         }
 
@@ -369,9 +365,6 @@ namespace ATAS.Indicators
                 return;
             }
 
-            if (_trailingExitHit)
-                return;
-
             var tickSize = GetTickSize();
             var currentPrice = candle.Close;
             string timingSource;
@@ -434,13 +427,6 @@ namespace ATAS.Indicators
             GetPostEntryHitRange(bar, candle, out hitHigh, out hitLow);
             var exitTouchPrice = _tradeSide == "BUY" ? hitLow : hitHigh;
             var speedPanic = adverseSpeed > PanicAdverseSpeedTicksPerSecond;
-            var slTouched = _tradeSl != 0 && TradeManagerTpSlBeExit.IsSlHit(_tradeSide, hitHigh, hitLow, _tradeSl);
-
-            if (TryDrawFastExit(bar, mfeTicks, pullbackTicks, speedPanic, slTouched))
-                return;
-
-            if (TryDrawHalfMfeExit(bar, candle, mfeTicks))
-                return;
 
             TryDrawFirstTradeHit(bar, candle);
 
@@ -468,78 +454,6 @@ namespace ATAS.Indicators
 
             DrawPanicBreakEven(bar, panicTriggerPrice, mfeTicks, pullbackTicks, adverseSpeed, panicReason);
             _panicDrawn = true;
-        }
-
-        private bool TryDrawFastExit(int bar, decimal mfeTicks, decimal pullbackTicks, bool speedPanic, bool slTouched)
-        {
-            if (_tradeHitDrawn)
-                return false;
-
-            if (mfeTicks < HalfMfeExitMinMfeTicks ||
-                pullbackTicks < PanicPullbackTicks ||
-                (!speedPanic && !slTouched))
-                return false;
-
-            var exitPrice = TradeManagerTpSlBeExit.CalculateHalfMfeExit(
-                _tradeSide,
-                _tradeEntry,
-                _bestFavorablePrice);
-            var resultTicks = TradeManagerTpSlBeExit.TradeResultTicks(
-                "EXIT",
-                _tradeEntry,
-                RoundToTicks(Math.Abs(_tradeEntry - _tradeTp)),
-                RoundToTicks(Math.Abs(_tradeEntry - _tradeSl)),
-                exitPrice,
-                GetTickSize());
-
-            if (resultTicks <= 0)
-                return false;
-
-            var activatedNow = _trailingExitPrice != exitPrice;
-
-            if (activatedNow)
-            {
-                _trailingExitPrice = exitPrice;
-                _trailingExitActivatedBar = bar;
-                DrawTrailingExit(bar, exitPrice);
-            }
-
-            return activatedNow;
-        }
-
-        private bool TryDrawHalfMfeExit(int bar, dynamic candle, decimal mfeTicks)
-        {
-            if (_tradeHitDrawn)
-                return false;
-
-            if (mfeTicks < HalfMfeExitMinMfeTicks)
-                return false;
-
-            var halfMfeExit = TradeManagerTpSlBeExit.CalculateHalfMfeExit(
-                _tradeSide,
-                _tradeEntry,
-                _bestFavorablePrice);
-
-            var activatedNow = _trailingExitPrice != halfMfeExit;
-
-            if (activatedNow)
-            {
-                _trailingExitPrice = halfMfeExit;
-                _trailingExitActivatedBar = bar;
-                DrawTrailingExit(bar, halfMfeExit);
-                return true;
-            }
-
-            var touched = IsTrailingExitTouched(candle, halfMfeExit);
-
-            if (!touched)
-                return false;
-
-            DrawTradeHit(bar, "EXIT HIT", halfMfeExit, Color.Orange, Color.Black, 18);
-            _trailingExitHit = true;
-            _tradeHitDrawn = true;
-
-            return true;
         }
 
         private void TryDrawFirstTradeHit(int bar, dynamic candle)
@@ -584,23 +498,6 @@ namespace ATAS.Indicators
                 }
             }
 
-            if (_trailingExitPrice == 0)
-                return;
-
-            var exitTouched = IsTrailingExitTouched(candle, _trailingExitPrice);
-
-            if (!exitTouched)
-                return;
-
-            DrawTradeHit(bar, "EXIT HIT", _trailingExitPrice, Color.Orange, Color.Black, 18);
-            _tradeHitDrawn = true;
-        }
-
-        private bool IsTrailingExitTouched(dynamic candle, decimal exitPrice)
-        {
-            return _tradeSide == "BUY"
-                ? candle.Close <= exitPrice
-                : candle.Close >= exitPrice;
         }
 
         private void DrawTradeHit(int bar, string text, decimal price, Color bgColor, Color textColor, int yOffset)
@@ -694,79 +591,6 @@ namespace ATAS.Indicators
                 20);
         }
 
-        private void UpdateTrailingExit(int bar)
-        {
-            var tickSize = GetTickSize();
-            var stepPoints = TrailingExitTicks * tickSize;
-
-            if (_lastTrailingStepPrice == 0)
-            {
-                _lastTrailingStepPrice = _bestFavorablePrice;
-            }
-            else
-            {
-                var favorableStepTicks = _tradeSide == "BUY"
-                    ? RoundToTicks(_bestFavorablePrice - _lastTrailingStepPrice)
-                    : RoundToTicks(_lastTrailingStepPrice - _bestFavorablePrice);
-
-                if (favorableStepTicks < TrailingExitTicks)
-                    return;
-
-                _lastTrailingStepPrice = _bestFavorablePrice;
-            }
-
-            var nextExit = _tradeSide == "BUY"
-                ? _bestFavorablePrice - stepPoints
-                : _bestFavorablePrice + stepPoints;
-
-            if (_trailingExitPrice == 0)
-            {
-                _trailingExitPrice = nextExit;
-                _trailingExitActivatedBar = bar;
-            }
-            else if (_tradeSide == "BUY")
-            {
-                var updatedExit = Math.Max(_trailingExitPrice, nextExit);
-                if (updatedExit != _trailingExitPrice)
-                    _trailingExitActivatedBar = bar;
-                _trailingExitPrice = updatedExit;
-            }
-            else
-            {
-                var updatedExit = Math.Min(_trailingExitPrice, nextExit);
-                if (updatedExit != _trailingExitPrice)
-                    _trailingExitActivatedBar = bar;
-                _trailingExitPrice = updatedExit;
-            }
-
-            if (_lastDrawnTrailingExitPrice == _trailingExitPrice)
-                return;
-
-            _lastDrawnTrailingExitPrice = _trailingExitPrice;
-            DrawTrailingExit(bar, _trailingExitPrice);
-        }
-
-        private void DrawTrailingExit(int bar, decimal exitPrice)
-        {
-            var endBar = bar + LineLength;
-            var orange = Color.Orange;
-
-            if (_trailingExitLine != null)
-                TrendLines.Remove(_trailingExitLine);
-
-            _trailingExitLine = new TrendLine(bar, exitPrice, endBar, exitPrice, new Pen(orange, 4));
-            TrendLines.Add(_trailingExitLine);
-
-            DrawTradeLabel(
-                $"EW_TRAIL_EXIT_{_currentDate:yyyyMMdd}",
-                $"EXIT {exitPrice:0.00}",
-                bar + 2,
-                exitPrice,
-                Color.Black,
-                orange,
-                -16);
-        }
-
         private void DrawOpeningRange()
         {
             var pen = new Pen(Color.Red, 1);
@@ -807,7 +631,7 @@ namespace ATAS.Indicators
 
             AddText(
                 "EW_SCORE_STATUS",
-                $"{status} {side} S{score.Score}/7 | OR {score.OrRangeTicks:0}t BODY {score.BodyBreakoutTicks:0}t | {score.SpeedLabel} {score.BreakoutSpeed:0.00}t/s | R{Flag(score.RangeOk)} B{Flag(score.BodyOk)} V{Flag(score.VolumeOk)} D{Flag(score.DeltaOk)} VW{Flag(score.VwapOk)} S{Flag(score.SpeedValid)}",
+                $"{status} {side} S{score.Score}/11 | OR {score.OrRangeTicks:0}t BODY {score.BodyBreakoutTicks:0}t | {score.SpeedLabel} {score.BreakoutSpeed:0.00}t/s | R{Flag(score.RangeOk)} B{Flag(score.BodyOk)} V{Flag(score.VolumeOk)} D{Flag(score.DeltaOk)} VW{Flag(score.VwapOk)} S{Flag(score.SpeedValid)} I{score.ImbalanceScore}",
                 true,
                 bar,
                 price,
@@ -922,7 +746,7 @@ namespace ATAS.Indicators
             var time = candle.Time.TimeOfDay;
             return
                 time > OpeningTimeUtc &&
-                time <= MaxSignalTimeUtc;
+                time <= SignalEndTimeUtc;
         }
 
         private decimal GetSessionVwap(int bar, DateTime date)
@@ -970,13 +794,7 @@ namespace ATAS.Indicators
             _lastManagePrice = 0;
             _lastManageTimeUtc = DateTime.MinValue;
             _bestFavorableTimeUtc = DateTime.MinValue;
-            _trailingExitPrice = 0;
-            _trailingExitActivatedBar = -1;
-            _lastDrawnTrailingExitPrice = 0;
-            _lastTrailingStepPrice = 0;
-            _trailingExitLine = null;
             _tradeIsAPlusSpeed = false;
-            _trailingExitHit = false;
             _tradeSl = 0;
             _tradeTp = 0;
             _tradeHitDrawn = false;
