@@ -118,6 +118,12 @@ namespace ATAS.Indicators
         [DisplayName("Show A+ Structure Debug Label")]
         public bool ShowAPlusStructureDebugLabel { get; set; } = false;
 
+        [DisplayName("Show No A+ Structure Ready Debug Label")]
+        public bool ShowNoAPlusStructureReadyDebugLabel { get; set; } = true;
+
+        [DisplayName("No A+ Structure Ready Debug Label Offset Ticks")]
+        public decimal NoAPlusStructureReadyDebugLabelOffsetTicks { get; set; } = 95m;
+
         [DisplayName("A+ Structure Debug Label Offset Ticks")]
         public decimal APlusStructureDebugLabelOffsetTicks { get; set; } = 65m;
 
@@ -180,6 +186,7 @@ namespace ATAS.Indicators
             // A+ Structure visual label is now filtered by the current setup side.
             // This prevents opposite-side imbalance groups from printing before/around the trade.
             TryDrawAPlusStructureLabel(bar, candle, score.Side);
+            TryDrawNoAPlusStructureReadyDebugLabel(bar, candle, score);
 
             if (ShowScoreLabel)
                 DrawScoreLabel(bar, candle, score);
@@ -216,6 +223,46 @@ namespace ATAS.Indicators
                 ImbalanceRatio = ImbalanceRatio,
                 ImbalanceCompareMinVolume = ImbalanceCompareMinVolume
             });
+        }
+
+        private void TryDrawNoAPlusStructureReadyDebugLabel(int bar, dynamic candle, ScoreTradeSignal score)
+        {
+            if (!ShowNoAPlusStructureReadyDebugLabel)
+                return;
+
+            if (score == null || !score.IsReady || string.IsNullOrWhiteSpace(score.Side))
+                return;
+
+            var state = ImbalanceDetector.Detect(candle, new ImbalanceDetectorRequest
+            {
+                Ratio = ImbalanceRatio,
+                CompareMinVolume = ImbalanceCompareMinVolume
+            });
+
+            var matchingSide = ResolveAPlusStructureSide(candle, state, score.Side);
+
+            if (!string.IsNullOrWhiteSpace(matchingSide))
+                return;
+
+            var tickSize = GetTickSize();
+            var labelPrice = score.Side == "BUY"
+                ? candle.Low - tickSize * NoAPlusStructureReadyDebugLabelOffsetTicks
+                : candle.High + tickSize * NoAPlusStructureReadyDebugLabelOffsetTicks;
+
+            AddText(
+                $"EW_NO_APLUS_READY_DEBUG_{candle.Time:yyyyMMdd_HHmm}_{bar}",
+                $"READY=False | NO A+ STRUCTURE | {score.Side}",
+                true,
+                bar,
+                labelPrice,
+                0,
+                0,
+                Color.White,
+                Color.DarkRed,
+                Color.DarkRed,
+                12,
+                DrawingText.TextAlign.Center,
+                true);
         }
 
         private void TryDrawAPlusStructureLabel(int bar, dynamic candle, string setupSide)
