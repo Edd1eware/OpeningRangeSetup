@@ -2,6 +2,35 @@ namespace ATAS.Indicators
 {
     internal static class TradeManagerTpSlBeExit
     {
+        public sealed class ImbalanceDebugInfo
+        {
+            public int MaxBuyStreak { get; set; }
+            public int MaxSellStreak { get; set; }
+        }
+
+        public sealed class FootprintLevel
+        {
+            public decimal Price { get; set; }
+            public decimal Bid { get; set; }
+            public decimal Ask { get; set; }
+        }
+
+        public sealed class ImbalanceStop
+        {
+            public decimal ImbalancePrice { get; set; }
+            public decimal StopPrice { get; set; }
+        }
+
+        public sealed class PanicMetrics
+        {
+            public decimal MfeTicks { get; set; }
+            public decimal PullbackTicks { get; set; }
+            public decimal AdverseMoveTicks { get; set; }
+            public decimal AdverseSpeed { get; set; }
+            public decimal AdversePrice { get; set; }
+            public decimal PanicTriggerPrice { get; set; }
+        }
+
         public static bool IsTimeOver(System.DateTime currentTime, bool hasOpenTrade, System.TimeSpan timeOverTime)
         {
             return currentTime.TimeOfDay >= timeOverTime && !hasOpenTrade;
@@ -249,6 +278,313 @@ namespace ATAS.Indicators
             return System.Math.Max(0, RoundToTicks(pullbackPoints, tickSize));
         }
 
+        public static ImbalanceDebugInfo CalculateImbalanceDebugInfo(
+            dynamic candle,
+            decimal imbalanceRatio,
+            decimal imbalanceCompareMinVolume)
+        {
+            var info = new ImbalanceDebugInfo();
+            var levels = GetSortedPriceLevels(candle);
+
+            if (levels.Count < 2)
+                return info;
+
+            var buyStreak = 0;
+            var sellStreak = 0;
+
+            for (var i = 0; i < levels.Count; i++)
+            {
+                var level = levels[i];
+                var buyImbalance = false;
+                var sellImbalance = false;
+
+                if (i > 0)
+                {
+                    var lowerLevel = levels[i - 1];
+                    buyImbalance =
+                        lowerLevel.Bid >= imbalanceCompareMinVolume &&
+                        level.Ask >= lowerLevel.Bid * imbalanceRatio;
+                }
+
+                if (i < levels.Count - 1)
+                {
+                    var upperLevel = levels[i + 1];
+                    sellImbalance =
+                        upperLevel.Ask >= imbalanceCompareMinVolume &&
+                        level.Bid >= upperLevel.Ask * imbalanceRatio;
+                }
+
+                if (buyImbalance)
+                {
+                    buyStreak++;
+                    if (buyStreak > info.MaxBuyStreak)
+                        info.MaxBuyStreak = buyStreak;
+                }
+                else
+                {
+                    buyStreak = 0;
+                }
+
+                if (sellImbalance)
+                {
+                    sellStreak++;
+                    if (sellStreak > info.MaxSellStreak)
+                        info.MaxSellStreak = sellStreak;
+                }
+                else
+                {
+                    sellStreak = 0;
+                }
+            }
+
+            return info;
+        }
+
+        public static string ResolveAPlusStructureSide(ImbalanceState state, string setupSide)
+        {
+            if (string.IsNullOrWhiteSpace(setupSide))
+                return "";
+
+            setupSide = setupSide.Trim().ToUpperInvariant();
+
+            if (setupSide == "BUY" && state.HasBuy3_ImbalanceGroup)
+                return "BUY";
+
+            if (setupSide == "SELL" && state.HasSell3_ImbalanceGroup)
+                return "SELL";
+
+            return "";
+        }
+
+        public static ImbalanceStop? TryGetImbalanceStop(
+            dynamic candle,
+            string side,
+            decimal tickSize,
+            decimal imbalanceRatio,
+            decimal imbalanceCompareMinVolume)
+        {
+            var levels = GetSortedPriceLevels(candle);
+
+            if (levels.Count < 2)
+                return null;
+
+            decimal? imbalancePrice = null;
+
+            for (var i = 0; i < levels.Count; i++)
+            {
+                var level = levels[i];
+
+                if (side == "BUY" && i > 0)
+                {
+                    var lowerLevel = levels[i - 1];
+
+                    if (lowerLevel.Bid >= imbalanceCompareMinVolume &&
+                        level.Ask >= lowerLevel.Bid * imbalanceRatio)
+                    {
+                        if (!imbalancePrice.HasValue || level.Price > imbalancePrice.Value)
+                            imbalancePrice = level.Price;
+                    }
+                }
+
+                if (side == "SELL" && i < levels.Count - 1)
+                {
+                    var upperLevel = levels[i + 1];
+
+                    if (upperLevel.Ask >= imbalanceCompareMinVolume &&
+                        level.Bid >= upperLevel.Ask * imbalanceRatio)
+                    {
+                        if (!imbalancePrice.HasValue || level.Price < imbalancePrice.Value)
+                            imbalancePrice = level.Price;
+                    }
+                }
+            }
+
+            if (!imbalancePrice.HasValue)
+                return null;
+
+            return new ImbalanceStop
+            {
+                ImbalancePrice = imbalancePrice.Value,
+                StopPrice = side == "BUY"
+                    ? imbalancePrice.Value - tickSize
+                    : imbalancePrice.Value + tickSize
+            };
+        }
+
+        public static System.Collections.Generic.List<FootprintLevel> GetSortedPriceLevels(dynamic candle)
+        {
+            var result = new System.Collections.Generic.List<FootprintLevel>();
+
+            try
+            {
+                foreach (var level in candle.GetAllPriceLevels())
+                {
+                    result.Add(new FootprintLevel
+                    {
+                        Price = System.Convert.ToDecimal(level.Price),
+                        Bid = System.Convert.ToDecimal(level.Bid),
+                        Ask = System.Convert.ToDecimal(level.Ask)
+                    });
+                }
+            }
+            catch
+            {
+                return result;
+            }
+
+            result.Sort((left, right) => left.Price.CompareTo(right.Price));
+
+            return result;
+        }
+
+        public static decimal UpdateBestFavorablePrice(
+            string side,
+            decimal currentBestFavorablePrice,
+            decimal candleHigh,
+            decimal candleLow)
+        {
+            if (side == "BUY")
+                return candleHigh > currentBestFavorablePrice ? candleHigh : currentBestFavorablePrice;
+
+            if (currentBestFavorablePrice == 0 || candleLow < currentBestFavorablePrice)
+                return candleLow;
+
+            return currentBestFavorablePrice;
+        }
+
+        public static double NormalizeElapsedSeconds(
+            double elapsedSeconds,
+            string timingSource,
+            decimal replaySpeedMultiplier)
+        {
+            if (elapsedSeconds <= 0 || elapsedSeconds > 300)
+                return 1;
+
+            if (timingSource == "UtcNow" || elapsedSeconds < 1)
+                return elapsedSeconds * (double)NormalizeReplaySpeedMultiplier(replaySpeedMultiplier);
+
+            return elapsedSeconds;
+        }
+
+        public static double NormalizeAdverseElapsedSeconds(
+            double adverseElapsedSeconds,
+            double fallbackElapsedSeconds,
+            string timingSource,
+            decimal replaySpeedMultiplier)
+        {
+            if (adverseElapsedSeconds <= 0 || adverseElapsedSeconds > 300)
+                return fallbackElapsedSeconds;
+
+            if (timingSource == "UtcNow" || adverseElapsedSeconds < 1)
+                return adverseElapsedSeconds * (double)NormalizeReplaySpeedMultiplier(replaySpeedMultiplier);
+
+            return adverseElapsedSeconds;
+        }
+
+        public static decimal NormalizeReplaySpeedMultiplier(decimal replaySpeedMultiplier)
+        {
+            return replaySpeedMultiplier <= 0 ? 1 : replaySpeedMultiplier;
+        }
+
+        public static PanicMetrics CalculatePanicMetrics(
+            string side,
+            decimal entry,
+            decimal bestFavorablePrice,
+            decimal lastManagePrice,
+            decimal candleHigh,
+            decimal candleLow,
+            decimal elapsedSeconds,
+            decimal adverseElapsedSeconds,
+            decimal panicPullbackTicks,
+            decimal tickSize)
+        {
+            var adversePrice = side == "BUY" ? candleLow : candleHigh;
+            var mfeTicks = side == "BUY"
+                ? RoundToTicks(bestFavorablePrice - entry, tickSize)
+                : RoundToTicks(entry - bestFavorablePrice, tickSize);
+            var pullbackTicks = side == "BUY"
+                ? RoundToTicks(bestFavorablePrice - adversePrice, tickSize)
+                : RoundToTicks(adversePrice - bestFavorablePrice, tickSize);
+            var adverseMoveTicks = side == "BUY"
+                ? RoundToTicks(System.Math.Max(0, lastManagePrice - adversePrice), tickSize)
+                : RoundToTicks(System.Math.Max(0, adversePrice - lastManagePrice), tickSize);
+            var adverseSpeed = System.Math.Max(
+                adverseMoveTicks / elapsedSeconds,
+                pullbackTicks / adverseElapsedSeconds);
+
+            return new PanicMetrics
+            {
+                MfeTicks = mfeTicks,
+                PullbackTicks = pullbackTicks,
+                AdverseMoveTicks = adverseMoveTicks,
+                AdverseSpeed = adverseSpeed,
+                AdversePrice = adversePrice,
+                PanicTriggerPrice = side == "BUY"
+                    ? bestFavorablePrice - panicPullbackTicks * tickSize
+                    : bestFavorablePrice + panicPullbackTicks * tickSize
+            };
+        }
+
+        public static void GetPostEntryHitRange(
+            bool isEntryBar,
+            decimal candleHigh,
+            decimal candleLow,
+            decimal candleClose,
+            decimal entryBarHighAtEntry,
+            decimal entryBarLowAtEntry,
+            out decimal hitHigh,
+            out decimal hitLow)
+        {
+            if (!isEntryBar)
+            {
+                hitHigh = candleHigh;
+                hitLow = candleLow;
+                return;
+            }
+
+            hitHigh = candleClose;
+            hitLow = candleClose;
+
+            if (candleHigh > entryBarHighAtEntry)
+                hitHigh = candleHigh;
+
+            if (candleLow < entryBarLowAtEntry)
+                hitLow = candleLow;
+        }
+
+        public static bool HasVwapFailed(string side, decimal close, decimal vwap)
+        {
+            return side == "BUY"
+                ? close < vwap
+                : close > vwap;
+        }
+
+        public static decimal GetSessionVwap(int bar, System.DateTime date, System.Func<int, dynamic> getCandle)
+        {
+            decimal cumPv = 0;
+            decimal cumVol = 0;
+
+            for (var i = bar; i >= 0; i--)
+            {
+                var candle = getCandle(i);
+
+                if (candle.Time.Date != date)
+                    break;
+
+                var volume = candle.Volume;
+
+                if (volume <= 0)
+                    continue;
+
+                var typical = (candle.High + candle.Low + candle.Close) / 3m;
+
+                cumPv += typical * volume;
+                cumVol += volume;
+            }
+
+            return cumVol <= 0 ? 0 : cumPv / cumVol;
+        }
+
         public static bool IsHalfMfeExitTouched(string side, decimal adversePrice, decimal halfMfeExit)
         {
             return side == "BUY"
@@ -343,7 +679,7 @@ namespace ATAS.Indicators
             return entry + direction * maxDistance;
         }
 
-        private static decimal RoundToTicks(decimal points, decimal tickSize)
+        public static decimal RoundToTicks(decimal points, decimal tickSize)
         {
             return System.Math.Round(points / tickSize, 2);
         }

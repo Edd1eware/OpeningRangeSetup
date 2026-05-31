@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using ATAS.Indicators;
@@ -239,7 +238,7 @@ namespace ATAS.Indicators
                 CompareMinVolume = ImbalanceCompareMinVolume
             });
 
-            var matchingSide = ResolveAPlusStructureSide(candle, state, score.Side);
+            var matchingSide = TradeManagerTpSlBeExit.ResolveAPlusStructureSide(state, score.Side);
 
             if (!string.IsNullOrWhiteSpace(matchingSide))
                 return;
@@ -278,7 +277,7 @@ namespace ATAS.Indicators
 
             var tickSize = GetTickSize();
 
-            var sideToDraw = ResolveAPlusStructureSide(candle, state, setupSide);
+            var sideToDraw = TradeManagerTpSlBeExit.ResolveAPlusStructureSide(state, setupSide);
 
             TryDrawAPlusStructureDebugLabel(bar, candle, state, sideToDraw);
 
@@ -332,7 +331,10 @@ namespace ATAS.Indicators
             if (!state.HasBuy3_ImbalanceGroup && !state.HasSell3_ImbalanceGroup)
                 return;
 
-            var debug = CalculateImbalanceDebugInfo(candle);
+            var debug = TradeManagerTpSlBeExit.CalculateImbalanceDebugInfo(
+                candle,
+                ImbalanceRatio,
+                ImbalanceCompareMinVolume);
             var tickSize = GetTickSize();
             var labelPrice = candle.High + tickSize * APlusStructureDebugLabelOffsetTicks;
             var bodySide = "DOJI";
@@ -365,86 +367,9 @@ namespace ATAS.Indicators
                 true);
         }
 
-        private ImbalanceDebugInfo CalculateImbalanceDebugInfo(dynamic candle)
-        {
-            var info = new ImbalanceDebugInfo();
-            var levels = GetSortedPriceLevels(candle);
-
-            if (levels.Count < 2)
-                return info;
-
-            var buyStreak = 0;
-            var sellStreak = 0;
-
-            for (var i = 0; i < levels.Count; i++)
-            {
-                var level = levels[i];
-                var buyImbalance = false;
-                var sellImbalance = false;
-
-                if (i > 0)
-                {
-                    var lowerLevel = levels[i - 1];
-                    buyImbalance =
-                        lowerLevel.Bid >= ImbalanceCompareMinVolume &&
-                        level.Ask >= lowerLevel.Bid * ImbalanceRatio;
-                }
-
-                if (i < levels.Count - 1)
-                {
-                    var upperLevel = levels[i + 1];
-                    sellImbalance =
-                        upperLevel.Ask >= ImbalanceCompareMinVolume &&
-                        level.Bid >= upperLevel.Ask * ImbalanceRatio;
-                }
-
-                if (buyImbalance)
-                {
-                    buyStreak++;
-                    if (buyStreak > info.MaxBuyStreak)
-                        info.MaxBuyStreak = buyStreak;
-                }
-                else
-                {
-                    buyStreak = 0;
-                }
-
-                if (sellImbalance)
-                {
-                    sellStreak++;
-                    if (sellStreak > info.MaxSellStreak)
-                        info.MaxSellStreak = sellStreak;
-                }
-                else
-                {
-                    sellStreak = 0;
-                }
-            }
-
-            return info;
-        }
-
         private string FormatNullablePrice(decimal? price)
         {
             return price.HasValue ? price.Value.ToString("0.00") : "NA";
-        }
-
-        private string ResolveAPlusStructureSide(dynamic candle, ImbalanceState state, string setupSide)
-        {
-            if (string.IsNullOrWhiteSpace(setupSide))
-                return "";
-
-            setupSide = setupSide.Trim().ToUpperInvariant();
-
-            // Only print the A+ Structure label when the 3+ imbalance group
-            // matches the current setup/entry side.
-            if (setupSide == "BUY" && state.HasBuy3_ImbalanceGroup)
-                return "BUY";
-
-            if (setupSide == "SELL" && state.HasSell3_ImbalanceGroup)
-                return "SELL";
-
-            return "";
         }
 
         private void DrawTrade(int bar, dynamic candle, ScoreTradeSignal score)
@@ -455,7 +380,12 @@ namespace ATAS.Indicators
             var tickSize = GetTickSize();
             var rawImbalanceStop = score.SpeedLabel == "A+ speed" || score.SpeedLabel == "normal speed"
                 ? null
-                : TryGetImbalanceStop(candle, score.Side);
+                : TradeManagerTpSlBeExit.TryGetImbalanceStop(
+                    candle,
+                    score.Side,
+                    tickSize,
+                    ImbalanceRatio,
+                    ImbalanceCompareMinVolume);
             var plan = TradeManagerTpSlBeExit.CreateInitialPlan(new TradeManagerTpSlBeExit.TradePlanRequest
             {
                 Side = score.Side,
@@ -519,83 +449,6 @@ namespace ATAS.Indicators
                 DrawLiveExitSpeed(bar, candle, 0);
         }
 
-        private ImbalanceStop TryGetImbalanceStop(dynamic candle, string side)
-        {
-            var tickSize = GetTickSize();
-            var levels = GetSortedPriceLevels(candle);
-
-            if (levels.Count < 2)
-                return null;
-
-            decimal? imbalancePrice = null;
-
-            for (var i = 0; i < levels.Count; i++)
-            {
-                var level = levels[i];
-
-                if (side == "BUY" && i > 0)
-                {
-                    var lowerLevel = levels[i - 1];
-
-                    if (lowerLevel.Bid >= ImbalanceCompareMinVolume &&
-                        level.Ask >= lowerLevel.Bid * ImbalanceRatio)
-                    {
-                        if (!imbalancePrice.HasValue || level.Price > imbalancePrice.Value)
-                            imbalancePrice = level.Price;
-                    }
-                }
-
-                if (side == "SELL" && i < levels.Count - 1)
-                {
-                    var upperLevel = levels[i + 1];
-
-                    if (upperLevel.Ask >= ImbalanceCompareMinVolume &&
-                        level.Bid >= upperLevel.Ask * ImbalanceRatio)
-                    {
-                        if (!imbalancePrice.HasValue || level.Price < imbalancePrice.Value)
-                            imbalancePrice = level.Price;
-                    }
-                }
-            }
-
-            if (!imbalancePrice.HasValue)
-                return null;
-
-            return new ImbalanceStop
-            {
-                ImbalancePrice = imbalancePrice.Value,
-                StopPrice = side == "BUY"
-                    ? imbalancePrice.Value - tickSize
-                    : imbalancePrice.Value + tickSize
-            };
-        }
-
-        private List<FootprintLevel> GetSortedPriceLevels(dynamic candle)
-        {
-            var result = new List<FootprintLevel>();
-
-            try
-            {
-                foreach (var level in candle.GetAllPriceLevels())
-                {
-                    result.Add(new FootprintLevel
-                    {
-                        Price = Convert.ToDecimal(level.Price),
-                        Bid = Convert.ToDecimal(level.Bid),
-                        Ask = Convert.ToDecimal(level.Ask)
-                    });
-                }
-            }
-            catch
-            {
-                return result;
-            }
-
-            result.Sort((left, right) => left.Price.CompareTo(right.Price));
-
-            return result;
-        }
-
         private void ManageActiveTrade(int bar, dynamic candle)
         {
             if (_tradeSide == "")
@@ -614,64 +467,47 @@ namespace ATAS.Indicators
             var currentPrice = candle.Close;
             string timingSource;
             var currentTime = TryGetCandleUpdateTime(candle, out timingSource);
-            var elapsedSeconds = (currentTime - _lastManageTimeUtc).TotalSeconds;
+            var elapsedSeconds = TradeManagerTpSlBeExit.NormalizeElapsedSeconds(
+                (currentTime - _lastManageTimeUtc).TotalSeconds,
+                timingSource,
+                ReplaySpeedMultiplier);
+            var previousBestFavorablePrice = _bestFavorablePrice;
+            _bestFavorablePrice = TradeManagerTpSlBeExit.UpdateBestFavorablePrice(
+                _tradeSide,
+                _bestFavorablePrice,
+                candle.High,
+                candle.Low);
 
-            if (elapsedSeconds <= 0 || elapsedSeconds > 300)
-                elapsedSeconds = 1;
-            else if (timingSource == "UtcNow" || elapsedSeconds < 1)
-                elapsedSeconds *= (double)NormalizeReplaySpeedMultiplier();
+            if (_bestFavorablePrice != previousBestFavorablePrice)
+                _bestFavorableTimeUtc = currentTime;
 
-            if (_tradeSide == "BUY")
-            {
-                if (candle.High > _bestFavorablePrice)
-                {
-                    _bestFavorablePrice = candle.High;
-                    _bestFavorableTimeUtc = currentTime;
-                }
-            }
-            else
-            {
-                if (_bestFavorablePrice == 0 || candle.Low < _bestFavorablePrice)
-                {
-                    _bestFavorablePrice = candle.Low;
-                    _bestFavorableTimeUtc = currentTime;
-                }
-            }
+            var adverseElapsedSeconds = TradeManagerTpSlBeExit.NormalizeAdverseElapsedSeconds(
+                (currentTime - _bestFavorableTimeUtc).TotalSeconds,
+                elapsedSeconds,
+                timingSource,
+                ReplaySpeedMultiplier);
 
-            var adversePrice = _tradeSide == "BUY" ? candle.Low : candle.High;
-            var adverseElapsedSeconds = (currentTime - _bestFavorableTimeUtc).TotalSeconds;
+            var metrics = TradeManagerTpSlBeExit.CalculatePanicMetrics(
+                _tradeSide,
+                _tradeEntry,
+                _bestFavorablePrice,
+                _lastManagePrice,
+                candle.High,
+                candle.Low,
+                (decimal)elapsedSeconds,
+                (decimal)adverseElapsedSeconds,
+                PanicPullbackTicks,
+                tickSize);
 
-            if (adverseElapsedSeconds <= 0 || adverseElapsedSeconds > 300)
-                adverseElapsedSeconds = elapsedSeconds;
-            else if (timingSource == "UtcNow" || adverseElapsedSeconds < 1)
-                adverseElapsedSeconds *= (double)NormalizeReplaySpeedMultiplier();
+            DrawLiveExitSpeed(bar, candle, metrics.AdverseSpeed);
 
-            var mfeTicks = _tradeSide == "BUY"
-                ? RoundToTicks(_bestFavorablePrice - _tradeEntry)
-                : RoundToTicks(_tradeEntry - _bestFavorablePrice);
-
-            var pullbackTicks = _tradeSide == "BUY"
-                ? RoundToTicks(_bestFavorablePrice - adversePrice)
-                : RoundToTicks(adversePrice - _bestFavorablePrice);
-
-            var adverseMoveTicks = _tradeSide == "BUY"
-                ? RoundToTicks(Math.Max(0, _lastManagePrice - adversePrice))
-                : RoundToTicks(Math.Max(0, adversePrice - _lastManagePrice));
-
-            var adverseSpeed = Math.Max(
-                adverseMoveTicks / (decimal)elapsedSeconds,
-                pullbackTicks / (decimal)adverseElapsedSeconds);
-
-            DrawLiveExitSpeed(bar, candle, adverseSpeed);
-
-            _lastManagePrice = adversePrice;
+            _lastManagePrice = metrics.AdversePrice;
             _lastManageTimeUtc = currentTime;
 
             decimal hitHigh;
             decimal hitLow;
             GetPostEntryHitRange(bar, candle, out hitHigh, out hitLow);
-            var exitTouchPrice = _tradeSide == "BUY" ? hitLow : hitHigh;
-            var speedPanic = adverseSpeed > PanicAdverseSpeedTicksPerSecond;
+            var speedPanic = metrics.AdverseSpeed > PanicAdverseSpeedTicksPerSecond;
 
             TryDrawFirstTradeHit(bar, candle);
 
@@ -686,18 +522,15 @@ namespace ATAS.Indicators
             var vwapFailed = HasVwapFailed(bar, candle);
             var weakFlowPanic = weakDelta && weakVolume && vwapFailed;
 
-            if (mfeTicks < PanicMfeTriggerTicks ||
-                pullbackTicks < PanicPullbackTicks ||
+            if (metrics.MfeTicks < PanicMfeTriggerTicks ||
+                metrics.PullbackTicks < PanicPullbackTicks ||
                 !speedPanic ||
                 !weakFlowPanic)
                 return;
 
-            var panicTriggerPrice = _tradeSide == "BUY"
-                ? _bestFavorablePrice - PanicPullbackTicks * GetTickSize()
-                : _bestFavorablePrice + PanicPullbackTicks * GetTickSize();
             var panicReason = "SPEED+FLOW";
 
-            DrawPanicBreakEven(bar, panicTriggerPrice, mfeTicks, pullbackTicks, adverseSpeed, panicReason);
+            DrawPanicBreakEven(bar, metrics.PanicTriggerPrice, metrics.MfeTicks, metrics.PullbackTicks, metrics.AdverseSpeed, panicReason);
             _panicDrawn = true;
         }
 
@@ -759,30 +592,22 @@ namespace ATAS.Indicators
 
         private void GetPostEntryHitRange(int bar, dynamic candle, out decimal hitHigh, out decimal hitLow)
         {
-            if (bar != _tradeBar)
-            {
-                hitHigh = candle.High;
-                hitLow = candle.Low;
-                return;
-            }
-
-            hitHigh = candle.Close;
-            hitLow = candle.Close;
-
-            if (candle.High > _entryBarHighAtEntry)
-                hitHigh = candle.High;
-
-            if (candle.Low < _entryBarLowAtEntry)
-                hitLow = candle.Low;
+            TradeManagerTpSlBeExit.GetPostEntryHitRange(
+                bar == _tradeBar,
+                candle.High,
+                candle.Low,
+                candle.Close,
+                _entryBarHighAtEntry,
+                _entryBarLowAtEntry,
+                out hitHigh,
+                out hitLow);
         }
 
         private bool HasVwapFailed(int bar, dynamic candle)
         {
-            var vwap = GetSessionVwap(bar, candle.Time.Date);
+            var vwap = TradeManagerTpSlBeExit.GetSessionVwap(bar, candle.Time.Date, new Func<int, dynamic>(GetCandle));
 
-            return _tradeSide == "BUY"
-                ? candle.Close < vwap
-                : candle.Close > vwap;
+            return TradeManagerTpSlBeExit.HasVwapFailed(_tradeSide, candle.Close, vwap);
         }
 
         private void DrawLiveExitSpeed(int bar, dynamic candle, decimal adverseSpeed)
@@ -975,7 +800,7 @@ namespace ATAS.Indicators
 
         private decimal NormalizeReplaySpeedMultiplier()
         {
-            return ReplaySpeedMultiplier <= 0 ? 1 : ReplaySpeedMultiplier;
+            return TradeManagerTpSlBeExit.NormalizeReplaySpeedMultiplier(ReplaySpeedMultiplier);
         }
 
         private string GetSpeedLabel(decimal speedTicksPerSecond)
@@ -992,32 +817,6 @@ namespace ATAS.Indicators
             return
                 time > OpeningTimeUtc &&
                 time <= SignalEndTimeUtc;
-        }
-
-        private decimal GetSessionVwap(int bar, DateTime date)
-        {
-            decimal cumPv = 0;
-            decimal cumVol = 0;
-
-            for (var i = bar; i >= 0; i--)
-            {
-                var candle = GetCandle(i);
-
-                if (candle.Time.Date != date)
-                    break;
-
-                var volume = candle.Volume;
-
-                if (volume <= 0)
-                    continue;
-
-                var typical = (candle.High + candle.Low + candle.Close) / 3m;
-
-                cumPv += typical * volume;
-                cumVol += volume;
-            }
-
-            return cumVol <= 0 ? 0 : cumPv / cumVol;
         }
 
         private void ResetDay(DateTime date)
@@ -1048,26 +847,7 @@ namespace ATAS.Indicators
 
         private decimal RoundToTicks(decimal points)
         {
-            return Math.Round(points / GetTickSize(), 2);
-        }
-
-        private decimal ClampTicks(decimal ticks)
-        {
-            var maxTicks = Math.Min(MaxTradeTicks, HardMaxTradeTicks);
-
-            return Math.Max(MinTradeTicks, Math.Min(ticks, maxTicks));
-        }
-
-        private decimal ClampExitDistance(decimal entry, decimal exit, int direction)
-        {
-            var tickSize = GetTickSize();
-            var maxDistance = HardMaxTradeTicks * tickSize;
-            var currentDistance = Math.Abs(exit - entry);
-
-            if (currentDistance <= maxDistance)
-                return exit;
-
-            return entry + direction * maxDistance;
+            return TradeManagerTpSlBeExit.RoundToTicks(points, GetTickSize());
         }
 
         private decimal GetTickSize()
@@ -1080,23 +860,5 @@ namespace ATAS.Indicators
             return value ? "+" : "-";
         }
 
-        private sealed class ImbalanceDebugInfo
-        {
-            public int MaxBuyStreak { get; set; }
-            public int MaxSellStreak { get; set; }
-        }
-
-        private class FootprintLevel
-        {
-            public decimal Price { get; set; }
-            public decimal Bid { get; set; }
-            public decimal Ask { get; set; }
-        }
-
-        private class ImbalanceStop
-        {
-            public decimal ImbalancePrice { get; set; }
-            public decimal StopPrice { get; set; }
-        }
     }
 }
