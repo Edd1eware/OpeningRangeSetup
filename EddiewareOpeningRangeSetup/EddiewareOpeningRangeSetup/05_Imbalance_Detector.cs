@@ -33,6 +33,7 @@ namespace ATAS.Indicators
                 state.Sell_ImbalanceUnTouchedPrice = previous.Sell_ImbalanceUnTouchedPrice;
             }
 
+            ApplyAPlusStructure(state, request.Side);
             state.Score = CalculateScore(state, request.Side);
             return state;
         }
@@ -79,6 +80,11 @@ namespace ATAS.Indicators
                     state.HasBuy_ImbalanceUnTouched = true;
                     state.Buy_ImbalanceUnTouchedPrice = level.Price;
                     buyStreak++;
+                    if (buyStreak > state.MaxBuyImbalanceGroup)
+                    {
+                        state.MaxBuyImbalanceGroup = buyStreak;
+                        state.MaxBuyImbalanceGroupPrice = level.Price;
+                    }
 
                     if (buyStreak >= 3)
                     {
@@ -96,6 +102,11 @@ namespace ATAS.Indicators
                     state.HasSell_ImbalanceUnTouched = true;
                     state.Sell_ImbalanceUnTouchedPrice = level.Price;
                     sellStreak++;
+                    if (sellStreak > state.MaxSellImbalanceGroup)
+                    {
+                        state.MaxSellImbalanceGroup = sellStreak;
+                        state.MaxSellImbalanceGroupPrice = level.Price;
+                    }
 
                     if (sellStreak >= 3)
                     {
@@ -109,6 +120,7 @@ namespace ATAS.Indicators
                 }
             }
 
+            ApplyAPlusStructure(state, request.Side);
             state.Score = CalculateScore(state, request.Side);
             return state;
         }
@@ -147,6 +159,30 @@ namespace ATAS.Indicators
             }
 
             return score;
+        }
+
+        private static void ApplyAPlusStructure(ImbalanceState state, string side)
+        {
+            state.HasAPlusStructure = false;
+            state.APlusStructureSide = "";
+            state.APlusStructurePrice = null;
+
+            side = string.IsNullOrWhiteSpace(side) ? "" : side.Trim().ToUpperInvariant();
+
+            if (side == "BUY" && state.HasBuy3_ImbalanceGroup)
+            {
+                state.HasAPlusStructure = true;
+                state.APlusStructureSide = "BUY";
+                state.APlusStructurePrice = state.Buy3_ImbalanceGroupPrice;
+                return;
+            }
+
+            if (side == "SELL" && state.HasSell3_ImbalanceGroup)
+            {
+                state.HasAPlusStructure = true;
+                state.APlusStructureSide = "SELL";
+                state.APlusStructurePrice = state.Sell3_ImbalanceGroupPrice;
+            }
         }
 
         private static List<FootprintLevel> GetSortedPriceLevels(dynamic candle)
@@ -199,6 +235,13 @@ namespace ATAS.Indicators
         public decimal? Sell_ImbalanceUnTouchedPrice { get; set; }
         public decimal? Buy3_ImbalanceGroupPrice { get; set; }
         public decimal? Sell3_ImbalanceGroupPrice { get; set; }
+        public bool HasAPlusStructure { get; set; }
+        public string APlusStructureSide { get; set; } = "";
+        public decimal? APlusStructurePrice { get; set; }
+        public int MaxBuyImbalanceGroup { get; set; }
+        public int MaxSellImbalanceGroup { get; set; }
+        public decimal? MaxBuyImbalanceGroupPrice { get; set; }
+        public decimal? MaxSellImbalanceGroupPrice { get; set; }
         public int Score { get; set; }
     }
 }

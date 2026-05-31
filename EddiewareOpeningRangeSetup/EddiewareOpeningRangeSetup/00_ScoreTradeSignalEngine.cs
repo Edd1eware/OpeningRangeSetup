@@ -6,11 +6,17 @@ namespace ATAS.Indicators
     {
         private int _speedBar = -1;
         private DateTime _speedBarStartedAtUtc = DateTime.MinValue;
+        private int _aPlusStructureBar = -1;
+        private string _aPlusStructureSide = "";
+        private decimal? _aPlusStructurePrice;
 
         public void ResetDay()
         {
             _speedBar = -1;
             _speedBarStartedAtUtc = DateTime.MinValue;
+            _aPlusStructureBar = -1;
+            _aPlusStructureSide = "";
+            _aPlusStructurePrice = null;
         }
 
         public void UpdateSpeedClock(int bar)
@@ -27,6 +33,7 @@ namespace ATAS.Indicators
             var signalTime = request.CurrentTime;
             var longBreakout = candle.Close > request.OrHigh;
             var shortBreakout = candle.Close < request.OrLow;
+            var breakoutSide = longBreakout ? "BUY" : shortBreakout ? "SELL" : "";
             var orRangeTicks = RoundToTicks(request.OrHigh - request.OrLow, request.TickSize);
             var vwap = GetSessionVwap(bar, request.SessionDate, getCandle, request.GetSessionTime);
             decimal bodyBreakoutTicks = 0;
@@ -49,7 +56,7 @@ namespace ATAS.Indicators
             var state = new ScoreTradeSignal
             {
                 IsBreakout = longBreakout || shortBreakout,
-                Side = longBreakout ? "BUY" : shortBreakout ? "SELL" : "",
+                Side = breakoutSide,
                 EntryPrice = candle.Close,
                 EntryBarHighAtEntry = candle.High,
                 EntryBarLowAtEntry = candle.Low,
@@ -88,11 +95,32 @@ namespace ATAS.Indicators
                 Ratio = request.ImbalanceRatio,
                 CompareMinVolume = request.ImbalanceCompareMinVolume
             });
+            if (state.IsBreakout && imbalance.HasAPlusStructure)
+            {
+                _aPlusStructureBar = bar;
+                _aPlusStructureSide = imbalance.APlusStructureSide;
+                _aPlusStructurePrice = imbalance.APlusStructurePrice;
+            }
+
+            var hasAPlusStructureForSignal =
+                _aPlusStructureBar == bar &&
+                _aPlusStructureSide == state.Side;
             state.HasBuy_ImbalanceUnTouched = imbalance.HasBuy_ImbalanceUnTouched;
             state.HasSell_ImbalanceUnTouched = imbalance.HasSell_ImbalanceUnTouched;
             state.HasBuy3_ImbalanceGroup = imbalance.HasBuy3_ImbalanceGroup;
             state.HasSell3_ImbalanceGroup = imbalance.HasSell3_ImbalanceGroup;
+            state.HasAPlusStructure = hasAPlusStructureForSignal;
+            state.APlusStructureSide = hasAPlusStructureForSignal ? _aPlusStructureSide : "";
+            state.APlusStructurePrice = hasAPlusStructureForSignal ? _aPlusStructurePrice : null;
             state.ImbalanceScore = imbalance.Score;
+            state.SignalSource = state.HasAPlusStructure ? "A+ STRUCTURE" : "BREAKOUT";
+            if (state.HasAPlusStructure && !state.SpeedValid)
+            {
+                state.SpeedIgnoredByStructure = true;
+                state.SpeedLabel = "normal speed";
+                state.SpeedValid = true;
+                state.SpeedTimingSource = "A+ structure";
+            }
 
             if (state.VwapOk) state.Score += 2;
             if (state.RangeOk) state.Score += 1;
@@ -187,6 +215,7 @@ namespace ATAS.Indicators
     internal sealed class ScoreTradeSignal
     {
         public bool IsBreakout { get; set; }
+        public bool IsAPlusStructureSignal { get; set; }
         public bool IsReady { get; set; }
         public string Side { get; set; } = "";
         public decimal EntryPrice { get; set; }
@@ -215,6 +244,11 @@ namespace ATAS.Indicators
         public bool HasSell_ImbalanceUnTouched { get; set; }
         public bool HasBuy3_ImbalanceGroup { get; set; }
         public bool HasSell3_ImbalanceGroup { get; set; }
+        public bool HasAPlusStructure { get; set; }
+        public string APlusStructureSide { get; set; } = "";
+        public decimal? APlusStructurePrice { get; set; }
+        public string SignalSource { get; set; } = "";
+        public bool SpeedIgnoredByStructure { get; set; }
         public int ImbalanceScore { get; set; }
         public int Score { get; set; }
     }

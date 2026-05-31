@@ -184,7 +184,7 @@ namespace ATAS.Indicators
 
             // A+ Structure visual label is now filtered by the current setup side.
             // This prevents opposite-side imbalance groups from printing before/around the trade.
-            TryDrawAPlusStructureLabel(bar, candle, score.Side);
+            TryDrawAPlusStructureLabel(bar, candle, score);
             TryDrawNoAPlusStructureReadyDebugLabel(bar, candle, score);
 
             if (ShowScoreLabel)
@@ -232,15 +232,7 @@ namespace ATAS.Indicators
             if (score == null || !score.IsReady || string.IsNullOrWhiteSpace(score.Side))
                 return;
 
-            var state = ImbalanceDetector.Detect(candle, new ImbalanceDetectorRequest
-            {
-                Ratio = ImbalanceRatio,
-                CompareMinVolume = ImbalanceCompareMinVolume
-            });
-
-            var matchingSide = TradeManagerTpSlBeExit.ResolveAPlusStructureSide(state, score.Side);
-
-            if (!string.IsNullOrWhiteSpace(matchingSide))
+            if (score.HasAPlusStructure)
                 return;
 
             var tickSize = GetTickSize();
@@ -250,7 +242,7 @@ namespace ATAS.Indicators
 
             AddText(
                 $"EW_NO_APLUS_READY_DEBUG_{candle.Time:yyyyMMdd_HHmm}_{bar}",
-                $"READY=False | NO A+ STRUCTURE | {score.Side}",
+                $"READY | NO A+ STRUCTURE | {score.Side} | S{score.Score}",
                 true,
                 bar,
                 labelPrice,
@@ -264,31 +256,36 @@ namespace ATAS.Indicators
                 true);
         }
 
-        private void TryDrawAPlusStructureLabel(int bar, dynamic candle, string setupSide)
+        private void TryDrawAPlusStructureLabel(int bar, dynamic candle, ScoreTradeSignal score)
         {
             if (!ShowAPlusStructureLabel)
                 return;
 
+            if (score == null || !score.IsReady || !score.HasAPlusStructure)
+                return;
+
             var state = ImbalanceDetector.Detect(candle, new ImbalanceDetectorRequest
             {
+                Side = score.Side,
                 Ratio = ImbalanceRatio,
                 CompareMinVolume = ImbalanceCompareMinVolume
             });
 
             var tickSize = GetTickSize();
-
-            var sideToDraw = TradeManagerTpSlBeExit.ResolveAPlusStructureSide(state, setupSide);
+            var sideToDraw = score.APlusStructureSide;
 
             TryDrawAPlusStructureDebugLabel(bar, candle, state, sideToDraw);
 
             if (sideToDraw == "BUY")
             {
-                var price = state.Buy3_ImbalanceGroupPrice ?? candle.Low;
+                var price = score.APlusStructurePrice ?? candle.Low;
                 var labelPrice = Math.Min(price, candle.Low) - tickSize * APlusStructureLabelOffsetTicks;
+                var group = state.MaxBuyImbalanceGroup;
+                var groupPrice = state.MaxBuyImbalanceGroupPrice ?? score.APlusStructurePrice;
 
                 AddText(
                     $"EW_APLUS_IMBALANCE_BUY_{candle.Time:yyyyMMdd_HHmm}_{bar}",
-                    "A+ STRUCTURE",
+                    $"A+ STRUCTURE | BUY | IMBALANCE_Group{group} @{FormatNullablePrice(groupPrice)}",
                     true,
                     bar,
                     labelPrice,
@@ -303,12 +300,14 @@ namespace ATAS.Indicators
             }
             else if (sideToDraw == "SELL")
             {
-                var price = state.Sell3_ImbalanceGroupPrice ?? candle.High;
+                var price = score.APlusStructurePrice ?? candle.High;
                 var labelPrice = Math.Max(price, candle.High) + tickSize * APlusStructureLabelOffsetTicks;
+                var group = state.MaxSellImbalanceGroup;
+                var groupPrice = state.MaxSellImbalanceGroupPrice ?? score.APlusStructurePrice;
 
                 AddText(
                     $"EW_APLUS_IMBALANCE_SELL_{candle.Time:yyyyMMdd_HHmm}_{bar}",
-                    "A+ STRUCTURE",
+                    $"A+ STRUCTURE | SELL | IMBALANCE_Group{group} @{FormatNullablePrice(groupPrice)}",
                     true,
                     bar,
                     labelPrice,

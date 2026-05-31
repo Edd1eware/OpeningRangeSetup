@@ -15,11 +15,8 @@ from openpyxl.utils import get_column_letter
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 DATES_DST = [
     "22/04/2026",
-    "13/05/2026",
     "14/05/2026",
-    "15/05/2026",
-
-    
+        
 ]
 
 # Replay recomendado para esta prueba: X1.

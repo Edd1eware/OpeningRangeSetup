@@ -175,17 +175,10 @@ namespace ATAS.Indicators
                 EnforceMinExitDistance = true
             });
 
-            bool hasMatchingAPlusStructure;
-            string matchingAPlusSide;
-            decimal? matchingAPlusPrice;
-            int matchingAPlusCount;
-
-            GetAPlusStructureForSide(
-                score.Side,
-                out hasMatchingAPlusStructure,
-                out matchingAPlusSide,
-                out matchingAPlusPrice,
-                out matchingAPlusCount);
+            var hasMatchingAPlusStructure = score.HasAPlusStructure;
+            var matchingAPlusSide = score.APlusStructureSide;
+            var matchingAPlusPrice = score.APlusStructurePrice;
+            var matchingAPlusCount = hasMatchingAPlusStructure ? 3 : 0;
 
             _trade = new TradeState
             {
@@ -212,6 +205,7 @@ namespace ATAS.Indicators
                 TimeOk = score.TimeOk,
                 VwapOk = score.VwapOk,
                 SpeedValid = score.SpeedValid,
+                SpeedIgnoredByStructure = score.SpeedIgnoredByStructure,
                 Score = score.Score,
                 Entry = score.EntryPrice,
                 Sl = plan.Sl,
