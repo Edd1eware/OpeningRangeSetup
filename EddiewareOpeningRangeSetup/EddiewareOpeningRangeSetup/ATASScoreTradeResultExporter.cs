@@ -198,6 +198,12 @@ namespace ATAS.Indicators
                 SpeedLabel = score.SpeedLabel,
                 Volume = score.Volume,
                 Delta = score.Delta,
+                PreviousVolume = score.PreviousVolume,
+                PreviousDelta = score.PreviousDelta,
+                VolumeIncreasing = score.VolumeIncreasing,
+                DeltaChange = score.DeltaChange,
+                DeltaWithSide = score.DeltaWithSide,
+                PriceAcceptedAfterImbalance = score.PriceAcceptedAfterImbalance,
                 RangeOk = score.RangeOk,
                 BodyOk = score.BodyOk,
                 VolumeOk = score.VolumeOk,
@@ -217,6 +223,9 @@ namespace ATAS.Indicators
                 BestFavorablePrice = score.EntryPrice,
                 Result = "OPEN",
                 APlusStructure = hasMatchingAPlusStructure,
+                APlusAbsorption = score.HasAPlusAbsorption,
+                APlusSpeed = score.HasAPlusSpeed,
+                SignalSource = score.SignalSource,
                 ImbalanceGroup3 = matchingAPlusSide,
                 ImbalanceGroupPrice = matchingAPlusPrice,
                 ImbalanceCount = matchingAPlusCount
@@ -573,7 +582,7 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     _trade.EntryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
@@ -586,6 +595,12 @@ namespace ATAS.Indicators
                     FormatTicks(_trade.BodyBreakoutTicks),
                     FormatTicks(_trade.Volume),
                     FormatTicks(_trade.Delta),
+                    FormatTicks(_trade.PreviousVolume),
+                    FormatTicks(_trade.PreviousDelta),
+                    FormatBool(_trade.VolumeIncreasing),
+                    FormatTicks(_trade.DeltaChange),
+                    FormatBool(_trade.DeltaWithSide),
+                    FormatBool(_trade.PriceAcceptedAfterImbalance),
                     _trade.SpeedLabel,
                     FormatTicks(_trade.BreakoutSpeed),
                     FormatSeconds(_trade.SpeedElapsedSeconds),
@@ -600,6 +615,7 @@ namespace ATAS.Indicators
                     FormatBool(_trade.SpeedValid),
                     _trade.Score.ToString(CultureInfo.InvariantCulture),
                     _trade.Side,
+                    _trade.SignalSource,
                     GetEntryProfile(_trade.Side, _trade.SpeedLabel),
                     FormatPrice(_trade.Sl),
                     FormatPrice(_trade.Entry),
@@ -612,6 +628,8 @@ namespace ATAS.Indicators
                     FormatTicks(_trade.MaeTicks),
                     FormatTicks(_trade.MfeTicks),
                     FormatBool(_trade.APlusStructure),
+                    FormatBool(_trade.APlusAbsorption),
+                    FormatBool(_trade.APlusSpeed),
                     _trade.ImbalanceGroup3,
                     FormatNullablePrice(_trade.ImbalanceGroupPrice),
                     _trade.ImbalanceCount.ToString(CultureInfo.InvariantCulture),
@@ -632,45 +650,54 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     nyTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
-                    "",
+                    "", // EntryBar
                     FormatPrice(_orLow),
                     FormatPrice(_orHigh),
                     FormatTicks(RoundToTicks(_orHigh - _orLow)),
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
+                    "", // VWAP_entry
+                    "", // Body
+                    "", // Volume_entry
+                    "", // Delta_entry
+                    "", // Previous_Volume
+                    "", // Previous_Delta
+                    "", // Volume_Increasing
+                    "", // Delta_Change
+                    "", // Delta_With_Side
+                    "", // Price_Accepted_After_Imbalance
+                    "", // BreakOut_SPEED
+                    "", // BreakOut_TICKS_PER_SEC
+                    "", // Speed_Elapsed_SECONDS
+                    "", // Speed_Replay_Fallback
+                    "", // Speed_Timing_Source
+                    "", // Range_OK
+                    "", // Body_OK
+                    "", // Volume_OK
+                    "", // Delta_OK
                     "TRUE",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
+                    "", // VWAP_OK
+                    "", // Speed_OK
+                    "", // score total
+                    "", // Side
                     "TIME_OVER",
-                    "",
+                    "", // Speed_Profile
+                    "", // SL_price
+                    "", // Entry_price
+                    "", // TP_price
+                    "", // SL_ticks
+                    "", // TP_ticks
                     "TIME_OVER",
-                    "",
-                    "",
+                    "", // Exit_price
+                    "TIME_OVER",
+                    "", // MAE_ticks
+                    "", // MFE_ticks
                     FormatBool(_hasAPlusStructure),
+                    "FALSE",
+                    "FALSE",
                     _aPlusStructureSide,
                     FormatNullablePrice(_aPlusStructurePrice),
                     _aPlusStructureCount.ToString(CultureInfo.InvariantCulture),
@@ -912,6 +939,12 @@ namespace ATAS.Indicators
             public string SpeedLabel { get; set; } = "";
             public decimal Volume { get; set; }
             public decimal Delta { get; set; }
+            public decimal PreviousVolume { get; set; }
+            public decimal PreviousDelta { get; set; }
+            public bool VolumeIncreasing { get; set; }
+            public decimal DeltaChange { get; set; }
+            public bool DeltaWithSide { get; set; }
+            public bool PriceAcceptedAfterImbalance { get; set; }
             public bool RangeOk { get; set; }
             public bool BodyOk { get; set; }
             public bool VolumeOk { get; set; }
@@ -933,6 +966,9 @@ namespace ATAS.Indicators
             public decimal MaeTicks { get; set; }
             public decimal MfeTicks { get; set; }
             public bool APlusStructure { get; set; }
+            public bool APlusAbsorption { get; set; }
+            public bool APlusSpeed { get; set; }
+            public string SignalSource { get; set; } = "";
             public string ImbalanceGroup3 { get; set; } = "";
             public decimal? ImbalanceGroupPrice { get; set; }
             public int ImbalanceCount { get; set; }

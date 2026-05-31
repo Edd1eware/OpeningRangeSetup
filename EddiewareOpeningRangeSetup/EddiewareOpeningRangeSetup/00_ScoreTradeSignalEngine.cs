@@ -36,6 +36,9 @@ namespace ATAS.Indicators
             var breakoutSide = longBreakout ? "BUY" : shortBreakout ? "SELL" : "";
             var orRangeTicks = RoundToTicks(request.OrHigh - request.OrLow, request.TickSize);
             var vwap = GetSessionVwap(bar, request.SessionDate, getCandle, request.GetSessionTime);
+            var previousCandle = bar > 0 ? getCandle(bar - 1) : null;
+            var previousVolume = TryGetDecimal(previousCandle, "Volume");
+            var previousDelta = TryGetDecimal(previousCandle, "Delta");
             decimal bodyBreakoutTicks = 0;
 
             if (longBreakout)
@@ -71,6 +74,10 @@ namespace ATAS.Indicators
                 SpeedTimingSource = speedState.TimingSource,
                 Volume = candle.Volume,
                 Delta = candle.Delta,
+                PreviousVolume = previousVolume,
+                PreviousDelta = previousDelta,
+                VolumeIncreasing = previousVolume <= 0 || candle.Volume > previousVolume,
+                DeltaChange = candle.Delta - previousDelta,
                 RangeOk = orRangeTicks >= request.MinOrRangeTicks && orRangeTicks <= request.MaxOrRangeTicks,
                 BodyOk = bodyBreakoutTicks >= request.MinBodyBreakoutTicks,
                 VolumeOk = candle.Volume >= request.MinVolume,
@@ -109,17 +116,33 @@ namespace ATAS.Indicators
             state.HasSell_ImbalanceUnTouched = imbalance.HasSell_ImbalanceUnTouched;
             state.HasBuy3_ImbalanceGroup = imbalance.HasBuy3_ImbalanceGroup;
             state.HasSell3_ImbalanceGroup = imbalance.HasSell3_ImbalanceGroup;
+            state.BuyImbalanceCount = imbalance.BuyImbalanceCount;
+            state.SellImbalanceCount = imbalance.SellImbalanceCount;
+            state.HasSide3_ImbalanceGroup =
+                (state.Side == "BUY" && state.HasBuy3_ImbalanceGroup) ||
+                (state.Side == "SELL" && state.HasSell3_ImbalanceGroup);
+            state.HasSide3_Imbalances =
+                (state.Side == "BUY" && state.BuyImbalanceCount >= 3) ||
+                (state.Side == "SELL" && state.SellImbalanceCount >= 3);
             state.HasAPlusStructure = hasAPlusStructureForSignal;
             state.APlusStructureSide = hasAPlusStructureForSignal ? _aPlusStructureSide : "";
             state.APlusStructurePrice = hasAPlusStructureForSignal ? _aPlusStructurePrice : null;
+            state.DeltaWithSide =
+                (state.Side == "BUY" && state.Delta > 0 && state.DeltaChange >= 0) ||
+                (state.Side == "SELL" && state.Delta < 0 && state.DeltaChange <= 0);
+            state.PriceAcceptedAfterImbalance =
+                state.HasAPlusStructure &&
+                state.APlusStructurePrice.HasValue &&
+                ((state.Side == "BUY" && candle.Close > state.APlusStructurePrice.Value) ||
+                 (state.Side == "SELL" && candle.Close < state.APlusStructurePrice.Value));
             state.ImbalanceScore = imbalance.Score;
-            state.SignalSource = state.HasAPlusStructure ? "A+ STRUCTURE" : "BREAKOUT";
+            ApplyAPlusSignalSource(state);
             if (state.HasAPlusStructure && !state.SpeedValid)
             {
                 state.SpeedIgnoredByStructure = true;
                 state.SpeedLabel = "normal speed";
                 state.SpeedValid = true;
-                state.SpeedTimingSource = "A+ structure";
+                state.SpeedTimingSource = state.SignalSource;
             }
 
             if (state.VwapOk) state.Score += 2;
@@ -135,11 +158,41 @@ namespace ATAS.Indicators
                 state.TimeOk &&
                 state.Score >= request.MinScore &&
                 state.SpeedValid &&
+                (state.SpeedLabel != "normal speed" || state.HasSide3_Imbalances) &&
                 state.VolumeOk &&
                 (!request.RequireBodyOkForTrade || state.BodyOk) &&
                 (!request.RequireVwapOkForTrade || state.VwapOk);
 
             return state;
+        }
+
+        private static void ApplyAPlusSignalSource(ScoreTradeSignal state)
+        {
+            var hasAPlusSpeed = state.SpeedLabel == "A+ speed" &&
+                state.VolumeIncreasing &&
+                state.VolumeOk &&
+                state.DeltaWithSide;
+
+            state.HasAPlusSpeed = !state.HasAPlusStructure && hasAPlusSpeed;
+
+            if (state.HasAPlusStructure)
+            {
+                var acceptedStructure = state.PriceAcceptedAfterImbalance &&
+                    state.VolumeIncreasing &&
+                    state.DeltaWithSide;
+                state.HasAPlusAbsorption = !acceptedStructure &&
+                    (state.BreakoutSpeed >= 0 || state.VolumeOk || !state.DeltaWithSide);
+                state.SignalSource = acceptedStructure ? "A+ STRUCTURE" : "A+ ABSORTION";
+                return;
+            }
+
+            if (state.HasAPlusSpeed)
+            {
+                state.SignalSource = "A+ SPEED";
+                return;
+            }
+
+            state.SignalSource = "BREAKOUT";
         }
 
         private static bool IsSignalWindow(DateTime signalTime, TimeSpan signalStartTime, TimeSpan signalEndTime)
@@ -183,6 +236,26 @@ namespace ATAS.Indicators
         private static decimal RoundToTicks(decimal points, decimal tickSize)
         {
             return Math.Round(points / tickSize, 2);
+        }
+
+        private static decimal TryGetDecimal(dynamic source, string propertyName)
+        {
+            if (source == null)
+                return 0;
+
+            try
+            {
+                var property = source.GetType().GetProperty(propertyName);
+
+                if (property == null)
+                    return 0;
+
+                return Convert.ToDecimal(property.GetValue(source));
+            }
+            catch
+            {
+                return 0;
+            }
         }
     }
 
@@ -233,6 +306,12 @@ namespace ATAS.Indicators
         public string SpeedLabel { get; set; } = "";
         public decimal Volume { get; set; }
         public decimal Delta { get; set; }
+        public decimal PreviousVolume { get; set; }
+        public decimal PreviousDelta { get; set; }
+        public bool VolumeIncreasing { get; set; }
+        public decimal DeltaChange { get; set; }
+        public bool DeltaWithSide { get; set; }
+        public bool PriceAcceptedAfterImbalance { get; set; }
         public bool RangeOk { get; set; }
         public bool BodyOk { get; set; }
         public bool VolumeOk { get; set; }
@@ -244,7 +323,13 @@ namespace ATAS.Indicators
         public bool HasSell_ImbalanceUnTouched { get; set; }
         public bool HasBuy3_ImbalanceGroup { get; set; }
         public bool HasSell3_ImbalanceGroup { get; set; }
+        public bool HasSide3_ImbalanceGroup { get; set; }
+        public bool HasSide3_Imbalances { get; set; }
+        public int BuyImbalanceCount { get; set; }
+        public int SellImbalanceCount { get; set; }
         public bool HasAPlusStructure { get; set; }
+        public bool HasAPlusAbsorption { get; set; }
+        public bool HasAPlusSpeed { get; set; }
         public string APlusStructureSide { get; set; } = "";
         public decimal? APlusStructurePrice { get; set; }
         public string SignalSource { get; set; } = "";

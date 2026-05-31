@@ -245,7 +245,7 @@ namespace ATAS.Indicators
 
             AddText(
                 $"EW_NO_APLUS_READY_DEBUG_{candle.Time:yyyyMMdd_HHmm}_{bar}",
-                $"READY | NO A+ STRUCTURE | {score.Side} | S{score.Score}",
+                $"READY | {score.SignalSource} | {score.Side} | S{score.Score}",
                 true,
                 bar,
                 labelPrice,
@@ -289,7 +289,7 @@ namespace ATAS.Indicators
 
                 AddText(
                     $"EW_APLUS_IMBALANCE_BUY_{candle.Time:yyyyMMdd_HHmm}_{bar}",
-                    $"A+ STRUCTURE | BUY | IMBALANCE_Buy{state.BuyImbalanceCount} | IMBALANCE_Sell{state.SellImbalanceCount} | Group{group} @{FormatNullablePrice(groupPrice)}",
+                    $"{score.SignalSource} | BUY | IMBALANCE_Buy{state.BuyImbalanceCount} | IMBALANCE_Sell{state.SellImbalanceCount} | Group{group} @{FormatNullablePrice(groupPrice)}",
                     true,
                     bar,
                     labelPrice,
@@ -311,7 +311,7 @@ namespace ATAS.Indicators
 
                 AddText(
                     $"EW_APLUS_IMBALANCE_SELL_{candle.Time:yyyyMMdd_HHmm}_{bar}",
-                    $"A+ STRUCTURE | SELL | IMBALANCE_Buy{state.BuyImbalanceCount} | IMBALANCE_Sell{state.SellImbalanceCount} | Group{group} @{FormatNullablePrice(groupPrice)}",
+                    $"{score.SignalSource} | SELL | IMBALANCE_Buy{state.BuyImbalanceCount} | IMBALANCE_Sell{state.SellImbalanceCount} | Group{group} @{FormatNullablePrice(groupPrice)}",
                     true,
                     bar,
                     labelPrice,
@@ -430,7 +430,7 @@ namespace ATAS.Indicators
 
             AddText(
                 $"EW_SCORE_ENTRY_{candle.Time:yyyyMMdd_HHmm}_{bar}",
-                $"{plan.EntryProfile} ENTRY {entry:0.00} | S{score.Score} | {score.SpeedLabel}",
+                $"{score.SignalSource} ENTRY {entry:0.00} | S{score.Score} | {score.SpeedLabel}",
                 score.Side == "SELL",
                 bar,
                 labelPrice,
@@ -720,7 +720,7 @@ namespace ATAS.Indicators
 
             AddText(
                 "EW_SCORE_STATUS",
-                $"{status} {side} S{score.Score}/11 | OR {score.OrRangeTicks:0}t BODY {score.BodyBreakoutTicks:0}t | {score.SpeedLabel} {score.BreakoutSpeed:0.00}t/s | R{Flag(score.RangeOk)} B{Flag(score.BodyOk)} V{Flag(score.VolumeOk)} D{Flag(score.DeltaOk)} VW{Flag(score.VwapOk)} S{Flag(score.SpeedValid)} I{score.ImbalanceScore}",
+                $"{status} {side} {score.SignalSource} S{score.Score}/11 | OR {score.OrRangeTicks:0}t BODY {score.BodyBreakoutTicks:0}t | {score.SpeedLabel} {score.BreakoutSpeed:0.00}t/s | R{Flag(score.RangeOk)} B{Flag(score.BodyOk)} V{Flag(score.VolumeOk)} D{Flag(score.DeltaOk)} VW{Flag(score.VwapOk)} S{Flag(score.SpeedValid)} I{score.ImbalanceScore}",
                 true,
                 bar,
                 price,
