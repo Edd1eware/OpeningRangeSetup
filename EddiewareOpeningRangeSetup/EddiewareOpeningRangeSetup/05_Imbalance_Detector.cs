@@ -14,7 +14,15 @@ namespace ATAS.Indicators
                 HasBuy3_ImbalanceGroup = current.HasBuy3_ImbalanceGroup,
                 HasSell3_ImbalanceGroup = current.HasSell3_ImbalanceGroup,
                 Buy3_ImbalanceGroupPrice = current.Buy3_ImbalanceGroupPrice,
-                Sell3_ImbalanceGroupPrice = current.Sell3_ImbalanceGroupPrice
+                Sell3_ImbalanceGroupPrice = current.Sell3_ImbalanceGroupPrice,
+                BuyImbalanceCount = current.BuyImbalanceCount,
+                SellImbalanceCount = current.SellImbalanceCount,
+                MaxBuyImbalanceGroup = current.MaxBuyImbalanceGroup,
+                MaxSellImbalanceGroup = current.MaxSellImbalanceGroup,
+                MaxBuyImbalanceGroupPrice = current.MaxBuyImbalanceGroupPrice,
+                MaxSellImbalanceGroupPrice = current.MaxSellImbalanceGroupPrice,
+                BuyImbalancePrices = new List<decimal>(current.BuyImbalancePrices),
+                SellImbalancePrices = new List<decimal>(current.SellImbalancePrices)
             };
 
             if (previous.HasBuy_ImbalanceUnTouched &&
@@ -48,6 +56,9 @@ namespace ATAS.Indicators
 
             var buyStreak = 0;
             var sellStreak = 0;
+            var inferredTickSize = InferTickSize(levels);
+            decimal? lastBuyImbalancePrice = null;
+            decimal? lastSellImbalancePrice = null;
 
             for (var i = 0; i < levels.Count; i++)
             {
@@ -77,9 +88,14 @@ namespace ATAS.Indicators
 
                 if (buyImbalance)
                 {
+                    state.BuyImbalanceCount++;
+                    state.BuyImbalancePrices.Add(level.Price);
                     state.HasBuy_ImbalanceUnTouched = true;
                     state.Buy_ImbalanceUnTouchedPrice = level.Price;
-                    buyStreak++;
+                    buyStreak = IsNextAdjacentImbalance(lastBuyImbalancePrice, level.Price, inferredTickSize)
+                        ? buyStreak + 1
+                        : 1;
+                    lastBuyImbalancePrice = level.Price;
                     if (buyStreak > state.MaxBuyImbalanceGroup)
                     {
                         state.MaxBuyImbalanceGroup = buyStreak;
@@ -95,13 +111,19 @@ namespace ATAS.Indicators
                 else
                 {
                     buyStreak = 0;
+                    lastBuyImbalancePrice = null;
                 }
 
                 if (sellImbalance)
                 {
+                    state.SellImbalanceCount++;
+                    state.SellImbalancePrices.Add(level.Price);
                     state.HasSell_ImbalanceUnTouched = true;
                     state.Sell_ImbalanceUnTouchedPrice = level.Price;
-                    sellStreak++;
+                    sellStreak = IsNextAdjacentImbalance(lastSellImbalancePrice, level.Price, inferredTickSize)
+                        ? sellStreak + 1
+                        : 1;
+                    lastSellImbalancePrice = level.Price;
                     if (sellStreak > state.MaxSellImbalanceGroup)
                     {
                         state.MaxSellImbalanceGroup = sellStreak;
@@ -117,6 +139,7 @@ namespace ATAS.Indicators
                 else
                 {
                     sellStreak = 0;
+                    lastSellImbalancePrice = null;
                 }
             }
 
@@ -159,6 +182,36 @@ namespace ATAS.Indicators
             }
 
             return score;
+        }
+
+        private static bool IsNextAdjacentImbalance(decimal? previousPrice, decimal currentPrice, decimal tickSize)
+        {
+            if (!previousPrice.HasValue)
+                return false;
+
+            if (tickSize <= 0)
+                return true;
+
+            var distance = Math.Abs(currentPrice - previousPrice.Value);
+            return distance > 0 && distance <= tickSize * 1.5m;
+        }
+
+        private static decimal InferTickSize(List<FootprintLevel> levels)
+        {
+            decimal tickSize = 0;
+
+            for (var i = 1; i < levels.Count; i++)
+            {
+                var distance = Math.Abs(levels[i].Price - levels[i - 1].Price);
+
+                if (distance <= 0)
+                    continue;
+
+                if (tickSize == 0 || distance < tickSize)
+                    tickSize = distance;
+            }
+
+            return tickSize;
         }
 
         private static void ApplyAPlusStructure(ImbalanceState state, string side)
@@ -242,6 +295,10 @@ namespace ATAS.Indicators
         public int MaxSellImbalanceGroup { get; set; }
         public decimal? MaxBuyImbalanceGroupPrice { get; set; }
         public decimal? MaxSellImbalanceGroupPrice { get; set; }
+        public int BuyImbalanceCount { get; set; }
+        public int SellImbalanceCount { get; set; }
+        public List<decimal> BuyImbalancePrices { get; set; } = new List<decimal>();
+        public List<decimal> SellImbalancePrices { get; set; } = new List<decimal>();
         public int Score { get; set; }
     }
 }

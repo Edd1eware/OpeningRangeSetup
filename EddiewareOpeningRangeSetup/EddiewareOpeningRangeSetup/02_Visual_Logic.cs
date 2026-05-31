@@ -117,6 +117,9 @@ namespace ATAS.Indicators
         [DisplayName("Show A+ Structure Debug Label")]
         public bool ShowAPlusStructureDebugLabel { get; set; } = false;
 
+        [DisplayName("Show A+ Imbalance Debug Lines")]
+        public bool ShowAPlusImbalanceDebugLines { get; set; } = true;
+
         [DisplayName("Show No A+ Structure Ready Debug Label")]
         public bool ShowNoAPlusStructureReadyDebugLabel { get; set; } = true;
 
@@ -275,6 +278,7 @@ namespace ATAS.Indicators
             var sideToDraw = score.APlusStructureSide;
 
             TryDrawAPlusStructureDebugLabel(bar, candle, state, sideToDraw);
+            DrawAPlusImbalanceDebugLines(bar, state);
 
             if (sideToDraw == "BUY")
             {
@@ -285,7 +289,7 @@ namespace ATAS.Indicators
 
                 AddText(
                     $"EW_APLUS_IMBALANCE_BUY_{candle.Time:yyyyMMdd_HHmm}_{bar}",
-                    $"A+ STRUCTURE | BUY | IMBALANCE_Group{group} @{FormatNullablePrice(groupPrice)}",
+                    $"A+ STRUCTURE | BUY | IMBALANCE_Buy{state.BuyImbalanceCount} | IMBALANCE_Sell{state.SellImbalanceCount} | Group{group} @{FormatNullablePrice(groupPrice)}",
                     true,
                     bar,
                     labelPrice,
@@ -307,7 +311,7 @@ namespace ATAS.Indicators
 
                 AddText(
                     $"EW_APLUS_IMBALANCE_SELL_{candle.Time:yyyyMMdd_HHmm}_{bar}",
-                    $"A+ STRUCTURE | SELL | IMBALANCE_Group{group} @{FormatNullablePrice(groupPrice)}",
+                    $"A+ STRUCTURE | SELL | IMBALANCE_Buy{state.BuyImbalanceCount} | IMBALANCE_Sell{state.SellImbalanceCount} | Group{group} @{FormatNullablePrice(groupPrice)}",
                     true,
                     bar,
                     labelPrice,
@@ -320,6 +324,22 @@ namespace ATAS.Indicators
                     DrawingText.TextAlign.Center,
                     true);
             }
+        }
+
+        private void DrawAPlusImbalanceDebugLines(int bar, ImbalanceState state)
+        {
+            if (!ShowAPlusImbalanceDebugLines)
+                return;
+
+            var endBar = bar + 1;
+            var buyPen = new Pen(Color.DodgerBlue, 4);
+            var sellPen = new Pen(Color.Cyan, 3);
+
+            foreach (var price in state.BuyImbalancePrices)
+                TrendLines.Add(new TrendLine(bar, price, endBar, price, buyPen));
+
+            foreach (var price in state.SellImbalancePrices)
+                TrendLines.Add(new TrendLine(bar, price, endBar, price, sellPen));
         }
 
         private void TryDrawAPlusStructureDebugLabel(int bar, dynamic candle, ImbalanceState state, string sideToDraw)
@@ -352,7 +372,7 @@ namespace ATAS.Indicators
 
             AddText(
                 $"EW_APLUS_IMBALANCE_DEBUG_{candle.Time:yyyyMMdd_HHmm}_{bar}",
-                $"DBG IMB | BUY3={state.HasBuy3_ImbalanceGroup}({debug.MaxBuyStreak}) @{FormatNullablePrice(state.Buy3_ImbalanceGroupPrice)} | SELL3={state.HasSell3_ImbalanceGroup}({debug.MaxSellStreak}) @{FormatNullablePrice(state.Sell3_ImbalanceGroupPrice)} | DRAW={sideToDraw} | BODY={bodySide}",
+                $"DBG IMB | BUY={state.BuyImbalanceCount} G{state.MaxBuyImbalanceGroup} @{FormatNullablePrice(state.MaxBuyImbalanceGroupPrice)} | SELL={state.SellImbalanceCount} G{state.MaxSellImbalanceGroup} @{FormatNullablePrice(state.MaxSellImbalanceGroupPrice)} | DRAW={sideToDraw} | BODY={bodySide}",
                 true,
                 bar,
                 labelPrice,
