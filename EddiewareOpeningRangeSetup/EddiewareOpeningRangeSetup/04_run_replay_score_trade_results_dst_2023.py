@@ -38,6 +38,10 @@ def generate_weekdays_between(start_ddmmyyyy, end_ddmmyyyy):
     return dates
 
 
+def normalize_replay_date(date_ddmmyyyy):
+    return datetime.strptime(date_ddmmyyyy.strip(), "%d/%m/%Y").strftime("%d/%m/%Y")
+
+
 DATES_DST = []
 
 DATES_DST += generate_weekdays_between("13/03/2023", "03/11/2023")
@@ -67,6 +71,7 @@ RUN_STARTED_AT = time.time()
 # =========================================================
 
 def write_target_date(date_ddmmyyyy):
+    date_ddmmyyyy = normalize_replay_date(date_ddmmyyyy)
     dd, mm, yyyy = date_ddmmyyyy.split("/")
     target = f"{yyyy}-{mm}-{dd}"
 
@@ -86,28 +91,32 @@ def write_replay_started_marker():
     print("Marcador de inicio de replay escrito.")
 
 
-def get_replay():
+def get_replay(verbose=True, focus=True):
     desktop = Desktop(backend="uia")
     candidates = desktop.windows(title_re=".*Replay.*", visible_only=True)
 
     if not candidates:
         raise RuntimeError("No encontre ninguna ventana Replay visible. Abre Replay en ATAS antes de correr el script.")
 
-    print(f"Ventanas Replay encontradas: {len(candidates)}")
+    if verbose:
+        print(f"Ventanas Replay encontradas: {len(candidates)}")
 
     for w in candidates:
         try:
             if w.is_visible() and w.is_enabled():
-                print("Usando Replay:", w.window_text())
-                w.set_focus()
-                time.sleep(1)
+                if verbose:
+                    print("Usando Replay:", w.window_text())
+                if focus:
+                    w.set_focus()
+                    time.sleep(1)
                 return w
         except Exception:
             pass
 
     replay = candidates[0]
-    replay.set_focus()
-    time.sleep(1)
+    if focus:
+        replay.set_focus()
+        time.sleep(1)
     return replay
 
 
@@ -125,8 +134,8 @@ def paste_text(control, value):
     time.sleep(0.8)
 
 
-def get_controls():
-    replay = get_replay()
+def get_controls(verbose=True, focus=True):
+    replay = get_replay(verbose=verbose, focus=focus)
 
     edits = replay.descendants(control_type="Edit")
     buttons = replay.descendants(control_type="Button")
@@ -150,6 +159,7 @@ def get_controls():
 
 
 def expected_result_path(date_ddmmyyyy):
+    date_ddmmyyyy = normalize_replay_date(date_ddmmyyyy)
     dd, mm, yyyy = date_ddmmyyyy.split("/")
 
     return os.path.join(
@@ -179,8 +189,38 @@ def clear_previous_result(path):
 
 
 def clear_expected_results():
-    for date in DATES_DST:
-        clear_previous_result(expected_result_path(date))
+    latest_path = None
+    latest_modified = None
+
+    if not os.path.isdir(RESULTS_FOLDER):
+        return
+
+    for filename in os.listdir(RESULTS_FOLDER):
+        if not filename.startswith("score_trade_result_") or not filename.endswith("_NY.csv"):
+            continue
+
+        path = os.path.join(RESULTS_FOLDER, filename)
+        try:
+            modified = os.path.getmtime(path)
+        except OSError:
+            continue
+
+        if latest_modified is None or modified > latest_modified:
+            latest_path = path
+            latest_modified = modified
+
+    if latest_path is None:
+        return
+
+    clear_previous_result(latest_path)
+
+
+def clear_current_result_only(path):
+    clear_previous_result(path)
+
+
+def result_already_exists(path):
+    return os.path.exists(path) and os.path.getsize(path) > 0
 
 
 def parse_result_ticks(value):
@@ -253,6 +293,23 @@ def result_is_terminal(path, min_modified_time=None):
     return ticks != 0
 
 
+def result_has_data_row(path, min_modified_time=None):
+    if not os.path.exists(path):
+        return False
+
+    if min_modified_time is not None and os.path.getmtime(path) < min_modified_time:
+        return False
+
+    try:
+        with open(path, "r", encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            row = next(reader, None)
+    except (OSError, PermissionError):
+        return False
+
+    return bool(row)
+
+
 def stop_replay():
     replay, from_box, to_box, start_button, stop_button = get_controls()
 
@@ -265,6 +322,7 @@ def stop_replay():
 
 
 MAX_WAIT_SECONDS = 90
+REPLAY_STILL_RUNNING_WARNING_SECONDS = 45 * 60
 
 def wait_until_result(path, min_modified_time=None):
     print("Esperando resultado terminal en CSV; si el trade esta OPEN no se cambia de dia.")
@@ -287,6 +345,75 @@ def wait_until_result(path, min_modified_time=None):
         time.sleep(POLL_SECONDS)
 
 
+def wait_until_result_row(path, min_modified_time=None):
+    print("Esperando primera fila en CSV; al capturarla se detiene Replay y se pasa al siguiente dia.")
+    dot_count = 0
+    start = time.time()
+
+    while True:
+        if result_has_data_row(path, min_modified_time):
+            print("\rCSV capturado... listo.   ")
+            return True
+
+        elapsed = time.time() - start
+        if elapsed > MAX_WAIT_SECONDS:
+            print(f"\rTimeout ({MAX_WAIT_SECONDS}s) esperando primera fila de CSV. Saltando al siguiente dia.")
+            return False
+
+        dot_count = dot_count % 3 + 1
+        print(f"\rEsperando CSV{'.' * dot_count}{' ' * (3 - dot_count)}", end="", flush=True)
+        time.sleep(POLL_SECONDS)
+
+
+def replay_looks_stopped(replay, start_button, stop_button):
+    try:
+        title = replay.window_text().lower()
+        if "playback is stopped" in title or "reproduccion detenida" in title:
+            return True
+    except Exception:
+        pass
+
+    try:
+        if stop_button is None or not stop_button.is_enabled():
+            return True
+    except Exception:
+        return True
+
+    try:
+        if start_button is not None and start_button.is_enabled() and stop_button is not None and not stop_button.is_enabled():
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
+def wait_until_replay_stops_by_time():
+    print(f"Esperando a que Replay termine por tiempo configurado ({REPLAY_END_TIME}); no se detiene por TP/SL/EXIT/BE/TIME_OVER.")
+    dot_count = 0
+    start = time.time()
+    last_warning_at = start
+
+    while True:
+        try:
+            replay, from_box, to_box, start_button, stop_button = get_controls(verbose=False, focus=False)
+            if replay_looks_stopped(replay, start_button, stop_button):
+                print("\rReplay detenido por tiempo configurado.   ")
+                return True
+        except Exception:
+            print("\rReplay ya no esta activo o la ventana no esta disponible.   ")
+            return True
+
+        elapsed = time.time() - start
+        if elapsed - (last_warning_at - start) > REPLAY_STILL_RUNNING_WARNING_SECONDS:
+            print(f"\rReplay sigue corriendo despues de {int(elapsed)}s; sigo esperando el fin por tiempo configurado.   ")
+            last_warning_at = time.time()
+
+        dot_count = dot_count % 3 + 1
+        print(f"\rReplay corriendo{'.' * dot_count}{' ' * (3 - dot_count)}", end="", flush=True)
+        time.sleep(POLL_SECONDS)
+
+
 def read_trade_result(path, date_ddmmyyyy):
     dd, mm, yyyy = date_ddmmyyyy.split("/")
     default_row = {
@@ -296,10 +423,6 @@ def read_trade_result(path, date_ddmmyyyy):
 
     if not os.path.exists(path):
         print(f"Sin CSV para {default_row['fecha']}; no se sobrescriben columnas de datos.")
-        return default_row
-
-    if os.path.getmtime(path) < RUN_STARTED_AT:
-        print(f"CSV viejo ignorado para {default_row['fecha']}: {path}")
         return default_row
 
     with open(path, "r", encoding="utf-8-sig", newline="") as f:
@@ -525,12 +648,18 @@ print("\nINICIANDO REPLAY DST PARA SCORE TRADE RESULTS\n")
 try:
     clear_expected_results()
 
-    for date in DATES_DST:
+    for raw_date in DATES_DST:
+        date = normalize_replay_date(raw_date)
+
         print("\n" + "=" * 70)
         print(f"PROCESANDO {date}")
         print("=" * 70)
 
         result_path = expected_result_path(date)
+
+        if result_already_exists(result_path):
+            print(f"CSV existente para {date}; se salta replay y se conserva resultado.")
+            continue
 
         write_target_date(date)
         time.sleep(1)
@@ -554,15 +683,15 @@ try:
         if start_button is None:
             raise RuntimeError("No se encontro boton Start")
 
-        clear_previous_result(result_path)
+        clear_current_result_only(result_path)
         write_replay_started_marker()
 
         print("Iniciando replay...")
         started_at = time.time()
         start_button.click_input()
 
-        print("Esperando hasta detectar TP/SL/EXIT/BE/TIME_OVER...")
-        wait_until_result(result_path, started_at)
+        print("Replay se detendra en cuanto el exporter escriba la primera fila del CSV.")
+        wait_until_result_row(result_path, started_at)
         stop_replay()
 
         time.sleep(5)
