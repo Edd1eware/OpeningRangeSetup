@@ -54,6 +54,9 @@ namespace ATAS.Indicators
         private ScoreTradeSignal? _pendingScore;
         private int _pendingScoreBar = -1;
         private DateTime _pendingScoreNyTime = DateTime.MinValue;
+        private ScoreTradeSignal? _bestRejectedScore;
+        private int _bestRejectedScoreBar = -1;
+        private DateTime _bestRejectedScoreNyTime = DateTime.MinValue;
         private decimal _lastManagePrice;
         private DateTime _lastManageTimeUtc = DateTime.MinValue;
 
@@ -148,7 +151,10 @@ namespace ATAS.Indicators
             var score = CalculateLiveScore(current, bar, currentNyTime);
 
             if (!score.IsReady)
+            {
+                TrackRejectedScore(bar, currentNyTime, score);
                 return;
+            }
 
             ClearPendingScore();
             CreateTrade(bar, currentNyTime, score);
@@ -640,6 +646,12 @@ namespace ATAS.Indicators
 
         private void WriteTimeOverFile(DateTime nyDate, DateTime nyTime)
         {
+            if (_bestRejectedScore != null)
+            {
+                WriteRejectedScoreFile(nyDate);
+                return;
+            }
+
             if (!Directory.Exists(_exportFolder))
                 Directory.CreateDirectory(_exportFolder);
 
@@ -706,6 +718,95 @@ namespace ATAS.Indicators
             );
         }
 
+        private void TrackRejectedScore(int bar, DateTime nyTime, ScoreTradeSignal score)
+        {
+            if (!score.IsBreakout || string.IsNullOrWhiteSpace(score.Side))
+                return;
+
+            if (_bestRejectedScore != null &&
+                score.Score < _bestRejectedScore.Score)
+            {
+                return;
+            }
+
+            _bestRejectedScore = score;
+            _bestRejectedScoreBar = bar;
+            _bestRejectedScoreNyTime = nyTime;
+            WriteRejectedScoreFile(nyTime.Date);
+        }
+
+        private void WriteRejectedScoreFile(DateTime nyDate)
+        {
+            if (_bestRejectedScore == null)
+                return;
+
+            if (!Directory.Exists(_exportFolder))
+                Directory.CreateDirectory(_exportFolder);
+
+            var score = _bestRejectedScore;
+            var filePath = Path.Combine(
+                _exportFolder,
+                $"score_trade_result_{nyDate:yyyy-MM-dd}_NY.csv"
+            );
+
+            File.WriteAllText(
+                filePath,
+                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
+                string.Join(",",
+                    ExporterVersion,
+                    nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    _bestRejectedScoreNyTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
+                    _bestRejectedScoreBar.ToString(CultureInfo.InvariantCulture),
+                    FormatPrice(score.OrLow),
+                    FormatPrice(score.OrHigh),
+                    FormatTicks(score.OrRangeTicks),
+                    FormatPrice(score.Vwap),
+                    FormatTicks(score.BodyBreakoutTicks),
+                    FormatTicks(score.Volume),
+                    FormatTicks(score.Delta),
+                    FormatTicks(score.PreviousVolume),
+                    FormatTicks(score.PreviousDelta),
+                    FormatBool(score.VolumeIncreasing),
+                    FormatTicks(score.DeltaChange),
+                    FormatBool(score.DeltaWithSide),
+                    FormatBool(score.PriceAcceptedAfterImbalance),
+                    score.SpeedLabel,
+                    FormatTicks(score.BreakoutSpeed),
+                    FormatSeconds(score.SpeedElapsedSeconds),
+                    score.SpeedUsedReplayFallback ? "TRUE" : "FALSE",
+                    score.SpeedTimingSource,
+                    FormatBool(score.RangeOk),
+                    FormatBool(score.BodyOk),
+                    FormatBool(score.VolumeOk),
+                    FormatBool(score.DeltaOk),
+                    FormatBool(score.TimeOk),
+                    FormatBool(score.VwapOk),
+                    FormatBool(score.SpeedValid),
+                    score.Score.ToString(CultureInfo.InvariantCulture),
+                    score.Side,
+                    score.SignalSource,
+                    GetEntryProfile(score.Side, score.SpeedLabel),
+                    "",
+                    FormatPrice(score.EntryPrice),
+                    "",
+                    "",
+                    "",
+                    "NO_PROFILE",
+                    "",
+                    "NO_PROFILE",
+                    "",
+                    "",
+                    FormatBool(score.HasAPlusStructure),
+                    FormatBool(score.HasAPlusAbsorption),
+                    FormatBool(score.HasAPlusSpeed),
+                    score.APlusStructureSide,
+                    FormatNullablePrice(score.APlusStructurePrice),
+                    (score.HasAPlusStructure ? 3 : 0).ToString(CultureInfo.InvariantCulture),
+                    FormatBool(score.SpeedIgnoredByStructure)
+                ) + Environment.NewLine
+            );
+        }
+
         private void ResetDay(DateTime nyDate)
         {
             _currentNyDate = nyDate;
@@ -730,6 +831,7 @@ namespace ATAS.Indicators
             _lastManagePrice = 0;
             _lastManageTimeUtc = DateTime.MinValue;
             ClearPendingScore();
+            ClearRejectedScore();
         }
 
         private void ClearPendingScore()
@@ -737,6 +839,13 @@ namespace ATAS.Indicators
             _pendingScore = null;
             _pendingScoreBar = -1;
             _pendingScoreNyTime = DateTime.MinValue;
+        }
+
+        private void ClearRejectedScore()
+        {
+            _bestRejectedScore = null;
+            _bestRejectedScoreBar = -1;
+            _bestRejectedScoreNyTime = DateTime.MinValue;
         }
 
         private void UpdateAPlusStructureFromBar(int bar, dynamic candle, DateTime nyTime)
