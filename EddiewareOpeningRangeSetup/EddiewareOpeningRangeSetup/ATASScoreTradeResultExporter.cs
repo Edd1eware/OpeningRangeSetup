@@ -204,6 +204,13 @@ namespace ATAS.Indicators
                 SpeedLabel = score.SpeedLabel,
                 Volume = score.Volume,
                 Delta = score.Delta,
+                CumulativeDelta = score.CumulativeDelta,
+                CumulativeDeltaSource = score.CumulativeDeltaSource,
+                CvdEntry = score.CumulativeDelta,
+                CvdPeak = score.CumulativeDelta,
+                CvdCurrent = score.CumulativeDelta,
+                CvdPullbackPercent = 0,
+                CvdPullbackLabel = "Excelente",
                 PreviousVolume = score.PreviousVolume,
                 PreviousDelta = score.PreviousDelta,
                 VolumeIncreasing = score.VolumeIncreasing,
@@ -254,6 +261,7 @@ namespace ATAS.Indicators
 
             UpdateTradeExcursion(tradeHigh, tradeLow);
             UpdateBestFavorablePrice(tradeHigh, tradeLow);
+            UpdateCvdPullback(bar, candle);
 
             var decision = TradeManagerTpSlBeExit.EvaluateExit(new TradeManagerTpSlBeExit.TradeExitRequest
             {
@@ -305,6 +313,7 @@ namespace ATAS.Indicators
 
             UpdateTradeExcursion(tradeHigh, tradeLow);
             UpdateBestFavorablePrice(tradeHigh, tradeLow);
+            UpdateCvdPullback(bar, candle);
 
             var adverseSpeed = CalculateAdverseSpeed(candle.Close, manageTimeUtc, manageTimingSource);
 
@@ -445,6 +454,33 @@ namespace ATAS.Indicators
                 if (_trade.BestFavorablePrice == 0 || low < _trade.BestFavorablePrice)
                     _trade.BestFavorablePrice = low;
             }
+        }
+
+        private void UpdateCvdPullback(int bar, dynamic candle)
+        {
+            if (_trade == null)
+                return;
+
+            var currentCvd = CumulativeDeltaDetector.Detect(
+                bar,
+                candle,
+                new Func<int, dynamic>(GetCandle),
+                _currentNyDate,
+                new Func<dynamic, DateTime>(c => ConvertToNewYorkTime(c.Time)));
+
+            _trade.CumulativeDelta = currentCvd.Value;
+            _trade.CumulativeDeltaSource = currentCvd.Source;
+
+            var pullback = CumulativeDeltaDetector.CalculatePullback(
+                _trade.Side,
+                _trade.CvdEntry,
+                currentCvd.Value,
+                _trade.CvdPeak);
+
+            _trade.CvdPeak = pullback.PeakCvd;
+            _trade.CvdCurrent = pullback.CurrentCvd;
+            _trade.CvdPullbackPercent = pullback.PullbackPercent;
+            _trade.CvdPullbackLabel = pullback.PullbackLabel;
         }
 
         private void UpdateTradeExcursion(decimal high, decimal low)
@@ -588,7 +624,7 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     _trade.EntryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
@@ -601,6 +637,12 @@ namespace ATAS.Indicators
                     FormatTicks(_trade.BodyBreakoutTicks),
                     FormatTicks(_trade.Volume),
                     FormatTicks(_trade.Delta),
+                    FormatTicks(_trade.CumulativeDelta),
+                    _trade.CumulativeDeltaSource,
+                    FormatTicks(_trade.CvdPeak),
+                    FormatTicks(_trade.CvdCurrent),
+                    FormatTicks(_trade.CvdPullbackPercent),
+                    _trade.CvdPullbackLabel,
                     FormatTicks(_trade.PreviousVolume),
                     FormatTicks(_trade.PreviousDelta),
                     FormatBool(_trade.VolumeIncreasing),
@@ -662,7 +704,7 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
@@ -675,6 +717,12 @@ namespace ATAS.Indicators
                     "", // Body
                     "", // Volume_entry
                     "", // Delta_entry
+                    "", // Cumulative_Delta_entry
+                    "", // Cumulative_Delta_Source
+                    "", // Cvd_Peak
+                    "", // Cvd_Current
+                    "", // Cvd_Pullback_Pct
+                    "", // Cvd_Pullback_Label
                     "", // Previous_Volume
                     "", // Previous_Delta
                     "", // Volume_Increasing
@@ -751,7 +799,7 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
@@ -764,6 +812,12 @@ namespace ATAS.Indicators
                     FormatTicks(score.BodyBreakoutTicks),
                     FormatTicks(score.Volume),
                     FormatTicks(score.Delta),
+                    FormatTicks(score.CumulativeDelta),
+                    score.CumulativeDeltaSource,
+                    FormatTicks(score.CumulativeDelta),
+                    FormatTicks(score.CumulativeDelta),
+                    "0",
+                    "Excelente",
                     FormatTicks(score.PreviousVolume),
                     FormatTicks(score.PreviousDelta),
                     FormatBool(score.VolumeIncreasing),
@@ -1048,6 +1102,13 @@ namespace ATAS.Indicators
             public string SpeedLabel { get; set; } = "";
             public decimal Volume { get; set; }
             public decimal Delta { get; set; }
+            public decimal CumulativeDelta { get; set; }
+            public string CumulativeDeltaSource { get; set; } = "";
+            public decimal CvdEntry { get; set; }
+            public decimal CvdPeak { get; set; }
+            public decimal CvdCurrent { get; set; }
+            public decimal CvdPullbackPercent { get; set; }
+            public string CvdPullbackLabel { get; set; } = "";
             public decimal PreviousVolume { get; set; }
             public decimal PreviousDelta { get; set; }
             public bool VolumeIncreasing { get; set; }

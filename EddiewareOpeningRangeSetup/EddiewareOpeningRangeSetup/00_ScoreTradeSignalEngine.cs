@@ -36,6 +36,12 @@ namespace ATAS.Indicators
             var breakoutSide = longBreakout ? "BUY" : shortBreakout ? "SELL" : "";
             var orRangeTicks = RoundToTicks(request.OrHigh - request.OrLow, request.TickSize);
             var vwap = GetSessionVwap(bar, request.SessionDate, getCandle, request.GetSessionTime);
+            var cumulativeDelta = CumulativeDeltaDetector.Detect(
+                bar,
+                candle,
+                getCandle,
+                request.SessionDate,
+                request.GetSessionTime);
             var previousCandle = bar > 0 ? getCandle(bar - 1) : null;
             var previousVolume = TryGetDecimal(previousCandle, "Volume");
             var previousDelta = TryGetDecimal(previousCandle, "Delta");
@@ -74,6 +80,8 @@ namespace ATAS.Indicators
                 SpeedTimingSource = speedState.TimingSource,
                 Volume = candle.Volume,
                 Delta = candle.Delta,
+                CumulativeDelta = cumulativeDelta.Value,
+                CumulativeDeltaSource = cumulativeDelta.Source,
                 PreviousVolume = previousVolume,
                 PreviousDelta = previousDelta,
                 VolumeIncreasing = previousVolume <= 0 || candle.Volume > previousVolume,
@@ -280,6 +288,8 @@ namespace ATAS.Indicators
         public string SpeedLabel { get; set; } = "";
         public decimal Volume { get; set; }
         public decimal Delta { get; set; }
+        public decimal CumulativeDelta { get; set; }
+        public string CumulativeDeltaSource { get; set; } = "";
         public decimal PreviousVolume { get; set; }
         public decimal PreviousDelta { get; set; }
         public bool VolumeIncreasing { get; set; }
