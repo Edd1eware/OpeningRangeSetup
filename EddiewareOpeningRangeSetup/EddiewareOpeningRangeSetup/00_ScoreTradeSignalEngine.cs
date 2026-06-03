@@ -139,7 +139,7 @@ namespace ATAS.Indicators
                 ((state.Side == "BUY" && candle.Close > state.APlusStructurePrice.Value) ||
                  (state.Side == "SELL" && candle.Close < state.APlusStructurePrice.Value));
             state.ImbalanceScore = imbalance.Score;
-            ApplyAPlusSignalSource(state);
+            AbsorptionDetector.ApplySignalSource(state);
             if (state.HasAPlusStructure && !state.SpeedValid)
             {
                 state.SpeedIgnoredByStructure = true;
@@ -167,34 +167,6 @@ namespace ATAS.Indicators
                 (!request.RequireVwapOkForTrade || state.VwapOk);
 
             return state;
-        }
-
-        private static void ApplyAPlusSignalSource(ScoreTradeSignal state)
-        {
-            var hasAPlusSpeed = state.SpeedLabel == "A+ speed" &&
-                state.VolumeIncreasing &&
-                state.VolumeOk &&
-                state.DeltaWithSide;
-
-            state.HasAPlusSpeed = !state.HasAPlusStructure && hasAPlusSpeed;
-
-            if (state.HasAPlusStructure)
-            {
-                var acceptedStructure = state.PriceAcceptedAfterImbalance &&
-                    state.DeltaWithSide;
-                state.HasAPlusAbsorption = !acceptedStructure &&
-                    (state.BreakoutSpeed >= 0 || state.VolumeOk || !state.DeltaWithSide);
-                state.SignalSource = acceptedStructure ? "A+ STRUCTURE" : "A+ ABSORTION";
-                return;
-            }
-
-            if (state.HasAPlusSpeed)
-            {
-                state.SignalSource = "A+ SPEED";
-                return;
-            }
-
-            state.SignalSource = "BREAKOUT";
         }
 
         private static bool IsSignalWindow(DateTime signalTime, TimeSpan signalStartTime, TimeSpan signalEndTime)

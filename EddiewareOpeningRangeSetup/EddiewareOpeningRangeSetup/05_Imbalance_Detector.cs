@@ -41,8 +41,8 @@ namespace ATAS.Indicators
                 state.Sell_ImbalanceUnTouchedPrice = previous.Sell_ImbalanceUnTouchedPrice;
             }
 
-            ApplyAPlusStructure(state, request.Side);
-            state.Score = CalculateScore(state, request.Side);
+            AbsorptionDetector.ApplyAPlusStructure(state, request.Side);
+            state.Score = AbsorptionDetector.CalculateImbalanceScore(state, request.Side);
             return state;
         }
 
@@ -139,8 +139,8 @@ namespace ATAS.Indicators
                 }
             }
 
-            ApplyAPlusStructure(state, request.Side);
-            state.Score = CalculateScore(state, request.Side);
+            AbsorptionDetector.ApplyAPlusStructure(state, request.Side);
+            state.Score = AbsorptionDetector.CalculateImbalanceScore(state, request.Side);
             return state;
         }
 
@@ -166,30 +166,6 @@ namespace ATAS.Indicators
         {
             return level.Bid >= request.CompareMinVolume &&
                 level.Bid >= upperLevel.Ask * request.Ratio;
-        }
-
-        private static int CalculateScore(ImbalanceState state, string side)
-        {
-            var score = 0;
-
-            if (side == "BUY")
-            {
-                if (state.HasBuy_ImbalanceUnTouched)
-                    score += 1;
-
-                if (state.HasBuy3_ImbalanceGroup)
-                    score += 2;
-            }
-            else if (side == "SELL")
-            {
-                if (state.HasSell_ImbalanceUnTouched)
-                    score += 1;
-
-                if (state.HasSell3_ImbalanceGroup)
-                    score += 2;
-            }
-
-            return score;
         }
 
         private static bool IsNextAdjacentImbalance(decimal? previousPrice, decimal currentPrice, decimal tickSize)
@@ -220,30 +196,6 @@ namespace ATAS.Indicators
             }
 
             return tickSize;
-        }
-
-        private static void ApplyAPlusStructure(ImbalanceState state, string side)
-        {
-            state.HasAPlusStructure = false;
-            state.APlusStructureSide = "";
-            state.APlusStructurePrice = null;
-
-            side = string.IsNullOrWhiteSpace(side) ? "" : side.Trim().ToUpperInvariant();
-
-            if (side == "BUY" && state.HasBuy3_ImbalanceGroup)
-            {
-                state.HasAPlusStructure = true;
-                state.APlusStructureSide = "BUY";
-                state.APlusStructurePrice = state.Buy3_ImbalanceGroupPrice;
-                return;
-            }
-
-            if (side == "SELL" && state.HasSell3_ImbalanceGroup)
-            {
-                state.HasAPlusStructure = true;
-                state.APlusStructureSide = "SELL";
-                state.APlusStructurePrice = state.Sell3_ImbalanceGroupPrice;
-            }
         }
 
         private static List<FootprintLevel> GetSortedPriceLevels(dynamic candle)
