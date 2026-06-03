@@ -5,6 +5,9 @@ namespace ATAS.Indicators
 {
     internal static class ImbalanceDetector
     {
+        private const decimal DefaultRatio = 3m;
+        private const decimal DefaultVolumeFilter = 70m;
+
         public static ImbalanceState DetectForScore(dynamic currentCandle, dynamic previousCandle, ImbalanceDetectorRequest request)
         {
             var current = Detect(currentCandle, request);
@@ -158,14 +161,46 @@ namespace ATAS.Indicators
 
         private static bool IsBuyImbalance(FootprintLevel level, FootprintLevel lowerLevel, ImbalanceDetectorRequest request)
         {
-            return level.Ask >= request.CompareMinVolume &&
-                level.Ask >= lowerLevel.Bid * request.Ratio;
+            var ratio = NormalizeRatio(request.Ratio);
+            var volumeFilter = NormalizeVolumeFilter(request.CompareMinVolume);
+
+            return PassesVolumeFilter(level.Ask, volumeFilter) &&
+                PassesDiagonalRatio(level.Ask, lowerLevel.Bid, ratio);
         }
 
         private static bool IsSellImbalance(FootprintLevel level, FootprintLevel upperLevel, ImbalanceDetectorRequest request)
         {
-            return level.Bid >= request.CompareMinVolume &&
-                level.Bid >= upperLevel.Ask * request.Ratio;
+            var ratio = NormalizeRatio(request.Ratio);
+            var volumeFilter = NormalizeVolumeFilter(request.CompareMinVolume);
+
+            return PassesVolumeFilter(level.Bid, volumeFilter) &&
+                PassesDiagonalRatio(level.Bid, upperLevel.Ask, ratio);
+        }
+
+        private static bool PassesVolumeFilter(decimal dominantVolume, decimal volumeFilter)
+        {
+            return dominantVolume >= volumeFilter;
+        }
+
+        private static bool PassesDiagonalRatio(decimal dominantVolume, decimal diagonalVolume, decimal ratio)
+        {
+            if (dominantVolume <= 0)
+                return false;
+
+            if (diagonalVolume <= 0)
+                return true;
+
+            return dominantVolume >= diagonalVolume * ratio;
+        }
+
+        private static decimal NormalizeRatio(decimal ratio)
+        {
+            return ratio <= 0 ? DefaultRatio : ratio;
+        }
+
+        private static decimal NormalizeVolumeFilter(decimal volumeFilter)
+        {
+            return volumeFilter <= 0 ? DefaultVolumeFilter : volumeFilter;
         }
 
         private static bool IsNextAdjacentImbalance(decimal? previousPrice, decimal currentPrice, decimal tickSize)
@@ -235,7 +270,7 @@ namespace ATAS.Indicators
     {
         public string Side { get; set; } = "";
         public decimal Ratio { get; set; } = 3m;
-        public decimal CompareMinVolume { get; set; } = 5m;
+        public decimal CompareMinVolume { get; set; } = 70m;
     }
 
     internal sealed class ImbalanceState

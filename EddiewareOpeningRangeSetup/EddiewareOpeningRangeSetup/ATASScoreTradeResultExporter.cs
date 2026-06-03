@@ -70,7 +70,7 @@ namespace ATAS.Indicators
         public decimal APlusSpeedTicksPerSecond { get; set; } = 5;
         public decimal ReplaySpeedMultiplier { get; set; } = 1;
         public decimal ImbalanceRatio { get; set; } = 3m;
-        public decimal ImbalanceCompareMinVolume { get; set; } = 5m;
+        public decimal ImbalanceCompareMinVolume { get; set; } = 70m;
         public decimal MinTradeTicks { get; set; } = 60;
         public decimal MaxTradeTicks { get; set; } = 60;
         public decimal HalfMfeExitMinMfeTicks { get; set; } = 40;

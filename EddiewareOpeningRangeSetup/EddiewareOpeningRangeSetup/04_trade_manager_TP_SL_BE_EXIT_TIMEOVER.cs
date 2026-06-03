@@ -2,6 +2,9 @@ namespace ATAS.Indicators
 {
     internal static class TradeManagerTpSlBeExit
     {
+        private const decimal DefaultImbalanceRatio = 3m;
+        private const decimal DefaultImbalanceVolumeFilter = 70m;
+
         public sealed class ImbalanceDebugInfo
         {
             public int MaxBuyStreak { get; set; }
@@ -411,8 +414,11 @@ namespace ATAS.Indicators
             decimal imbalanceRatio,
             decimal imbalanceCompareMinVolume)
         {
-            return level.Ask >= imbalanceCompareMinVolume &&
-                level.Ask >= lowerLevel.Bid * imbalanceRatio;
+            var ratio = NormalizeImbalanceRatio(imbalanceRatio);
+            var volumeFilter = NormalizeImbalanceVolumeFilter(imbalanceCompareMinVolume);
+
+            return level.Ask >= volumeFilter &&
+                PassesDiagonalRatio(level.Ask, lowerLevel.Bid, ratio);
         }
 
         private static bool IsSellImbalance(
@@ -421,8 +427,34 @@ namespace ATAS.Indicators
             decimal imbalanceRatio,
             decimal imbalanceCompareMinVolume)
         {
-            return level.Bid >= imbalanceCompareMinVolume &&
-                level.Bid >= upperLevel.Ask * imbalanceRatio;
+            var ratio = NormalizeImbalanceRatio(imbalanceRatio);
+            var volumeFilter = NormalizeImbalanceVolumeFilter(imbalanceCompareMinVolume);
+
+            return level.Bid >= volumeFilter &&
+                PassesDiagonalRatio(level.Bid, upperLevel.Ask, ratio);
+        }
+
+        private static bool PassesDiagonalRatio(decimal dominantVolume, decimal diagonalVolume, decimal ratio)
+        {
+            if (dominantVolume <= 0)
+                return false;
+
+            if (diagonalVolume <= 0)
+                return true;
+
+            return dominantVolume >= diagonalVolume * ratio;
+        }
+
+        private static decimal NormalizeImbalanceRatio(decimal imbalanceRatio)
+        {
+            return imbalanceRatio <= 0 ? DefaultImbalanceRatio : imbalanceRatio;
+        }
+
+        private static decimal NormalizeImbalanceVolumeFilter(decimal imbalanceCompareMinVolume)
+        {
+            return imbalanceCompareMinVolume <= 0
+                ? DefaultImbalanceVolumeFilter
+                : imbalanceCompareMinVolume;
         }
 
         public static System.Collections.Generic.List<FootprintLevel> GetSortedPriceLevels(dynamic candle)

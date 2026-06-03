@@ -262,7 +262,7 @@ namespace ATAS.Indicators
         public decimal APlusSpeedTicksPerSecond { get; set; }
         public decimal ReplaySpeedMultiplier { get; set; }
         public decimal ImbalanceRatio { get; set; } = 3m;
-        public decimal ImbalanceCompareMinVolume { get; set; } = 5m;
+        public decimal ImbalanceCompareMinVolume { get; set; } = 70m;
         public bool RequireBodyOkForTrade { get; set; }
         public bool RequireVwapOkForTrade { get; set; }
     }
