@@ -22,8 +22,10 @@ DATES_DST = [
 ]
 
 # Replay recomendado para esta prueba: X1.
-# Ventana por dia: 09:30 a 09:40 NY. El exporter escribe TIME_OVER si no hay trade antes/de 09:40.
-REPLAY_END_TIME = "09:40"
+# Ventana por dia: 09:30 a 09:50 NY.
+# El exporter escribe TIME_OVER a 09:40 si no hay trade; si hay trade abierto,
+# estos 10 minutos extra permiten esperar TP/SL.
+REPLAY_END_TIME = "09:50"
 POLL_SECONDS = 1
 
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
