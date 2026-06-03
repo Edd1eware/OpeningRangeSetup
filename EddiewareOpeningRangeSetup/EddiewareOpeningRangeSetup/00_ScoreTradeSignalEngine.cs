@@ -124,6 +124,9 @@ namespace ATAS.Indicators
             state.HasSide3_Imbalances =
                 (state.Side == "BUY" && state.BuyImbalanceCount >= 3) ||
                 (state.Side == "SELL" && state.SellImbalanceCount >= 3);
+            state.HasAny3_ImbalanceGroup =
+                state.HasBuy3_ImbalanceGroup ||
+                state.HasSell3_ImbalanceGroup;
             state.HasAPlusStructure = hasAPlusStructureForSignal;
             state.APlusStructureSide = hasAPlusStructureForSignal ? _aPlusStructureSide : "";
             state.APlusStructurePrice = hasAPlusStructureForSignal ? _aPlusStructurePrice : null;
@@ -158,7 +161,7 @@ namespace ATAS.Indicators
                 state.TimeOk &&
                 state.Score >= request.MinScore &&
                 state.SpeedValid &&
-                (state.SpeedLabel != "normal speed" || state.HasSide3_Imbalances) &&
+                (state.SpeedLabel != "normal speed" || state.HasSide3_Imbalances || state.HasAny3_ImbalanceGroup) &&
                 state.VolumeOk &&
                 (!request.RequireBodyOkForTrade || state.BodyOk) &&
                 (!request.RequireVwapOkForTrade || state.VwapOk);
@@ -178,7 +181,6 @@ namespace ATAS.Indicators
             if (state.HasAPlusStructure)
             {
                 var acceptedStructure = state.PriceAcceptedAfterImbalance &&
-                    state.VolumeIncreasing &&
                     state.DeltaWithSide;
                 state.HasAPlusAbsorption = !acceptedStructure &&
                     (state.BreakoutSpeed >= 0 || state.VolumeOk || !state.DeltaWithSide);
@@ -325,6 +327,7 @@ namespace ATAS.Indicators
         public bool HasSell3_ImbalanceGroup { get; set; }
         public bool HasSide3_ImbalanceGroup { get; set; }
         public bool HasSide3_Imbalances { get; set; }
+        public bool HasAny3_ImbalanceGroup { get; set; }
         public int BuyImbalanceCount { get; set; }
         public int SellImbalanceCount { get; set; }
         public bool HasAPlusStructure { get; set; }

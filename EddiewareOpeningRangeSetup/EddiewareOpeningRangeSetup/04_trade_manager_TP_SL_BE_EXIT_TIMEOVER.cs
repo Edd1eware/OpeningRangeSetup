@@ -301,17 +301,13 @@ namespace ATAS.Indicators
                 if (i > 0)
                 {
                     var lowerLevel = levels[i - 1];
-                    buyImbalance =
-                        lowerLevel.Bid >= imbalanceCompareMinVolume &&
-                        level.Ask >= lowerLevel.Bid * imbalanceRatio;
+                    buyImbalance = IsBuyImbalance(level, lowerLevel, imbalanceRatio, imbalanceCompareMinVolume);
                 }
 
                 if (i < levels.Count - 1)
                 {
                     var upperLevel = levels[i + 1];
-                    sellImbalance =
-                        upperLevel.Ask >= imbalanceCompareMinVolume &&
-                        level.Bid >= upperLevel.Ask * imbalanceRatio;
+                    sellImbalance = IsSellImbalance(level, upperLevel, imbalanceRatio, imbalanceCompareMinVolume);
                 }
 
                 if (buyImbalance)
@@ -378,8 +374,7 @@ namespace ATAS.Indicators
                 {
                     var lowerLevel = levels[i - 1];
 
-                    if (lowerLevel.Bid >= imbalanceCompareMinVolume &&
-                        level.Ask >= lowerLevel.Bid * imbalanceRatio)
+                    if (IsBuyImbalance(level, lowerLevel, imbalanceRatio, imbalanceCompareMinVolume))
                     {
                         if (!imbalancePrice.HasValue || level.Price > imbalancePrice.Value)
                             imbalancePrice = level.Price;
@@ -390,8 +385,7 @@ namespace ATAS.Indicators
                 {
                     var upperLevel = levels[i + 1];
 
-                    if (upperLevel.Ask >= imbalanceCompareMinVolume &&
-                        level.Bid >= upperLevel.Ask * imbalanceRatio)
+                    if (IsSellImbalance(level, upperLevel, imbalanceRatio, imbalanceCompareMinVolume))
                     {
                         if (!imbalancePrice.HasValue || level.Price < imbalancePrice.Value)
                             imbalancePrice = level.Price;
@@ -409,6 +403,26 @@ namespace ATAS.Indicators
                     ? imbalancePrice.Value - tickSize
                     : imbalancePrice.Value + tickSize
             };
+        }
+
+        private static bool IsBuyImbalance(
+            FootprintLevel level,
+            FootprintLevel lowerLevel,
+            decimal imbalanceRatio,
+            decimal imbalanceCompareMinVolume)
+        {
+            return level.Ask >= imbalanceCompareMinVolume &&
+                level.Ask >= lowerLevel.Bid * imbalanceRatio;
+        }
+
+        private static bool IsSellImbalance(
+            FootprintLevel level,
+            FootprintLevel upperLevel,
+            decimal imbalanceRatio,
+            decimal imbalanceCompareMinVolume)
+        {
+            return level.Bid >= imbalanceCompareMinVolume &&
+                level.Bid >= upperLevel.Ask * imbalanceRatio;
         }
 
         public static System.Collections.Generic.List<FootprintLevel> GetSortedPriceLevels(dynamic candle)

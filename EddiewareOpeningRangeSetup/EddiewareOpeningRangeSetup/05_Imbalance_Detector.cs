@@ -71,9 +71,7 @@ namespace ATAS.Indicators
                     var lowerLevel = levels[i - 1];
 
                     // BUY diagonal: Ask actual vs Bid inferior.
-                    buyImbalance =
-                        lowerLevel.Bid >= request.CompareMinVolume &&
-                        level.Ask >= lowerLevel.Bid * request.Ratio;
+                    buyImbalance = IsBuyImbalance(level, lowerLevel, request);
                 }
 
                 if (i < levels.Count - 1)
@@ -81,9 +79,7 @@ namespace ATAS.Indicators
                     var upperLevel = levels[i + 1];
 
                     // SELL diagonal: Bid actual vs Ask superior. Example: 58 x 17 => 58 >= 17 * ratio.
-                    sellImbalance =
-                        upperLevel.Ask >= request.CompareMinVolume &&
-                        level.Bid >= upperLevel.Ask * request.Ratio;
+                    sellImbalance = IsSellImbalance(level, upperLevel, request);
                 }
 
                 if (buyImbalance)
@@ -158,6 +154,18 @@ namespace ATAS.Indicators
             {
                 return true;
             }
+        }
+
+        private static bool IsBuyImbalance(FootprintLevel level, FootprintLevel lowerLevel, ImbalanceDetectorRequest request)
+        {
+            return level.Ask >= request.CompareMinVolume &&
+                level.Ask >= lowerLevel.Bid * request.Ratio;
+        }
+
+        private static bool IsSellImbalance(FootprintLevel level, FootprintLevel upperLevel, ImbalanceDetectorRequest request)
+        {
+            return level.Bid >= request.CompareMinVolume &&
+                level.Bid >= upperLevel.Ask * request.Ratio;
         }
 
         private static int CalculateScore(ImbalanceState state, string side)
