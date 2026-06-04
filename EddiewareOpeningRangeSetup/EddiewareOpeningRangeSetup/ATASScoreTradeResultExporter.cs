@@ -73,13 +73,13 @@ namespace ATAS.Indicators
         public decimal MinOrRangeTicks { get; set; } = 40;
         public decimal MaxOrRangeTicks { get; set; } = 350;
         public decimal MinBodyBreakoutTicks { get; set; } = 10;
-        public decimal MinVolume { get; set; } = 800;
+        public decimal MinVolume { get; set; } = 1000;
         public decimal MinAbsDelta { get; set; } = 25;
         public decimal MinNormalSpeedTicksPerSecond { get; set; } = 2;
-        public decimal APlusSpeedTicksPerSecond { get; set; } = 5;
+        public decimal APlusSpeedTicksPerSecond { get; set; } = 12;
         public decimal ReplaySpeedMultiplier { get; set; } = 1;
         public decimal ImbalanceRatio { get; set; } = 3m;
-        public decimal ImbalanceCompareMinVolume { get; set; } = 5m;
+        public decimal ImbalanceCompareMinVolume { get; set; } = 70m;
         public decimal MinTradeTicks { get; set; } = 60;
         public decimal MaxTradeTicks { get; set; } = 60;
         public decimal HalfMfeExitMinMfeTicks { get; set; } = 40;

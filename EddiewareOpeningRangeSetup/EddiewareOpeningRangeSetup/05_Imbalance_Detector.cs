@@ -158,14 +158,30 @@ namespace ATAS.Indicators
 
         private static bool IsBuyImbalance(FootprintLevel level, FootprintLevel lowerLevel, ImbalanceDetectorRequest request)
         {
-            return level.Ask >= request.CompareMinVolume &&
-                level.Ask >= lowerLevel.Bid * request.Ratio;
+            var ratio = NormalizeRatio(request.Ratio);
+            var volumeFilter = NormalizeVolumeFilter(request.CompareMinVolume);
+
+            return level.Ask >= volumeFilter &&
+                level.Ask >= lowerLevel.Bid * ratio;
         }
 
         private static bool IsSellImbalance(FootprintLevel level, FootprintLevel upperLevel, ImbalanceDetectorRequest request)
         {
-            return level.Bid >= request.CompareMinVolume &&
-                level.Bid >= upperLevel.Ask * request.Ratio;
+            var ratio = NormalizeRatio(request.Ratio);
+            var volumeFilter = NormalizeVolumeFilter(request.CompareMinVolume);
+
+            return level.Bid >= volumeFilter &&
+                level.Bid >= upperLevel.Ask * ratio;
+        }
+
+        private static decimal NormalizeRatio(decimal ratio)
+        {
+            return ratio < 1m ? 1m : ratio;
+        }
+
+        private static decimal NormalizeVolumeFilter(decimal volumeFilter)
+        {
+            return volumeFilter < 0m ? 0m : volumeFilter;
         }
 
         private static bool IsNextAdjacentImbalance(decimal? previousPrice, decimal currentPrice, decimal tickSize)
@@ -235,7 +251,7 @@ namespace ATAS.Indicators
     {
         public string Side { get; set; } = "";
         public decimal Ratio { get; set; } = 3m;
-        public decimal CompareMinVolume { get; set; } = 5m;
+        public decimal CompareMinVolume { get; set; } = 70m;
     }
 
     internal sealed class ImbalanceState

@@ -284,54 +284,14 @@ namespace ATAS.Indicators
             decimal imbalanceCompareMinVolume)
         {
             var info = new ImbalanceDebugInfo();
-            var levels = GetSortedPriceLevels(candle);
-
-            if (levels.Count < 2)
-                return info;
-
-            var buyStreak = 0;
-            var sellStreak = 0;
-
-            for (var i = 0; i < levels.Count; i++)
+            var state = ImbalanceDetector.Detect(candle, new ImbalanceDetectorRequest
             {
-                var level = levels[i];
-                var buyImbalance = false;
-                var sellImbalance = false;
+                Ratio = imbalanceRatio,
+                CompareMinVolume = imbalanceCompareMinVolume
+            });
 
-                if (i > 0)
-                {
-                    var lowerLevel = levels[i - 1];
-                    buyImbalance = IsBuyImbalance(level, lowerLevel, imbalanceRatio, imbalanceCompareMinVolume);
-                }
-
-                if (i < levels.Count - 1)
-                {
-                    var upperLevel = levels[i + 1];
-                    sellImbalance = IsSellImbalance(level, upperLevel, imbalanceRatio, imbalanceCompareMinVolume);
-                }
-
-                if (buyImbalance)
-                {
-                    buyStreak++;
-                    if (buyStreak > info.MaxBuyStreak)
-                        info.MaxBuyStreak = buyStreak;
-                }
-                else
-                {
-                    buyStreak = 0;
-                }
-
-                if (sellImbalance)
-                {
-                    sellStreak++;
-                    if (sellStreak > info.MaxSellStreak)
-                        info.MaxSellStreak = sellStreak;
-                }
-                else
-                {
-                    sellStreak = 0;
-                }
-            }
+            info.MaxBuyStreak = state.MaxBuyImbalanceGroup;
+            info.MaxSellStreak = state.MaxSellImbalanceGroup;
 
             return info;
         }
@@ -359,49 +319,40 @@ namespace ATAS.Indicators
             decimal imbalanceRatio,
             decimal imbalanceCompareMinVolume)
         {
-            var levels = GetSortedPriceLevels(candle);
-
-            if (levels.Count < 2)
-                return null;
-
-            decimal? imbalancePrice = null;
-
-            for (var i = 0; i < levels.Count; i++)
+            var state = ImbalanceDetector.Detect(candle, new ImbalanceDetectorRequest
             {
-                var level = levels[i];
+                Side = side,
+                Ratio = imbalanceRatio,
+                CompareMinVolume = imbalanceCompareMinVolume
+            });
+            System.Collections.Generic.List<decimal> prices;
 
-                if (side == "BUY" && i > 0)
-                {
-                    var lowerLevel = levels[i - 1];
-
-                    if (IsBuyImbalance(level, lowerLevel, imbalanceRatio, imbalanceCompareMinVolume))
-                    {
-                        if (!imbalancePrice.HasValue || level.Price > imbalancePrice.Value)
-                            imbalancePrice = level.Price;
-                    }
-                }
-
-                if (side == "SELL" && i < levels.Count - 1)
-                {
-                    var upperLevel = levels[i + 1];
-
-                    if (IsSellImbalance(level, upperLevel, imbalanceRatio, imbalanceCompareMinVolume))
-                    {
-                        if (!imbalancePrice.HasValue || level.Price < imbalancePrice.Value)
-                            imbalancePrice = level.Price;
-                    }
-                }
-            }
-
-            if (!imbalancePrice.HasValue)
+            if (side == "BUY")
+                prices = state.BuyImbalancePrices;
+            else if (side == "SELL")
+                prices = state.SellImbalancePrices;
+            else
                 return null;
+
+            if (prices.Count == 0)
+                return null;
+
+            var imbalancePrice = prices[0];
+            for (var i = 1; i < prices.Count; i++)
+            {
+                if (side == "BUY" && prices[i] > imbalancePrice)
+                    imbalancePrice = prices[i];
+
+                if (side == "SELL" && prices[i] < imbalancePrice)
+                    imbalancePrice = prices[i];
+            }
 
             return new ImbalanceStop
             {
-                ImbalancePrice = imbalancePrice.Value,
+                ImbalancePrice = imbalancePrice,
                 StopPrice = side == "BUY"
-                    ? imbalancePrice.Value - tickSize
-                    : imbalancePrice.Value + tickSize
+                    ? imbalancePrice - tickSize
+                    : imbalancePrice + tickSize
             };
         }
 
@@ -411,8 +362,11 @@ namespace ATAS.Indicators
             decimal imbalanceRatio,
             decimal imbalanceCompareMinVolume)
         {
-            return level.Ask >= imbalanceCompareMinVolume &&
-                level.Ask >= lowerLevel.Bid * imbalanceRatio;
+            var ratio = NormalizeImbalanceRatio(imbalanceRatio);
+            var volumeFilter = NormalizeImbalanceVolumeFilter(imbalanceCompareMinVolume);
+
+            return level.Ask >= volumeFilter &&
+                level.Ask >= lowerLevel.Bid * ratio;
         }
 
         private static bool IsSellImbalance(
@@ -421,8 +375,21 @@ namespace ATAS.Indicators
             decimal imbalanceRatio,
             decimal imbalanceCompareMinVolume)
         {
-            return level.Bid >= imbalanceCompareMinVolume &&
-                level.Bid >= upperLevel.Ask * imbalanceRatio;
+            var ratio = NormalizeImbalanceRatio(imbalanceRatio);
+            var volumeFilter = NormalizeImbalanceVolumeFilter(imbalanceCompareMinVolume);
+
+            return level.Bid >= volumeFilter &&
+                level.Bid >= upperLevel.Ask * ratio;
+        }
+
+        private static decimal NormalizeImbalanceRatio(decimal imbalanceRatio)
+        {
+            return imbalanceRatio < 1m ? 1m : imbalanceRatio;
+        }
+
+        private static decimal NormalizeImbalanceVolumeFilter(decimal imbalanceCompareMinVolume)
+        {
+            return imbalanceCompareMinVolume < 0m ? 0m : imbalanceCompareMinVolume;
         }
 
         public static System.Collections.Generic.List<FootprintLevel> GetSortedPriceLevels(dynamic candle)

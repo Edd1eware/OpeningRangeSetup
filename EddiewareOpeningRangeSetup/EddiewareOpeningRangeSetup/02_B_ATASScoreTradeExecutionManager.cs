@@ -41,7 +41,7 @@ namespace ATAS.Indicators
         public decimal MinBodyBreakoutTicks { get; set; } = 10;
 
         [DisplayName("Min Volume")]
-        public decimal MinVolume { get; set; } = 800;
+        public decimal MinVolume { get; set; } = 1000;
 
         [DisplayName("Min Abs Delta")]
         public decimal MinAbsDelta { get; set; } = 25;
@@ -50,7 +50,7 @@ namespace ATAS.Indicators
         public decimal MinNormalSpeedTicksPerSecond { get; set; } = 2;
 
         [DisplayName("Min A+ Speed Ticks/Sec")]
-        public decimal APlusSpeedTicksPerSecond { get; set; } = 5;
+        public decimal APlusSpeedTicksPerSecond { get; set; } = 12;
 
         [DisplayName("Replay Speed Multiplier")]
         public decimal ReplaySpeedMultiplier { get; set; } = 1;

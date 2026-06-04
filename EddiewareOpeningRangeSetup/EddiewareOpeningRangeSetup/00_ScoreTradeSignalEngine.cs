@@ -4,6 +4,8 @@ namespace ATAS.Indicators
 {
     internal sealed class ScoreTradeSignalEngine
     {
+        private const decimal HardMinAPlusSpeedTicksPerSecond = 12m;
+
         private int _speedBar = -1;
         private DateTime _speedBarStartedAtUtc = DateTime.MinValue;
         private int _aPlusStructureBar = -1;
@@ -96,10 +98,14 @@ namespace ATAS.Indicators
                     (shortBreakout && candle.Close <= vwap)
             };
 
+            var effectiveAPlusSpeedTicksPerSecond = Math.Max(
+                request.APlusSpeedTicksPerSecond,
+                HardMinAPlusSpeedTicksPerSecond);
+
             state.SpeedLabel = SpeedClasification.GetSpeedLabel(
                 state.BreakoutSpeed,
                 request.MinNormalSpeedTicksPerSecond,
-                request.APlusSpeedTicksPerSecond);
+                effectiveAPlusSpeedTicksPerSecond);
             state.SpeedValid = IsSpeedValidForSignalTime(
                 state.SpeedLabel,
                 signalTime.TimeOfDay,
@@ -262,7 +268,7 @@ namespace ATAS.Indicators
         public decimal APlusSpeedTicksPerSecond { get; set; }
         public decimal ReplaySpeedMultiplier { get; set; }
         public decimal ImbalanceRatio { get; set; } = 3m;
-        public decimal ImbalanceCompareMinVolume { get; set; } = 5m;
+        public decimal ImbalanceCompareMinVolume { get; set; } = 70m;
         public bool RequireBodyOkForTrade { get; set; }
         public bool RequireVwapOkForTrade { get; set; }
     }
