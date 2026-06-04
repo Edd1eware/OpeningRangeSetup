@@ -162,6 +162,14 @@ namespace ATAS.Indicators
                 state.SpeedTimingSource = state.SignalSource;
             }
 
+            if (state.SignalSource == "A+ ABSORTION")
+            {
+                var absorptionSide = GetOppositeSide(state.APlusStructureSide);
+
+                if (absorptionSide != "")
+                    state.Side = absorptionSide;
+            }
+
             if (state.VwapOk) state.Score += 2;
             if (state.RangeOk) state.Score += 1;
             if (state.BodyOk) state.Score += 1;
@@ -170,8 +178,14 @@ namespace ATAS.Indicators
             if (state.SpeedValid) state.Score += state.SpeedLabel == "A+ speed" ? 2 : 1;
             state.Score += state.ImbalanceScore;
 
+            var isAllowedEntrySignal =
+                state.SignalSource == "A+ SPEED" ||
+                state.SignalSource == "A+ STRUCTURE" ||
+                state.SignalSource == "A+ ABSORTION";
+
             state.IsReady =
                 state.IsBreakout &&
+                isAllowedEntrySignal &&
                 state.TimeOk &&
                 state.Score >= request.MinScore &&
                 state.SpeedValid &&
@@ -181,6 +195,17 @@ namespace ATAS.Indicators
                 (!request.RequireVwapOkForTrade || state.VwapOk);
 
             return state;
+        }
+
+        private static string GetOppositeSide(string side)
+        {
+            if (side == "BUY")
+                return "SELL";
+
+            if (side == "SELL")
+                return "BUY";
+
+            return "";
         }
 
         private static bool IsSignalWindow(DateTime signalTime, TimeSpan signalStartTime, TimeSpan signalEndTime)
