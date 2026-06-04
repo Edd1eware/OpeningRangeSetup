@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using ATAS.Indicators;
 
 namespace ATAS.Indicators
@@ -15,6 +17,9 @@ namespace ATAS.Indicators
 
         private readonly string _replayStartedFile =
             @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\replay_trade_result_started_at.txt";
+
+        private readonly string _defaultManualTradesCsvPath =
+            @"C:\Users\k_99_\Desktop\ATAS_EXPORT.csv";
 
         private readonly TimeZoneInfo _nyZone =
             TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
@@ -59,6 +64,10 @@ namespace ATAS.Indicators
         private DateTime _bestRejectedScoreNyTime = DateTime.MinValue;
         private decimal _lastManagePrice;
         private DateTime _lastManageTimeUtc = DateTime.MinValue;
+        private readonly Dictionary<DateTime, List<ManualTradeEntry>> _manualTradesByDate = new Dictionary<DateTime, List<ManualTradeEntry>>();
+        private readonly HashSet<string> _writtenManualSnapshotKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<DateTime> _initializedManualSnapshotFiles = new HashSet<DateTime>();
+        private DateTime _manualTradesCsvLastWriteTime = DateTime.MinValue;
 
         public int MinScore { get; set; } = 5;
         public decimal MinOrRangeTicks { get; set; } = 40;
@@ -70,7 +79,7 @@ namespace ATAS.Indicators
         public decimal APlusSpeedTicksPerSecond { get; set; } = 5;
         public decimal ReplaySpeedMultiplier { get; set; } = 1;
         public decimal ImbalanceRatio { get; set; } = 3m;
-        public decimal ImbalanceCompareMinVolume { get; set; } = 70m;
+        public decimal ImbalanceCompareMinVolume { get; set; } = 5m;
         public decimal MinTradeTicks { get; set; } = 60;
         public decimal MaxTradeTicks { get; set; } = 60;
         public decimal HalfMfeExitMinMfeTicks { get; set; } = 40;
@@ -81,6 +90,9 @@ namespace ATAS.Indicators
         public int MinTimeOverRealtimeSeconds { get; set; } = 5;
         public bool RequireBodyOkForTrade { get; set; } = false;
         public bool RequireVwapOkForTrade { get; set; } = false;
+        public bool ExportEngineTradeResults { get; set; } = false;
+        public bool ExportManualEntrySnapshots { get; set; } = true;
+        public string ManualTradesCsvPath { get; set; } = "";
 
         public ATASScoreTradeResultExporter()
         {
@@ -91,6 +103,10 @@ namespace ATAS.Indicators
         protected override void OnRecalculate()
         {
             _isRecalculating = true;
+            _manualTradesByDate.Clear();
+            _writtenManualSnapshotKeys.Clear();
+            _initializedManualSnapshotFiles.Clear();
+            _manualTradesCsvLastWriteTime = DateTime.MinValue;
             base.OnRecalculate();
         }
 
@@ -137,15 +153,18 @@ namespace ATAS.Indicators
                 return;
             }
 
-            UpdateTradeResult(bar, current);
+            if (ExportEngineTradeResults)
+                UpdateTradeResult(bar, current);
 
-            if (TryWriteTimeOver(bar, current, currentNyTime))
+            if (ExportEngineTradeResults && TryWriteTimeOver(bar, current, currentNyTime))
                 return;
 
             if (!_orReady)
                 return;
 
-            if (_tradeCreated || bar <= _orBar || !IsSignalWindow(currentNyTime))
+            TryWriteManualEntrySnapshots(bar, current, currentNyTime);
+
+            if (!ExportEngineTradeResults || _tradeCreated || bar <= _orBar || !IsSignalWindow(currentNyTime))
                 return;
 
             var score = CalculateLiveScore(current, bar, currentNyTime);
@@ -555,6 +574,284 @@ namespace ATAS.Indicators
                 RequireBodyOkForTrade = RequireBodyOkForTrade,
                 RequireVwapOkForTrade = RequireVwapOkForTrade
             });
+        }
+
+        private void TryWriteManualEntrySnapshots(int bar, dynamic candle, DateTime nyTime)
+        {
+            if (!ExportManualEntrySnapshots || !_orReady || bar <= _orBar)
+                return;
+
+            LoadManualTradesIfNeeded();
+
+            if (!_manualTradesByDate.TryGetValue(nyTime.Date, out var manualTrades))
+                return;
+
+            var matchingTrades = manualTrades
+                .Where(trade => IsSameMinute(trade.OpenTimeNy, nyTime))
+                .ToList();
+
+            if (matchingTrades.Count == 0)
+                return;
+
+            var score = CalculateLiveScore(candle, bar, nyTime);
+
+            foreach (var manualTrade in matchingTrades)
+            {
+                var key = manualTrade.SnapshotKey;
+
+                if (_writtenManualSnapshotKeys.Contains(key))
+                    continue;
+
+                WriteManualEntrySnapshotFile(nyTime.Date, bar, nyTime, score, manualTrade);
+                _writtenManualSnapshotKeys.Add(key);
+            }
+        }
+
+        private void LoadManualTradesIfNeeded()
+        {
+            var csvPath = GetManualTradesCsvPath();
+
+            if (string.IsNullOrWhiteSpace(csvPath) || !File.Exists(csvPath))
+                return;
+
+            var lastWriteTime = File.GetLastWriteTime(csvPath);
+
+            if (_manualTradesCsvLastWriteTime == lastWriteTime && _manualTradesByDate.Count > 0)
+                return;
+
+            _manualTradesByDate.Clear();
+            _manualTradesCsvLastWriteTime = lastWriteTime;
+
+            foreach (var trade in ReadManualTrades(csvPath))
+            {
+                if (!_manualTradesByDate.TryGetValue(trade.OpenTimeNy.Date, out var tradesForDate))
+                {
+                    tradesForDate = new List<ManualTradeEntry>();
+                    _manualTradesByDate[trade.OpenTimeNy.Date] = tradesForDate;
+                }
+
+                tradesForDate.Add(trade);
+            }
+        }
+
+        private string GetManualTradesCsvPath()
+        {
+            return string.IsNullOrWhiteSpace(ManualTradesCsvPath)
+                ? _defaultManualTradesCsvPath
+                : ManualTradesCsvPath.Trim();
+        }
+
+        private static List<ManualTradeEntry> ReadManualTrades(string csvPath)
+        {
+            var groupedTrades = new Dictionary<string, ManualTradeEntry>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var rawLine in File.ReadLines(csvPath).Skip(1))
+            {
+                if (string.IsNullOrWhiteSpace(rawLine))
+                    continue;
+
+                var columns = rawLine.Split(';');
+
+                if (columns.Length < 11)
+                    continue;
+
+                var instrument = columns[3].Trim();
+                var openTime = ParseManualTradeTime(columns[4]);
+                var openPrice = ParseManualDecimal(columns[5]);
+                var volumeText = columns[6].Trim();
+                var closeTime = ParseManualTradeTime(columns[7]);
+                var closePrice = ParseManualDecimal(columns[8]);
+                var profitTicks = ParseManualDecimal(columns[9]);
+                var pnl = ParseManualDecimal(columns[10]);
+                var direction = ParseManualDirection(volumeText);
+                var quantity = ParseManualQuantity(volumeText);
+
+                if (openTime == DateTime.MinValue || closeTime == DateTime.MinValue || string.IsNullOrWhiteSpace(direction))
+                    continue;
+
+                var key = string.Join("|",
+                    openTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
+                    closeTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
+                    direction,
+                    instrument);
+
+                if (!groupedTrades.TryGetValue(key, out var trade))
+                {
+                    trade = new ManualTradeEntry
+                    {
+                        SnapshotKey = key,
+                        Instrument = instrument,
+                        OpenTimeNy = openTime,
+                        CloseTimeNy = closeTime,
+                        Direction = direction,
+                        OpenPrice = openPrice,
+                        ClosePrice = closePrice
+                    };
+
+                    groupedTrades[key] = trade;
+                }
+
+                trade.Quantity += quantity;
+                trade.Pnl += pnl;
+                trade.ProfitTicksQuantity += profitTicks * quantity;
+                trade.OpenPriceQuantity += openPrice * quantity;
+                trade.ClosePriceQuantity += closePrice * quantity;
+            }
+
+            foreach (var trade in groupedTrades.Values)
+            {
+                if (trade.Quantity <= 0)
+                    continue;
+
+                trade.ProfitTicks = trade.ProfitTicksQuantity / trade.Quantity;
+                trade.OpenPrice = trade.OpenPriceQuantity / trade.Quantity;
+                trade.ClosePrice = trade.ClosePriceQuantity / trade.Quantity;
+            }
+
+            return groupedTrades.Values
+                .OrderBy(trade => trade.OpenTimeNy)
+                .ToList();
+        }
+
+        private static DateTime ParseManualTradeTime(string value)
+        {
+            var normalized = (value ?? "")
+                .Trim()
+                .Replace("a. m.", "AM", StringComparison.OrdinalIgnoreCase)
+                .Replace("p. m.", "PM", StringComparison.OrdinalIgnoreCase)
+                .Replace("a.m.", "AM", StringComparison.OrdinalIgnoreCase)
+                .Replace("p.m.", "PM", StringComparison.OrdinalIgnoreCase);
+
+            return DateTime.TryParseExact(
+                normalized,
+                "dd/MM/yyyy hh:mm:ss tt",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out var parsed)
+                    ? parsed
+                    : DateTime.MinValue;
+        }
+
+        private static decimal ParseManualDecimal(string value)
+        {
+            return decimal.TryParse(
+                (value ?? "").Trim(),
+                NumberStyles.Any,
+                CultureInfo.InvariantCulture,
+                out var parsed)
+                    ? parsed
+                    : 0;
+        }
+
+        private static string ParseManualDirection(string volumeText)
+        {
+            var normalized = (volumeText ?? "").Trim();
+
+            if (normalized.StartsWith("Long", StringComparison.OrdinalIgnoreCase))
+                return "BUY";
+
+            if (normalized.StartsWith("Short", StringComparison.OrdinalIgnoreCase))
+                return "SELL";
+
+            return "";
+        }
+
+        private static decimal ParseManualQuantity(string volumeText)
+        {
+            var parts = (volumeText ?? "").Trim().Split(' ');
+
+            if (parts.Length < 2)
+                return 0;
+
+            return ParseManualDecimal(parts[1]);
+        }
+
+        private static bool IsSameMinute(DateTime left, DateTime right)
+        {
+            return left.Year == right.Year &&
+                   left.Month == right.Month &&
+                   left.Day == right.Day &&
+                   left.Hour == right.Hour &&
+                   left.Minute == right.Minute;
+        }
+
+        private void WriteManualEntrySnapshotFile(DateTime nyDate, int bar, DateTime nyTime, ScoreTradeSignal score, ManualTradeEntry manualTrade)
+        {
+            if (!Directory.Exists(_exportFolder))
+                Directory.CreateDirectory(_exportFolder);
+
+            var filePath = Path.Combine(
+                _exportFolder,
+                $"manual_entry_variable_snapshot_{nyDate:yyyy-MM-dd}_NY.csv"
+            );
+
+            var shouldWriteHeader = !_initializedManualSnapshotFiles.Contains(nyDate);
+
+            using (var writer = new StreamWriter(filePath, !shouldWriteHeader))
+            {
+                if (shouldWriteHeader)
+                {
+                    writer.WriteLine("Exporter_VERSION,fecha,SnapshotTime_NY,SnapshotBar,Manual_Entry_Time_NY,Manual_Close_Time_NY,Manual_Instrument,Manual_Direction,Manual_Qty,Manual_Open_Price,Manual_Close_Price,Manual_Profit_Ticks,Manual_PnL,Engine_IsReady,Engine_IsBreakout,Manual_Matches_Engine_Side,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure");
+                    _initializedManualSnapshotFiles.Add(nyDate);
+                }
+
+                writer.WriteLine(string.Join(",",
+                    ExporterVersion,
+                    nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    nyTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
+                    bar.ToString(CultureInfo.InvariantCulture),
+                    manualTrade.OpenTimeNy.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
+                    manualTrade.CloseTimeNy.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
+                    manualTrade.Instrument,
+                    manualTrade.Direction,
+                    FormatTicks(manualTrade.Quantity),
+                    FormatPrice(manualTrade.OpenPrice),
+                    FormatPrice(manualTrade.ClosePrice),
+                    FormatTicks(manualTrade.ProfitTicks),
+                    FormatTicks(manualTrade.Pnl),
+                    FormatBool(score.IsReady),
+                    FormatBool(score.IsBreakout),
+                    FormatBool(score.Side == manualTrade.Direction),
+                    FormatPrice(score.OrLow),
+                    FormatPrice(score.OrHigh),
+                    FormatTicks(score.OrRangeTicks),
+                    FormatPrice(score.Vwap),
+                    FormatTicks(score.BodyBreakoutTicks),
+                    FormatTicks(score.Volume),
+                    FormatTicks(score.Delta),
+                    FormatTicks(score.CumulativeDelta),
+                    score.CumulativeDeltaSource,
+                    FormatTicks(score.PreviousVolume),
+                    FormatTicks(score.PreviousDelta),
+                    FormatBool(score.VolumeIncreasing),
+                    FormatTicks(score.DeltaChange),
+                    FormatBool(score.DeltaWithSide),
+                    FormatBool(score.PriceAcceptedAfterImbalance),
+                    score.SpeedLabel,
+                    FormatTicks(score.BreakoutSpeed),
+                    FormatSeconds(score.SpeedElapsedSeconds),
+                    score.SpeedUsedReplayFallback ? "TRUE" : "FALSE",
+                    score.SpeedTimingSource,
+                    FormatBool(score.RangeOk),
+                    FormatBool(score.BodyOk),
+                    FormatBool(score.VolumeOk),
+                    FormatBool(score.DeltaOk),
+                    FormatBool(score.TimeOk),
+                    FormatBool(score.VwapOk),
+                    FormatBool(score.SpeedValid),
+                    score.Score.ToString(CultureInfo.InvariantCulture),
+                    score.Side,
+                    score.SignalSource,
+                    GetEntryProfile(score.Side, score.SpeedLabel),
+                    FormatBool(score.HasAPlusStructure),
+                    FormatBool(score.HasAPlusAbsorption),
+                    FormatBool(score.HasAPlusSpeed),
+                    score.APlusStructureSide,
+                    FormatNullablePrice(score.APlusStructurePrice),
+                    (score.HasAPlusStructure ? 3 : 0).ToString(CultureInfo.InvariantCulture),
+                    FormatBool(score.SpeedIgnoredByStructure)
+                ));
+            }
         }
 
         private void UpdateSpeedClock(int bar)
@@ -1143,6 +1440,23 @@ namespace ATAS.Indicators
             public decimal? ImbalanceGroupPrice { get; set; }
             public int ImbalanceCount { get; set; }
             public bool SpeedIgnoredByStructure { get; set; }
+        }
+
+        private class ManualTradeEntry
+        {
+            public string SnapshotKey { get; set; } = "";
+            public string Instrument { get; set; } = "";
+            public DateTime OpenTimeNy { get; set; }
+            public DateTime CloseTimeNy { get; set; }
+            public string Direction { get; set; } = "";
+            public decimal Quantity { get; set; }
+            public decimal OpenPrice { get; set; }
+            public decimal ClosePrice { get; set; }
+            public decimal ProfitTicks { get; set; }
+            public decimal Pnl { get; set; }
+            public decimal ProfitTicksQuantity { get; set; }
+            public decimal OpenPriceQuantity { get; set; }
+            public decimal ClosePriceQuantity { get; set; }
         }
 
     }

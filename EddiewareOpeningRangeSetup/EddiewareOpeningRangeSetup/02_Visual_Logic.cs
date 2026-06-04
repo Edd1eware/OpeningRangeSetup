@@ -108,8 +108,8 @@ namespace ATAS.Indicators
         [DisplayName("Imbalance Ratio")]
         public decimal ImbalanceRatio { get; set; } = 3m;
 
-        [DisplayName("Imbalance Volume Filter")]
-        public decimal ImbalanceCompareMinVolume { get; set; } = 70m;
+        [DisplayName("Imbalance Compare Min Volume")]
+        public decimal ImbalanceCompareMinVolume { get; set; } = 5m;
 
         [DisplayName("Show A+ Structure Label")]
         public bool ShowAPlusStructureLabel { get; set; } = true;
