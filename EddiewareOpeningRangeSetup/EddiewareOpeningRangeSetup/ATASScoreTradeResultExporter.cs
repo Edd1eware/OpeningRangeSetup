@@ -158,10 +158,10 @@ namespace ATAS.Indicators
             }
 
             ClearPendingScore();
-            CreateTrade(bar, currentNyTime, score);
+            CreateTrade(bar, current, currentNyTime, score);
         }
 
-        private void CreateTrade(int bar, DateTime nyTime, ScoreTradeSignal score)
+        private void CreateTrade(int bar, dynamic candle, DateTime nyTime, ScoreTradeSignal score)
         {
             if (!ScoreTradeSignalEngine.IsSpeedValidForSignalTime(score.SpeedLabel, nyTime.TimeOfDay, _normalSpeedAllowedUntilNy))
                 return;
@@ -185,6 +185,7 @@ namespace ATAS.Indicators
                 CapSellStopAtOrHigh = false,
                 EnforceMinExitDistance = true
             });
+            ApplyDynamicImbalanceStop(candle, executionSide, plan);
 
             var hasMatchingAPlusStructure = score.HasAPlusStructure;
             var matchingAPlusSide = score.APlusStructureSide;
@@ -253,6 +254,27 @@ namespace ATAS.Indicators
             _lastManageTimeUtc = DateTime.MinValue;
             _tradeCreated = true;
             WriteTradeFile(nyTime.Date);
+        }
+
+        private void ApplyDynamicImbalanceStop(dynamic candle, string executionSide, TradeManagerTpSlBeExit.TradePlan plan)
+        {
+            var imbalanceStop = TradeManagerTpSlBeExit.TryGetImbalanceStop(
+                candle,
+                executionSide,
+                SetupTickSize,
+                ImbalanceRatio,
+                ImbalanceCompareMinVolume);
+
+            plan.Sl = imbalanceStop?.StopPrice ?? (executionSide == "BUY"
+                ? plan.Entry - 60m * SetupTickSize
+                : plan.Entry + 60m * SetupTickSize);
+
+            plan.SlTicks = RoundToTicks(Math.Abs(plan.Entry - plan.Sl));
+            plan.Tp = executionSide == "BUY"
+                ? plan.Entry + plan.SlTicks * SetupTickSize
+                : plan.Entry - plan.SlTicks * SetupTickSize;
+            plan.TpTicks = plan.SlTicks;
+            plan.UsesImbalanceStop = imbalanceStop != null;
         }
 
         private bool UpdateEntryBarTradeResult(int bar, dynamic candle)
@@ -1005,7 +1027,7 @@ namespace ATAS.Indicators
             var entryBar = _pendingScoreBar;
             var entryCandle = GetCandle(entryBar);
 
-            CreateTrade(entryBar, _pendingScoreNyTime, _pendingScore);
+            CreateTrade(entryBar, entryCandle, _pendingScoreNyTime, _pendingScore);
             ClearPendingScore();
 
             if (UpdateEntryBarTradeResult(entryBar, entryCandle))

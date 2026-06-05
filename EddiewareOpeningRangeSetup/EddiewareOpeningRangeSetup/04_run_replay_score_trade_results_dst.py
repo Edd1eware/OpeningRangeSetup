@@ -15,25 +15,15 @@ from openpyxl.utils import get_column_letter
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 DATES_DST = [
 
-    "18/05/2026",
-    "19/05/2026",
-    "20/05/2026",
-    "21/05/2026",
-    "22/05/2026",
 
-    "25/05/2026",
-    "26/05/2026",
     "27/05/2026",
-    "28/05/2026",
     "29/05/2026",
-
-    # JUNIO 2026
-    "01/06/2026",
-    "02/06/2026",
+    
 ]
 # Replay recomendado para esta prueba: X1.
-# Ventana por dia: 09:30 a 09:40 NY. El exporter escribe TIME_OVER si no hay trade antes/de 09:40.
-REPLAY_END_TIME = "09:40"
+# Ventana por dia: 09:30 a 09:50 NY. El exporter escribe TIME_OVER si no hay trade antes/de 09:40;
+# si ya hay trade abierto, dejamos correr hasta 09:50 para que resuelva TP/SL/EXIT/BE.
+REPLAY_END_TIME = "09:50"
 POLL_SECONDS = 1
 
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
@@ -248,7 +238,7 @@ def stop_replay():
     print("No encontre boton Stop; probablemente el replay ya termino.")
 
 
-MAX_WAIT_SECONDS = 90
+MAX_WAIT_SECONDS = 1200
 
 def wait_until_result(path, min_modified_time=None):
     print("Esperando resultado terminal en CSV; si el trade esta OPEN no se cambia de dia.")
