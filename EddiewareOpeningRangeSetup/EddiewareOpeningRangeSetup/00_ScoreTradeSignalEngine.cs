@@ -4,8 +4,6 @@ namespace ATAS.Indicators
 {
     internal sealed class ScoreTradeSignalEngine
     {
-        private const decimal HardMinAPlusSpeedTicksPerSecond = 12m;
-
         private int _speedBar = -1;
         private DateTime _speedBarStartedAtUtc = DateTime.MinValue;
         private int _aPlusStructureBar = -1;
@@ -98,14 +96,10 @@ namespace ATAS.Indicators
                     (shortBreakout && candle.Close <= vwap)
             };
 
-            var effectiveAPlusSpeedTicksPerSecond = Math.Max(
-                request.APlusSpeedTicksPerSecond,
-                HardMinAPlusSpeedTicksPerSecond);
-
             state.SpeedLabel = SpeedClasification.GetSpeedLabel(
                 state.BreakoutSpeed,
                 request.MinNormalSpeedTicksPerSecond,
-                effectiveAPlusSpeedTicksPerSecond);
+                request.APlusSpeedTicksPerSecond);
             state.SpeedValid = IsSpeedValidForSignalTime(
                 state.SpeedLabel,
                 signalTime.TimeOfDay,
@@ -162,14 +156,6 @@ namespace ATAS.Indicators
                 state.SpeedTimingSource = state.SignalSource;
             }
 
-            if (state.SignalSource == "A+ ABSORTION")
-            {
-                var absorptionSide = GetOppositeSide(state.APlusStructureSide);
-
-                if (absorptionSide != "")
-                    state.Side = absorptionSide;
-            }
-
             if (state.VwapOk) state.Score += 2;
             if (state.RangeOk) state.Score += 1;
             if (state.BodyOk) state.Score += 1;
@@ -178,14 +164,8 @@ namespace ATAS.Indicators
             if (state.SpeedValid) state.Score += state.SpeedLabel == "A+ speed" ? 2 : 1;
             state.Score += state.ImbalanceScore;
 
-            var isAllowedEntrySignal =
-                state.SignalSource == "A+ SPEED" ||
-                state.SignalSource == "A+ STRUCTURE" ||
-                state.SignalSource == "A+ ABSORTION";
-
             state.IsReady =
                 state.IsBreakout &&
-                isAllowedEntrySignal &&
                 state.TimeOk &&
                 state.Score >= request.MinScore &&
                 state.SpeedValid &&
@@ -195,17 +175,6 @@ namespace ATAS.Indicators
                 (!request.RequireVwapOkForTrade || state.VwapOk);
 
             return state;
-        }
-
-        private static string GetOppositeSide(string side)
-        {
-            if (side == "BUY")
-                return "SELL";
-
-            if (side == "SELL")
-                return "BUY";
-
-            return "";
         }
 
         private static bool IsSignalWindow(DateTime signalTime, TimeSpan signalStartTime, TimeSpan signalEndTime)
@@ -293,7 +262,7 @@ namespace ATAS.Indicators
         public decimal APlusSpeedTicksPerSecond { get; set; }
         public decimal ReplaySpeedMultiplier { get; set; }
         public decimal ImbalanceRatio { get; set; } = 3m;
-        public decimal ImbalanceCompareMinVolume { get; set; } = 70m;
+        public decimal ImbalanceCompareMinVolume { get; set; } = 5m;
         public bool RequireBodyOkForTrade { get; set; }
         public bool RequireVwapOkForTrade { get; set; }
     }
