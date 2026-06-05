@@ -34,6 +34,7 @@ namespace ATAS.Indicators
         private decimal _tradeSl;
         private decimal _tradeTp;
         private TrendLine? _activeSlLine;
+        private TrendLine? _activeTpLine;
         private bool _tradeHitDrawn;
         private bool _timeOverDrawn;
 
@@ -457,10 +458,8 @@ namespace ATAS.Indicators
             var endBar = bar + LineLength;
 
             TrendLines.Add(new TrendLine(bar, entry, endBar, entry, new Pen(Color.Gold, 3)));
-            TrendLines.Add(new TrendLine(bar, tp, endBar, tp, new Pen(Color.LimeGreen, 3)));
 
             DrawTradeLabel($"EW_ENTRY_{candle.Time:yyyyMMdd_HHmm}_{bar}", $"ENTRY {entry:0.00}", bar, entry, Color.Black, Color.Gold, -30);
-            DrawTradeLabel($"EW_TP_{candle.Time:yyyyMMdd_HHmm}_{bar}", $"TP {tp:0.00} | {plan.TpTicks:0}t", bar + 1, tp, Color.White, Color.Green, 16);
 
             _tradeBar = bar;
             _tradeSide = executionSide;
@@ -468,7 +467,7 @@ namespace ATAS.Indicators
             _entryBarHighAtEntry = score.EntryBarHighAtEntry;
             _entryBarLowAtEntry = score.EntryBarLowAtEntry;
             _tradeSl = 0;
-            _tradeTp = tp;
+            _tradeTp = 0;
             _bestFavorablePrice = entry;
             _lastManagePrice = entry;
             _lastManageTimeUtc = TryGetCandleUpdateTime(candle);
@@ -619,12 +618,19 @@ namespace ATAS.Indicators
             _tradeSl = nextSl;
 
             var slTicks = RoundToTicks(Math.Abs(_tradeEntry - _tradeSl));
+            _tradeTp = _tradeSide == "BUY"
+                ? _tradeEntry + slTicks * tickSize
+                : _tradeEntry - slTicks * tickSize;
             var endBar = bar + LineLength;
             if (_activeSlLine != null)
                 TrendLines.Remove(_activeSlLine);
+            if (_activeTpLine != null)
+                TrendLines.Remove(_activeTpLine);
 
             _activeSlLine = new TrendLine(bar, _tradeSl, endBar, _tradeSl, new Pen(Color.Red, 3));
             TrendLines.Add(_activeSlLine);
+            _activeTpLine = new TrendLine(bar, _tradeTp, endBar, _tradeTp, new Pen(Color.LimeGreen, 3));
+            TrendLines.Add(_activeTpLine);
             DrawTradeLabel(
                 $"EW_ACTIVE_SL_{_currentDate:yyyyMMdd}",
                 $"SL {_tradeSl:0.00} | {slTicks:0}t{(imbalanceStop != null ? " IMB" : "")}",
@@ -633,6 +639,14 @@ namespace ATAS.Indicators
                 Color.White,
                 Color.Red,
                 -38);
+            DrawTradeLabel(
+                $"EW_ACTIVE_TP_{_currentDate:yyyyMMdd}",
+                $"TP {_tradeTp:0.00} | {slTicks:0}t",
+                bar + 1,
+                _tradeTp,
+                Color.White,
+                Color.Green,
+                16);
         }
 
         private void TryDrawFirstTradeHit(int bar, dynamic candle)
@@ -943,6 +957,7 @@ namespace ATAS.Indicators
             _tradeSl = 0;
             _tradeTp = 0;
             _activeSlLine = null;
+            _activeTpLine = null;
             _tradeHitDrawn = false;
             _timeOverDrawn = false;
         }
