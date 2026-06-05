@@ -33,6 +33,7 @@ namespace ATAS.Indicators
         private bool _tradeIsAPlusSpeed;
         private decimal _tradeSl;
         private decimal _tradeTp;
+        private TrendLine? _activeSlLine;
         private bool _tradeHitDrawn;
         private bool _timeOverDrawn;
 
@@ -456,11 +457,9 @@ namespace ATAS.Indicators
             var endBar = bar + LineLength;
 
             TrendLines.Add(new TrendLine(bar, entry, endBar, entry, new Pen(Color.Gold, 3)));
-            TrendLines.Add(new TrendLine(bar, sl, endBar, sl, new Pen(Color.Red, 3)));
             TrendLines.Add(new TrendLine(bar, tp, endBar, tp, new Pen(Color.LimeGreen, 3)));
 
             DrawTradeLabel($"EW_ENTRY_{candle.Time:yyyyMMdd_HHmm}_{bar}", $"ENTRY {entry:0.00}", bar, entry, Color.Black, Color.Gold, -30);
-            DrawTradeLabel($"EW_SL_{candle.Time:yyyyMMdd_HHmm}_{bar}", $"SL {sl:0.00} | {plan.SlTicks:0}t{(plan.UsesImbalanceStop ? " IMB" : "")}", bar + 1, sl, Color.White, Color.Red, -38);
             DrawTradeLabel($"EW_TP_{candle.Time:yyyyMMdd_HHmm}_{bar}", $"TP {tp:0.00} | {plan.TpTicks:0}t", bar + 1, tp, Color.White, Color.Green, 16);
 
             _tradeBar = bar;
@@ -468,7 +467,7 @@ namespace ATAS.Indicators
             _tradeEntry = entry;
             _entryBarHighAtEntry = score.EntryBarHighAtEntry;
             _entryBarLowAtEntry = score.EntryBarLowAtEntry;
-            _tradeSl = sl;
+            _tradeSl = 0;
             _tradeTp = tp;
             _bestFavorablePrice = entry;
             _lastManagePrice = entry;
@@ -515,6 +514,8 @@ namespace ATAS.Indicators
 
             if (_tradeHitDrawn)
                 return;
+
+            UpdateActiveTradeStopFromLastImbalance(bar, candle);
 
             if (_tradeIsAPlusSpeed)
             {
@@ -591,6 +592,47 @@ namespace ATAS.Indicators
 
             DrawPanicBreakEven(bar, metrics.PanicTriggerPrice, metrics.MfeTicks, metrics.PullbackTicks, metrics.AdverseSpeed, panicReason);
             _panicDrawn = true;
+        }
+
+        private void UpdateActiveTradeStopFromLastImbalance(int bar, dynamic candle)
+        {
+            if (_tradeSide == "" || _tradeEntry == 0)
+                return;
+
+            if (_tradeSl != 0)
+                return;
+
+            var tickSize = GetTickSize();
+            var imbalanceStop = TradeManagerTpSlBeExit.TryGetImbalanceStop(
+                candle,
+                _tradeSide,
+                tickSize,
+                ImbalanceRatio,
+                ImbalanceCompareMinVolume);
+            var nextSl = imbalanceStop?.StopPrice ?? (_tradeSide == "BUY"
+                ? _tradeEntry - 60m * tickSize
+                : _tradeEntry + 60m * tickSize);
+
+            if (_tradeSl == nextSl)
+                return;
+
+            _tradeSl = nextSl;
+
+            var slTicks = RoundToTicks(Math.Abs(_tradeEntry - _tradeSl));
+            var endBar = bar + LineLength;
+            if (_activeSlLine != null)
+                TrendLines.Remove(_activeSlLine);
+
+            _activeSlLine = new TrendLine(bar, _tradeSl, endBar, _tradeSl, new Pen(Color.Red, 3));
+            TrendLines.Add(_activeSlLine);
+            DrawTradeLabel(
+                $"EW_ACTIVE_SL_{_currentDate:yyyyMMdd}",
+                $"SL {_tradeSl:0.00} | {slTicks:0}t{(imbalanceStop != null ? " IMB" : "")}",
+                bar + 1,
+                _tradeSl,
+                Color.White,
+                Color.Red,
+                -38);
         }
 
         private void TryDrawFirstTradeHit(int bar, dynamic candle)
@@ -900,6 +942,7 @@ namespace ATAS.Indicators
             _tradeIsAPlusSpeed = false;
             _tradeSl = 0;
             _tradeTp = 0;
+            _activeSlLine = null;
             _tradeHitDrawn = false;
             _timeOverDrawn = false;
         }

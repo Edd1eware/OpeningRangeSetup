@@ -2,6 +2,8 @@ namespace ATAS.Indicators
 {
     internal static class TradeManagerTpSlBeExit
     {
+        private const decimal NoImbalanceStopTicks = 60m;
+
         public sealed class ImbalanceDebugInfo
         {
             public int MaxBuyStreak { get; set; }
@@ -146,18 +148,12 @@ namespace ATAS.Indicators
                 }
             }
 
-            if (!usesImbalanceStop && request.CapSellStopAtOrHigh && request.Side == "SELL" && sl > request.OrHigh)
-                sl = request.OrHigh;
-
             if (!usesImbalanceStop)
-                sl = ClampExitDistance(
-                    entry,
-                    sl,
-                    request.Side == "BUY" ? -1 : 1,
-                    request.TickSize,
-                    request.MinTradeTicks,
-                    request.MaxTradeTicks,
-                    request.EnforceMinExitDistance);
+            {
+                sl = request.Side == "BUY"
+                    ? entry - NoImbalanceStopTicks * request.TickSize
+                    : entry + NoImbalanceStopTicks * request.TickSize;
+            }
 
             tp = ClampExitDistance(
                 entry,
@@ -365,6 +361,7 @@ namespace ATAS.Indicators
                 return null;
 
             decimal? imbalancePrice = null;
+            decimal? stopPrice = null;
 
             for (var i = 0; i < levels.Count; i++)
             {
@@ -374,10 +371,13 @@ namespace ATAS.Indicators
                 {
                     var lowerLevel = levels[i - 1];
 
-                    if (IsBuyImbalance(level, lowerLevel, imbalanceRatio, imbalanceCompareMinVolume))
+                    if (IsBuyStopImbalance(level, lowerLevel, imbalanceRatio))
                     {
-                        if (!imbalancePrice.HasValue || level.Price > imbalancePrice.Value)
+                        if (!imbalancePrice.HasValue || level.Price < imbalancePrice.Value)
+                        {
                             imbalancePrice = level.Price;
+                            stopPrice = lowerLevel.Price;
+                        }
                     }
                 }
 
@@ -385,23 +385,24 @@ namespace ATAS.Indicators
                 {
                     var upperLevel = levels[i + 1];
 
-                    if (IsSellImbalance(level, upperLevel, imbalanceRatio, imbalanceCompareMinVolume))
+                    if (IsSellStopImbalance(level, upperLevel, imbalanceRatio))
                     {
-                        if (!imbalancePrice.HasValue || level.Price < imbalancePrice.Value)
+                        if (!imbalancePrice.HasValue || level.Price > imbalancePrice.Value)
+                        {
                             imbalancePrice = level.Price;
+                            stopPrice = upperLevel.Price;
+                        }
                     }
                 }
             }
 
-            if (!imbalancePrice.HasValue)
+            if (!imbalancePrice.HasValue || !stopPrice.HasValue)
                 return null;
 
             return new ImbalanceStop
             {
                 ImbalancePrice = imbalancePrice.Value,
-                StopPrice = side == "BUY"
-                    ? imbalancePrice.Value - tickSize
-                    : imbalancePrice.Value + tickSize
+                StopPrice = stopPrice.Value
             };
         }
 
@@ -415,6 +416,15 @@ namespace ATAS.Indicators
                 level.Ask >= lowerLevel.Bid * imbalanceRatio;
         }
 
+        private static bool IsBuyStopImbalance(
+            FootprintLevel level,
+            FootprintLevel lowerLevel,
+            decimal imbalanceRatio)
+        {
+            return lowerLevel.Bid > 0 &&
+                level.Ask >= lowerLevel.Bid * imbalanceRatio;
+        }
+
         private static bool IsSellImbalance(
             FootprintLevel level,
             FootprintLevel upperLevel,
@@ -422,6 +432,15 @@ namespace ATAS.Indicators
             decimal imbalanceCompareMinVolume)
         {
             return level.Bid >= imbalanceCompareMinVolume &&
+                level.Bid >= upperLevel.Ask * imbalanceRatio;
+        }
+
+        private static bool IsSellStopImbalance(
+            FootprintLevel level,
+            FootprintLevel upperLevel,
+            decimal imbalanceRatio)
+        {
+            return upperLevel.Ask > 0 &&
                 level.Bid >= upperLevel.Ask * imbalanceRatio;
         }
 

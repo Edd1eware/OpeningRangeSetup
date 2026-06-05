@@ -210,7 +210,7 @@ namespace ATAS.Indicators
                 state.Score >= request.MinScore &&
                 state.SpeedValid &&
                 (state.SpeedLabel != "A+ speed" || state.HasAPlusStructure || state.PriceAcceptedAfterSpeed || state.HasAPlusAbsorption) &&
-                (state.SpeedLabel != "normal speed" || state.HasAPlusStructure || state.HasAPlusAbsorption) &&
+                (state.SpeedLabel != "normal speed" || state.HasAPlusStructure || state.HasSide3_Imbalances || state.HasAny3_ImbalanceGroup) &&
                 state.VolumeOk &&
                 (!request.RequireBodyOkForTrade || state.BodyOk) &&
                 (!request.RequireVwapOkForTrade || state.VwapOk)
