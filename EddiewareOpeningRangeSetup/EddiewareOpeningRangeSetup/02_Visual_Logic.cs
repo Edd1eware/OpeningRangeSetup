@@ -28,6 +28,8 @@ namespace ATAS.Indicators
         private decimal _entryBarLowAtEntry;
         private decimal _bestFavorablePrice;
         private decimal _lastManagePrice;
+        private DateTime _tradeEntryCandleTime = DateTime.MinValue;
+        private DateTime _tradeEntryTimeUtc = DateTime.MinValue;
         private DateTime _lastManageTimeUtc = DateTime.MinValue;
         private DateTime _bestFavorableTimeUtc = DateTime.MinValue;
         private bool _tradeIsAPlusSpeed;
@@ -35,6 +37,11 @@ namespace ATAS.Indicators
         private decimal _tradeTp;
         private TrendLine? _activeSlLine;
         private TrendLine? _activeTpLine;
+        private string _tradeEntryLabelId = "";
+        private int _tradeEntryLabelBar = -1;
+        private decimal _tradeEntryLabelPrice;
+        private int _tradeScore;
+        private bool _tradeLiveAPlusSpeedDrawn;
         private bool _tradeHitDrawn;
         private bool _timeOverDrawn;
 
@@ -442,8 +449,9 @@ namespace ATAS.Indicators
                 ? candle.Low - tickSize * 10
                 : candle.High + tickSize * 10;
 
+            var entryLabelId = $"EW_SCORE_ENTRY_{candle.Time:yyyyMMdd_HHmm}_{bar}";
             AddText(
-                $"EW_SCORE_ENTRY_{candle.Time:yyyyMMdd_HHmm}_{bar}",
+                entryLabelId,
                 $"{score.SignalSource} ENTRY {entry:0.00} | S{score.Score} | {score.SpeedLabel}",
                 executionSide == "SELL",
                 bar,
@@ -468,9 +476,16 @@ namespace ATAS.Indicators
             _entryBarLowAtEntry = score.EntryBarLowAtEntry;
             _tradeSl = 0;
             _tradeTp = 0;
+            _tradeEntryLabelId = entryLabelId;
+            _tradeEntryLabelBar = bar;
+            _tradeEntryLabelPrice = labelPrice;
+            _tradeScore = score.Score;
+            _tradeLiveAPlusSpeedDrawn = false;
             _bestFavorablePrice = entry;
             _lastManagePrice = entry;
-            _lastManageTimeUtc = TryGetCandleUpdateTime(candle);
+            _tradeEntryCandleTime = candle.Time;
+            _tradeEntryTimeUtc = TryGetCandleUpdateTime(candle);
+            _lastManageTimeUtc = _tradeEntryTimeUtc;
             _bestFavorableTimeUtc = _lastManageTimeUtc;
             _tradeIsAPlusSpeed = plan.IsAPlusSpeed;
 
@@ -558,7 +573,19 @@ namespace ATAS.Indicators
                 PanicPullbackTicks,
                 tickSize);
 
-            DrawLiveExitSpeed(bar, candle, metrics.AdverseSpeed);
+            var entryMoveTicks = CalculateEntryMoveTicks(candle, tickSize);
+            var entryElapsedSeconds = CalculateEntryElapsedSeconds(candle, currentTime, elapsedSeconds);
+            var entryMoveSpeed = entryMoveTicks / entryElapsedSeconds;
+
+            TryDrawLiveAPlusSpeedEntryLabel(entryMoveSpeed, entryMoveTicks);
+
+            DrawLiveExitSpeed(
+                bar,
+                candle,
+                metrics.AdverseSpeed,
+                entryMoveSpeed,
+                entryMoveTicks,
+                entryElapsedSeconds);
 
             _lastManagePrice = metrics.AdversePrice;
             _lastManageTimeUtc = currentTime;
@@ -725,17 +752,74 @@ namespace ATAS.Indicators
             return TradeManagerTpSlBeExit.HasVwapFailed(_tradeSide, candle.Close, vwap);
         }
 
-        private void DrawLiveExitSpeed(int bar, dynamic candle, decimal adverseSpeed)
+        private decimal CalculateEntryMoveTicks(dynamic candle, decimal tickSize)
+        {
+            if (_tradeSide == "BUY")
+                return RoundToTicks(candle.Close - _tradeEntry);
+
+            if (_tradeSide == "SELL")
+                return RoundToTicks(_tradeEntry - candle.Close);
+
+            return 0;
+        }
+
+        private decimal CalculateEntryElapsedSeconds(dynamic candle, DateTime currentTime, double fallbackElapsedSeconds)
+        {
+            var barElapsedSeconds = (candle.Time - _tradeEntryCandleTime).TotalSeconds;
+            if (barElapsedSeconds > 0 && barElapsedSeconds <= 300)
+                return (decimal)barElapsedSeconds;
+
+            var updateElapsedSeconds = (currentTime - _tradeEntryTimeUtc).TotalSeconds;
+            if (updateElapsedSeconds > 0 && updateElapsedSeconds <= 300)
+                return (decimal)Math.Max(1, updateElapsedSeconds * (double)TradeManagerTpSlBeExit.NormalizeReplaySpeedMultiplier(ReplaySpeedMultiplier));
+
+            return (decimal)Math.Max(1, fallbackElapsedSeconds);
+        }
+
+        private void TryDrawLiveAPlusSpeedEntryLabel(decimal entryMoveSpeed, decimal entryMoveTicks)
+        {
+            if (_tradeLiveAPlusSpeedDrawn ||
+                _tradeEntryLabelId == "" ||
+                entryMoveTicks <= 0 ||
+                entryMoveSpeed < APlusSpeedTicksPerSecond)
+                return;
+
+            AddText(
+                _tradeEntryLabelId,
+                $"A+ SPEED ENTRY {_tradeEntry:0.00} | S{_tradeScore} | live {entryMoveSpeed:0.00}t/s",
+                _tradeSide == "SELL",
+                _tradeEntryLabelBar,
+                _tradeEntryLabelPrice,
+                Color.White,
+                _tradeSide == "BUY" ? Color.Blue : Color.Red,
+                _tradeSide == "BUY" ? Color.Blue : Color.Red,
+                12,
+                DrawingText.TextAlign.Center,
+                true);
+
+            _tradeLiveAPlusSpeedDrawn = true;
+        }
+
+        private void DrawLiveExitSpeed(
+            int bar,
+            dynamic candle,
+            decimal adverseSpeed,
+            decimal entryMoveSpeed = 0,
+            decimal entryMoveTicks = 0,
+            decimal entryElapsedSeconds = 0)
         {
             var tickSize = GetTickSize();
             var price = _tradeSide == "BUY"
                 ? candle.Close - tickSize * 14
                 : candle.Close + tickSize * 14;
             var isValidSpeed = adverseSpeed >= PanicAdverseSpeedTicksPerSecond;
+            var entryText = entryElapsedSeconds > 0
+                ? $" | ENTRY {entryMoveSpeed:0.00}t/s {entryMoveTicks:0}t/{entryElapsedSeconds:0}s"
+                : "";
 
             AddText(
                 "EW_SCORE_STATUS",
-                $"LIVE EXIT SPEED {_tradeSide} {adverseSpeed:0.00}t/s | PRICE {candle.Close:0.00} | SL {(isValidSpeed ? "VALID" : "WAIT")}",
+                $"LIVE EXIT ADV {_tradeSide} {adverseSpeed:0.00}t/s{entryText} | PRICE {candle.Close:0.00} | SL {(isValidSpeed ? "VALID" : "WAIT")}",
                 true,
                 bar,
                 price,
@@ -958,6 +1042,11 @@ namespace ATAS.Indicators
             _tradeTp = 0;
             _activeSlLine = null;
             _activeTpLine = null;
+            _tradeEntryLabelId = "";
+            _tradeEntryLabelBar = -1;
+            _tradeEntryLabelPrice = 0;
+            _tradeScore = 0;
+            _tradeLiveAPlusSpeedDrawn = false;
             _tradeHitDrawn = false;
             _timeOverDrawn = false;
         }
