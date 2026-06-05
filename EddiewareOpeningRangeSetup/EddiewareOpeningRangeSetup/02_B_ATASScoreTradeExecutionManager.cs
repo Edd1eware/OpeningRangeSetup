@@ -122,9 +122,13 @@ namespace ATAS.Indicators
             if (!signal.IsReady)
                 return;
 
+            var executionSide = string.IsNullOrWhiteSpace(signal.ExecutionSide)
+                ? signal.Side
+                : signal.ExecutionSide;
+
             var plan = TradeManagerTpSlBeExit.CreateInitialPlan(new TradeManagerTpSlBeExit.TradePlanRequest
             {
-                Side = signal.Side,
+                Side = executionSide,
                 SpeedLabel = signal.SpeedLabel,
                 Entry = signal.EntryPrice,
                 OrLow = signal.OrLow,

@@ -4,11 +4,17 @@ namespace ATAS.Indicators
 {
     internal sealed class ScoreTradeSignalEngine
     {
+        private const int MinAPlusImbalanceCount = 4;
+
         private int _speedBar = -1;
         private DateTime _speedBarStartedAtUtc = DateTime.MinValue;
         private int _aPlusStructureBar = -1;
         private string _aPlusStructureSide = "";
         private decimal? _aPlusStructurePrice;
+        private int _buyAPlusStructureBar = -1;
+        private decimal? _buyAPlusStructurePrice;
+        private int _sellAPlusStructureBar = -1;
+        private decimal? _sellAPlusStructurePrice;
 
         public void ResetDay()
         {
@@ -17,6 +23,10 @@ namespace ATAS.Indicators
             _aPlusStructureBar = -1;
             _aPlusStructureSide = "";
             _aPlusStructurePrice = null;
+            _buyAPlusStructureBar = -1;
+            _buyAPlusStructurePrice = null;
+            _sellAPlusStructureBar = -1;
+            _sellAPlusStructurePrice = null;
         }
 
         public void UpdateSpeedClock(int bar)
@@ -104,6 +114,7 @@ namespace ATAS.Indicators
                 state.SpeedLabel,
                 signalTime.TimeOfDay,
                 request.NormalSpeedAllowedUntilTime);
+            UpdateAPlusStructureMemory(candle, request);
             var imbalance = ImbalanceDetector.Detect(candle, new ImbalanceDetectorRequest
             {
                 Side = state.Side,
@@ -117,9 +128,8 @@ namespace ATAS.Indicators
                 _aPlusStructurePrice = imbalance.APlusStructurePrice;
             }
 
-            var hasAPlusStructureForSignal =
-                _aPlusStructureBar == bar &&
-                _aPlusStructureSide == state.Side;
+            var hasAPlusStructureForSignal = HasAPlusStructureForSide(state.Side);
+            var aPlusStructurePrice = GetAPlusStructurePriceForSide(state.Side);
             state.HasBuy_ImbalanceUnTouched = imbalance.HasBuy_ImbalanceUnTouched;
             state.HasSell_ImbalanceUnTouched = imbalance.HasSell_ImbalanceUnTouched;
             state.HasBuy3_ImbalanceGroup = imbalance.HasBuy3_ImbalanceGroup;
@@ -130,24 +140,25 @@ namespace ATAS.Indicators
                 (state.Side == "BUY" && state.HasBuy3_ImbalanceGroup) ||
                 (state.Side == "SELL" && state.HasSell3_ImbalanceGroup);
             state.HasSide3_Imbalances =
-                (state.Side == "BUY" && state.BuyImbalanceCount >= 3) ||
-                (state.Side == "SELL" && state.SellImbalanceCount >= 3);
+                (state.Side == "BUY" && state.BuyImbalanceCount >= MinAPlusImbalanceCount) ||
+                (state.Side == "SELL" && state.SellImbalanceCount >= MinAPlusImbalanceCount);
             state.HasAny3_ImbalanceGroup =
                 state.HasBuy3_ImbalanceGroup ||
                 state.HasSell3_ImbalanceGroup;
             state.HasAPlusStructure = hasAPlusStructureForSignal;
-            state.APlusStructureSide = hasAPlusStructureForSignal ? _aPlusStructureSide : "";
-            state.APlusStructurePrice = hasAPlusStructureForSignal ? _aPlusStructurePrice : null;
+            state.APlusStructureSide = hasAPlusStructureForSignal ? state.Side : "";
+            state.APlusStructurePrice = hasAPlusStructureForSignal ? aPlusStructurePrice : null;
             state.DeltaWithSide =
                 (state.Side == "BUY" && state.Delta > 0 && state.DeltaChange >= 0) ||
                 (state.Side == "SELL" && state.Delta < 0 && state.DeltaChange <= 0);
             state.PriceAcceptedAfterImbalance =
                 state.HasAPlusStructure &&
                 state.APlusStructurePrice.HasValue &&
-                ((state.Side == "BUY" && candle.Close > state.APlusStructurePrice.Value) ||
-                 (state.Side == "SELL" && candle.Close < state.APlusStructurePrice.Value));
+                ((state.Side == "BUY" && candle.High >= state.APlusStructurePrice.Value + request.APlusPriceAcceptanceTicks * request.TickSize) ||
+                 (state.Side == "SELL" && candle.Low <= state.APlusStructurePrice.Value - request.APlusPriceAcceptanceTicks * request.TickSize));
             state.ImbalanceScore = imbalance.Score;
             AbsorptionDetector.ApplySignalSource(state);
+            state.ExecutionSide = ResolveExecutionSide(state);
             if (state.HasAPlusStructure && !state.SpeedValid)
             {
                 state.SpeedIgnoredByStructure = true;
@@ -169,12 +180,101 @@ namespace ATAS.Indicators
                 state.TimeOk &&
                 state.Score >= request.MinScore &&
                 state.SpeedValid &&
-                (state.SpeedLabel != "normal speed" || state.HasSide3_Imbalances || state.HasAny3_ImbalanceGroup) &&
+                (state.SpeedLabel != "normal speed" || state.HasAPlusStructure || state.HasSide3_Imbalances || state.HasAny3_ImbalanceGroup) &&
                 state.VolumeOk &&
                 (!request.RequireBodyOkForTrade || state.BodyOk) &&
                 (!request.RequireVwapOkForTrade || state.VwapOk);
 
             return state;
+        }
+
+        private void UpdateAPlusStructureMemory(dynamic candle, ScoreTradeSignalRequest request)
+        {
+            var buyState = ImbalanceDetector.Detect(candle, new ImbalanceDetectorRequest
+            {
+                Side = "BUY",
+                Ratio = request.ImbalanceRatio,
+                CompareMinVolume = request.ImbalanceCompareMinVolume
+            });
+
+            if (buyState.HasBuy3_ImbalanceGroup)
+            {
+                _aPlusStructureBar = _speedBar;
+                _aPlusStructureSide = "BUY";
+                _aPlusStructurePrice = buyState.Buy3_ImbalanceGroupPrice;
+                _buyAPlusStructureBar = _speedBar;
+                _buyAPlusStructurePrice = buyState.Buy3_ImbalanceGroupPrice;
+            }
+
+            var sellState = ImbalanceDetector.Detect(candle, new ImbalanceDetectorRequest
+            {
+                Side = "SELL",
+                Ratio = request.ImbalanceRatio,
+                CompareMinVolume = request.ImbalanceCompareMinVolume
+            });
+
+            if (sellState.HasSell3_ImbalanceGroup)
+            {
+                _aPlusStructureBar = _speedBar;
+                _aPlusStructureSide = "SELL";
+                _aPlusStructurePrice = sellState.Sell3_ImbalanceGroupPrice;
+                _sellAPlusStructureBar = _speedBar;
+                _sellAPlusStructurePrice = sellState.Sell3_ImbalanceGroupPrice;
+            }
+        }
+
+        private bool HasAPlusStructureForSide(string side)
+        {
+            side = string.IsNullOrWhiteSpace(side) ? "" : side.Trim().ToUpperInvariant();
+
+            if (side == "BUY")
+                return _buyAPlusStructureBar >= 0 && _buyAPlusStructurePrice.HasValue;
+
+            if (side == "SELL")
+                return _sellAPlusStructureBar >= 0 && _sellAPlusStructurePrice.HasValue;
+
+            return false;
+        }
+
+        private decimal? GetAPlusStructurePriceForSide(string side)
+        {
+            side = string.IsNullOrWhiteSpace(side) ? "" : side.Trim().ToUpperInvariant();
+
+            if (side == "BUY")
+                return _buyAPlusStructurePrice;
+
+            if (side == "SELL")
+                return _sellAPlusStructurePrice;
+
+            return null;
+        }
+
+        internal static string ResolveExecutionSide(ScoreTradeSignal state)
+        {
+            if (state == null)
+                return "";
+
+            if (!state.HasAPlusAbsorption)
+                return state.Side;
+
+            var absorbedSide = string.IsNullOrWhiteSpace(state.APlusStructureSide)
+                ? state.Side
+                : state.APlusStructureSide;
+
+            return OppositeSide(absorbedSide);
+        }
+
+        internal static string OppositeSide(string side)
+        {
+            side = string.IsNullOrWhiteSpace(side) ? "" : side.Trim().ToUpperInvariant();
+
+            if (side == "BUY")
+                return "SELL";
+
+            if (side == "SELL")
+                return "BUY";
+
+            return "";
         }
 
         private static bool IsSignalWindow(DateTime signalTime, TimeSpan signalStartTime, TimeSpan signalEndTime)
@@ -262,7 +362,8 @@ namespace ATAS.Indicators
         public decimal APlusSpeedTicksPerSecond { get; set; }
         public decimal ReplaySpeedMultiplier { get; set; }
         public decimal ImbalanceRatio { get; set; } = 3m;
-        public decimal ImbalanceCompareMinVolume { get; set; } = 5m;
+        public decimal ImbalanceCompareMinVolume { get; set; } = 70m;
+        public decimal APlusPriceAcceptanceTicks { get; set; } = 20m;
         public bool RequireBodyOkForTrade { get; set; }
         public bool RequireVwapOkForTrade { get; set; }
     }
@@ -273,6 +374,7 @@ namespace ATAS.Indicators
         public bool IsAPlusStructureSignal { get; set; }
         public bool IsReady { get; set; }
         public string Side { get; set; } = "";
+        public string ExecutionSide { get; set; } = "";
         public decimal EntryPrice { get; set; }
         public decimal EntryBarHighAtEntry { get; set; }
         public decimal EntryBarLowAtEntry { get; set; }

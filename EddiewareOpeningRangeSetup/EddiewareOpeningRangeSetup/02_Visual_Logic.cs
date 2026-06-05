@@ -108,8 +108,11 @@ namespace ATAS.Indicators
         [DisplayName("Imbalance Ratio")]
         public decimal ImbalanceRatio { get; set; } = 3m;
 
-        [DisplayName("Imbalance Compare Min Volume")]
-        public decimal ImbalanceCompareMinVolume { get; set; } = 5m;
+        [DisplayName("Volume filter")]
+        public decimal ImbalanceCompareMinVolume { get; set; } = 70m;
+
+        [DisplayName("A+ Price Acceptance Ticks")]
+        public decimal APlusPriceAcceptanceTicks { get; set; } = 20m;
 
         [DisplayName("Show A+ Structure Label")]
         public bool ShowAPlusStructureLabel { get; set; } = true;
@@ -223,7 +226,8 @@ namespace ATAS.Indicators
                 APlusSpeedTicksPerSecond = APlusSpeedTicksPerSecond,
                 ReplaySpeedMultiplier = ReplaySpeedMultiplier,
                 ImbalanceRatio = ImbalanceRatio,
-                ImbalanceCompareMinVolume = ImbalanceCompareMinVolume
+                ImbalanceCompareMinVolume = ImbalanceCompareMinVolume,
+                APlusPriceAcceptanceTicks = APlusPriceAcceptanceTicks
             });
         }
 
@@ -393,7 +397,11 @@ namespace ATAS.Indicators
 
         private void DrawTrade(int bar, dynamic candle, ScoreTradeSignal score)
         {
-            if (!ShowEntrySlTp || score.Side == "")
+            var executionSide = string.IsNullOrWhiteSpace(score.ExecutionSide)
+                ? score.Side
+                : score.ExecutionSide;
+
+            if (!ShowEntrySlTp || executionSide == "")
                 return;
 
             var tickSize = GetTickSize();
@@ -401,13 +409,13 @@ namespace ATAS.Indicators
                 ? null
                 : TradeManagerTpSlBeExit.TryGetImbalanceStop(
                     candle,
-                    score.Side,
+                    executionSide,
                     tickSize,
                     ImbalanceRatio,
                     ImbalanceCompareMinVolume);
             var plan = TradeManagerTpSlBeExit.CreateInitialPlan(new TradeManagerTpSlBeExit.TradePlanRequest
             {
-                Side = score.Side,
+                Side = executionSide,
                 SpeedLabel = score.SpeedLabel,
                 Entry = score.EntryPrice,
                 OrLow = _orLow,
@@ -424,19 +432,19 @@ namespace ATAS.Indicators
             var entry = plan.Entry;
             var sl = plan.Sl;
             var tp = plan.Tp;
-            var labelPrice = score.Side == "BUY"
+            var labelPrice = executionSide == "BUY"
                 ? candle.Low - tickSize * 10
                 : candle.High + tickSize * 10;
 
             AddText(
                 $"EW_SCORE_ENTRY_{candle.Time:yyyyMMdd_HHmm}_{bar}",
                 $"{score.SignalSource} ENTRY {entry:0.00} | S{score.Score} | {score.SpeedLabel}",
-                score.Side == "SELL",
+                executionSide == "SELL",
                 bar,
                 labelPrice,
                 Color.White,
-                score.Side == "BUY" ? Color.Blue : Color.Red,
-                score.Side == "BUY" ? Color.Blue : Color.Red,
+                executionSide == "BUY" ? Color.Blue : Color.Red,
+                executionSide == "BUY" ? Color.Blue : Color.Red,
                 12,
                 DrawingText.TextAlign.Center,
                 true);
@@ -452,7 +460,7 @@ namespace ATAS.Indicators
             DrawTradeLabel($"EW_TP_{candle.Time:yyyyMMdd_HHmm}_{bar}", $"TP {tp:0.00} | {plan.TpTicks:0}t", bar + 1, tp, Color.White, Color.Green, 16);
 
             _tradeBar = bar;
-            _tradeSide = score.Side;
+            _tradeSide = executionSide;
             _tradeEntry = entry;
             _entryBarHighAtEntry = score.EntryBarHighAtEntry;
             _entryBarLowAtEntry = score.EntryBarLowAtEntry;

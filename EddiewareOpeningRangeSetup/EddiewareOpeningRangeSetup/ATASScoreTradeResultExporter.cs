@@ -70,7 +70,8 @@ namespace ATAS.Indicators
         public decimal APlusSpeedTicksPerSecond { get; set; } = 5;
         public decimal ReplaySpeedMultiplier { get; set; } = 1;
         public decimal ImbalanceRatio { get; set; } = 3m;
-        public decimal ImbalanceCompareMinVolume { get; set; } = 5m;
+        public decimal ImbalanceCompareMinVolume { get; set; } = 70m;
+        public decimal APlusPriceAcceptanceTicks { get; set; } = 20m;
         public decimal MinTradeTicks { get; set; } = 60;
         public decimal MaxTradeTicks { get; set; } = 60;
         public decimal HalfMfeExitMinMfeTicks { get; set; } = 40;
@@ -165,9 +166,13 @@ namespace ATAS.Indicators
             if (!ScoreTradeSignalEngine.IsSpeedValidForSignalTime(score.SpeedLabel, nyTime.TimeOfDay, _normalSpeedAllowedUntilNy))
                 return;
 
+            var executionSide = string.IsNullOrWhiteSpace(score.ExecutionSide)
+                ? score.Side
+                : score.ExecutionSide;
+
             var plan = TradeManagerTpSlBeExit.CreateInitialPlan(new TradeManagerTpSlBeExit.TradePlanRequest
             {
-                Side = score.Side,
+                Side = executionSide,
                 SpeedLabel = score.SpeedLabel,
                 Entry = score.EntryPrice,
                 OrLow = _orLow,
@@ -184,14 +189,14 @@ namespace ATAS.Indicators
             var hasMatchingAPlusStructure = score.HasAPlusStructure;
             var matchingAPlusSide = score.APlusStructureSide;
             var matchingAPlusPrice = score.APlusStructurePrice;
-            var matchingAPlusCount = hasMatchingAPlusStructure ? 3 : 0;
+            var matchingAPlusCount = hasMatchingAPlusStructure ? 4 : 0;
 
             _trade = new TradeState
             {
                 EntryBar = bar,
                 EntryDate = nyTime.Date,
                 EntryTimeNy = nyTime,
-                Side = score.Side,
+                Side = executionSide,
                 OrLow = score.OrLow,
                 OrHigh = score.OrHigh,
                 OrRangeTicks = score.OrRangeTicks,
@@ -552,6 +557,7 @@ namespace ATAS.Indicators
                 ReplaySpeedMultiplier = ReplaySpeedMultiplier,
                 ImbalanceRatio = ImbalanceRatio,
                 ImbalanceCompareMinVolume = ImbalanceCompareMinVolume,
+                APlusPriceAcceptanceTicks = APlusPriceAcceptanceTicks,
                 RequireBodyOkForTrade = RequireBodyOkForTrade,
                 RequireVwapOkForTrade = RequireVwapOkForTrade
             });
@@ -855,7 +861,7 @@ namespace ATAS.Indicators
                     FormatBool(score.HasAPlusSpeed),
                     score.APlusStructureSide,
                     FormatNullablePrice(score.APlusStructurePrice),
-                    (score.HasAPlusStructure ? 3 : 0).ToString(CultureInfo.InvariantCulture),
+                    (score.HasAPlusStructure ? 4 : 0).ToString(CultureInfo.InvariantCulture),
                     FormatBool(score.SpeedIgnoredByStructure)
                 ) + Environment.NewLine
             );
@@ -924,14 +930,14 @@ namespace ATAS.Indicators
             {
                 _hasBuyAPlusStructure = true;
                 _buyAPlusStructurePrice = state.Buy3_ImbalanceGroupPrice;
-                _buyAPlusStructureCount = 3;
+                _buyAPlusStructureCount = 4;
             }
 
             if (state.HasSell3_ImbalanceGroup && !_hasSellAPlusStructure)
             {
                 _hasSellAPlusStructure = true;
                 _sellAPlusStructurePrice = state.Sell3_ImbalanceGroupPrice;
-                _sellAPlusStructureCount = 3;
+                _sellAPlusStructureCount = 4;
             }
 
             SyncAnyAPlusStructure();

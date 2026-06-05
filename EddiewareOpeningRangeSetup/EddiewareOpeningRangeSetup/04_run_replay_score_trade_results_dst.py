@@ -14,13 +14,23 @@ from openpyxl.utils import get_column_letter
 # Fechas operables en horario DST de Nueva York 2026.
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 DATES_DST = [
-    "08/05/2026",
-    "12/05/2026",
-    "18/05/2026",
-    "20/05/2026",
-        
-]
 
+    "18/05/2026",
+    "19/05/2026",
+    "20/05/2026",
+    "21/05/2026",
+    "22/05/2026",
+
+    "25/05/2026",
+    "26/05/2026",
+    "27/05/2026",
+    "28/05/2026",
+    "29/05/2026",
+
+    # JUNIO 2026
+    "01/06/2026",
+    "02/06/2026",
+]
 # Replay recomendado para esta prueba: X1.
 # Ventana por dia: 09:30 a 09:40 NY. El exporter escribe TIME_OVER si no hay trade antes/de 09:40.
 REPLAY_END_TIME = "09:40"

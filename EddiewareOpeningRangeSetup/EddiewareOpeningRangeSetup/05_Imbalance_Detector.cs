@@ -5,6 +5,8 @@ namespace ATAS.Indicators
 {
     internal static class ImbalanceDetector
     {
+        private const int MinAPlusImbalanceGroup = 4;
+
         public static ImbalanceState DetectForScore(dynamic currentCandle, dynamic previousCandle, ImbalanceDetectorRequest request)
         {
             var current = Detect(currentCandle, request);
@@ -98,7 +100,7 @@ namespace ATAS.Indicators
                         state.MaxBuyImbalanceGroupPrice = level.Price;
                     }
 
-                    if (buyStreak >= 3)
+                    if (buyStreak >= MinAPlusImbalanceGroup)
                     {
                         state.HasBuy3_ImbalanceGroup = true;
                         state.Buy3_ImbalanceGroupPrice = level.Price;
@@ -126,7 +128,7 @@ namespace ATAS.Indicators
                         state.MaxSellImbalanceGroupPrice = level.Price;
                     }
 
-                    if (sellStreak >= 3)
+                    if (sellStreak >= MinAPlusImbalanceGroup)
                     {
                         state.HasSell3_ImbalanceGroup = true;
                         state.Sell3_ImbalanceGroupPrice = level.Price;
@@ -235,7 +237,7 @@ namespace ATAS.Indicators
     {
         public string Side { get; set; } = "";
         public decimal Ratio { get; set; } = 3m;
-        public decimal CompareMinVolume { get; set; } = 5m;
+        public decimal CompareMinVolume { get; set; } = 70m;
     }
 
     internal sealed class ImbalanceState
