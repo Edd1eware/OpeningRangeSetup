@@ -57,12 +57,20 @@ namespace ATAS.Indicators
                 state.VolumeOk &&
                 state.DeltaWithSide;
 
-            state.HasAPlusSpeed = hasAPlusSpeed;
+            state.HasAPlusSpeed = hasAPlusSpeed && state.PriceAcceptedAfterSpeed;
 
             if (state.HasAPlusStructure)
             {
                 state.HasAPlusAbsorption = !state.PriceAcceptedAfterImbalance;
                 state.SignalSource = state.PriceAcceptedAfterImbalance ? "A+ STRUCTURE" : "A+ ABSORTION";
+                return;
+            }
+
+            if (hasAPlusSpeed && !state.PriceAcceptedAfterSpeed)
+            {
+                state.HasAPlusAbsorption = true;
+                state.APlusStructureSide = state.Side;
+                state.SignalSource = "A+ ABSORTION";
                 return;
             }
 

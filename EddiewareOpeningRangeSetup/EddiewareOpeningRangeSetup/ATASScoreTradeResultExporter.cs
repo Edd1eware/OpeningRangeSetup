@@ -189,7 +189,7 @@ namespace ATAS.Indicators
             var hasMatchingAPlusStructure = score.HasAPlusStructure;
             var matchingAPlusSide = score.APlusStructureSide;
             var matchingAPlusPrice = score.APlusStructurePrice;
-            var matchingAPlusCount = hasMatchingAPlusStructure ? 4 : 0;
+            var matchingAPlusCount = hasMatchingAPlusStructure ? 3 : 0;
 
             _trade = new TradeState
             {
@@ -861,7 +861,7 @@ namespace ATAS.Indicators
                     FormatBool(score.HasAPlusSpeed),
                     score.APlusStructureSide,
                     FormatNullablePrice(score.APlusStructurePrice),
-                    (score.HasAPlusStructure ? 4 : 0).ToString(CultureInfo.InvariantCulture),
+                    (score.HasAPlusStructure ? 3 : 0).ToString(CultureInfo.InvariantCulture),
                     FormatBool(score.SpeedIgnoredByStructure)
                 ) + Environment.NewLine
             );
@@ -930,14 +930,14 @@ namespace ATAS.Indicators
             {
                 _hasBuyAPlusStructure = true;
                 _buyAPlusStructurePrice = state.Buy3_ImbalanceGroupPrice;
-                _buyAPlusStructureCount = 4;
+                _buyAPlusStructureCount = 3;
             }
 
             if (state.HasSell3_ImbalanceGroup && !_hasSellAPlusStructure)
             {
                 _hasSellAPlusStructure = true;
                 _sellAPlusStructurePrice = state.Sell3_ImbalanceGroupPrice;
-                _sellAPlusStructureCount = 4;
+                _sellAPlusStructureCount = 3;
             }
 
             SyncAnyAPlusStructure();

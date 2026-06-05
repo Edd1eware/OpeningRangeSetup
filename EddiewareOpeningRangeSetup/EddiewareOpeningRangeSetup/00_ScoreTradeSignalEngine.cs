@@ -4,7 +4,7 @@ namespace ATAS.Indicators
 {
     internal sealed class ScoreTradeSignalEngine
     {
-        private const int MinAPlusImbalanceCount = 4;
+        private const int MinAPlusImbalanceCount = 3;
 
         private int _speedBar = -1;
         private DateTime _speedBarStartedAtUtc = DateTime.MinValue;
@@ -115,6 +115,18 @@ namespace ATAS.Indicators
                 signalTime.TimeOfDay,
                 request.NormalSpeedAllowedUntilTime);
             UpdateAPlusStructureMemory(candle, request);
+
+            if (state.Side == "")
+            {
+                var rejectedStructureSide = ResolveRejectedAPlusStructureSide(candle, request);
+
+                if (rejectedStructureSide != "")
+                {
+                    state.Side = rejectedStructureSide;
+                    state.IsBreakout = true;
+                }
+            }
+
             var imbalance = ImbalanceDetector.Detect(candle, new ImbalanceDetectorRequest
             {
                 Side = state.Side,
@@ -156,8 +168,17 @@ namespace ATAS.Indicators
                 state.APlusStructurePrice.HasValue &&
                 ((state.Side == "BUY" && candle.High >= state.APlusStructurePrice.Value + request.APlusPriceAcceptanceTicks * request.TickSize) ||
                  (state.Side == "SELL" && candle.Low <= state.APlusStructurePrice.Value - request.APlusPriceAcceptanceTicks * request.TickSize));
+            state.PriceAcceptedAfterSpeed =
+                state.SpeedLabel == "A+ speed" &&
+                ((state.Side == "BUY" && candle.High >= state.EntryPrice + request.APlusPriceAcceptanceTicks * request.TickSize) ||
+                 (state.Side == "SELL" && candle.Low <= state.EntryPrice - request.APlusPriceAcceptanceTicks * request.TickSize));
             state.ImbalanceScore = imbalance.Score;
             AbsorptionDetector.ApplySignalSource(state);
+            if (state.HasAPlusAbsorption && IsFakeBreakoutReturnToRange(state, candle))
+            {
+                state.IsFakeBreakout = true;
+                state.SignalSource = "FAKE BREAKOUT";
+            }
             state.ExecutionSide = ResolveExecutionSide(state);
             if (state.HasAPlusStructure && !state.SpeedValid)
             {
@@ -175,17 +196,41 @@ namespace ATAS.Indicators
             if (state.SpeedValid) state.Score += state.SpeedLabel == "A+ speed" ? 2 : 1;
             state.Score += state.ImbalanceScore;
 
+            var isAPlusAbsorptionReady =
+                state.HasAPlusAbsorption &&
+                state.TimeOk &&
+                state.VolumeOk &&
+                !string.IsNullOrWhiteSpace(state.ExecutionSide);
+
             state.IsReady =
+                isAPlusAbsorptionReady ||
+                (
                 state.IsBreakout &&
                 state.TimeOk &&
                 state.Score >= request.MinScore &&
                 state.SpeedValid &&
+                (state.SpeedLabel != "A+ speed" || state.HasAPlusStructure || state.PriceAcceptedAfterSpeed || state.HasAPlusAbsorption) &&
                 (state.SpeedLabel != "normal speed" || state.HasAPlusStructure || state.HasSide3_Imbalances || state.HasAny3_ImbalanceGroup) &&
                 state.VolumeOk &&
                 (!request.RequireBodyOkForTrade || state.BodyOk) &&
-                (!request.RequireVwapOkForTrade || state.VwapOk);
+                (!request.RequireVwapOkForTrade || state.VwapOk)
+                );
 
             return state;
+        }
+
+        private static bool IsFakeBreakoutReturnToRange(ScoreTradeSignal state, dynamic candle)
+        {
+            if (state == null || string.IsNullOrWhiteSpace(state.Side))
+                return false;
+
+            if (state.Side == "BUY")
+                return candle.High > state.OrHigh && candle.Close <= state.OrHigh && candle.Close >= state.OrLow;
+
+            if (state.Side == "SELL")
+                return candle.Low < state.OrLow && candle.Close >= state.OrLow && candle.Close <= state.OrHigh;
+
+            return false;
         }
 
         private void UpdateAPlusStructureMemory(dynamic candle, ScoreTradeSignalRequest request)
@@ -221,6 +266,28 @@ namespace ATAS.Indicators
                 _sellAPlusStructureBar = _speedBar;
                 _sellAPlusStructurePrice = sellState.Sell3_ImbalanceGroupPrice;
             }
+        }
+
+        private string ResolveRejectedAPlusStructureSide(dynamic candle, ScoreTradeSignalRequest request)
+        {
+            var tickDistance = request.APlusPriceAcceptanceTicks * request.TickSize;
+            var buyRejected = _buyAPlusStructureBar >= 0 &&
+                _buyAPlusStructurePrice.HasValue &&
+                candle.High < _buyAPlusStructurePrice.Value + tickDistance;
+            var sellRejected = _sellAPlusStructureBar >= 0 &&
+                _sellAPlusStructurePrice.HasValue &&
+                candle.Low > _sellAPlusStructurePrice.Value - tickDistance;
+
+            if (buyRejected && sellRejected)
+                return _buyAPlusStructureBar >= _sellAPlusStructureBar ? "BUY" : "SELL";
+
+            if (buyRejected)
+                return "BUY";
+
+            if (sellRejected)
+                return "SELL";
+
+            return "";
         }
 
         private bool HasAPlusStructureForSide(string side)
@@ -398,6 +465,7 @@ namespace ATAS.Indicators
         public decimal DeltaChange { get; set; }
         public bool DeltaWithSide { get; set; }
         public bool PriceAcceptedAfterImbalance { get; set; }
+        public bool PriceAcceptedAfterSpeed { get; set; }
         public bool RangeOk { get; set; }
         public bool BodyOk { get; set; }
         public bool VolumeOk { get; set; }
@@ -417,6 +485,7 @@ namespace ATAS.Indicators
         public bool HasAPlusStructure { get; set; }
         public bool HasAPlusAbsorption { get; set; }
         public bool HasAPlusSpeed { get; set; }
+        public bool IsFakeBreakout { get; set; }
         public string APlusStructureSide { get; set; } = "";
         public decimal? APlusStructurePrice { get; set; }
         public string SignalSource { get; set; } = "";

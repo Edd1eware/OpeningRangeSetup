@@ -5,7 +5,7 @@ namespace ATAS.Indicators
 {
     internal static class ImbalanceDetector
     {
-        private const int MinAPlusImbalanceGroup = 4;
+        private const int MinAPlusImbalanceGroup = 3;
 
         public static ImbalanceState DetectForScore(dynamic currentCandle, dynamic previousCandle, ImbalanceDetectorRequest request)
         {

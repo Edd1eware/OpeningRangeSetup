@@ -120,6 +120,9 @@ namespace ATAS.Indicators
         [DisplayName("Show A+ Structure Debug Label")]
         public bool ShowAPlusStructureDebugLabel { get; set; } = false;
 
+        [DisplayName("Show A+ Absorption Debug Label")]
+        public bool ShowAPlusAbsorptionDebugLabel { get; set; } = false;
+
         [DisplayName("Show A+ Imbalance Debug Lines")]
         public bool ShowAPlusImbalanceDebugLines { get; set; } = true;
 
@@ -192,6 +195,7 @@ namespace ATAS.Indicators
             // This prevents opposite-side imbalance groups from printing before/around the trade.
             TryDrawAPlusStructureLabel(bar, candle, score);
             TryDrawNoAPlusStructureReadyDebugLabel(bar, candle, score);
+            TryDrawAPlusAbsorptionDebugLabel(bar, candle, score);
 
             if (ShowScoreLabel)
                 DrawScoreLabel(bar, candle, score);
@@ -474,6 +478,34 @@ namespace ATAS.Indicators
 
             if (!_tradeIsAPlusSpeed)
                 DrawLiveExitSpeed(bar, candle, 0);
+        }
+
+        private void TryDrawAPlusAbsorptionDebugLabel(int bar, dynamic candle, ScoreTradeSignal score)
+        {
+            if (!ShowAPlusAbsorptionDebugLabel || score == null)
+                return;
+
+            var tickSize = GetTickSize();
+            var labelPrice = candle.Low - tickSize * 55m;
+            var source = string.IsNullOrWhiteSpace(score.SignalSource) ? "NA" : score.SignalSource;
+            var side = string.IsNullOrWhiteSpace(score.Side) ? "NA" : score.Side;
+            var executionSide = string.IsNullOrWhiteSpace(score.ExecutionSide) ? "NA" : score.ExecutionSide;
+            var structureSide = string.IsNullOrWhiteSpace(score.APlusStructureSide) ? "NA" : score.APlusStructureSide;
+
+            AddText(
+                $"EW_APLUS_ABS_DBG_{candle.Time:yyyyMMdd_HHmm}_{bar}",
+                $"ABS DBG | SRC={source} | ABS={Flag(score.HasAPlusAbsorption)} | STRUCT={Flag(score.HasAPlusStructure)} {structureSide}@{FormatNullablePrice(score.APlusStructurePrice)} | SIDE={side} EXEC={executionSide} | ACC_IMB={Flag(score.PriceAcceptedAfterImbalance)} ACC_SPD={Flag(score.PriceAcceptedAfterSpeed)} | READY={Flag(score.IsReady)}",
+                true,
+                bar,
+                labelPrice,
+                0,
+                0,
+                Color.Black,
+                score.HasAPlusAbsorption ? Color.Gold : Color.Silver,
+                score.HasAPlusAbsorption ? Color.Gold : Color.Silver,
+                10,
+                DrawingText.TextAlign.Center,
+                true);
         }
 
         private void ManageActiveTrade(int bar, dynamic candle)
