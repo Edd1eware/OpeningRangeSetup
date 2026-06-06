@@ -15,16 +15,42 @@ from openpyxl.utils import get_column_letter
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 DATES_DST = [
 
+    "04/05/2026",
+    "05/05/2026",
+    "06/05/2026",
+    "07/05/2026",
+    "08/05/2026",
 
+    "11/05/2026",
+    "12/05/2026",
+    "13/05/2026",
+    "14/05/2026",
+    "15/05/2026",
+
+    "18/05/2026",
+    "19/05/2026",
+    "20/05/2026",
+    "21/05/2026",
+    "22/05/2026",
+
+    "25/05/2026",
+    "26/05/2026",
     "27/05/2026",
+    "28/05/2026",
     "29/05/2026",
-    
+
+    # JUNIO 2026
+    "01/06/2026",
+    "02/06/2026",
+    "03/06/2026",
+    "04/06/2026",
 ]
 # Replay recomendado para esta prueba: X1.
 # Ventana por dia: 09:30 a 09:50 NY. El exporter escribe TIME_OVER si no hay trade antes/de 09:40;
 # si ya hay trade abierto, dejamos correr hasta 09:50 para que resuelva TP/SL/EXIT/BE.
 REPLAY_END_TIME = "09:50"
 POLL_SECONDS = 1
+NO_TRADE_CUTOFF_SECONDS = 10 * 60 + 15
 
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
 RESULTS_FOLDER = os.path.join(EXPORT_FOLDER, "trade_results_score")
@@ -227,6 +253,27 @@ def result_is_terminal(path, min_modified_time=None):
     return ticks != 0
 
 
+def result_is_open_trade(path, min_modified_time=None):
+    if not os.path.exists(path):
+        return False
+
+    if min_modified_time is not None and os.path.getmtime(path) < min_modified_time:
+        return False
+
+    try:
+        with open(path, "r", encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            row = next(reader, None)
+    except (OSError, PermissionError):
+        return False
+
+    if not row:
+        return False
+
+    result_label = str(row.get("Result_Label") or row.get("RESULT") or "").strip().upper()
+    return result_label == "OPEN"
+
+
 def stop_replay():
     replay, from_box, to_box, start_button, stop_button = get_controls()
 
@@ -240,7 +287,7 @@ def stop_replay():
 
 MAX_WAIT_SECONDS = 1200
 
-def wait_until_result(path, min_modified_time=None):
+def wait_until_result(path, min_modified_time=None, no_trade_cutoff_seconds=None):
     print("Esperando resultado terminal en CSV; si el trade esta OPEN no se cambia de dia.")
     dot_count = 0
     start = time.time()
@@ -252,6 +299,14 @@ def wait_until_result(path, min_modified_time=None):
             return True
 
         elapsed = time.time() - start
+        if (
+            no_trade_cutoff_seconds is not None and
+            elapsed > no_trade_cutoff_seconds and
+            not result_is_open_trade(path, min_modified_time)
+        ):
+            print(f"\rCorte 09:40 sin trade OPEN ({int(elapsed)}s). Deteniendo replay del dia.")
+            return False
+
         if elapsed > MAX_WAIT_SECONDS:
             print(f"\rTimeout ({MAX_WAIT_SECONDS}s) esperando resultado terminal. Saltando al siguiente dia.")
             return False
@@ -536,7 +591,7 @@ try:
         start_button.click_input()
 
         print("Esperando hasta detectar TP/SL/EXIT/BE/TIME_OVER...")
-        wait_until_result(result_path, started_at)
+        wait_until_result(result_path, started_at, NO_TRADE_CUTOFF_SECONDS)
         stop_replay()
 
         time.sleep(5)

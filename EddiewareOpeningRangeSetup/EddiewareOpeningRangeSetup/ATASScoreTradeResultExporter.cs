@@ -716,12 +716,6 @@ namespace ATAS.Indicators
 
         private void WriteTimeOverFile(DateTime nyDate, DateTime nyTime)
         {
-            if (_bestRejectedScore != null)
-            {
-                WriteRejectedScoreFile(nyDate);
-                return;
-            }
-
             if (!Directory.Exists(_exportFolder))
                 Directory.CreateDirectory(_exportFolder);
 

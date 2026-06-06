@@ -133,10 +133,10 @@ namespace ATAS.Indicators
         public bool ShowAPlusAbsorptionDebugLabel { get; set; } = false;
 
         [DisplayName("Show A+ Imbalance Debug Lines")]
-        public bool ShowAPlusImbalanceDebugLines { get; set; } = true;
+        public bool ShowAPlusImbalanceDebugLines { get; set; } = false;
 
         [DisplayName("Show No A+ Structure Ready Debug Label")]
-        public bool ShowNoAPlusStructureReadyDebugLabel { get; set; } = true;
+        public bool ShowNoAPlusStructureReadyDebugLabel { get; set; } = false;
 
         [DisplayName("No A+ Structure Ready Debug Label Offset Ticks")]
         public decimal NoAPlusStructureReadyDebugLabelOffsetTicks { get; set; } = 95m;
@@ -262,7 +262,7 @@ namespace ATAS.Indicators
 
             AddText(
                 $"EW_NO_APLUS_READY_DEBUG_{candle.Time:yyyyMMdd_HHmm}_{bar}",
-                $"READY | {score.SignalSource} | {score.Side} | S{score.Score}",
+                $"READY {score.Side} {score.SignalSource} S{score.Score}",
                 true,
                 bar,
                 labelPrice,
@@ -306,7 +306,7 @@ namespace ATAS.Indicators
 
                 AddText(
                     $"EW_APLUS_IMBALANCE_BUY_{candle.Time:yyyyMMdd_HHmm}_{bar}",
-                    $"{score.SignalSource} | BUY | IMBALANCE_Buy{state.BuyImbalanceCount} | IMBALANCE_Sell{state.SellImbalanceCount} | Group{group} @{FormatNullablePrice(groupPrice)}",
+                    $"{score.SignalSource} BUY G{group} @{FormatNullablePrice(groupPrice)}",
                     true,
                     bar,
                     labelPrice,
@@ -328,7 +328,7 @@ namespace ATAS.Indicators
 
                 AddText(
                     $"EW_APLUS_IMBALANCE_SELL_{candle.Time:yyyyMMdd_HHmm}_{bar}",
-                    $"{score.SignalSource} | SELL | IMBALANCE_Buy{state.BuyImbalanceCount} | IMBALANCE_Sell{state.SellImbalanceCount} | Group{group} @{FormatNullablePrice(groupPrice)}",
+                    $"{score.SignalSource} SELL G{group} @{FormatNullablePrice(groupPrice)}",
                     true,
                     bar,
                     labelPrice,
@@ -389,7 +389,7 @@ namespace ATAS.Indicators
 
             AddText(
                 $"EW_APLUS_IMBALANCE_DEBUG_{candle.Time:yyyyMMdd_HHmm}_{bar}",
-                $"DBG IMB | BUY={state.BuyImbalanceCount} G{state.MaxBuyImbalanceGroup} @{FormatNullablePrice(state.MaxBuyImbalanceGroupPrice)} | SELL={state.SellImbalanceCount} G{state.MaxSellImbalanceGroup} @{FormatNullablePrice(state.MaxSellImbalanceGroupPrice)} | DRAW={sideToDraw} | BODY={bodySide}",
+                $"IMB DBG {sideToDraw} | B{state.BuyImbalanceCount}/G{state.MaxBuyImbalanceGroup} S{state.SellImbalanceCount}/G{state.MaxSellImbalanceGroup} | BODY {bodySide}",
                 true,
                 bar,
                 labelPrice,
@@ -406,6 +406,20 @@ namespace ATAS.Indicators
         private string FormatNullablePrice(decimal? price)
         {
             return price.HasValue ? price.Value.ToString("0.00") : "NA";
+        }
+
+        private static string FormatSpeedLabel(string speedLabel)
+        {
+            if (speedLabel == "A+ speed")
+                return "A+SPD";
+
+            if (speedLabel == "normal speed")
+                return "SPD";
+
+            if (speedLabel == "invalid speed")
+                return "NO SPD";
+
+            return string.IsNullOrWhiteSpace(speedLabel) ? "SPD NA" : speedLabel;
         }
 
         private void DrawTrade(int bar, dynamic candle, ScoreTradeSignal score)
@@ -452,7 +466,7 @@ namespace ATAS.Indicators
             var entryLabelId = $"EW_SCORE_ENTRY_{candle.Time:yyyyMMdd_HHmm}_{bar}";
             AddText(
                 entryLabelId,
-                $"{score.SignalSource} ENTRY {entry:0.00} | S{score.Score} | {score.SpeedLabel}",
+                $"{score.SignalSource} {executionSide} | S{score.Score} | {FormatSpeedLabel(score.SpeedLabel)} {score.BreakoutSpeed:0.00}t/s",
                 executionSide == "SELL",
                 bar,
                 labelPrice,
@@ -507,7 +521,7 @@ namespace ATAS.Indicators
 
             AddText(
                 $"EW_APLUS_ABS_DBG_{candle.Time:yyyyMMdd_HHmm}_{bar}",
-                $"ABS DBG | SRC={source} | ABS={Flag(score.HasAPlusAbsorption)} | STRUCT={Flag(score.HasAPlusStructure)} {structureSide}@{FormatNullablePrice(score.APlusStructurePrice)} | SIDE={side} EXEC={executionSide} | ACC_IMB={Flag(score.PriceAcceptedAfterImbalance)} ACC_SPD={Flag(score.PriceAcceptedAfterSpeed)} | READY={Flag(score.IsReady)}",
+                $"ABS DBG {source} {side}->{executionSide} | STRUCT {structureSide}@{FormatNullablePrice(score.APlusStructurePrice)} | ACC I{Flag(score.PriceAcceptedAfterImbalance)} S{Flag(score.PriceAcceptedAfterSpeed)} | R{Flag(score.IsReady)}",
                 true,
                 bar,
                 labelPrice,
@@ -786,7 +800,7 @@ namespace ATAS.Indicators
 
             AddText(
                 _tradeEntryLabelId,
-                $"A+ SPEED ENTRY {_tradeEntry:0.00} | S{_tradeScore} | live {entryMoveSpeed:0.00}t/s",
+                $"A+ SPEED {_tradeSide} | S{_tradeScore} | live {entryMoveSpeed:0.00}t/s",
                 _tradeSide == "SELL",
                 _tradeEntryLabelBar,
                 _tradeEntryLabelPrice,
@@ -818,8 +832,8 @@ namespace ATAS.Indicators
                 : "";
 
             AddText(
-                "EW_SCORE_STATUS",
-                $"LIVE EXIT ADV {_tradeSide} {adverseSpeed:0.00}t/s{entryText} | PRICE {candle.Close:0.00} | SL {(isValidSpeed ? "VALID" : "WAIT")}",
+                "EW_LIVE_EXIT_STATUS",
+                $"EXIT ADV {_tradeSide} {adverseSpeed:0.00}t/s{entryText}",
                 true,
                 bar,
                 price,
@@ -900,7 +914,7 @@ namespace ATAS.Indicators
 
             AddText(
                 "EW_SCORE_STATUS",
-                $"{status} {side} {score.SignalSource} S{score.Score}/11 | OR {score.OrRangeTicks:0}t BODY {score.BodyBreakoutTicks:0}t | {score.SpeedLabel} {score.BreakoutSpeed:0.00}t/s | R{Flag(score.RangeOk)} B{Flag(score.BodyOk)} V{Flag(score.VolumeOk)} D{Flag(score.DeltaOk)} VW{Flag(score.VwapOk)} S{Flag(score.SpeedValid)} I{score.ImbalanceScore}",
+                $"{status} {side} {score.SignalSource} S{score.Score}/11 | OR {score.OrRangeTicks:0}t BODY {score.BodyBreakoutTicks:0}t | {FormatSpeedLabel(score.SpeedLabel)} {score.BreakoutSpeed:0.00}t/s",
                 true,
                 bar,
                 price,
