@@ -26,6 +26,8 @@ namespace ATAS.Indicators
         private decimal _tradeEntry;
         private decimal _entryBarHighAtEntry;
         private decimal _entryBarLowAtEntry;
+        private decimal _tradeCvdEntry;
+        private decimal _tradeCvdPeak;
         private decimal _bestFavorablePrice;
         private decimal _lastManagePrice;
         private DateTime _tradeEntryCandleTime = DateTime.MinValue;
@@ -42,6 +44,7 @@ namespace ATAS.Indicators
         private decimal _tradeEntryLabelPrice;
         private int _tradeScore;
         private bool _tradeLiveAPlusSpeedDrawn;
+        private bool _cvdReversalRiskDrawn;
         private bool _tradeHitDrawn;
         private bool _timeOverDrawn;
 
@@ -488,6 +491,8 @@ namespace ATAS.Indicators
             _tradeEntry = entry;
             _entryBarHighAtEntry = score.EntryBarHighAtEntry;
             _entryBarLowAtEntry = score.EntryBarLowAtEntry;
+            _tradeCvdEntry = score.CumulativeDelta;
+            _tradeCvdPeak = score.CumulativeDelta;
             _tradeSl = 0;
             _tradeTp = 0;
             _tradeEntryLabelId = entryLabelId;
@@ -495,6 +500,7 @@ namespace ATAS.Indicators
             _tradeEntryLabelPrice = labelPrice;
             _tradeScore = score.Score;
             _tradeLiveAPlusSpeedDrawn = false;
+            _cvdReversalRiskDrawn = false;
             _bestFavorablePrice = entry;
             _lastManagePrice = entry;
             _tradeEntryCandleTime = candle.Time;
@@ -544,6 +550,7 @@ namespace ATAS.Indicators
                 return;
 
             UpdateActiveTradeStopFromLastImbalance(bar, candle);
+            TryDrawCvdReversalRisk(bar, candle);
 
             if (_tradeIsAPlusSpeed)
             {
@@ -764,6 +771,51 @@ namespace ATAS.Indicators
             var vwap = TradeManagerTpSlBeExit.GetSessionVwap(bar, candle.Time.Date, new Func<int, dynamic>(GetCandle));
 
             return TradeManagerTpSlBeExit.HasVwapFailed(_tradeSide, candle.Close, vwap);
+        }
+
+        private void TryDrawCvdReversalRisk(int bar, dynamic candle)
+        {
+            if (_cvdReversalRiskDrawn || _tradeSide == "")
+                return;
+
+            var currentCvd = CumulativeDeltaDetector.Detect(
+                bar,
+                candle,
+                new Func<int, dynamic>(GetCandle),
+                _currentDate,
+                new Func<dynamic, DateTime>(c => c.Time));
+            var pullback = CumulativeDeltaDetector.CalculatePullback(
+                _tradeSide,
+                _tradeCvdEntry,
+                currentCvd.Value,
+                _tradeCvdPeak);
+
+            _tradeCvdPeak = pullback.PeakCvd;
+
+            if (pullback.PullbackLabel != "Riesgo de reversion")
+                return;
+
+            var tickSize = GetTickSize();
+            var price = _tradeSide == "BUY"
+                ? candle.High + tickSize * 28
+                : candle.Low - tickSize * 28;
+
+            AddText(
+                $"EW_CVD_REVERSAL_{_currentDate:yyyyMMdd}_{bar}",
+                $"CVD RISK {_tradeSide} {pullback.PullbackPercent:P0}",
+                true,
+                bar,
+                price,
+                0,
+                0,
+                Color.White,
+                Color.OrangeRed,
+                Color.OrangeRed,
+                12,
+                DrawingText.TextAlign.Center,
+                true);
+
+            _cvdReversalRiskDrawn = true;
         }
 
         private decimal CalculateEntryMoveTicks(dynamic candle, decimal tickSize)
@@ -1047,6 +1099,8 @@ namespace ATAS.Indicators
             _tradeEntry = 0;
             _entryBarHighAtEntry = 0;
             _entryBarLowAtEntry = 0;
+            _tradeCvdEntry = 0;
+            _tradeCvdPeak = 0;
             _bestFavorablePrice = 0;
             _lastManagePrice = 0;
             _lastManageTimeUtc = DateTime.MinValue;
@@ -1061,6 +1115,7 @@ namespace ATAS.Indicators
             _tradeEntryLabelPrice = 0;
             _tradeScore = 0;
             _tradeLiveAPlusSpeedDrawn = false;
+            _cvdReversalRiskDrawn = false;
             _tradeHitDrawn = false;
             _timeOverDrawn = false;
         }
