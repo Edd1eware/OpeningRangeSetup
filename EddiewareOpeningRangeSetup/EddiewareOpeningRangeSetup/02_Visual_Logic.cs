@@ -550,7 +550,14 @@ namespace ATAS.Indicators
                 return;
 
             UpdateActiveTradeStopFromLastImbalance(bar, candle);
-            TryDrawCvdReversalRisk(bar, candle);
+            if (TryDrawRiskExit(bar, candle))
+            {
+                var exitColor = Color.Orange;
+                DrawCvdRiskExitLine(bar, candle.Close, exitColor);
+                DrawTradeHit(bar, "EXIT", candle.Close, exitColor, Color.White, 32);
+                _tradeHitDrawn = true;
+                return;
+            }
 
             if (_tradeIsAPlusSpeed)
             {
@@ -753,6 +760,16 @@ namespace ATAS.Indicators
                 yOffset);
         }
 
+        private void DrawCvdRiskExitLine(int bar, decimal exitPrice, Color color)
+        {
+            TrendLines.Add(new TrendLine(
+                bar,
+                exitPrice,
+                bar + LineLength,
+                exitPrice,
+                new Pen(color, 3)));
+        }
+
         private void GetPostEntryHitRange(int bar, dynamic candle, out decimal hitHigh, out decimal hitLow)
         {
             TradeManagerTpSlBeExit.GetPostEntryHitRange(
@@ -773,10 +790,12 @@ namespace ATAS.Indicators
             return TradeManagerTpSlBeExit.HasVwapFailed(_tradeSide, candle.Close, vwap);
         }
 
-        private void TryDrawCvdReversalRisk(int bar, dynamic candle)
+        private bool TryDrawRiskExit(int bar, dynamic candle)
         {
             if (_cvdReversalRiskDrawn || _tradeSide == "")
-                return;
+                return false;
+
+            var progressTicks = CalculateFavorableProgressTicks(candle);
 
             var currentCvd = CumulativeDeltaDetector.Detect(
                 bar,
@@ -792,30 +811,65 @@ namespace ATAS.Indicators
 
             _tradeCvdPeak = pullback.PeakCvd;
 
-            if (pullback.PullbackLabel != "Riesgo de reversion")
-                return;
+            var isCvdRiskExit = pullback.PullbackLabel == "Riesgo de reversion" &&
+                progressTicks >= CalculateCvdRiskMinProgressTicks();
+            var isTargetProgressExit = progressTicks >= CalculateTargetProgressExitMinTicks();
 
-            var tickSize = GetTickSize();
-            var price = _tradeSide == "BUY"
-                ? candle.High + tickSize * 28
-                : candle.Low - tickSize * 28;
+            if (!isCvdRiskExit && !isTargetProgressExit)
+                return false;
+
+            var labelText = isCvdRiskExit
+                ? $"CVD RISK EXIT {_tradeSide} {pullback.PullbackPercent:P0}"
+                : $"EXIT 50% TARGET {_tradeSide}";
+
+            var labelBackColor = _tradeSide == "BUY"
+                ? Color.Blue
+                : Color.Red;
 
             AddText(
                 $"EW_CVD_REVERSAL_{_currentDate:yyyyMMdd}_{bar}",
-                $"CVD RISK {_tradeSide} {pullback.PullbackPercent:P0}",
+                labelText,
                 true,
                 bar,
-                price,
+                _tradeEntry,
                 0,
                 0,
                 Color.White,
-                Color.OrangeRed,
-                Color.OrangeRed,
+                labelBackColor,
+                labelBackColor,
                 12,
                 DrawingText.TextAlign.Center,
                 true);
 
             _cvdReversalRiskDrawn = true;
+            return true;
+        }
+
+        private decimal CalculateFavorableProgressTicks(dynamic candle)
+        {
+            if (_tradeSide == "BUY")
+                return RoundToTicks(Math.Max(0, candle.High - _tradeEntry));
+
+            if (_tradeSide == "SELL")
+                return RoundToTicks(Math.Max(0, _tradeEntry - candle.Low));
+
+            return 0;
+        }
+
+        private decimal CalculateCvdRiskMinProgressTicks()
+        {
+            if (_tradeTp == 0 || _tradeEntry == 0)
+                return decimal.MaxValue;
+
+            return RoundToTicks(Math.Abs(_tradeTp - _tradeEntry)) * 0.40m;
+        }
+
+        private decimal CalculateTargetProgressExitMinTicks()
+        {
+            if (_tradeTp == 0 || _tradeEntry == 0)
+                return decimal.MaxValue;
+
+            return RoundToTicks(Math.Abs(_tradeTp - _tradeEntry)) * 0.50m;
         }
 
         private decimal CalculateEntryMoveTicks(dynamic candle, decimal tickSize)

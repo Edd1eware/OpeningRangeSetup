@@ -290,6 +290,9 @@ namespace ATAS.Indicators
             UpdateBestFavorablePrice(tradeHigh, tradeLow);
             UpdateCvdPullback(bar, candle);
 
+            if (TryCloseRiskExit(candle.Close))
+                return true;
+
             var decision = TradeManagerTpSlBeExit.EvaluateExit(new TradeManagerTpSlBeExit.TradeExitRequest
             {
                 Side = _trade.Side,
@@ -342,6 +345,9 @@ namespace ATAS.Indicators
             UpdateBestFavorablePrice(tradeHigh, tradeLow);
             UpdateCvdPullback(bar, candle);
 
+            if (TryCloseRiskExit(candle.Close))
+                return;
+
             var adverseSpeed = CalculateAdverseSpeed(candle.Close, manageTimeUtc, manageTimingSource);
 
             var decision = TradeManagerTpSlBeExit.EvaluateExit(new TradeManagerTpSlBeExit.TradeExitRequest
@@ -375,6 +381,49 @@ namespace ATAS.Indicators
             _trade.Result = decision.Result;
             _trade.ExitPrice = ResolveExitPrice(decision);
             WriteTradeFile(_currentNyDate);
+        }
+
+        private bool TryCloseRiskExit(decimal exitPrice)
+        {
+            if (_trade == null || _trade.Result != "OPEN")
+                return false;
+
+            if (!HasCvdRiskExitProgress() && !HasTargetProgressExit())
+            {
+                return false;
+            }
+
+            _trade.Result = "EXIT";
+            _trade.ExitPrice = exitPrice;
+            WriteTradeFile(_currentNyDate);
+            return true;
+        }
+
+        private bool HasCvdRiskExitProgress()
+        {
+            if (_trade == null)
+                return false;
+
+            if (_trade.TpTicks <= 0)
+                return false;
+
+            if (_trade.CvdPullbackLabel != "Riesgo de reversion")
+                return false;
+
+            var requiredTicks = _trade.TpTicks * 0.40m;
+            return _trade.MfeTicks >= requiredTicks;
+        }
+
+        private bool HasTargetProgressExit()
+        {
+            if (_trade == null)
+                return false;
+
+            if (_trade.TpTicks <= 0)
+                return false;
+
+            var requiredTicks = _trade.TpTicks * 0.50m;
+            return _trade.MfeTicks >= requiredTicks;
         }
 
         private decimal ResolveExitPrice(TradeManagerTpSlBeExit.TradeExitDecision decision)

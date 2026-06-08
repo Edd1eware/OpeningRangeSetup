@@ -17,6 +17,8 @@ DATES_DST = [
 
     "14/05/2026",
     "15/05/2026",
+    "20/05/2026",
+    "26/05/2026",
 
 ]
 # Replay recomendado para esta prueba: X1.
