@@ -811,16 +811,9 @@ namespace ATAS.Indicators
 
             _tradeCvdPeak = pullback.PeakCvd;
 
-            var isCvdRiskExit = pullback.PullbackLabel == "Riesgo de reversion" &&
-                progressTicks >= CalculateCvdRiskMinProgressTicks();
-            var isTargetProgressExit = progressTicks >= CalculateTargetProgressExitMinTicks();
-
-            if (!isCvdRiskExit && !isTargetProgressExit)
+            if (pullback.PullbackLabel != "Riesgo de reversion" ||
+                progressTicks < CalculateCvdRiskMinProgressTicks())
                 return false;
-
-            var labelText = isCvdRiskExit
-                ? $"CVD RISK EXIT {_tradeSide} {pullback.PullbackPercent:P0}"
-                : $"EXIT 50% TARGET {_tradeSide}";
 
             var labelBackColor = _tradeSide == "BUY"
                 ? Color.Blue
@@ -828,7 +821,7 @@ namespace ATAS.Indicators
 
             AddText(
                 $"EW_CVD_REVERSAL_{_currentDate:yyyyMMdd}_{bar}",
-                labelText,
+                $"CVD RISK EXIT {_tradeSide} {pullback.PullbackPercent:P0}",
                 true,
                 bar,
                 _tradeEntry,
@@ -862,14 +855,6 @@ namespace ATAS.Indicators
                 return decimal.MaxValue;
 
             return RoundToTicks(Math.Abs(_tradeTp - _tradeEntry)) * 0.40m;
-        }
-
-        private decimal CalculateTargetProgressExitMinTicks()
-        {
-            if (_tradeTp == 0 || _tradeEntry == 0)
-                return decimal.MaxValue;
-
-            return RoundToTicks(Math.Abs(_tradeTp - _tradeEntry)) * 0.50m;
         }
 
         private decimal CalculateEntryMoveTicks(dynamic candle, decimal tickSize)
