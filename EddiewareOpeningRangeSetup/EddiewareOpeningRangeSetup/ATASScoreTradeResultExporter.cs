@@ -77,6 +77,7 @@ namespace ATAS.Indicators
         public decimal HalfMfeExitMinMfeTicks { get; set; } = 40;
         public decimal FastExitMinMfeTicks { get; set; } = 40;
         public decimal FastExitPullbackTicks { get; set; } = 10;
+        public decimal CvdProfitLockPullbackTicks { get; set; } = 10;
         public decimal FastExitAdverseSpeedTicksPerSecond { get; set; } = 6;
         public TimeSpan TimeOverTimeNy { get; set; } = new TimeSpan(9, 40, 0);
         public int MinTimeOverRealtimeSeconds { get; set; } = 5;
@@ -289,10 +290,11 @@ namespace ATAS.Indicators
 
             UpdateTradeExcursion(tradeHigh, tradeLow);
             UpdateBestFavorablePrice(tradeHigh, tradeLow);
+            UpdateCvdProfitLock();
             UpdateCvdPullback(bar, candle);
 
-            if (TryCloseRiskExit(candle.Close))
-                return true;
+            if (TryApplyCvdRiskBracket())
+                return false;
 
             var decision = TradeManagerTpSlBeExit.EvaluateExit(new TradeManagerTpSlBeExit.TradeExitRequest
             {
@@ -344,9 +346,10 @@ namespace ATAS.Indicators
 
             UpdateTradeExcursion(tradeHigh, tradeLow);
             UpdateBestFavorablePrice(tradeHigh, tradeLow);
+            UpdateCvdProfitLock();
             UpdateCvdPullback(bar, candle);
 
-            if (TryCloseRiskExit(candle.Close))
+            if (TryApplyCvdRiskBracket())
                 return;
 
             var adverseSpeed = CalculateAdverseSpeed(candle.Close, manageTimeUtc, manageTimingSource);
@@ -384,25 +387,12 @@ namespace ATAS.Indicators
             WriteTradeFile(_currentNyDate);
         }
 
-        private bool TryCloseRiskExit(decimal exitPrice)
+        private bool TryApplyCvdRiskBracket()
         {
             if (_trade == null || _trade.Result != "OPEN")
                 return false;
 
-            if (!HasCvdRiskExitProgress())
-            {
-                return false;
-            }
-
-            _trade.Result = "EXIT";
-            _trade.ExitPrice = exitPrice;
-            WriteTradeFile(_currentNyDate);
-            return true;
-        }
-
-        private bool HasCvdRiskExitProgress()
-        {
-            if (_trade == null)
+            if (_trade.CvdRiskBracketActive)
                 return false;
 
             if (_trade.TpTicks <= 0)
@@ -411,8 +401,75 @@ namespace ATAS.Indicators
             if (_trade.CvdPullbackLabel != "Riesgo de reversion")
                 return false;
 
-            var requiredTicks = _trade.TpTicks * 0.40m;
-            return _trade.MfeTicks >= requiredTicks;
+            var tp50Ticks = Math.Max(1, Math.Floor(_trade.TpTicks * 0.50m));
+            _trade.Tp = _trade.Side == "BUY"
+                ? _trade.Entry + tp50Ticks * SetupTickSize
+                : _trade.Entry - tp50Ticks * SetupTickSize;
+            _trade.TpTicks = tp50Ticks;
+            _trade.CvdRiskBracketActive = true;
+            WriteTradeFile(_currentNyDate);
+            return true;
+        }
+
+        private bool HasCvdRiskExitProgress(decimal currentPrice)
+        {
+            if (_trade == null)
+                return false;
+
+            if (_trade.TpTicks <= 0)
+                return false;
+
+            if (!_trade.CvdProfitLockArmed || _trade.CvdProfitLockExitPrice == 0)
+                return false;
+
+            if (_trade.CvdPullbackLabel != "Riesgo de reversion")
+                return false;
+
+            if (_trade.CvdProfitLockBestMfeTicks <= _trade.CvdProfitLockTicks)
+                return false;
+
+            return CalculateCurrentFavorableTicks(currentPrice) <= _trade.CvdProfitLockTicks;
+        }
+
+        private void UpdateCvdProfitLock()
+        {
+            if (_trade == null)
+                return;
+
+            if (_trade.TpTicks <= 0)
+                return;
+
+            if (_trade.MfeTicks > _trade.CvdProfitLockBestMfeTicks)
+                _trade.CvdProfitLockBestMfeTicks = _trade.MfeTicks;
+
+            var armTicks = _trade.TpTicks * 0.50m;
+            if (_trade.CvdProfitLockBestMfeTicks < armTicks)
+                return;
+
+            _trade.CvdProfitLockArmed = true;
+            var trailingTicks = _trade.CvdProfitLockBestMfeTicks - CvdProfitLockPullbackTicks;
+            var lockedTicks = Math.Min(_trade.TpTicks, Math.Max(armTicks, trailingTicks));
+            if (lockedTicks <= _trade.CvdProfitLockTicks)
+                return;
+
+            _trade.CvdProfitLockTicks = lockedTicks;
+            _trade.CvdProfitLockExitPrice = _trade.Side == "BUY"
+                ? _trade.Entry + lockedTicks * SetupTickSize
+                : _trade.Entry - lockedTicks * SetupTickSize;
+        }
+
+        private decimal CalculateCurrentFavorableTicks(decimal currentPrice)
+        {
+            if (_trade == null)
+                return 0;
+
+            if (_trade.Side == "BUY")
+                return Math.Max(0, RoundToTicks(currentPrice - _trade.Entry));
+
+            if (_trade.Side == "SELL")
+                return Math.Max(0, RoundToTicks(_trade.Entry - currentPrice));
+
+            return 0;
         }
 
         private decimal ResolveExitPrice(TradeManagerTpSlBeExit.TradeExitDecision decision)
@@ -1209,6 +1266,11 @@ namespace ATAS.Indicators
             public string Result { get; set; } = "";
             public decimal MaeTicks { get; set; }
             public decimal MfeTicks { get; set; }
+            public bool CvdProfitLockArmed { get; set; }
+            public decimal CvdProfitLockExitPrice { get; set; }
+            public decimal CvdProfitLockTicks { get; set; }
+            public decimal CvdProfitLockBestMfeTicks { get; set; }
+            public bool CvdRiskBracketActive { get; set; }
             public bool APlusStructure { get; set; }
             public bool APlusAbsorption { get; set; }
             public bool APlusSpeed { get; set; }

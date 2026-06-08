@@ -15,7 +15,7 @@ from openpyxl.utils import get_column_letter
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 DATES_DST = [
 
-    "14/05/2026",
+    
     "15/05/2026",
     "20/05/2026",
     "26/05/2026",
@@ -33,8 +33,11 @@ RESULTS_FOLDER = os.path.join(EXPORT_FOLDER, "trade_results_score")
 TARGET_FILE = os.path.join(EXPORT_FOLDER, "target_trade_result_date.txt")
 REPLAY_STARTED_FILE = os.path.join(EXPORT_FOLDER, "replay_trade_result_started_at.txt")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SCORE_WORKBOOK = os.path.join(BASE_DIR, "Score_indicator_results_updated.xlsx")
-SCORE_WORKBOOK_FALLBACK = os.path.join(BASE_DIR, "Score_indicator_results_updated_fallback.xlsx")
+TESTING_OUTPUT_DIR = r"C:\Users\k_99_\Desktop\codding\corridas_testing_indicator"
+SCORE_WORKBOOK_TEMPLATE = os.path.join(BASE_DIR, "Score_indicator_results_updated.xlsx")
+SCORE_WORKBOOK_TEMPLATE_FALLBACK = os.path.join(BASE_DIR, "Score_indicator_results_updated_fallback.xlsx")
+SCORE_WORKBOOK = os.path.join(TESTING_OUTPUT_DIR, "Score_indicator_results_updated.xlsx")
+SCORE_WORKBOOK_FALLBACK = os.path.join(TESTING_OUTPUT_DIR, "Score_indicator_results_updated_fallback.xlsx")
 RUN_STARTED_AT = time.time()
 
 
@@ -441,12 +444,17 @@ def get_csv_headers_for_dates():
 
 
 def update_score_workbook():
+    os.makedirs(os.path.dirname(SCORE_WORKBOOK), exist_ok=True)
+
     if os.path.exists(SCORE_WORKBOOK):
         wb = load_workbook(SCORE_WORKBOOK)
+    elif os.path.exists(SCORE_WORKBOOK_TEMPLATE):
+        wb = load_workbook(SCORE_WORKBOOK_TEMPLATE)
     elif os.path.exists(SCORE_WORKBOOK_FALLBACK):
         wb = load_workbook(SCORE_WORKBOOK_FALLBACK)
+    elif os.path.exists(SCORE_WORKBOOK_TEMPLATE_FALLBACK):
+        wb = load_workbook(SCORE_WORKBOOK_TEMPLATE_FALLBACK)
     else:
-        os.makedirs(os.path.dirname(SCORE_WORKBOOK), exist_ok=True)
         wb = Workbook()
 
     ws = wb.active
