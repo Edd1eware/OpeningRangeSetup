@@ -25,7 +25,7 @@ DATES_DST = [
 # Ventana por dia: 09:30 a 09:50 NY. El exporter escribe TIME_OVER si no hay trade antes/de 09:40;
 # si ya hay trade abierto, dejamos correr hasta 09:50 para que resuelva TP/SL/EXIT/BE.
 REPLAY_END_TIME = "09:50"
-POLL_SECONDS = 1
+POLL_SECONDS = 0.02
 NO_TRADE_CUTOFF_SECONDS = 10 * 60 + 15
 
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
@@ -253,28 +253,53 @@ def result_is_open_trade(path, min_modified_time=None):
     return result_label == "OPEN"
 
 
-def stop_replay():
-    replay, from_box, to_box, start_button, stop_button = get_controls()
+def stop_replay(stop_button=None):
+    print("Deteniendo replay...")
 
-    if stop_button is not None:
-        print("Deteniendo replay...")
-        stop_button.click_input()
-        return
+    candidates = [stop_button] if stop_button is not None else []
+
+    for _ in range(5):
+        try:
+            replay, from_box, to_box, start_button, refreshed_stop_button = get_controls()
+            replay.set_focus()
+            if refreshed_stop_button is not None:
+                candidates.insert(0, refreshed_stop_button)
+        except Exception:
+            pass
+
+        for candidate in candidates:
+            if candidate is None:
+                continue
+
+            try:
+                if candidate.is_visible() and candidate.is_enabled():
+                    candidate.click_input()
+                    return
+            except Exception:
+                try:
+                    candidate.click()
+                    return
+                except Exception:
+                    pass
+
+        time.sleep(0.05)
 
     print("No encontre boton Stop; probablemente el replay ya termino.")
 
 
 MAX_WAIT_SECONDS = 1200
 
-def wait_until_result(path, min_modified_time=None, no_trade_cutoff_seconds=None):
+def wait_until_result(path, min_modified_time=None, no_trade_cutoff_seconds=None, stop_button=None):
     print("Esperando resultado terminal en CSV; si el trade esta OPEN no se cambia de dia.")
     dot_count = 0
     start = time.time()
+    last_print = 0
 
     while True:
         if result_is_terminal(path, min_modified_time):
             print("\rEsperando... listo.   ")
             print("Resultado terminal detectado en CSV; paso al siguiente dia.")
+            stop_replay(stop_button)
             return True
 
         elapsed = time.time() - start
@@ -284,14 +309,18 @@ def wait_until_result(path, min_modified_time=None, no_trade_cutoff_seconds=None
             not result_is_open_trade(path, min_modified_time)
         ):
             print(f"\rCorte 09:40 sin trade OPEN ({int(elapsed)}s). Deteniendo replay del dia.")
+            stop_replay(stop_button)
             return False
 
         if elapsed > MAX_WAIT_SECONDS:
             print(f"\rTimeout ({MAX_WAIT_SECONDS}s) esperando resultado terminal. Saltando al siguiente dia.")
+            stop_replay(stop_button)
             return False
 
-        dot_count = dot_count % 3 + 1
-        print(f"\rEsperando{'.' * dot_count}{' ' * (3 - dot_count)}", end="", flush=True)
+        if time.time() - last_print >= 0.5:
+            dot_count = dot_count % 3 + 1
+            print(f"\rEsperando{'.' * dot_count}{' ' * (3 - dot_count)}", end="", flush=True)
+            last_print = time.time()
         time.sleep(POLL_SECONDS)
 
 
@@ -597,8 +626,7 @@ try:
         start_button.click_input()
 
         print("Esperando hasta detectar TP/SL/EXIT/BE/TIME_OVER...")
-        wait_until_result(result_path, started_at, NO_TRADE_CUTOFF_SECONDS)
-        stop_replay()
+        wait_until_result(result_path, started_at, NO_TRADE_CUTOFF_SECONDS, stop_button)
 
         time.sleep(5)
 

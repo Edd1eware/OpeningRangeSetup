@@ -20,7 +20,7 @@ namespace ATAS.Indicators
             TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
 
         private const decimal SetupTickSize = 0.25m;
-        private const string ExporterVersion = "score-exporter-2026-05-30-aplus-structure-export";
+        private const string ExporterVersion = "score-exporter-2026-06-09-x10-timeover-recovery";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
@@ -59,6 +59,7 @@ namespace ATAS.Indicators
         private DateTime _bestRejectedScoreNyTime = DateTime.MinValue;
         private decimal _lastManagePrice;
         private DateTime _lastManageTimeUtc = DateTime.MinValue;
+        private int _lastSignalReadyBar = -1;
 
         public int MinScore { get; set; } = 5;
         public decimal MinOrRangeTicks { get; set; } = 40;
@@ -110,6 +111,9 @@ namespace ATAS.Indicators
             var current = GetCandle(bar);
             var currentNyTime = ConvertToNewYorkTime(current.Time);
             var currentSignalNyTime = ResolveSignalNewYorkTime(current);
+            var closedBar = bar - 1;
+            var closedCandle = GetCandle(closedBar);
+            var closedNyTime = ConvertToNewYorkTime(closedCandle.Time);
             var targetDate = ReadTargetDate();
 
             if (targetDate == null)
@@ -121,13 +125,12 @@ namespace ATAS.Indicators
             if (currentNyTime.Date != targetDate.Value.Date)
                 return;
 
+            UpdateTradeResult(bar, current);
+
+            if (TryWriteTimeOver(bar, current, currentNyTime))
+                return;
+
             UpdateSpeedClock(bar);
-
-            UpdateAPlusStructureFromBar(bar, current, currentNyTime);
-
-            var closedBar = bar - 1;
-            var closedCandle = GetCandle(closedBar);
-            var closedNyTime = ConvertToNewYorkTime(closedCandle.Time);
 
             UpdateAPlusStructureFromBar(closedBar, closedCandle, closedNyTime);
 
@@ -140,18 +143,15 @@ namespace ATAS.Indicators
                 return;
             }
 
-            UpdateTradeResult(bar, current);
-
-            if (TryWriteTimeOver(bar, current, currentSignalNyTime))
-                return;
-
             if (!_orReady)
                 return;
 
-            if (_tradeCreated || bar <= _orBar || !IsSignalWindow(currentSignalNyTime))
+            if (_tradeCreated || bar <= _orBar || !IsSignalWindow(currentNyTime))
                 return;
 
-            var score = CalculateLiveScore(current, bar, currentSignalNyTime);
+            UpdateAPlusStructureFromBar(bar, current, currentNyTime);
+
+            var score = CalculateLiveScore(current, bar, currentNyTime);
 
             if (!score.IsReady)
             {
@@ -159,8 +159,13 @@ namespace ATAS.Indicators
                 return;
             }
 
+            if (bar <= _lastSignalReadyBar)
+                return;
+
+            _lastSignalReadyBar = bar;
             ClearPendingScore();
             CreateTrade(bar, current, currentSignalNyTime, score);
+            UpdateEntryBarTradeResult(bar, current);
         }
 
         private void CreateTrade(int bar, dynamic candle, DateTime nyTime, ScoreTradeSignal score)
@@ -540,9 +545,56 @@ namespace ATAS.Indicators
                 return false;
             }
 
+            if (TryRecoverMissedReadyTradeBeforeTimeOver(bar, candle, nyTime))
+                return false;
+
             _timeOverWritten = true;
             WriteTimeOverFile(nyTime.Date, nyTime);
             return true;
+        }
+
+        private bool TryRecoverMissedReadyTradeBeforeTimeOver(int currentBar, dynamic currentCandle, DateTime currentNyTime)
+        {
+            if (!_orReady || _tradeCreated || _trade != null)
+                return false;
+
+            var startBar = Math.Max(_orBar + 1, 0);
+
+            for (var scanBar = startBar; scanBar <= currentBar; scanBar++)
+            {
+                var scanCandle = GetCandle(scanBar);
+                var scanNyTime = ConvertToNewYorkTime(scanCandle.Time);
+
+                if (scanNyTime.Date != currentNyTime.Date)
+                    continue;
+
+                if (!IsSignalWindow(scanNyTime))
+                    continue;
+
+                UpdateAPlusStructureFromBar(scanBar, scanCandle, scanNyTime);
+
+                var score = CalculateLiveScore(scanCandle, scanBar, scanNyTime);
+
+                if (!score.IsReady)
+                    continue;
+
+                var signalNyTime = ResolveSignalNewYorkTime(scanCandle);
+
+                _lastSignalReadyBar = scanBar;
+                ClearPendingScore();
+                CreateTrade(scanBar, scanCandle, signalNyTime, score);
+
+                if (_trade == null)
+                    return false;
+
+                if (UpdateEntryBarTradeResult(scanBar, scanCandle))
+                    return true;
+
+                UpdateTradeResult(currentBar, currentCandle);
+                return true;
+            }
+
+            return false;
         }
 
         private bool HasReplayStartDelayElapsed()
@@ -643,11 +695,22 @@ namespace ATAS.Indicators
             tradeHigh = candle.Close;
             tradeLow = candle.Close;
 
-            if (candle.High > _trade.EntryBarHighAtEntry)
-                tradeHigh = candle.High;
+            if (_trade.Side == "BUY")
+            {
+                if (candle.High > _trade.EntryBarHighAtEntry || candle.High >= _trade.Tp)
+                    tradeHigh = candle.High;
 
-            if (candle.Low < _trade.EntryBarLowAtEntry)
-                tradeLow = candle.Low;
+                if (candle.Low < _trade.EntryBarLowAtEntry)
+                    tradeLow = candle.Low;
+            }
+            else if (_trade.Side == "SELL")
+            {
+                if (candle.High > _trade.EntryBarHighAtEntry)
+                    tradeHigh = candle.High;
+
+                if (candle.Low < _trade.EntryBarLowAtEntry || candle.Low <= _trade.Tp)
+                    tradeLow = candle.Low;
+            }
         }
 
         private ScoreTradeSignal CalculateLiveScore(dynamic candle, int bar, DateTime nyTime)
@@ -1015,6 +1078,7 @@ namespace ATAS.Indicators
             _trade = null;
             _lastManagePrice = 0;
             _lastManageTimeUtc = DateTime.MinValue;
+            _lastSignalReadyBar = -1;
             ClearPendingScore();
             ClearRejectedScore();
         }
