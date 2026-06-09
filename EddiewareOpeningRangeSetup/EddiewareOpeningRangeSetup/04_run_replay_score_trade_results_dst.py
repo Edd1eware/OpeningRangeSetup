@@ -585,6 +585,7 @@ def update_score_workbook():
 # =========================================================
 
 print("\nINICIANDO REPLAY DST PARA SCORE TRADE RESULTS\n")
+failed_dates = []
 
 try:
     clear_expected_results()
@@ -596,46 +597,59 @@ try:
 
         result_path = expected_result_path(date)
 
-        write_target_date(date)
-        time.sleep(1)
+        try:
+            write_target_date(date)
+            time.sleep(1)
 
-        from_value = f"{date} 09:30 a. m."
-        to_value = f"{date} {REPLAY_END_TIME} a. m."
+            from_value = f"{date} 09:30 a. m."
+            to_value = f"{date} {REPLAY_END_TIME} a. m."
 
-        replay, from_box, to_box, start_button, stop_button = get_controls()
+            replay, from_box, to_box, start_button, stop_button = get_controls()
 
-        paste_text(from_box, from_value)
-        paste_text(to_box, to_value)
+            paste_text(from_box, from_value)
+            paste_text(to_box, to_value)
 
-        print("Fechas configuradas:")
-        print(f"FROM: {from_value}")
-        print(f"TO:   {to_value}")
+            print("Fechas configuradas:")
+            print(f"FROM: {from_value}")
+            print(f"TO:   {to_value}")
 
-        time.sleep(2)
+            time.sleep(2)
 
-        replay, from_box, to_box, start_button, stop_button = get_controls()
+            replay, from_box, to_box, start_button, stop_button = get_controls()
 
-        if start_button is None:
-            raise RuntimeError("No se encontro boton Start")
+            if start_button is None:
+                raise RuntimeError("No se encontro boton Start")
 
-        clear_previous_result(result_path)
-        write_replay_started_marker()
+            clear_previous_result(result_path)
+            write_replay_started_marker()
 
-        print("Iniciando replay...")
-        started_at = time.time()
-        start_button.click_input()
+            print("Iniciando replay...")
+            started_at = time.time()
+            start_button.click_input()
 
-        print("Esperando hasta detectar TP/SL/EXIT/BE/TIME_OVER...")
-        wait_until_result(result_path, started_at, NO_TRADE_CUTOFF_SECONDS, stop_button)
+            print("Esperando hasta detectar TP/SL/EXIT/BE/TIME_OVER...")
+            wait_until_result(result_path, started_at, NO_TRADE_CUTOFF_SECONDS, stop_button)
 
-        time.sleep(5)
+            time.sleep(5)
 
-        print_result_file(result_path)
+            print_result_file(result_path)
+        except Exception as exc:
+            failed_dates.append((date, str(exc)))
+            print(f"ERROR procesando {date}: {exc}")
+            try:
+                stop_replay()
+            except Exception as stop_exc:
+                print(f"WARNING: no pude detener replay despues del error: {stop_exc}")
 
         print("Pausa antes del siguiente dia...")
         time.sleep(10)
 
 finally:
     update_score_workbook()
+
+if failed_dates:
+    print("\nFECHAS CON ERROR DE SCRIPT/UI:")
+    for failed_date, error in failed_dates:
+        print(f"- {failed_date}: {error}")
 
 print("\nTERMINO LA PRUEBA DST.\n")
