@@ -15,6 +15,10 @@ namespace ATAS.Indicators
         private decimal? _buyAPlusStructurePrice;
         private int _sellAPlusStructureBar = -1;
         private decimal? _sellAPlusStructurePrice;
+        private int _judasStructureBar = -1;
+        private string _judasStructureSide = "";
+        private decimal? _judasStructurePrice;
+        private bool _judasReturnedToRange;
 
         public void ResetDay()
         {
@@ -27,6 +31,10 @@ namespace ATAS.Indicators
             _buyAPlusStructurePrice = null;
             _sellAPlusStructureBar = -1;
             _sellAPlusStructurePrice = null;
+            _judasStructureBar = -1;
+            _judasStructureSide = "";
+            _judasStructurePrice = null;
+            _judasReturnedToRange = false;
         }
 
         public void UpdateSpeedClock(int bar)
@@ -174,11 +182,7 @@ namespace ATAS.Indicators
                  (state.Side == "SELL" && candle.Low <= state.EntryPrice - request.APlusPriceAcceptanceTicks * request.TickSize));
             state.ImbalanceScore = imbalance.Score;
             AbsorptionDetector.ApplySignalSource(state);
-            if (state.HasAPlusAbsorption && IsFakeBreakoutReturnToRange(state, candle))
-            {
-                state.IsFakeBreakout = true;
-                state.SignalSource = "FAKE BREAKOUT";
-            }
+            ApplyJudasSwingState(bar, candle, request, state);
             state.ExecutionSide = ResolveExecutionSide(state);
             if (state.HasAPlusStructure && !state.SpeedValid)
             {
@@ -219,18 +223,77 @@ namespace ATAS.Indicators
             return state;
         }
 
-        private static bool IsFakeBreakoutReturnToRange(ScoreTradeSignal state, dynamic candle)
+        private void ApplyJudasSwingState(int bar, dynamic candle, ScoreTradeSignalRequest request, ScoreTradeSignal state)
         {
-            if (state == null || string.IsNullOrWhiteSpace(state.Side))
-                return false;
+            if (state == null)
+                return;
 
-            if (state.Side == "BUY")
-                return candle.High > state.OrHigh && candle.Close <= state.OrHigh && candle.Close >= state.OrLow;
+            TryArmJudasSwing(bar, candle, state);
 
-            if (state.Side == "SELL")
-                return candle.Low < state.OrLow && candle.Close >= state.OrLow && candle.Close <= state.OrHigh;
+            if (!IsJudasArmed())
+                return;
 
-            return false;
+            _judasReturnedToRange = _judasReturnedToRange || IsReturnedToRange(candle, state.OrHigh, state.OrLow);
+
+            if (!_judasReturnedToRange)
+                return;
+
+            state.IsJudasSwing = true;
+            state.IsFakeBreakout = true;
+            state.HasAPlusStructure = true;
+            state.APlusStructureSide = _judasStructureSide;
+            state.APlusStructurePrice = _judasStructurePrice;
+            state.Side = _judasStructureSide;
+            state.IsBreakout = true;
+            state.PriceAcceptedAfterImbalance =
+                _judasStructurePrice.HasValue &&
+                ((_judasStructureSide == "BUY" && candle.High >= _judasStructurePrice.Value + request.APlusPriceAcceptanceTicks * request.TickSize) ||
+                 (_judasStructureSide == "SELL" && candle.Low <= _judasStructurePrice.Value - request.APlusPriceAcceptanceTicks * request.TickSize));
+
+            if (state.PriceAcceptedAfterImbalance)
+            {
+                state.HasAPlusAbsorption = false;
+                state.SignalSource = "JUDAS SWING";
+                return;
+            }
+
+            state.HasAPlusAbsorption = true;
+            state.SignalSource = "A+ ABSORTION";
+        }
+
+        private void TryArmJudasSwing(int bar, dynamic candle, ScoreTradeSignal state)
+        {
+            if (!state.IsBreakout)
+                return;
+
+            if (state.Side == "BUY" && state.HasBuy3_ImbalanceGroup && candle.High > state.OrHigh)
+            {
+                _judasStructureBar = bar;
+                _judasStructureSide = "BUY";
+                _judasStructurePrice = GetAPlusStructurePriceForSide("BUY");
+                _judasReturnedToRange = false;
+                return;
+            }
+
+            if (state.Side == "SELL" && state.HasSell3_ImbalanceGroup && candle.Low < state.OrLow)
+            {
+                _judasStructureBar = bar;
+                _judasStructureSide = "SELL";
+                _judasStructurePrice = GetAPlusStructurePriceForSide("SELL");
+                _judasReturnedToRange = false;
+            }
+        }
+
+        private bool IsJudasArmed()
+        {
+            return _judasStructureBar >= 0 &&
+                !string.IsNullOrWhiteSpace(_judasStructureSide) &&
+                _judasStructurePrice.HasValue;
+        }
+
+        private static bool IsReturnedToRange(dynamic candle, decimal orHigh, decimal orLow)
+        {
+            return candle.Close <= orHigh && candle.Close >= orLow;
         }
 
         private void UpdateAPlusStructureMemory(dynamic candle, ScoreTradeSignalRequest request)
@@ -486,6 +549,7 @@ namespace ATAS.Indicators
         public bool HasAPlusAbsorption { get; set; }
         public bool HasAPlusSpeed { get; set; }
         public bool IsFakeBreakout { get; set; }
+        public bool IsJudasSwing { get; set; }
         public string APlusStructureSide { get; set; } = "";
         public decimal? APlusStructurePrice { get; set; }
         public string SignalSource { get; set; } = "";
