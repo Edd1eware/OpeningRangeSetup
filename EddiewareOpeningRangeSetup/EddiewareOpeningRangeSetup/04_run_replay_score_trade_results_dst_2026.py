@@ -16,247 +16,6 @@ from openpyxl.utils import get_column_letter
 DATES_DST = [
 
     # =========================
-    # DST — MARZO 2025
-    # =========================
-
-    "10/03/2025",
-    "11/03/2025",
-    "12/03/2025",
-    "13/03/2025",
-    "14/03/2025",
-
-    "17/03/2025",
-    "18/03/2025",
-    "19/03/2025",
-    "20/03/2025",
-    "21/03/2025",
-
-    "24/03/2025",
-    "25/03/2025",
-    "26/03/2025",
-    "27/03/2025",
-    "28/03/2025",
-
-    "31/03/2025",
-
-    # =========================
-    # DST — ABRIL 2025
-    # =========================
-
-    "01/04/2025",
-    "02/04/2025",
-    "03/04/2025",
-    "04/04/2025",
-
-    "07/04/2025",
-    "08/04/2025",
-    "09/04/2025",
-    "10/04/2025",
-    "11/04/2025",
-
-    "14/04/2025",
-    "15/04/2025",
-    "16/04/2025",
-    "17/04/2025",
-    "18/04/2025",
-
-    "21/04/2025",
-    "22/04/2025",
-    "23/04/2025",
-    "24/04/2025",
-    "25/04/2025",
-
-    "28/04/2025",
-    "29/04/2025",
-    "30/04/2025",
-
-    # =========================
-    # DST — MAYO 2025
-    # =========================
-
-    "01/05/2025",
-    "02/05/2025",
-
-    "05/05/2025",
-    "06/05/2025",
-    "07/05/2025",
-    "08/05/2025",
-    "09/05/2025",
-
-    "12/05/2025",
-    "13/05/2025",
-    "14/05/2025",
-    "15/05/2025",
-    "16/05/2025",
-
-    "19/05/2025",
-    "20/05/2025",
-    "21/05/2025",
-    "22/05/2025",
-    "23/05/2025",
-
-    "26/05/2025",
-    "27/05/2025",
-    "28/05/2025",
-    "29/05/2025",
-    "30/05/2025",
-
-    # =========================
-    # DST — JUNIO 2025
-    # =========================
-
-    "02/06/2025",
-    "03/06/2025",
-    "04/06/2025",
-    "05/06/2025",
-    "06/06/2025",
-
-    "09/06/2025",
-    "10/06/2025",
-    "11/06/2025",
-    "12/06/2025",
-    "13/06/2025",
-
-    "16/06/2025",
-    "17/06/2025",
-    "18/06/2025",
-    "19/06/2025",
-    "20/06/2025",
-
-    "23/06/2025",
-    "24/06/2025",
-    "25/06/2025",
-    "26/06/2025",
-    "27/06/2025",
-
-    "30/06/2025",
-
-    # =========================
-    # DST — JULIO 2025
-    # =========================
-
-    "01/07/2025",
-    "02/07/2025",
-    "03/07/2025",
-    "04/07/2025",
-
-    "07/07/2025",
-    "08/07/2025",
-    "09/07/2025",
-    "10/07/2025",
-    "11/07/2025",
-
-    "14/07/2025",
-    "15/07/2025",
-    "16/07/2025",
-    "17/07/2025",
-    "18/07/2025",
-
-    "21/07/2025",
-    "22/07/2025",
-    "23/07/2025",
-    "24/07/2025",
-    "25/07/2025",
-
-    "28/07/2025",
-    "29/07/2025",
-    "30/07/2025",
-    "31/07/2025",
-
-    # =========================
-    # DST — AGOSTO 2025
-    # =========================
-
-    "01/08/2025",
-
-    "04/08/2025",
-    "05/08/2025",
-    "06/08/2025",
-    "07/08/2025",
-    "08/08/2025",
-
-    "11/08/2025",
-    "12/08/2025",
-    "13/08/2025",
-    "14/08/2025",
-    "15/08/2025",
-
-    "18/08/2025",
-    "19/08/2025",
-    "20/08/2025",
-    "21/08/2025",
-    "22/08/2025",
-
-    "25/08/2025",
-    "26/08/2025",
-    "27/08/2025",
-    "28/08/2025",
-    "29/08/2025",
-
-    # =========================
-    # DST — SEPTIEMBRE 2025
-    # =========================
-
-    "01/09/2025",
-    "02/09/2025",
-    "03/09/2025",
-    "04/09/2025",
-    "05/09/2025",
-
-    "08/09/2025",
-    "09/09/2025",
-    "10/09/2025",
-    "11/09/2025",
-    "12/09/2025",
-
-    "15/09/2025",
-    "16/09/2025",
-    "17/09/2025",
-    "18/09/2025",
-    "19/09/2025",
-
-    "22/09/2025",
-    "23/09/2025",
-    "24/09/2025",
-    "25/09/2025",
-    "26/09/2025",
-
-    "29/09/2025",
-    "30/09/2025",
-
-    # =========================
-    # DST — OCTUBRE 2025
-    # =========================
-
-    "01/10/2025",
-    "02/10/2025",
-    "03/10/2025",
-
-    "06/10/2025",
-    "07/10/2025",
-    "08/10/2025",
-    "09/10/2025",
-    "10/10/2025",
-
-    "13/10/2025",
-    "14/10/2025",
-    "15/10/2025",
-    "16/10/2025",
-    "17/10/2025",
-
-    "20/10/2025",
-    "21/10/2025",
-    "22/10/2025",
-    "23/10/2025",
-    "24/10/2025",
-
-    "27/10/2025",
-    "28/10/2025",
-    "29/10/2025",
-    "30/10/2025",
-    "31/10/2025",
-
-    # =========================
     # DST — 2026 (hasta hoy)
     # =========================
 
@@ -343,6 +102,10 @@ DATES_DST = [
 REPLAY_END_TIME = "09:50"
 POLL_SECONDS = 0.02
 NO_TRADE_CUTOFF_SECONDS = 10 * 60 + 15
+HOLIDAY_RETRY_COUNT = 3
+HOLIDAY_NORMAL_WAIT_SECONDS = 2 * 60
+HOLIDAY_FINAL_WAIT_SECONDS = 3 * 60
+HOLIDAY_NO_DATA_LABEL = "HOLYDAY NO DATA"
 
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
 RESULTS_FOLDER = os.path.join(EXPORT_FOLDER, "trade_results_score")
@@ -355,6 +118,8 @@ SCORE_WORKBOOK_TEMPLATE_FALLBACK = os.path.join(BASE_DIR, "Score_indicator_resul
 SCORE_WORKBOOK = os.path.join(TESTING_OUTPUT_DIR, "Score_indicator_results_updated.xlsx")
 SCORE_WORKBOOK_FALLBACK = os.path.join(TESTING_OUTPUT_DIR, "Score_indicator_results_updated_fallback.xlsx")
 RUN_STARTED_AT = time.time()
+RESUME_EXISTING_RESULTS = True
+STALE_RESULT_BACKUP_DIR = os.path.join(RESULTS_FOLDER, "_replay_result_backups")
 
 
 # =========================================================
@@ -467,10 +232,29 @@ def print_result_file(path):
         print(f.read().strip())
 
 
+def backup_previous_result(path, reason):
+    if not os.path.exists(path):
+        return
+
+    os.makedirs(STALE_RESULT_BACKUP_DIR, exist_ok=True)
+    base_name = os.path.basename(path)
+    name, ext = os.path.splitext(base_name)
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    backup_path = os.path.join(STALE_RESULT_BACKUP_DIR, f"{name}_{reason}_{timestamp}{ext}")
+    os.replace(path, backup_path)
+    print(f"Resultado previo no terminal movido a backup: {backup_path}")
+
+
 def clear_previous_result(path):
-    if os.path.exists(path):
-        os.remove(path)
-        print(f"Resultado anterior eliminado: {path}")
+    if not os.path.exists(path):
+        return False
+
+    if RESUME_EXISTING_RESULTS and result_is_terminal(path):
+        print(f"Resultado terminal existente conservado: {path}")
+        return False
+
+    backup_previous_result(path, "stale")
+    return True
 
 
 def clear_expected_results():
@@ -538,7 +322,7 @@ def result_is_terminal(path, min_modified_time=None):
         return False
 
     result_label = str(row.get("Result_Label") or row.get("RESULT") or "").strip().upper()
-    if result_label in ("TP", "SL", "EXIT", "BE", "TIME_OVER", "NO_TRADE"):
+    if result_label in ("TP", "SL", "EXIT", "BE", "TIME_OVER", "NO_TRADE", HOLIDAY_NO_DATA_LABEL):
         return True
 
     ticks = parse_result_ticks(row.get("result TP SL BE") or row.get("RESULT"))
@@ -567,6 +351,33 @@ def result_is_open_trade(path, min_modified_time=None):
 
     result_label = str(row.get("Result_Label") or row.get("RESULT") or "").strip().upper()
     return result_label == "OPEN"
+
+
+def write_holiday_no_data_result(path, date_ddmmyyyy):
+    dd, mm, yyyy = date_ddmmyyyy.split("/")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+
+    headers = [
+        "Exporter_VERSION",
+        "fecha",
+        "Result_Label",
+        "result TP SL BE",
+        "Signal_Source",
+    ]
+    row = [
+        "python-replay-holiday-no-data",
+        f"{yyyy}-{mm}-{dd}",
+        HOLIDAY_NO_DATA_LABEL,
+        HOLIDAY_NO_DATA_LABEL,
+        "NO_DATA",
+    ]
+
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        writer.writerow(row)
+
+    print(f"CSV marcado como {HOLIDAY_NO_DATA_LABEL}: {path}")
 
 
 def stop_replay(stop_button=None):
@@ -652,8 +463,10 @@ def read_trade_result(path, date_ddmmyyyy):
         return default_row
 
     if os.path.getmtime(path) < RUN_STARTED_AT:
-        print(f"CSV viejo ignorado para {default_row['fecha']}: {path}")
-        return default_row
+        if not result_is_terminal(path):
+            print(f"CSV viejo no terminal ignorado para {default_row['fecha']}: {path}")
+            return default_row
+        print(f"CSV terminal preservado usado para {default_row['fecha']}: {path}")
 
     with open(path, "r", encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
@@ -903,40 +716,62 @@ try:
         result_path = expected_result_path(date)
 
         try:
-            write_target_date(date)
-            time.sleep(1)
+            if RESUME_EXISTING_RESULTS and result_is_terminal(result_path):
+                print("Fecha ya tiene CSV terminal; se conserva y se salta.")
+                print_result_file(result_path)
+                continue
 
-            from_value = f"{date} 09:30 a. m."
-            to_value = f"{date} {REPLAY_END_TIME} a. m."
+            date_completed = False
 
-            replay, from_box, to_box, start_button, stop_button = get_controls()
+            for attempt in range(1, HOLIDAY_RETRY_COUNT + 1):
+                wait_seconds = HOLIDAY_NORMAL_WAIT_SECONDS
+                if attempt == HOLIDAY_RETRY_COUNT:
+                    wait_seconds = HOLIDAY_FINAL_WAIT_SECONDS
 
-            paste_text(from_box, from_value)
-            paste_text(to_box, to_value)
+                print(f"Intento {attempt}/{HOLIDAY_RETRY_COUNT} para cargar datos de replay.")
+                write_target_date(date)
+                time.sleep(1)
 
-            print("Fechas configuradas:")
-            print(f"FROM: {from_value}")
-            print(f"TO:   {to_value}")
+                from_value = f"{date} 09:30 a. m."
+                to_value = f"{date} {REPLAY_END_TIME} a. m."
 
-            time.sleep(2)
+                replay, from_box, to_box, start_button, stop_button = get_controls()
 
-            replay, from_box, to_box, start_button, stop_button = get_controls()
+                paste_text(from_box, from_value)
+                paste_text(to_box, to_value)
 
-            if start_button is None:
-                raise RuntimeError("No se encontro boton Start")
+                print("Fechas configuradas:")
+                print(f"FROM: {from_value}")
+                print(f"TO:   {to_value}")
 
-            clear_previous_result(result_path)
-            write_replay_started_marker()
+                time.sleep(2)
 
-            print("Iniciando replay...")
-            started_at = time.time()
-            start_button.click_input()
+                replay, from_box, to_box, start_button, stop_button = get_controls()
 
-            print("Esperando hasta detectar TP/SL/EXIT/BE/TIME_OVER...")
-            wait_until_result(result_path, started_at, NO_TRADE_CUTOFF_SECONDS, stop_button)
+                if start_button is None:
+                    raise RuntimeError("No se encontro boton Start")
+
+                clear_previous_result(result_path)
+                write_replay_started_marker()
+
+                print("Iniciando replay...")
+                started_at = time.time()
+                start_button.click_input()
+
+                print("Esperando hasta detectar TP/SL/EXIT/BE/TIME_OVER...")
+                if wait_until_result(result_path, started_at, wait_seconds, stop_button):
+                    date_completed = True
+                    break
+
+                print(f"No hubo resultado terminal en intento {attempt}.")
+                time.sleep(5)
+
+            if not date_completed:
+                print(f"No cargaron datos despues de {HOLIDAY_RETRY_COUNT} intentos; marcando {HOLIDAY_NO_DATA_LABEL}.")
+                backup_previous_result(result_path, "no_data")
+                write_holiday_no_data_result(result_path, date)
 
             time.sleep(5)
-
             print_result_file(result_path)
         except Exception as exc:
             failed_dates.append((date, str(exc)))

@@ -52,6 +52,9 @@ namespace ATAS.Indicators
 
         public static void ApplySignalSource(ScoreTradeSignal state)
         {
+            if (state.IsValueAcceptance)
+                return;
+
             var hasAPlusSpeed = state.SpeedLabel == "A+ speed" &&
                 state.VolumeIncreasing &&
                 state.VolumeOk &&

@@ -51,6 +51,10 @@ DATES_DST = [
 REPLAY_END_TIME = "09:50"
 POLL_SECONDS = 0.02
 NO_TRADE_CUTOFF_SECONDS = 10 * 60 + 15
+HOLIDAY_RETRY_COUNT = 3
+HOLIDAY_NORMAL_WAIT_SECONDS = 2 * 60
+HOLIDAY_FINAL_WAIT_SECONDS = 3 * 60
+HOLIDAY_NO_DATA_LABEL = "HOLYDAY NO DATA"
 
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
 RESULTS_FOLDER = os.path.join(EXPORT_FOLDER, "trade_results_score")
@@ -63,6 +67,8 @@ SCORE_WORKBOOK_TEMPLATE_FALLBACK = os.path.join(BASE_DIR, "Score_indicator_resul
 SCORE_WORKBOOK = os.path.join(TESTING_OUTPUT_DIR, "Score_indicator_results_updated.xlsx")
 SCORE_WORKBOOK_FALLBACK = os.path.join(TESTING_OUTPUT_DIR, "Score_indicator_results_updated_fallback.xlsx")
 RUN_STARTED_AT = time.time()
+RESUME_EXISTING_RESULTS = True
+STALE_RESULT_BACKUP_DIR = os.path.join(RESULTS_FOLDER, "_replay_result_backups")
 
 
 # =========================================================
@@ -175,10 +181,29 @@ def print_result_file(path):
         print(f.read().strip())
 
 
+def backup_previous_result(path, reason):
+    if not os.path.exists(path):
+        return
+
+    os.makedirs(STALE_RESULT_BACKUP_DIR, exist_ok=True)
+    base_name = os.path.basename(path)
+    name, ext = os.path.splitext(base_name)
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    backup_path = os.path.join(STALE_RESULT_BACKUP_DIR, f"{name}_{reason}_{timestamp}{ext}")
+    os.replace(path, backup_path)
+    print(f"Resultado previo no terminal movido a backup: {backup_path}")
+
+
 def clear_previous_result(path):
-    if os.path.exists(path):
-        os.remove(path)
-        print(f"Resultado anterior eliminado: {path}")
+    if not os.path.exists(path):
+        return False
+
+    if RESUME_EXISTING_RESULTS and result_is_terminal(path):
+        print(f"Resultado terminal existente conservado: {path}")
+        return False
+
+    backup_previous_result(path, "stale")
+    return True
 
 
 def clear_expected_results():
@@ -246,7 +271,7 @@ def result_is_terminal(path, min_modified_time=None):
         return False
 
     result_label = str(row.get("Result_Label") or row.get("RESULT") or "").strip().upper()
-    if result_label in ("TP", "SL", "EXIT", "BE", "TIME_OVER", "NO_TRADE"):
+    if result_label in ("TP", "SL", "EXIT", "BE", "TIME_OVER", "NO_TRADE", HOLIDAY_NO_DATA_LABEL):
         return True
 
     ticks = parse_result_ticks(row.get("result TP SL BE") or row.get("RESULT"))
@@ -275,6 +300,33 @@ def result_is_open_trade(path, min_modified_time=None):
 
     result_label = str(row.get("Result_Label") or row.get("RESULT") or "").strip().upper()
     return result_label == "OPEN"
+
+
+def write_holiday_no_data_result(path, date_ddmmyyyy):
+    dd, mm, yyyy = date_ddmmyyyy.split("/")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+
+    headers = [
+        "Exporter_VERSION",
+        "fecha",
+        "Result_Label",
+        "result TP SL BE",
+        "Signal_Source",
+    ]
+    row = [
+        "python-replay-holiday-no-data",
+        f"{yyyy}-{mm}-{dd}",
+        HOLIDAY_NO_DATA_LABEL,
+        HOLIDAY_NO_DATA_LABEL,
+        "NO_DATA",
+    ]
+
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        writer.writerow(row)
+
+    print(f"CSV marcado como {HOLIDAY_NO_DATA_LABEL}: {path}")
 
 
 def stop_replay(stop_button=None):
@@ -360,8 +412,10 @@ def read_trade_result(path, date_ddmmyyyy):
         return default_row
 
     if os.path.getmtime(path) < RUN_STARTED_AT:
-        print(f"CSV viejo ignorado para {default_row['fecha']}: {path}")
-        return default_row
+        if not result_is_terminal(path):
+            print(f"CSV viejo no terminal ignorado para {default_row['fecha']}: {path}")
+            return default_row
+        print(f"CSV terminal preservado usado para {default_row['fecha']}: {path}")
 
     with open(path, "r", encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
@@ -622,40 +676,62 @@ try:
         result_path = expected_result_path(date)
 
         try:
-            write_target_date(date)
-            time.sleep(1)
+            if RESUME_EXISTING_RESULTS and result_is_terminal(result_path):
+                print("Fecha ya tiene CSV terminal; se conserva y se salta.")
+                print_result_file(result_path)
+                continue
 
-            from_value = f"{date} 09:30 a. m."
-            to_value = f"{date} {REPLAY_END_TIME} a. m."
+            date_completed = False
 
-            replay, from_box, to_box, start_button, stop_button = get_controls()
+            for attempt in range(1, HOLIDAY_RETRY_COUNT + 1):
+                wait_seconds = HOLIDAY_NORMAL_WAIT_SECONDS
+                if attempt == HOLIDAY_RETRY_COUNT:
+                    wait_seconds = HOLIDAY_FINAL_WAIT_SECONDS
 
-            paste_text(from_box, from_value)
-            paste_text(to_box, to_value)
+                print(f"Intento {attempt}/{HOLIDAY_RETRY_COUNT} para cargar datos de replay.")
+                write_target_date(date)
+                time.sleep(1)
 
-            print("Fechas configuradas:")
-            print(f"FROM: {from_value}")
-            print(f"TO:   {to_value}")
+                from_value = f"{date} 09:30 a. m."
+                to_value = f"{date} {REPLAY_END_TIME} a. m."
 
-            time.sleep(2)
+                replay, from_box, to_box, start_button, stop_button = get_controls()
 
-            replay, from_box, to_box, start_button, stop_button = get_controls()
+                paste_text(from_box, from_value)
+                paste_text(to_box, to_value)
 
-            if start_button is None:
-                raise RuntimeError("No se encontro boton Start")
+                print("Fechas configuradas:")
+                print(f"FROM: {from_value}")
+                print(f"TO:   {to_value}")
 
-            clear_previous_result(result_path)
-            write_replay_started_marker()
+                time.sleep(2)
 
-            print("Iniciando replay...")
-            started_at = time.time()
-            start_button.click_input()
+                replay, from_box, to_box, start_button, stop_button = get_controls()
 
-            print("Esperando hasta detectar TP/SL/EXIT/BE/TIME_OVER...")
-            wait_until_result(result_path, started_at, NO_TRADE_CUTOFF_SECONDS, stop_button)
+                if start_button is None:
+                    raise RuntimeError("No se encontro boton Start")
+
+                clear_previous_result(result_path)
+                write_replay_started_marker()
+
+                print("Iniciando replay...")
+                started_at = time.time()
+                start_button.click_input()
+
+                print("Esperando hasta detectar TP/SL/EXIT/BE/TIME_OVER...")
+                if wait_until_result(result_path, started_at, wait_seconds, stop_button):
+                    date_completed = True
+                    break
+
+                print(f"No hubo resultado terminal en intento {attempt}.")
+                time.sleep(5)
+
+            if not date_completed:
+                print(f"No cargaron datos despues de {HOLIDAY_RETRY_COUNT} intentos; marcando {HOLIDAY_NO_DATA_LABEL}.")
+                backup_previous_result(result_path, "no_data")
+                write_holiday_no_data_result(result_path, date)
 
             time.sleep(5)
-
             print_result_file(result_path)
         except Exception as exc:
             failed_dates.append((date, str(exc)))
