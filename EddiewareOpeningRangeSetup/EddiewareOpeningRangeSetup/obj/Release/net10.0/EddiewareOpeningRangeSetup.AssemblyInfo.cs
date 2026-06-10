@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("EddiewareOpeningRangeSetup")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7c68b4298032b92ba30a2f1e7b2f1d6c21773da8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+bf43fa84ed8b2b75d41efd923a99b2b14970c587")]
 [assembly: System.Reflection.AssemblyProductAttribute("EddiewareOpeningRangeSetup")]
 [assembly: System.Reflection.AssemblyTitleAttribute("EddiewareOpeningRangeSetup")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

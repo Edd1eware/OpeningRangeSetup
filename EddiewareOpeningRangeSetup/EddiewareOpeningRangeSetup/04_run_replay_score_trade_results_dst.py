@@ -45,6 +45,7 @@ SCORE_WORKBOOK_FALLBACK = os.path.join(TESTING_OUTPUT_DIR, "Score_indicator_resu
 RUN_STARTED_AT = time.time()
 RESUME_EXISTING_RESULTS = True
 STALE_RESULT_BACKUP_DIR = os.path.join(RESULTS_FOLDER, "_replay_result_backups")
+EXCLUDED_EXCEL_HEADERS = {"Contracts"}
 
 
 # =========================================================
@@ -451,6 +452,10 @@ def to_number(value):
 
 
 def get_or_create_headers(ws):
+    for col in range(ws.max_column, 0, -1):
+        if ws.cell(row=3, column=col).value in EXCLUDED_EXCEL_HEADERS:
+            ws.delete_cols(col)
+
     default_headers = [
         "fecha",
         "or_low",
@@ -479,7 +484,7 @@ def get_or_create_headers(ws):
     headers = [
         ws.cell(row=3, column=col).value
         for col in range(1, ws.max_column + 1)
-        if ws.cell(row=3, column=col).value
+        if ws.cell(row=3, column=col).value and ws.cell(row=3, column=col).value not in EXCLUDED_EXCEL_HEADERS
     ]
 
     if not headers:
@@ -518,7 +523,7 @@ def get_csv_headers_for_dates():
                     continue
 
                 for field in reader.fieldnames:
-                    if field and field not in headers:
+                    if field and field not in EXCLUDED_EXCEL_HEADERS and field not in headers:
                         headers.append(field)
         except OSError:
             continue
