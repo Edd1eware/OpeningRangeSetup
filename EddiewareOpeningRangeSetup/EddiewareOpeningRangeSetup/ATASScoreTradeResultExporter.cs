@@ -22,7 +22,7 @@ namespace ATAS.Indicators
         private const decimal SetupTickSize = 0.25m;
         private const decimal ValueAcceptanceMinTradeTicks = 30m;
         private const decimal NormalScalpMaxTradeTicks = 120m;
-        private const string ExporterVersion = "score-exporter-2026-06-10-x10-value-acceptance";
+        private const string ExporterVersion = "score-exporter-2026-06-12-x10-cvd-modes";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
@@ -56,6 +56,7 @@ namespace ATAS.Indicators
         private ScoreTradeSignal? _pendingScore;
         private int _pendingScoreBar = -1;
         private DateTime _pendingScoreNyTime = DateTime.MinValue;
+        private bool _cvdFilterSkippedDay;
         private ScoreTradeSignal? _bestRejectedScore;
         private int _bestRejectedScoreBar = -1;
         private DateTime _bestRejectedScoreNyTime = DateTime.MinValue;
@@ -81,6 +82,38 @@ namespace ATAS.Indicators
         public decimal FastExitMinMfeTicks { get; set; } = 40;
         public decimal FastExitPullbackTicks { get; set; } = 10;
         public decimal CvdProfitLockPullbackTicks { get; set; } = 10;
+
+        /// <summary>
+        /// Si esta activo, la gestion de riesgo por CVD (risk bracket, profit lock
+        /// y salida por riesgo) tambien aplica a trades "normal speed".
+        /// Por defecto OFF: primero hay que medir con la instrumentacion
+        /// CvdRisk_First_* antes de cambiar el comportamiento del sistema.
+        /// </summary>
+        public bool EnableCvdRiskManagementForNormalSpeed { get; set; } = false;
+
+        /// <summary>
+        /// MODO FILTRO: si esta activo, solo se toma el trade del dia cuando
+        /// Cvd_Pullback_Pct_AtEntry >= CvdAtEntryThreshold (entrada contrarian:
+        /// CVD cerca del extremo opuesto a la direccion del trade). Si la senal
+        /// del dia no califica, el dia se omite (igual que en la validacion
+        /// historica). Backtest 2025-2026: n=50, WR 84%, PF 4.64, maxDD 120 ticks.
+        /// </summary>
+        public bool EnableCvdAtEntryFilter { get; set; } = false;
+
+        /// <summary>
+        /// Umbral del pullback at-entry para el filtro y el sizing. Usar los
+        /// cortes naturales de etiqueta (0.75 = "Riesgo de reversion").
+        /// No optimizar al decimal: eso seria sobreajuste.
+        /// </summary>
+        public decimal CvdAtEntryThreshold { get; set; } = 0.75m;
+
+        /// <summary>
+        /// MODO SIZING: contratos cuando la senal califica (pct >= umbral).
+        /// 1 = desactivado. La columna Trade_Contracts registra el tamano.
+        /// El PnL del CSV sigue siendo por contrato; el tamano se pondera
+        /// en el analisis.
+        /// </summary>
+        public int CvdAtEntrySizeMultiplier { get; set; } = 1;
         public decimal FastExitAdverseSpeedTicksPerSecond { get; set; } = 6;
         public TimeSpan TimeOverTimeNy { get; set; } = new TimeSpan(9, 40, 0);
         public int MinTimeOverRealtimeSeconds { get; set; } = 5;
@@ -148,7 +181,7 @@ namespace ATAS.Indicators
             if (!_orReady)
                 return;
 
-            if (_tradeCreated || bar <= _orBar || !IsSignalWindow(currentNyTime))
+            if (_tradeCreated || _cvdFilterSkippedDay || bar <= _orBar || !IsSignalWindow(currentNyTime))
                 return;
 
             UpdateAPlusStructureFromBar(bar, current, currentNyTime);
@@ -163,6 +196,13 @@ namespace ATAS.Indicators
 
             if (bar <= _lastSignalReadyBar)
                 return;
+
+            if (!PassesCvdAtEntryFilter(score))
+            {
+                _cvdFilterSkippedDay = true;
+                TrackRejectedScore(bar, currentSignalNyTime, score);
+                return;
+            }
 
             _lastSignalReadyBar = bar;
             ClearPendingScore();
@@ -265,7 +305,16 @@ namespace ATAS.Indicators
                 SignalSource = score.SignalSource,
                 ImbalanceGroup3 = matchingAPlusSide,
                 ImbalanceGroupPrice = matchingAPlusPrice,
-                ImbalanceCount = matchingAPlusCount
+                ImbalanceCount = matchingAPlusCount,
+                CvdSessionMaxAtEntry = score.CvdSessionMaxAtEntry,
+                CvdSessionMinAtEntry = score.CvdSessionMinAtEntry,
+                CvdPullbackPctAtEntry = score.CvdPullbackPctAtEntry,
+                CvdPullbackLabelAtEntry = score.CvdPullbackLabelAtEntry,
+                CvdSlope3AtEntry = score.CvdSlope3AtEntry,
+                BarsSinceCvdExtremeAtEntry = score.BarsSinceCvdExtremeAtEntry,
+                Contracts = CvdAtEntrySizeMultiplier > 1 && score.CvdPullbackPctAtEntry >= CvdAtEntryThreshold
+                    ? CvdAtEntrySizeMultiplier
+                    : 1
             };
 
             _lastManagePrice = score.EntryPrice;
@@ -411,7 +460,7 @@ namespace ATAS.Indicators
             if (_trade.CvdRiskBracketActive)
                 return false;
 
-            if (_trade.SpeedLabel == "normal speed")
+            if (_trade.SpeedLabel == "normal speed" && !EnableCvdRiskManagementForNormalSpeed)
                 return false;
 
             if (_trade.TpTicks <= 0)
@@ -430,7 +479,8 @@ namespace ATAS.Indicators
                     TpTicks = _trade.TpTicks,
                     TickSize = SetupTickSize,
                     CvdPullbackLabel = _trade.CvdPullbackLabel,
-                    CvdRiskBracketActive = _trade.CvdRiskBracketActive
+                    CvdRiskBracketActive = _trade.CvdRiskBracketActive,
+                    AllowNormalSpeed = EnableCvdRiskManagementForNormalSpeed
                 });
 
             if (!decision.ShouldApply)
@@ -448,7 +498,7 @@ namespace ATAS.Indicators
             if (_trade == null)
                 return false;
 
-            if (_trade.SpeedLabel == "normal speed")
+            if (_trade.SpeedLabel == "normal speed" && !EnableCvdRiskManagementForNormalSpeed)
                 return false;
 
             if (_trade.TpTicks <= 0)
@@ -476,7 +526,8 @@ namespace ATAS.Indicators
                     ProfitLockExitPrice = _trade.CvdProfitLockExitPrice,
                     ProfitLockTicks = _trade.CvdProfitLockTicks,
                     ProfitLockBestMfeTicks = _trade.CvdProfitLockBestMfeTicks,
-                    CvdPullbackLabel = _trade.CvdPullbackLabel
+                    CvdPullbackLabel = _trade.CvdPullbackLabel,
+                    AllowNormalSpeed = EnableCvdRiskManagementForNormalSpeed
                 });
         }
 
@@ -496,7 +547,8 @@ namespace ATAS.Indicators
                     MfeTicks = _trade.MfeTicks,
                     CurrentBestMfeTicks = _trade.CvdProfitLockBestMfeTicks,
                     CurrentLockTicks = _trade.CvdProfitLockTicks,
-                    PullbackTicks = CvdProfitLockPullbackTicks
+                    PullbackTicks = CvdProfitLockPullbackTicks,
+                    AllowNormalSpeed = EnableCvdRiskManagementForNormalSpeed
                 });
 
             _trade.CvdProfitLockBestMfeTicks = update.BestMfeTicks;
@@ -628,6 +680,12 @@ namespace ATAS.Indicators
                 if (!score.IsReady)
                     continue;
 
+                if (!PassesCvdAtEntryFilter(score))
+                {
+                    _cvdFilterSkippedDay = true;
+                    return false;
+                }
+
                 var signalNyTime = ResolveSignalNewYorkTime(scanCandle);
 
                 _lastSignalReadyBar = scanBar;
@@ -704,6 +762,59 @@ namespace ATAS.Indicators
             _trade.CvdCurrent = update.CvdCurrent;
             _trade.CvdPullbackPercent = update.CvdPullbackPercent;
             _trade.CvdPullbackLabel = update.CvdPullbackLabel;
+
+            RecordCvdLabelTransitions(bar, candle);
+        }
+
+        /// <summary>
+        /// Registra la PRIMERA vez que la etiqueta CVD intra-trade alcanza
+        /// "Advertencia" y "Riesgo de reversion", junto con el contexto del
+        /// trade en ese instante. Esto permite cuantificar offline cuanto se
+        /// ahorraria una salida anticipada por riesgo CVD, sin cambiar todavia
+        /// el comportamiento del sistema.
+        /// </summary>
+        private void RecordCvdLabelTransitions(int bar, dynamic candle)
+        {
+            if (_trade == null)
+                return;
+
+            var label = _trade.CvdPullbackLabel;
+            var isWarn = label == "Advertencia" || label == "Riesgo de reversion";
+            var isRisk = label == "Riesgo de reversion";
+
+            if (!isWarn)
+                return;
+
+            var favTicks = CalculateSignedFavorableTicks(candle.Close);
+            var barOffset = bar - _trade.EntryBar;
+
+            if (_trade.CvdWarnFirstBarOffset < 0)
+            {
+                _trade.CvdWarnFirstBarOffset = barOffset;
+                _trade.CvdWarnFirstFavTicks = favTicks;
+            }
+
+            if (isRisk && _trade.CvdRiskFirstBarOffset < 0)
+            {
+                _trade.CvdRiskFirstBarOffset = barOffset;
+                _trade.CvdRiskFirstFavTicks = favTicks;
+                _trade.CvdRiskFirstMaeTicks = _trade.MaeTicks;
+                _trade.CvdRiskFirstMfeTicks = _trade.MfeTicks;
+            }
+        }
+
+        private decimal CalculateSignedFavorableTicks(decimal currentPrice)
+        {
+            if (_trade == null || SetupTickSize <= 0)
+                return 0;
+
+            if (_trade.Side == "BUY")
+                return Math.Round((currentPrice - _trade.Entry) / SetupTickSize, 0);
+
+            if (_trade.Side == "SELL")
+                return Math.Round((_trade.Entry - currentPrice) / SetupTickSize, 0);
+
+            return 0;
         }
 
         private void UpdateTradeExcursion(decimal high, decimal low)
@@ -870,7 +981,7 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure,Cvd_SessMax_AtEntry,Cvd_SessMin_AtEntry,Cvd_Pullback_Pct_AtEntry,Cvd_Pullback_Label_AtEntry,Cvd_Slope3_AtEntry,Bars_Since_Cvd_Extreme_AtEntry,CvdWarn_First_BarOffset,CvdWarn_First_FavTicks,CvdRisk_First_BarOffset,CvdRisk_First_FavTicks,CvdRisk_First_MAE,CvdRisk_First_MFE,Trade_Contracts" + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     _trade.EntryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
@@ -884,7 +995,7 @@ namespace ATAS.Indicators
                     FormatTicks(_trade.BodyBreakoutTicks),
                     FormatTicks(_trade.Volume),
                     FormatTicks(_trade.Delta),
-                    FormatTicks(_trade.CumulativeDelta),
+                    FormatTicks(_trade.CvdEntry), // CVD real al momento de la entrada (CumulativeDelta se sobrescribe intra-trade)
                     _trade.CumulativeDeltaSource,
                     FormatTicks(_trade.CvdPeak),
                     FormatTicks(_trade.CvdCurrent),
@@ -928,7 +1039,20 @@ namespace ATAS.Indicators
                     _trade.ImbalanceGroup3,
                     FormatNullablePrice(_trade.ImbalanceGroupPrice),
                     _trade.ImbalanceCount.ToString(CultureInfo.InvariantCulture),
-                    FormatBool(_trade.SpeedIgnoredByStructure)
+                    FormatBool(_trade.SpeedIgnoredByStructure),
+                    FormatTicks(_trade.CvdSessionMaxAtEntry),
+                    FormatTicks(_trade.CvdSessionMinAtEntry),
+                    FormatSeconds(_trade.CvdPullbackPctAtEntry),
+                    _trade.CvdPullbackLabelAtEntry,
+                    FormatTicks(_trade.CvdSlope3AtEntry),
+                    _trade.BarsSinceCvdExtremeAtEntry.ToString(CultureInfo.InvariantCulture),
+                    _trade.CvdWarnFirstBarOffset.ToString(CultureInfo.InvariantCulture),
+                    FormatSignedTicks(_trade.CvdWarnFirstFavTicks),
+                    _trade.CvdRiskFirstBarOffset.ToString(CultureInfo.InvariantCulture),
+                    FormatSignedTicks(_trade.CvdRiskFirstFavTicks),
+                    FormatTicks(_trade.CvdRiskFirstMaeTicks),
+                    FormatTicks(_trade.CvdRiskFirstMfeTicks),
+                    _trade.Contracts.ToString(CultureInfo.InvariantCulture)
                 ) + Environment.NewLine
             );
         }
@@ -945,7 +1069,7 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure,Cvd_SessMax_AtEntry,Cvd_SessMin_AtEntry,Cvd_Pullback_Pct_AtEntry,Cvd_Pullback_Label_AtEntry,Cvd_Slope3_AtEntry,Bars_Since_Cvd_Extreme_AtEntry,CvdWarn_First_BarOffset,CvdWarn_First_FavTicks,CvdRisk_First_BarOffset,CvdRisk_First_FavTicks,CvdRisk_First_MAE,CvdRisk_First_MFE,Trade_Contracts" + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
@@ -1003,9 +1127,24 @@ namespace ATAS.Indicators
                     _aPlusStructureSide,
                     FormatNullablePrice(_aPlusStructurePrice),
                     _aPlusStructureCount.ToString(CultureInfo.InvariantCulture),
-                    "FALSE"
+                    "FALSE",
+                    "", "", "", "", "", "", // Cvd at-entry (sin trade)
+                    "", "", "", "", "", "", // CvdWarn/CvdRisk (sin trade)
+                    "" // Trade_Contracts
                 ) + Environment.NewLine
             );
+        }
+
+        /// <summary>
+        /// True si la senal califica segun el filtro CVD at-entry (o si el
+        /// filtro esta apagado). La decision usa solo datos pre-entrada.
+        /// </summary>
+        private bool PassesCvdAtEntryFilter(ScoreTradeSignal score)
+        {
+            if (!EnableCvdAtEntryFilter)
+                return true;
+
+            return score.CvdPullbackPctAtEntry >= CvdAtEntryThreshold;
         }
 
         private void TrackRejectedScore(int bar, DateTime nyTime, ScoreTradeSignal score)
@@ -1041,7 +1180,7 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure,Cvd_SessMax_AtEntry,Cvd_SessMin_AtEntry,Cvd_Pullback_Pct_AtEntry,Cvd_Pullback_Label_AtEntry,Cvd_Slope3_AtEntry,Bars_Since_Cvd_Extreme_AtEntry,CvdWarn_First_BarOffset,CvdWarn_First_FavTicks,CvdRisk_First_BarOffset,CvdRisk_First_FavTicks,CvdRisk_First_MAE,CvdRisk_First_MFE,Trade_Contracts" + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
@@ -1099,7 +1238,15 @@ namespace ATAS.Indicators
                     score.APlusStructureSide,
                     FormatNullablePrice(score.APlusStructurePrice),
                     (score.HasAPlusStructure ? 3 : 0).ToString(CultureInfo.InvariantCulture),
-                    FormatBool(score.SpeedIgnoredByStructure)
+                    FormatBool(score.SpeedIgnoredByStructure),
+                    FormatTicks(score.CvdSessionMaxAtEntry),
+                    FormatTicks(score.CvdSessionMinAtEntry),
+                    FormatSeconds(score.CvdPullbackPctAtEntry),
+                    score.CvdPullbackLabelAtEntry,
+                    FormatTicks(score.CvdSlope3AtEntry),
+                    score.BarsSinceCvdExtremeAtEntry.ToString(CultureInfo.InvariantCulture),
+                    "", "", "", "", "", "", // instrumentacion intra-trade no aplica
+                    "" // Trade_Contracts
                 ) + Environment.NewLine
             );
         }
@@ -1128,6 +1275,7 @@ namespace ATAS.Indicators
             _lastManagePrice = 0;
             _lastManageTimeUtc = DateTime.MinValue;
             _lastSignalReadyBar = -1;
+            _cvdFilterSkippedDay = false;
             ClearPendingScore();
             ClearRejectedScore();
         }
@@ -1392,6 +1540,25 @@ namespace ATAS.Indicators
             public decimal? ImbalanceGroupPrice { get; set; }
             public int ImbalanceCount { get; set; }
             public bool SpeedIgnoredByStructure { get; set; }
+
+            // --- Features pre-entrada (sin lookahead) ---
+            public decimal CvdSessionMaxAtEntry { get; set; }
+            public decimal CvdSessionMinAtEntry { get; set; }
+            public decimal CvdPullbackPctAtEntry { get; set; }
+            public string CvdPullbackLabelAtEntry { get; set; } = "";
+            public decimal CvdSlope3AtEntry { get; set; }
+            public int BarsSinceCvdExtremeAtEntry { get; set; }
+
+            // --- Instrumentacion intra-trade: primera transicion de etiqueta CVD ---
+            // BarOffset = barras despues de la entrada (-1 = nunca ocurrio).
+            // FavTicks = ticks a favor (con signo) al momento de la transicion.
+            public int CvdWarnFirstBarOffset { get; set; } = -1;
+            public decimal CvdWarnFirstFavTicks { get; set; }
+            public int Contracts { get; set; } = 1;
+            public int CvdRiskFirstBarOffset { get; set; } = -1;
+            public decimal CvdRiskFirstFavTicks { get; set; }
+            public decimal CvdRiskFirstMaeTicks { get; set; }
+            public decimal CvdRiskFirstMfeTicks { get; set; }
         }
 
     }

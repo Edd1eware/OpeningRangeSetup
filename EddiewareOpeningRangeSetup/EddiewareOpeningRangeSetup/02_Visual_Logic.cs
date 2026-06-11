@@ -57,6 +57,7 @@ namespace ATAS.Indicators
         private bool _cvdRiskBracketActive;
         private bool _tradeHitDrawn;
         private bool _timeOverDrawn;
+        private bool _cvdFilterSkippedDay;
 
         [DisplayName("Opening Time UTC")]
         public TimeSpan OpeningTimeUtc { get; set; } = new TimeSpan(13, 30, 0);
@@ -69,6 +70,26 @@ namespace ATAS.Indicators
 
         [DisplayName("Min Score / Cutoff Score")]
         public int MinScore { get; set; } = 5;
+
+        /// <summary>
+        /// MODO FILTRO validado 2025-2026 (n=50, WR 84%, PF 4.64): solo dibuja
+        /// el trade del dia si Cvd_Pullback_Pct_AtEntry >= umbral. Si la senal
+        /// del dia no califica, marca el dia como NO TRADE. Debe coincidir con
+        /// EnableCvdAtEntryFilter del exporter para que lo que operas y lo que
+        /// backtesteas sean el mismo sistema.
+        /// </summary>
+        [DisplayName("CVD AtEntry Filter (modo validado)")]
+        public bool EnableCvdAtEntryFilter { get; set; } = false;
+
+        [DisplayName("CVD AtEntry Threshold")]
+        public decimal CvdAtEntryThreshold { get; set; } = 0.75m;
+
+        [DisplayName("Alerta sonora en senal")]
+        public bool EnableSignalAlert { get; set; } = true;
+
+        [DisplayName("Archivo de alerta")]
+        public string AlertFile { get; set; } = "alert1";
+
 
         [DisplayName("Min OR Range Ticks")]
         public decimal MinOrRangeTicks { get; set; } = 40;
@@ -214,7 +235,7 @@ namespace ATAS.Indicators
             if (!_orReady)
                 return;
 
-            if (_tradeDrawn || bar <= _orBar || !IsSignalWindow(candle))
+            if (_tradeDrawn || _cvdFilterSkippedDay || bar <= _orBar || !IsSignalWindow(candle))
                 return;
 
             var score = CalculateScore(candle, bar);
@@ -231,8 +252,47 @@ namespace ATAS.Indicators
             if (!score.IsReady)
                 return;
 
+            if (EnableCvdAtEntryFilter && score.CvdPullbackPctAtEntry < CvdAtEntryThreshold)
+            {
+                _cvdFilterSkippedDay = true;
+                DrawCvdFilterSkippedLabel(bar, candle, score);
+                return;
+            }
+
+            if (EnableSignalAlert)
+            {
+                var alertSide = string.IsNullOrWhiteSpace(score.ExecutionSide) ? score.Side : score.ExecutionSide;
+                AddAlert(AlertFile, $"EW SETUP {alertSide} | pct CVD {score.CvdPullbackPctAtEntry:0.00} | score {score.Score}");
+            }
+
             DrawTrade(bar, candle, score);
             _tradeDrawn = true;
+        }
+
+        /// <summary>
+        /// Marca en el grafico que hoy SI hubo senal pero el filtro CVD la
+        /// descarto. Ver el motivo evita la tentacion de tomarla a mano.
+        /// </summary>
+        private void DrawCvdFilterSkippedLabel(int bar, dynamic candle, ScoreTradeSignal score)
+        {
+            var side = string.IsNullOrWhiteSpace(score.ExecutionSide) ? score.Side : score.ExecutionSide;
+            var tickSize = GetTickSize();
+            var labelPrice = side == "BUY"
+                ? candle.Low - tickSize * 16
+                : candle.High + tickSize * 16;
+
+            AddText(
+                $"EW_CVD_FILTERED_{candle.Time:yyyyMMdd_HHmm}_{bar}",
+                $"NO TRADE | CVD pct {score.CvdPullbackPctAtEntry:0.00} < {CvdAtEntryThreshold:0.00}",
+                side == "SELL",
+                bar,
+                labelPrice,
+                Color.White,
+                Color.DimGray,
+                Color.DimGray,
+                12,
+                DrawingText.TextAlign.Center,
+                true);
         }
 
         private ScoreTradeSignal CalculateScore(dynamic candle, int bar)
@@ -505,7 +565,7 @@ namespace ATAS.Indicators
             var entryLabelId = $"EW_SCORE_ENTRY_{candle.Time:yyyyMMdd_HHmm}_{bar}";
             AddText(
                 entryLabelId,
-                $"{score.SignalSource} {executionSide} | S{score.Score} | {FormatSpeedLabel(score.SpeedLabel)} {score.BreakoutSpeed:0.00}t/s",
+                $"{score.SignalSource} {executionSide} | S{score.Score} | CVDpct {score.CvdPullbackPctAtEntry:0.00} | {FormatSpeedLabel(score.SpeedLabel)} {score.BreakoutSpeed:0.00}t/s",
                 executionSide == "SELL",
                 bar,
                 labelPrice,
@@ -1390,6 +1450,7 @@ namespace ATAS.Indicators
 
         private void ResetDay(DateTime date)
         {
+            _cvdFilterSkippedDay = false;
             _currentDate = date;
             _orHigh = 0;
             _orLow = 0;

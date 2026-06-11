@@ -36,6 +36,7 @@ namespace ATAS.Indicators
             public decimal TickSize { get; set; }
             public string CvdPullbackLabel { get; set; } = "";
             public bool CvdRiskBracketActive { get; set; }
+            public bool AllowNormalSpeed { get; set; }
         }
 
         public sealed class CvdRiskBracketDecision
@@ -56,6 +57,7 @@ namespace ATAS.Indicators
             public decimal CurrentBestMfeTicks { get; set; }
             public decimal CurrentLockTicks { get; set; }
             public decimal PullbackTicks { get; set; }
+            public bool AllowNormalSpeed { get; set; }
         }
 
         public sealed class CvdProfitLockUpdate
@@ -79,6 +81,7 @@ namespace ATAS.Indicators
             public decimal ProfitLockTicks { get; set; }
             public decimal ProfitLockBestMfeTicks { get; set; }
             public string CvdPullbackLabel { get; set; } = "";
+            public bool AllowNormalSpeed { get; set; }
         }
 
         public static CvdPullbackUpdate UpdateCvdPullback(CvdPullbackUpdateRequest request)
@@ -128,7 +131,7 @@ namespace ATAS.Indicators
             if (request.CvdRiskBracketActive)
                 return new CvdRiskBracketDecision();
 
-            if (request.SpeedLabel == "normal speed")
+            if (request.SpeedLabel == "normal speed" && !request.AllowNormalSpeed)
                 return new CvdRiskBracketDecision();
 
             if (request.TpTicks <= 0 || request.TickSize <= 0)
@@ -161,7 +164,7 @@ namespace ATAS.Indicators
                 ExitPrice = 0
             };
 
-            if (request.SpeedLabel == "normal speed" || request.TpTicks <= 0 || request.TickSize <= 0)
+            if ((request.SpeedLabel == "normal speed" && !request.AllowNormalSpeed) || request.TpTicks <= 0 || request.TickSize <= 0)
                 return update;
 
             var armTicks = request.TpTicks * 0.50m;
@@ -182,7 +185,7 @@ namespace ATAS.Indicators
 
         public static bool HasCvdRiskExitProgress(CvdRiskExitProgressRequest request)
         {
-            if (request.SpeedLabel == "normal speed")
+            if (request.SpeedLabel == "normal speed" && !request.AllowNormalSpeed)
                 return false;
 
             if (request.TpTicks <= 0 || request.TickSize <= 0)

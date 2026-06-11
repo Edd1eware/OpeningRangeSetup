@@ -232,7 +232,49 @@ namespace ATAS.Indicators
                 (!request.RequireVwapOkForTrade || state.VwapOk)
                 );
 
+            ApplyCvdAtEntryFeatures(bar, getCandle, request, state);
+
             return state;
+        }
+
+        /// <summary>
+        /// Calcula el estado del CVD de la sesion AL MOMENTO DE LA SENAL usando
+        /// solo barras hasta la barra actual inclusive. Esta es la version
+        /// legitima (sin lookahead) del Cvd_Pullback que antes solo existia como
+        /// metrica intra-trade actualizada hasta el cierre de la operacion.
+        /// </summary>
+        private static void ApplyCvdAtEntryFeatures(
+            int bar,
+            Func<int, dynamic> getCandle,
+            ScoreTradeSignalRequest request,
+            ScoreTradeSignal state)
+        {
+            var sessionStats = CumulativeDeltaDetector.DetectSessionStats(
+                bar,
+                getCandle,
+                request.SessionDate,
+                request.GetSessionTime,
+                3);
+
+            if (!sessionStats.HasData)
+                return;
+
+            var sideForCvd = !string.IsNullOrWhiteSpace(state.ExecutionSide)
+                ? state.ExecutionSide
+                : state.Side;
+
+            state.CvdSessionMaxAtEntry = sessionStats.SessionMax;
+            state.CvdSessionMinAtEntry = sessionStats.SessionMin;
+            state.CvdSlope3AtEntry = sessionStats.CvdSlope;
+            state.CvdPullbackPctAtEntry = CumulativeDeltaDetector.CalculateAtEntryPullbackPercent(
+                sideForCvd,
+                sessionStats.CvdAtBar,
+                sessionStats.SessionMax,
+                sessionStats.SessionMin);
+            state.CvdPullbackLabelAtEntry = CumulativeDeltaDetector.ClassifyPullback(state.CvdPullbackPctAtEntry);
+            state.BarsSinceCvdExtremeAtEntry = sideForCvd == "SELL"
+                ? sessionStats.BarsSinceMin
+                : sessionStats.BarsSinceMax;
         }
 
         private void ApplyJudasSwingState(int bar, dynamic candle, ScoreTradeSignalRequest request, ScoreTradeSignal state)
@@ -655,5 +697,13 @@ namespace ATAS.Indicators
         public bool SpeedIgnoredByStructure { get; set; }
         public int ImbalanceScore { get; set; }
         public int Score { get; set; }
+
+        // --- Features de CVD calculadas con datos PRE-ENTRADA (sin lookahead) ---
+        public decimal CvdSessionMaxAtEntry { get; set; }
+        public decimal CvdSessionMinAtEntry { get; set; }
+        public decimal CvdPullbackPctAtEntry { get; set; }
+        public string CvdPullbackLabelAtEntry { get; set; } = "";
+        public decimal CvdSlope3AtEntry { get; set; }
+        public int BarsSinceCvdExtremeAtEntry { get; set; }
     }
 }
