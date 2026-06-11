@@ -658,38 +658,54 @@ def stop_replay(stop_button=None):
 
 MAX_WAIT_SECONDS = 1200
 
+def format_countdown(seconds):
+    seconds = max(0, int(seconds))
+    minutes, seconds = divmod(seconds, 60)
+    return f"{minutes:02d}:{seconds:02d}"
+
+
 def wait_until_result(path, min_modified_time=None, no_trade_cutoff_seconds=None, stop_button=None):
     print("Esperando resultado terminal en CSV; si el trade esta OPEN no se cambia de dia.")
-    dot_count = 0
     start = time.time()
-    last_print = 0
+    last_print_second = -1
+    last_status_line = ""
 
     while True:
         if result_is_terminal(path, min_modified_time):
-            print("\rEsperando... listo.   ")
+            print("Esperando... listo.")
             print("Resultado terminal detectado en CSV; paso al siguiente dia.")
             stop_replay(stop_button)
             return True
 
         elapsed = time.time() - start
+        has_open_trade = result_is_open_trade(path, min_modified_time)
+        countdown_limit = no_trade_cutoff_seconds if no_trade_cutoff_seconds is not None else MAX_WAIT_SECONDS
+        remaining = countdown_limit - elapsed
+
         if (
             no_trade_cutoff_seconds is not None and
             elapsed > no_trade_cutoff_seconds and
-            not result_is_open_trade(path, min_modified_time)
+            not has_open_trade
         ):
-            print(f"\rCorte 09:40 sin trade OPEN ({int(elapsed)}s). Deteniendo replay del dia.")
+            print(f"Corte 09:40 sin trade OPEN ({int(elapsed)}s). Deteniendo replay del dia.")
             stop_replay(stop_button)
             return False
 
         if elapsed > MAX_WAIT_SECONDS:
-            print(f"\rTimeout ({MAX_WAIT_SECONDS}s) esperando resultado terminal. Saltando al siguiente dia.")
+            print(f"Timeout ({MAX_WAIT_SECONDS}s) esperando resultado terminal. Saltando al siguiente dia.")
             stop_replay(stop_button)
             return False
 
-        if time.time() - last_print >= 0.5:
-            dot_count = dot_count % 3 + 1
-            print(f"\rEsperando{'.' * dot_count}{' ' * (3 - dot_count)}", end="", flush=True)
-            last_print = time.time()
+        elapsed_second = int(elapsed)
+        if elapsed_second != last_print_second and (elapsed_second == 0 or elapsed_second % 5 == 0):
+            open_status = "OPEN" if has_open_trade else "sin OPEN"
+            last_status_line = (
+                f"Esperando resultado... transcurrido {format_countdown(elapsed)} | "
+                f"restan {format_countdown(remaining)} | {open_status}"
+            )
+            print(last_status_line, flush=True)
+            last_print_second = elapsed_second
+
         time.sleep(POLL_SECONDS)
 
 

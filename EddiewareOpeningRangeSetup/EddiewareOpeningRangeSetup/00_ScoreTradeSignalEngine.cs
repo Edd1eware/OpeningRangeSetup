@@ -159,6 +159,8 @@ namespace ATAS.Indicators
             state.SellImbalanceCount = imbalance.SellImbalanceCount;
             state.BreakoutSideImbalanceStopPrice = ResolveBreakoutSideImbalanceStopPrice(state.Side, imbalance, request.TickSize);
             ApplyValueAcceptanceSignal(candle, request, state, imbalance);
+            hasAPlusStructureForSignal = HasAPlusStructureForSide(state.Side);
+            aPlusStructurePrice = GetAPlusStructurePriceForSide(state.Side);
             state.HasSide3_ImbalanceGroup =
                 (state.Side == "BUY" && state.HasBuy3_ImbalanceGroup) ||
                 (state.Side == "SELL" && state.HasSell3_ImbalanceGroup);

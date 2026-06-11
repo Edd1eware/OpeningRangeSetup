@@ -22,7 +22,7 @@ namespace ATAS.Indicators
         private const decimal SetupTickSize = 0.25m;
         private const decimal ValueAcceptanceMinTradeTicks = 30m;
         private const decimal NormalScalpMaxTradeTicks = 120m;
-        private const string ExporterVersion = "score-exporter-2026-06-09-x10-value-acceptance";
+        private const string ExporterVersion = "score-exporter-2026-06-10-x10-value-acceptance";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
@@ -71,7 +71,7 @@ namespace ATAS.Indicators
         public decimal MinAbsDelta { get; set; } = 25;
         public decimal MinNormalSpeedTicksPerSecond { get; set; } = 2;
         public decimal APlusSpeedTicksPerSecond { get; set; } = 5;
-        public decimal ReplaySpeedMultiplier { get; set; } = 1;
+        public decimal ReplaySpeedMultiplier { get; set; } = 10;
         public decimal ImbalanceRatio { get; set; } = 3m;
         public decimal ImbalanceCompareMinVolume { get; set; } = 70m;
         public decimal APlusPriceAcceptanceTicks { get; set; } = 20m;

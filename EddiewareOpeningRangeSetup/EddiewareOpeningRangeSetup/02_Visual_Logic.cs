@@ -113,7 +113,7 @@ namespace ATAS.Indicators
         public decimal APlusSpeedTicksPerSecond { get; set; } = 5;
 
         [DisplayName("Replay Speed Multiplier")]
-        public decimal ReplaySpeedMultiplier { get; set; } = 1;
+        public decimal ReplaySpeedMultiplier { get; set; } = 10;
 
         [DisplayName("Panic MFE Trigger Ticks")]
         public decimal PanicMfeTriggerTicks { get; set; } = 20;
@@ -446,6 +446,11 @@ namespace ATAS.Indicators
             return side == "BUY" ? Color.Blue : Color.Orange;
         }
 
+        private static Color GetOpenTradeLabelColor(string side)
+        {
+            return side == "BUY" ? Color.Blue : Color.Red;
+        }
+
         private void DrawTrade(int bar, dynamic candle, ScoreTradeSignal score)
         {
             var executionSide = string.IsNullOrWhiteSpace(score.ExecutionSide)
@@ -491,8 +496,11 @@ namespace ATAS.Indicators
             var sl = plan.Sl;
             var tp = plan.Tp;
             var labelPrice = executionSide == "BUY"
-                ? candle.Low - tickSize * 10
-                : candle.High + tickSize * 10;
+                ? candle.Low - tickSize * 16
+                : candle.High + tickSize * 16;
+            var entryPriceLabelPrice = executionSide == "BUY"
+                ? entry - tickSize * 8
+                : entry + tickSize * 8;
 
             var entryLabelId = $"EW_SCORE_ENTRY_{candle.Time:yyyyMMdd_HHmm}_{bar}";
             AddText(
@@ -512,7 +520,8 @@ namespace ATAS.Indicators
 
             TrendLines.Add(new TrendLine(bar, entry, endBar, entry, new Pen(Color.Gold, 3)));
 
-            DrawTradeLabel($"EW_ENTRY_{candle.Time:yyyyMMdd_HHmm}_{bar}", $"ENTRY {entry:0.00}", bar, entry, Color.White, GetTradeSideColor(executionSide), -30);
+            DrawTradeLabel($"EW_ENTRY_{candle.Time:yyyyMMdd_HHmm}_{bar}", $"ENTRY {entry:0.00}", bar + 1, entryPriceLabelPrice, Color.White, GetTradeSideColor(executionSide), 0);
+            DrawOpenSideLabel($"EW_OPEN_SIDE_{candle.Time:yyyyMMdd_HHmm}_{bar}", executionSide, bar, entry);
 
             _tradeBar = bar;
             _tradeSide = executionSide;
@@ -1274,6 +1283,26 @@ namespace ATAS.Indicators
                 bgColor,
                 bgColor,
                 12,
+                DrawingText.TextAlign.Center,
+                true);
+        }
+
+        private void DrawOpenSideLabel(string id, string side, int bar, decimal entry)
+        {
+            var bgColor = GetOpenTradeLabelColor(side);
+
+            AddText(
+                id,
+                side,
+                true,
+                bar,
+                entry,
+                0,
+                0,
+                Color.White,
+                bgColor,
+                bgColor,
+                24,
                 DrawingText.TextAlign.Center,
                 true);
         }
