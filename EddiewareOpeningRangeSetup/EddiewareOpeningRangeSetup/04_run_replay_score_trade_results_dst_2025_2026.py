@@ -672,6 +672,7 @@ def wait_until_result(path, min_modified_time=None, no_trade_cutoff_seconds=None
 
     while True:
         if result_is_terminal(path, min_modified_time):
+            print("\r" + " " * max(len(last_status_line), 80), end="\r", flush=True)
             print("Esperando... listo.")
             print("Resultado terminal detectado en CSV; paso al siguiente dia.")
             stop_replay(stop_button)
@@ -687,23 +688,25 @@ def wait_until_result(path, min_modified_time=None, no_trade_cutoff_seconds=None
             elapsed > no_trade_cutoff_seconds and
             not has_open_trade
         ):
+            print("\r" + " " * max(len(last_status_line), 80), end="\r", flush=True)
             print(f"Corte 09:40 sin trade OPEN ({int(elapsed)}s). Deteniendo replay del dia.")
             stop_replay(stop_button)
             return False
 
         if elapsed > MAX_WAIT_SECONDS:
+            print("\r" + " " * max(len(last_status_line), 80), end="\r", flush=True)
             print(f"Timeout ({MAX_WAIT_SECONDS}s) esperando resultado terminal. Saltando al siguiente dia.")
             stop_replay(stop_button)
             return False
 
         elapsed_second = int(elapsed)
-        if elapsed_second != last_print_second and (elapsed_second == 0 or elapsed_second % 5 == 0):
+        if elapsed_second != last_print_second:
             open_status = "OPEN" if has_open_trade else "sin OPEN"
             last_status_line = (
                 f"Esperando resultado... transcurrido {format_countdown(elapsed)} | "
                 f"restan {format_countdown(remaining)} | {open_status}"
             )
-            print(last_status_line, flush=True)
+            print("\r" + last_status_line + " " * max(0, 100 - len(last_status_line)), end="", flush=True)
             last_print_second = elapsed_second
 
         time.sleep(POLL_SECONDS)
