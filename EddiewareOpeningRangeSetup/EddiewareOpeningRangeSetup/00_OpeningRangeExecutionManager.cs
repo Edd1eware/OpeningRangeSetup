@@ -1531,7 +1531,7 @@ namespace ATAS.Indicators
             }
             catch (Exception ex)
             {
-                this.LogError($"EW Strategy: error al colocar entrada: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"EW Strategy: error al colocar entrada: {ex.Message}");
             }
         }
 
@@ -1582,7 +1582,7 @@ namespace ATAS.Indicators
             }
             catch (Exception ex)
             {
-                this.LogError($"EW Strategy: error al cerrar posicion: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"EW Strategy: error al cerrar posicion: {ex.Message}");
             }
         }
 
