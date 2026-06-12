@@ -674,6 +674,7 @@ namespace ATAS.Indicators
 
             _timeOverWritten = true;
             WriteTimeOverFile(nyTime.Date, nyTime);
+            SendTelegramNoTradeMessage();
             return true;
         }
 
@@ -1586,6 +1587,12 @@ namespace ATAS.Indicators
             }
         }
 
+        private void SendTelegramNoTradeMessage()
+        {
+            var motivo = _cvdFilterSkippedDay ? " (senal filtrada por CVD)" : "";
+            SendTelegramText($"\u26AA NO TRADE TODAY{motivo}");
+        }
+
         private void SendTelegramCloseMessage(string result, decimal signedTicks)
         {
             if (!EnableTelegramAlerts)
@@ -1596,7 +1603,16 @@ namespace ATAS.Indicators
 
             var emoji = result == "TP" ? "\u2705" : result == "SL" ? "\U0001F534" : "\u26AA";
             var signo = signedTicks >= 0 ? "+" : "";
-            var texto = $"{emoji} {result} {signo}{signedTicks:0} ticks";
+            SendTelegramText($"{emoji} {result} {signo}{signedTicks:0} ticks");
+        }
+
+        private void SendTelegramText(string texto)
+        {
+            if (!EnableTelegramAlerts)
+                return;
+
+            if (string.IsNullOrWhiteSpace(TelegramBotToken) || string.IsNullOrWhiteSpace(TelegramChatId))
+                return;
 
             var url = $"https://api.telegram.org/bot{TelegramBotToken}/sendMessage" +
                       $"?chat_id={Uri.EscapeDataString(TelegramChatId)}&text={Uri.EscapeDataString(texto)}";

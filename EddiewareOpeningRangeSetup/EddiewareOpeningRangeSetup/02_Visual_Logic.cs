@@ -58,6 +58,7 @@ namespace ATAS.Indicators
         private bool _tradeHitDrawn;
         private bool _timeOverDrawn;
         private bool _cvdFilterSkippedDay;
+        private bool _waitingLabelVisible;
 
         [DisplayName("Opening Time UTC")]
         public TimeSpan OpeningTimeUtc { get; set; } = new TimeSpan(13, 30, 0);
@@ -205,6 +206,8 @@ namespace ATAS.Indicators
 
             UpdateSpeedClock(bar);
 
+            UpdateWaitingForTradeLabel(bar, candle);
+
             if (_tradeDrawn)
             {
                 ManageActiveTrade(bar, candle, value);
@@ -273,6 +276,49 @@ namespace ATAS.Indicators
         /// Marca en el grafico que hoy SI hubo senal pero el filtro CVD la
         /// descarto. Ver el motivo evita la tentacion de tomarla a mano.
         /// </summary>
+        /// <summary>
+        /// Muestra "WAITING FOR TRADE" durante la ventana de senal (9:30-9:40 NY)
+        /// mientras no haya trade ni dia filtrado; se oculta al terminar.
+        /// </summary>
+        private void UpdateWaitingForTradeLabel(int bar, dynamic candle)
+        {
+            var id = $"EW_WAITING_{_currentDate:yyyyMMdd}";
+            var shouldShow = IsSignalWindow(candle) && !_tradeDrawn && !_cvdFilterSkippedDay;
+
+            if (shouldShow)
+            {
+                AddText(
+                    id,
+                    "WAITING FOR TRADE 9:30-9:40",
+                    true,
+                    bar,
+                    candle.High + GetTickSize() * 24,
+                    Color.White,
+                    Color.DarkOrange,
+                    Color.DarkOrange,
+                    12,
+                    DrawingText.TextAlign.Center,
+                    true);
+                _waitingLabelVisible = true;
+            }
+            else if (_waitingLabelVisible)
+            {
+                AddText(
+                    id,
+                    "",
+                    true,
+                    bar,
+                    candle.High,
+                    Color.Transparent,
+                    Color.Transparent,
+                    Color.Transparent,
+                    1,
+                    DrawingText.TextAlign.Center,
+                    true);
+                _waitingLabelVisible = false;
+            }
+        }
+
         private void DrawCvdFilterSkippedLabel(int bar, dynamic candle, ScoreTradeSignal score)
         {
             var side = string.IsNullOrWhiteSpace(score.ExecutionSide) ? score.Side : score.ExecutionSide;
@@ -1451,6 +1497,7 @@ namespace ATAS.Indicators
         private void ResetDay(DateTime date)
         {
             _cvdFilterSkippedDay = false;
+            _waitingLabelVisible = false;
             _currentDate = date;
             _orHigh = 0;
             _orLow = 0;
