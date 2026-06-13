@@ -1,9 +1,8 @@
-from pywinauto import Desktop, mouse
+from pywinauto import Desktop
 import csv
 import os
 import time
 import pyperclip
-from PIL import ImageGrab
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
@@ -450,128 +449,6 @@ def get_controls():
             stop_button = b
 
     return replay, from_box, to_box, start_button, stop_button
-
-
-def click_strategy_tester_play(max_wait_seconds=20):
-    desktop = Desktop(backend="uia")
-    strategy_text = "EwOpeningRangeExecutionStrategy"
-    start = time.time()
-
-    while time.time() - start <= max_wait_seconds:
-        if click_green_strategy_play_icon():
-            return True
-
-        for window in desktop.windows(visible_only=True):
-            title = window.window_text()
-            if "Replay" in title:
-                continue
-
-            try:
-                descendants = window.descendants()
-            except Exception:
-                continue
-
-            labels = []
-            for control in descendants:
-                text = (control.window_text() or "").strip()
-                if strategy_text in text:
-                    labels.append(control)
-
-            for label in labels:
-                text = (label.window_text() or "").strip()
-                if "Stopped" not in text and "[Stopped]" not in text:
-                    print("Strategy tester no aparece como Stopped; no se pulsa Play.")
-                    return False
-
-                label_rect = label.rectangle()
-                candidates = []
-
-                for control in descendants:
-                    try:
-                        if control.element_info.control_type != "Button":
-                            continue
-
-                        rect = control.rectangle()
-                        same_row = rect.top <= label_rect.bottom and rect.bottom >= label_rect.top
-                        right_of_label = label_rect.right <= rect.left <= label_rect.right + 180
-                        small_button = rect.width() <= 35 and rect.height() <= 35
-
-                        if same_row and right_of_label and small_button:
-                            candidates.append((rect.left, control))
-                    except Exception:
-                        continue
-
-                if candidates:
-                    _, play_button = sorted(candidates, key=lambda item: item[0])[0]
-                    play_button.click_input()
-                    print("Strategy tester Play pulsado.")
-                    return True
-
-                click_x = label_rect.right + 15
-                click_y = int((label_rect.top + label_rect.bottom) / 2)
-                mouse.click(button="left", coords=(click_x, click_y))
-                print("Strategy tester Play pulsado por coordenada cercana.")
-                return True
-
-        time.sleep(0.5)
-
-    print("WARNING: no encontre la linea EwOpeningRangeExecutionStrategy para pulsar Play.")
-    return False
-
-
-def click_green_strategy_play_icon():
-    try:
-        image = ImageGrab.grab().convert("RGB")
-    except Exception:
-        return False
-
-    width, height = image.size
-    pixels = image.load()
-    candidates = []
-    scan_left = 250
-    scan_right = min(width - 24, 700)
-    scan_top = 90
-    scan_bottom = min(height - 24, 240)
-
-    def is_green(x, y):
-        r, g, b = pixels[x, y]
-        return g >= 120 and r <= 80 and b <= 90
-
-    for y in range(scan_top, scan_bottom):
-        for x in range(scan_left, scan_right):
-            for size in range(14, 25):
-                right = x + size - 1
-                bottom = y + size - 1
-
-                top_edge = sum(1 for px in range(x, right + 1) if is_green(px, y))
-                bottom_edge = sum(1 for px in range(x, right + 1) if is_green(px, bottom))
-                left_edge = sum(1 for py in range(y, bottom + 1) if is_green(x, py))
-                right_edge = sum(1 for py in range(y, bottom + 1) if is_green(right, py))
-
-                if min(top_edge, bottom_edge, left_edge, right_edge) < 4:
-                    continue
-
-                inner_green = 0
-                for py in range(y + 2, bottom - 1):
-                    for px in range(x + 2, right - 1):
-                        if is_green(px, py):
-                            inner_green += 1
-
-                if 8 <= inner_green <= 90:
-                    candidates.append((y, x, right, bottom))
-                    break
-
-    if not candidates:
-        fallback_x = 414 if width > 430 else int(width * 0.28)
-        fallback_y = 150 if height > 170 else int(height * 0.16)
-        mouse.click(button="left", coords=(fallback_x, fallback_y))
-        print("Strategy tester Play pulsado por coordenada fija del area marcada.")
-        return True
-
-    min_y, min_x, max_x, max_y = sorted(candidates)[0]
-    mouse.click(button="left", coords=(int((min_x + max_x) / 2), int((min_y + max_y) / 2)))
-    print("Strategy tester Play verde pulsado por deteccion visual.")
-    return True
 
 
 def expected_result_path(date_ddmmyyyy):
@@ -1143,10 +1020,6 @@ try:
                 print("Iniciando replay...")
                 started_at = time.time()
                 start_button.click_input()
-                print("Esperando 5 segundos para que aparezca el Play verde del strategy tester...")
-                time.sleep(5)
-                print("Buscando Play verde del strategy tester...")
-                click_strategy_tester_play()
 
                 print("Esperando hasta detectar TP/SL/EXIT/BE/TIME_OVER...")
                 if wait_until_result(result_path, started_at, wait_seconds, stop_button):

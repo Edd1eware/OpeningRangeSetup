@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using ATAS.DataFeedsCore;
 using ATAS.Strategies.Chart;
@@ -35,8 +36,13 @@ namespace ATAS.Indicators
         private const decimal HardMaxTradeTicks = 60m;
         private const decimal APlusStopTicks = 60m;
         private readonly ScoreTradeSignalEngine _signalEngine = new ScoreTradeSignalEngine();
+        private readonly CancellationTokenSource _autoStartCancellation = new CancellationTokenSource();
 
         private DateTime _currentNyDate = DateTime.MinValue;
+        private DateTime _lastAutoStartNyDate = DateTime.MinValue;
+        private DateTime _lastReplayAutoStartMarkerUtc = DateTime.MinValue;
+        private DateTime _autoStartRetryUntilUtc = DateTime.MinValue;
+        private DateTime _lastAutoStartAttemptUtc = DateTime.MinValue;
         private decimal _orHigh;
         private decimal _orLow;
         private int _orBar = -1;
@@ -134,6 +140,12 @@ namespace ATAS.Indicators
         public bool EnableTelegramAlerts { get; set; } = true;
         public string TelegramBotToken { get; set; } = "";
         public string TelegramChatId { get; set; } = "";
+        public bool EnableAutoStartAtOpening { get; set; } = true;
+        public bool EnableAutoStartOnReplayMarker { get; set; } = true;
+        public TimeSpan AutoStartTimeNy { get; set; } = new TimeSpan(9, 30, 0);
+        public int AutoStartCheckIntervalSeconds { get; set; } = 1;
+        public int AutoStartRetrySeconds { get; set; } = 60;
+        public int AutoStartAttemptIntervalSeconds { get; set; } = 2;
         public decimal FastExitAdverseSpeedTicksPerSecond { get; set; } = 6;
         public TimeSpan TimeOverTimeNy { get; set; } = new TimeSpan(9, 40, 0);
         public int MinTimeOverRealtimeSeconds { get; set; } = 5;
@@ -144,6 +156,7 @@ namespace ATAS.Indicators
         {
             Name = "EW OpeningRange Execution Strategy";
             EnableCustomDrawing = false;
+            StartAutoStartWatcher();
         }
 
         protected override void OnRecalculate()
@@ -156,6 +169,99 @@ namespace ATAS.Indicators
         {
             base.OnFinishRecalculate();
             _isRecalculating = false;
+        }
+
+        protected override void OnDispose()
+        {
+            _autoStartCancellation.Cancel();
+            _autoStartCancellation.Dispose();
+            base.OnDispose();
+        }
+
+        private void StartAutoStartWatcher()
+        {
+            Task.Run(() => AutoStartAtOpeningLoopAsync(_autoStartCancellation.Token));
+        }
+
+        private async Task AutoStartAtOpeningLoopAsync(CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    if (EnableAutoStartAtOpening)
+                    {
+                        var nowUtc = DateTime.UtcNow;
+                        var nowNy = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, _nyZone);
+
+                        if (nowNy.TimeOfDay >= AutoStartTimeNy && _lastAutoStartNyDate != nowNy.Date)
+                        {
+                            _lastAutoStartNyDate = nowNy.Date;
+                            BeginAutoStartRetryWindow(nowUtc, $"hora NY {nowNy:yyyy-MM-dd HH:mm:ss}");
+                        }
+
+                        if (EnableAutoStartOnReplayMarker)
+                            TryBeginReplayMarkerAutoStart(nowUtc);
+
+                        if (nowUtc <= _autoStartRetryUntilUtc &&
+                            (nowUtc - _lastAutoStartAttemptUtc).TotalSeconds >= Math.Max(1, AutoStartAttemptIntervalSeconds))
+                        {
+                            _lastAutoStartAttemptUtc = nowUtc;
+                            System.Diagnostics.Debug.WriteLine($"EW Strategy: intentando StartAsync auto-start a las {nowUtc:yyyy-MM-dd HH:mm:ss} UTC.");
+                            await StartAsync().ConfigureAwait(false);
+                        }
+                    }
+
+                    var interval = Math.Max(1, AutoStartCheckIntervalSeconds);
+                    await Task.Delay(TimeSpan.FromSeconds(interval), cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"EW Strategy: error en auto-start: {ex.Message}");
+                    await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+
+        private void BeginAutoStartRetryWindow(DateTime nowUtc, string reason)
+        {
+            var retrySeconds = Math.Max(1, AutoStartRetrySeconds);
+            var retryUntil = nowUtc.AddSeconds(retrySeconds);
+
+            if (retryUntil > _autoStartRetryUntilUtc)
+                _autoStartRetryUntilUtc = retryUntil;
+
+            System.Diagnostics.Debug.WriteLine($"EW Strategy: auto-start activado por {reason}; reintentando hasta {_autoStartRetryUntilUtc:yyyy-MM-dd HH:mm:ss} UTC.");
+        }
+
+        private void TryBeginReplayMarkerAutoStart(DateTime nowUtc)
+        {
+            if (!File.Exists(_replayStartedFile))
+                return;
+
+            DateTime markerUtc;
+
+            try
+            {
+                markerUtc = File.GetLastWriteTimeUtc(_replayStartedFile);
+            }
+            catch
+            {
+                return;
+            }
+
+            if (markerUtc == DateTime.MinValue || markerUtc == _lastReplayAutoStartMarkerUtc)
+                return;
+
+            if ((nowUtc - markerUtc).TotalMinutes > 5)
+                return;
+
+            _lastReplayAutoStartMarkerUtc = markerUtc;
+            BeginAutoStartRetryWindow(nowUtc, $"marcador de replay {_replayStartedFile}");
         }
 
         protected override void OnCalculate(int bar, decimal value)
