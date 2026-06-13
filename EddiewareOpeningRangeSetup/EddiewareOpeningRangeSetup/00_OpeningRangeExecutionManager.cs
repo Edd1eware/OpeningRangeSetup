@@ -27,11 +27,11 @@ namespace ATAS.Indicators
         private const decimal SetupTickSize = 0.25m;
         private const decimal ValueAcceptanceMinTradeTicks = 30m;
         private const decimal NormalScalpMaxTradeTicks = 120m;
-        private const string ExporterVersion = "ew-strategy-2026-06-12-v1-mirror";
+        private const string ExporterVersion = "ew-strategy-2026-06-13-v2-window-autostop";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
-        private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
-        private readonly TimeSpan _signalEndNy = new TimeSpan(9, 38, 0);
+        private readonly TimeSpan _signalStartNy = new TimeSpan(9, 30, 0);
+        private readonly TimeSpan _signalEndNy = new TimeSpan(9, 40, 0);
         private readonly TimeSpan _normalSpeedAllowedUntilNy = new TimeSpan(9, 33, 59); // time limit
         private const decimal HardMaxTradeTicks = 60m;
         private const decimal APlusStopTicks = 60m;
@@ -43,6 +43,7 @@ namespace ATAS.Indicators
         private DateTime _lastReplayAutoStartMarkerUtc = DateTime.MinValue;
         private DateTime _autoStartRetryUntilUtc = DateTime.MinValue;
         private DateTime _lastAutoStartAttemptUtc = DateTime.MinValue;
+        private bool _terminalAutoStopRequested;
         private decimal _orHigh;
         private decimal _orLow;
         private int _orBar = -1;
@@ -146,6 +147,7 @@ namespace ATAS.Indicators
         public int AutoStartCheckIntervalSeconds { get; set; } = 1;
         public int AutoStartRetrySeconds { get; set; } = 60;
         public int AutoStartAttemptIntervalSeconds { get; set; } = 2;
+        public bool EnableAutoStopAfterTerminalResult { get; set; } = true;
         public decimal FastExitAdverseSpeedTicksPerSecond { get; set; } = 6;
         public TimeSpan TimeOverTimeNy { get; set; } = new TimeSpan(9, 40, 0);
         public int MinTimeOverRealtimeSeconds { get; set; } = 5;
@@ -781,6 +783,7 @@ namespace ATAS.Indicators
             _timeOverWritten = true;
             WriteTimeOverFile(nyTime.Date, nyTime);
             SendTelegramNoTradeMessage();
+            RequestAutoStopAfterTerminalResult("TIME_OVER sin trade");
             return true;
         }
 
@@ -1389,6 +1392,7 @@ namespace ATAS.Indicators
             _orReady = false;
             _tradeCreated = false;
             _timeOverWritten = false;
+            _terminalAutoStopRequested = false;
             _signalEngine.ResetDay();
             _hasAPlusStructure = false;
             _aPlusStructureSide = "";
@@ -1650,6 +1654,29 @@ namespace ATAS.Indicators
             var signedTicks = CalculateSignedTradeResultTicks();
             SendTelegramCloseMessage(_trade.Result, signedTicks);
             FlattenPosition();
+            RequestAutoStopAfterTerminalResult($"resultado {_trade.Result}");
+        }
+
+        private void RequestAutoStopAfterTerminalResult(string reason)
+        {
+            if (!EnableAutoStopAfterTerminalResult || _terminalAutoStopRequested)
+                return;
+
+            _terminalAutoStopRequested = true;
+
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(250)).ConfigureAwait(false);
+                    System.Diagnostics.Debug.WriteLine($"EW Strategy: auto-stop por {reason}.");
+                    await StopAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"EW Strategy: error en auto-stop: {ex.Message}");
+                }
+            });
         }
 
         private decimal CalculateSignedTradeResultTicks()
