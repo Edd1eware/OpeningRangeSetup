@@ -889,32 +889,32 @@ namespace ATAS.Indicators
 
             if (_tradeSide == "BUY")
             {
-                if (_tradeTp != 0 && TradeManagerTpSlBeExit.IsTpHit(_tradeSide, hitHigh, hitLow, _tradeTp))
+                if (_tradeSl != 0 && TradeManagerTpSlBeExit.IsSlHit(_tradeSide, hitHigh, hitLow, _tradeSl))
                 {
-                    DrawTradeHit(bar, "TP HIT", _tradeTp, Color.LimeGreen, Color.White, 18);
+                    DrawTradeHit(bar, "SL HIT", _tradeSl, Color.Red, Color.White, -54);
                     _tradeHitDrawn = true;
                     return;
                 }
 
-                if (_tradeSl != 0 && TradeManagerTpSlBeExit.IsSlHit(_tradeSide, hitHigh, hitLow, _tradeSl))
+                if (_tradeTp != 0 && TradeManagerTpSlBeExit.IsTpHit(_tradeSide, hitHigh, hitLow, _tradeTp))
                 {
-                    DrawTradeHit(bar, "SL HIT", _tradeSl, Color.Red, Color.White, -54);
+                    DrawTradeHit(bar, "TP HIT", _tradeTp, Color.LimeGreen, Color.White, 18);
                     _tradeHitDrawn = true;
                     return;
                 }
             }
             else if (_tradeSide == "SELL")
             {
-                if (_tradeTp != 0 && TradeManagerTpSlBeExit.IsTpHit(_tradeSide, hitHigh, hitLow, _tradeTp))
+                if (_tradeSl != 0 && TradeManagerTpSlBeExit.IsSlHit(_tradeSide, hitHigh, hitLow, _tradeSl))
                 {
-                    DrawTradeHit(bar, "TP HIT", _tradeTp, Color.LimeGreen, Color.White, 18);
+                    DrawTradeHit(bar, "SL HIT", _tradeSl, Color.Red, Color.White, -54);
                     _tradeHitDrawn = true;
                     return;
                 }
 
-                if (_tradeSl != 0 && TradeManagerTpSlBeExit.IsSlHit(_tradeSide, hitHigh, hitLow, _tradeSl))
+                if (_tradeTp != 0 && TradeManagerTpSlBeExit.IsTpHit(_tradeSide, hitHigh, hitLow, _tradeTp))
                 {
-                    DrawTradeHit(bar, "SL HIT", _tradeSl, Color.Red, Color.White, -54);
+                    DrawTradeHit(bar, "TP HIT", _tradeTp, Color.LimeGreen, Color.White, 18);
                     _tradeHitDrawn = true;
                     return;
                 }

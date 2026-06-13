@@ -29,13 +29,16 @@ namespace ATAS.Indicators
         private readonly string _replayStartedFile =
             @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\replay_trade_result_started_at.txt";
 
+        private readonly string _telegramCredentialsFile =
+            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_credentials.txt";
+
         private readonly TimeZoneInfo _nyZone =
             TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
 
         private const decimal SetupTickSize = 0.25m;
         private const decimal ValueAcceptanceMinTradeTicks = 30m;
         private const decimal NormalScalpMaxTradeTicks = 120m;
-        private const string ExporterVersion = "ew-strategy-2026-06-13-v2-window-autostop";
+        private const string ExporterVersion = "ew-strategy-2026-06-13-v4-recover-signal-time-sl";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 30, 0);
@@ -826,11 +829,9 @@ namespace ATAS.Indicators
                     return false;
                 }
 
-                var signalNyTime = ResolveSignalNewYorkTime(scanCandle);
-
                 _lastSignalReadyBar = scanBar;
                 ClearPendingScore();
-                CreateTrade(scanBar, scanCandle, signalNyTime, score);
+                CreateTrade(scanBar, scanCandle, scanNyTime, score);
 
                 if (_trade == null)
                     return false;
@@ -1752,12 +1753,6 @@ namespace ATAS.Indicators
 
         private void SendTelegramCloseMessage(string result, decimal signedTicks)
         {
-            if (!EnableTelegramAlerts)
-                return;
-
-            if (string.IsNullOrWhiteSpace(TelegramBotToken) || string.IsNullOrWhiteSpace(TelegramChatId))
-                return;
-
             var emoji = result == "TP" ? "\U0001F7E2" : result == "SL" ? "\U0001F534" : "\u26AA";
             var signo = signedTicks >= 0 ? "+" : "";
             var dateText = FormatTelegramDate(_trade?.EntryDate ?? DateTime.UtcNow);
@@ -1781,8 +1776,8 @@ namespace ATAS.Indicators
                 return;
             }
 
-            var token = TelegramBotToken?.Trim();
-            var chatId = TelegramChatId?.Trim();
+            var token = ResolveTelegramSetting(TelegramBotToken, "TELEGRAM_BOT_TOKEN", "token");
+            var chatId = ResolveTelegramSetting(TelegramChatId, "TELEGRAM_CHAT_ID", "chat_id");
 
             if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(chatId))
             {
@@ -1839,6 +1834,48 @@ namespace ATAS.Indicators
             {
                 // El log de Telegram no debe afectar la estrategia.
             }
+        }
+
+        private string ResolveTelegramSetting(string propertyValue, string environmentVariable, string credentialsKey)
+        {
+            if (!string.IsNullOrWhiteSpace(propertyValue))
+                return propertyValue.Trim();
+
+            var envValue = Environment.GetEnvironmentVariable(environmentVariable);
+            if (!string.IsNullOrWhiteSpace(envValue))
+                return envValue.Trim();
+
+            try
+            {
+                if (!File.Exists(_telegramCredentialsFile))
+                    return "";
+
+                foreach (var rawLine in File.ReadAllLines(_telegramCredentialsFile))
+                {
+                    var line = rawLine.Trim();
+
+                    if (line.Length == 0 || line.StartsWith("#", StringComparison.Ordinal))
+                        continue;
+
+                    var separatorIndex = line.IndexOf('=');
+
+                    if (separatorIndex <= 0)
+                        continue;
+
+                    var key = line.Substring(0, separatorIndex).Trim();
+
+                    if (!string.Equals(key, credentialsKey, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    return line.Substring(separatorIndex + 1).Trim();
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendTelegramLog($"Error leyendo credenciales Telegram: {ex.Message}");
+            }
+
+            return "";
         }
 
         private class TradeState

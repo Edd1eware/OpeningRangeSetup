@@ -285,8 +285,10 @@ namespace ATAS.Indicators
                 };
             }
 
-            var result = hitTp ? "TP" : "SL";
-            var exitPrice = hitTp ? request.Tp : request.Sl;
+            // OHLC/backtest data cannot prove intrabar order when TP and SL are both inside
+            // the same range. Prefer the conservative outcome so exports match replay fills.
+            var result = hitSl ? "SL" : "TP";
+            var exitPrice = hitSl ? request.Sl : request.Tp;
 
             return new TradeExitDecision
             {

@@ -22,7 +22,7 @@ namespace ATAS.Indicators
         private const decimal SetupTickSize = 0.25m;
         private const decimal ValueAcceptanceMinTradeTicks = 30m;
         private const decimal NormalScalpMaxTradeTicks = 120m;
-        private const string ExporterVersion = "score-exporter-2026-06-12-x10-cvd-modes";
+        private const string ExporterVersion = "score-exporter-2026-06-13-v4-recover-signal-time-sl";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
@@ -686,11 +686,9 @@ namespace ATAS.Indicators
                     return false;
                 }
 
-                var signalNyTime = ResolveSignalNewYorkTime(scanCandle);
-
                 _lastSignalReadyBar = scanBar;
                 ClearPendingScore();
-                CreateTrade(scanBar, scanCandle, signalNyTime, score);
+                CreateTrade(scanBar, scanCandle, scanNyTime, score);
 
                 if (_trade == null)
                     return false;
