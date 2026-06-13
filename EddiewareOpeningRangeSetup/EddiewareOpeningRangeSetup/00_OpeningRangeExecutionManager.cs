@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,6 +13,13 @@ namespace ATAS.Indicators
 {
     public class EwOpeningRangeExecutionStrategy : ChartStrategy
     {
+        private static readonly HttpClient TelegramHttpClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(10)
+        };
+
+        private Task _lastTelegramSendTask = Task.CompletedTask;
+
         private readonly string _exportFolder =
             @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score";
 
@@ -1668,7 +1676,8 @@ namespace ATAS.Indicators
             {
                 try
                 {
-                    await Task.Delay(TimeSpan.FromMilliseconds(250)).ConfigureAwait(false);
+                    await Task.Delay(TimeSpan.FromMilliseconds(500)).ConfigureAwait(false);
+                    await WaitForTelegramSendAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                     System.Diagnostics.Debug.WriteLine($"EW Strategy: auto-stop por {reason}.");
                     await StopAsync().ConfigureAwait(false);
                 }
@@ -1677,6 +1686,20 @@ namespace ATAS.Indicators
                     System.Diagnostics.Debug.WriteLine($"EW Strategy: error en auto-stop: {ex.Message}");
                 }
             });
+        }
+
+        private async Task WaitForTelegramSendAsync(TimeSpan timeout)
+        {
+            var sendTask = _lastTelegramSendTask ?? Task.CompletedTask;
+
+            if (sendTask.IsCompleted)
+                return;
+
+            var timeoutTask = Task.Delay(timeout);
+            var completedTask = await Task.WhenAny(sendTask, timeoutTask).ConfigureAwait(false);
+
+            if (completedTask == timeoutTask)
+                AppendTelegramLog($"Timeout esperando envio Telegram despues de {timeout.TotalSeconds:0}s.");
         }
 
         private decimal CalculateSignedTradeResultTicks()
@@ -1723,7 +1746,8 @@ namespace ATAS.Indicators
         private void SendTelegramNoTradeMessage()
         {
             var motivo = _cvdFilterSkippedDay ? " (senal filtrada por CVD)" : "";
-            SendTelegramText($"\u26AA NO TRADE TODAY{motivo}");
+            var dateText = FormatTelegramDate(DateTime.UtcNow);
+            SendTelegramText($"\u26AA {dateText} NO TRADE TODAY{motivo}");
         }
 
         private void SendTelegramCloseMessage(string result, decimal signedTicks)
@@ -1734,34 +1758,87 @@ namespace ATAS.Indicators
             if (string.IsNullOrWhiteSpace(TelegramBotToken) || string.IsNullOrWhiteSpace(TelegramChatId))
                 return;
 
-            var emoji = result == "TP" ? "\u2705" : result == "SL" ? "\U0001F534" : "\u26AA";
+            var emoji = result == "TP" ? "\U0001F7E2" : result == "SL" ? "\U0001F534" : "\u26AA";
             var signo = signedTicks >= 0 ? "+" : "";
-            SendTelegramText($"{emoji} {result} {signo}{signedTicks:0} ticks");
+            var dateText = FormatTelegramDate(_trade?.EntryDate ?? DateTime.UtcNow);
+            SendTelegramText($"{emoji} {dateText} {result} {signo}{signedTicks:0} ticks");
+        }
+
+        private string FormatTelegramDate(DateTime dateTime)
+        {
+            var nyDate = dateTime.Kind == DateTimeKind.Utc
+                ? ConvertToNewYorkTime(dateTime).Date
+                : dateTime.Date;
+
+            return nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         }
 
         private void SendTelegramText(string texto)
         {
             if (!EnableTelegramAlerts)
+            {
+                AppendTelegramLog($"No enviado: alertas Telegram desactivadas. Texto='{texto}'");
                 return;
+            }
 
-            if (string.IsNullOrWhiteSpace(TelegramBotToken) || string.IsNullOrWhiteSpace(TelegramChatId))
+            var token = TelegramBotToken?.Trim();
+            var chatId = TelegramChatId?.Trim();
+
+            if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(chatId))
+            {
+                AppendTelegramLog(
+                    $"No enviado: token/chat_id vacio. TokenSet={!string.IsNullOrWhiteSpace(token)}, ChatIdSet={!string.IsNullOrWhiteSpace(chatId)}. Texto='{texto}'");
                 return;
+            }
 
-            var url = $"https://api.telegram.org/bot{TelegramBotToken}/sendMessage" +
-                      $"?chat_id={Uri.EscapeDataString(TelegramChatId)}&text={Uri.EscapeDataString(texto)}";
+            var url = $"https://api.telegram.org/bot{token}/sendMessage";
+            var payload = new Dictionary<string, string>
+            {
+                ["chat_id"] = chatId,
+                ["text"] = texto,
+                ["disable_web_page_preview"] = "true"
+            };
 
-            Task.Run(async () =>
+            _lastTelegramSendTask = Task.Run(async () =>
             {
                 try
                 {
-                    using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-                    await client.GetAsync(url).ConfigureAwait(false);
+                    AppendTelegramLog($"Enviando Telegram. ChatId='{chatId}', Texto='{texto}'");
+                    using var content = new FormUrlEncodedContent(payload);
+                    using var response = await TelegramHttpClient.PostAsync(url, content).ConfigureAwait(false);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                        AppendTelegramLog($"Telegram HTTP {(int)response.StatusCode} {response.ReasonPhrase}: {body}");
+                        System.Diagnostics.Debug.WriteLine(
+                            $"EW Strategy: Telegram HTTP {(int)response.StatusCode} {response.ReasonPhrase}: {body}");
+                        return;
+                    }
+
+                    AppendTelegramLog($"Telegram enviado OK. Status={(int)response.StatusCode}");
                 }
-                catch
+                catch (Exception ex)
                 {
                     // Telegram caido jamas afecta la operativa.
+                    AppendTelegramLog($"Error Telegram: {ex.GetType().Name}: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"EW Strategy: error Telegram: {ex.Message}");
                 }
             });
+        }
+
+        private void AppendTelegramLog(string message)
+        {
+            try
+            {
+                Directory.CreateDirectory(_exportFolder);
+                var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} {message}{Environment.NewLine}";
+                File.AppendAllText(Path.Combine(_exportFolder, "telegram_debug.log"), line);
+            }
+            catch
+            {
+                // El log de Telegram no debe afectar la estrategia.
+            }
         }
 
         private class TradeState

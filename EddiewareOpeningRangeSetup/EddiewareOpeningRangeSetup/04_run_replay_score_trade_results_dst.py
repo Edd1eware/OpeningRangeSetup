@@ -15,16 +15,18 @@ from openpyxl.utils import get_column_letter
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 DATES_DST = [
 
-    
+    "05/05/2026",
     "15/05/2026",
     "20/05/2026",
     "26/05/2026",
 
 ]
 # Replay recomendado para esta prueba: X1.
-# Ventana por dia: 09:30 a 09:50 NY. En X1 se esperan 10 minutos sin trade OPEN;
+# Ventana por dia: 09:30 a 09:50 NY. El exporter escribe TIME_OVER si no hay trade antes/de 09:40;
 # si ya hay trade abierto, dejamos correr hasta 09:50 para que resuelva TP/SL/EXIT/BE.
+REPLAY_START_TIME = "09:30"
 REPLAY_END_TIME = "09:50"
+NO_TRADE_CUTOFF_TIME = "09:40"
 POLL_SECONDS = 0.02
 NO_TRADE_CUTOFF_SECONDS = 10 * 60
 HOLIDAY_RETRY_COUNT = 3
@@ -373,7 +375,7 @@ def wait_until_result(path, min_modified_time=None, no_trade_cutoff_seconds=None
             not has_open_trade
         ):
             print("\r" + " " * max(len(last_status_line), 80), end="\r", flush=True)
-            print(f"Corte de 10 minutos sin trade OPEN ({int(elapsed)}s). Deteniendo replay del dia.")
+            print(f"Corte {NO_TRADE_CUTOFF_TIME} sin trade OPEN ({int(elapsed)}s). Deteniendo replay del dia.")
             stop_replay(stop_button)
             return False
 
@@ -690,7 +692,7 @@ try:
                 write_target_date(date)
                 time.sleep(1)
 
-                from_value = f"{date} 09:30 a. m."
+                from_value = f"{date} {REPLAY_START_TIME} a. m."
                 to_value = f"{date} {REPLAY_END_TIME} a. m."
 
                 replay, from_box, to_box, start_button, stop_button = get_controls()
