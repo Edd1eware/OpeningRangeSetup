@@ -22,7 +22,7 @@ namespace ATAS.Indicators
         private const decimal SetupTickSize = 0.25m;
         private const decimal ValueAcceptanceMinTradeTicks = 30m;
         private const decimal NormalScalpMaxTradeTicks = 120m;
-        private const string ExporterVersion = "score-exporter-2026-06-13-v4-recover-signal-time-sl";
+        private const string ExporterVersion = "score-exporter-2026-06-13-v5-entrybar-no-preentry-tp";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
@@ -855,7 +855,7 @@ namespace ATAS.Indicators
 
             if (_trade.Side == "BUY")
             {
-                if (candle.High > _trade.EntryBarHighAtEntry || candle.High >= _trade.Tp)
+                if (candle.High > _trade.EntryBarHighAtEntry)
                     tradeHigh = candle.High;
 
                 if (candle.Low < _trade.EntryBarLowAtEntry)
@@ -866,7 +866,7 @@ namespace ATAS.Indicators
                 if (candle.High > _trade.EntryBarHighAtEntry)
                     tradeHigh = candle.High;
 
-                if (candle.Low < _trade.EntryBarLowAtEntry || candle.Low <= _trade.Tp)
+                if (candle.Low < _trade.EntryBarLowAtEntry)
                     tradeLow = candle.Low;
             }
         }
