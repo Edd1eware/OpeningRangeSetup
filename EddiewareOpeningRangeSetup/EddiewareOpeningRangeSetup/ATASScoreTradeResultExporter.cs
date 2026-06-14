@@ -22,7 +22,7 @@ namespace ATAS.Indicators
         private const decimal SetupTickSize = 0.25m;
         private const decimal ValueAcceptanceMinTradeTicks = 30m;
         private const decimal NormalScalpMaxTradeTicks = 120m;
-        private const string ExporterVersion = "score-exporter-2026-06-13-v5-entrybar-no-preentry-tp";
+        private const string ExporterVersion = "ew-strategy-2026-06-14-v8-shadow-mae-mfe";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
@@ -60,6 +60,8 @@ namespace ATAS.Indicators
         private ScoreTradeSignal? _bestRejectedScore;
         private int _bestRejectedScoreBar = -1;
         private DateTime _bestRejectedScoreNyTime = DateTime.MinValue;
+        private decimal _shadowMaeTicks;
+        private decimal _shadowMfeTicks;
         private decimal _lastManagePrice;
         private DateTime _lastManageTimeUtc = DateTime.MinValue;
         private int _lastSignalReadyBar = -1;
@@ -161,6 +163,7 @@ namespace ATAS.Indicators
                 return;
 
             UpdateTradeResult(bar, current);
+            UpdateShadowExcursion(bar, current);
 
             if (TryWriteTimeOver(bar, current, currentNyTime))
                 return;
@@ -633,6 +636,32 @@ namespace ATAS.Indicators
                 SetupTickSize);
         }
 
+        private void UpdateShadowExcursion(int bar, dynamic candle)
+        {
+            if (_bestRejectedScore == null || bar <= _bestRejectedScoreBar)
+                return;
+
+            var entry = _bestRejectedScore.EntryPrice;
+            var side = _bestRejectedScore.Side;
+            decimal favorable, adverse;
+
+            if (side == "BUY")
+            {
+                favorable = RoundToTicks(candle.High - entry);
+                adverse = RoundToTicks(entry - candle.Low);
+            }
+            else
+            {
+                favorable = RoundToTicks(entry - candle.Low);
+                adverse = RoundToTicks(candle.High - entry);
+            }
+
+            if (favorable > _shadowMfeTicks)
+                _shadowMfeTicks = Math.Max(0, favorable);
+            if (adverse > _shadowMaeTicks)
+                _shadowMaeTicks = Math.Max(0, adverse);
+        }
+
         private bool TryWriteTimeOver(int bar, dynamic candle, DateTime nyTime)
         {
             var hasOpenTrade = _trade != null && _trade.Result == "OPEN";
@@ -645,6 +674,16 @@ namespace ATAS.Indicators
                 nyTime.TimeOfDay < TimeOverTimeNy)
             {
                 return false;
+            }
+
+            if (_cvdFilterSkippedDay || _bestRejectedScore != null)
+            {
+                if (TryRecoverMissedReadyTradeBeforeTimeOver(bar, candle, nyTime))
+                    return false;
+
+                _timeOverWritten = true;
+                WriteRejectedScoreFile(nyTime.Date);
+                return true;
             }
 
             if (TryRecoverMissedReadyTradeBeforeTimeOver(bar, candle, nyTime))
@@ -1128,7 +1167,7 @@ namespace ATAS.Indicators
                     "FALSE",
                     "", "", "", "", "", "", // Cvd at-entry (sin trade)
                     "", "", "", "", "", "", // CvdWarn/CvdRisk (sin trade)
-                    "" // Trade_Contracts
+                    "0" // Trade_Contracts
                 ) + Environment.NewLine
             );
         }
@@ -1154,6 +1193,12 @@ namespace ATAS.Indicators
                 score.Score < _bestRejectedScore.Score)
             {
                 return;
+            }
+
+            if (_bestRejectedScoreBar != bar)
+            {
+                _shadowMaeTicks = 0;
+                _shadowMfeTicks = 0;
             }
 
             _bestRejectedScore = score;
@@ -1228,8 +1273,8 @@ namespace ATAS.Indicators
                     "NO_PROFILE",
                     "",
                     "NO_PROFILE",
-                    "",
-                    "",
+                    _shadowMaeTicks > 0 ? FormatTicks(_shadowMaeTicks) : "",
+                    _shadowMfeTicks > 0 ? FormatTicks(_shadowMfeTicks) : "",
                     FormatBool(score.HasAPlusStructure),
                     FormatBool(score.HasAPlusAbsorption),
                     FormatBool(score.HasAPlusSpeed),
@@ -1244,7 +1289,7 @@ namespace ATAS.Indicators
                     FormatTicks(score.CvdSlope3AtEntry),
                     score.BarsSinceCvdExtremeAtEntry.ToString(CultureInfo.InvariantCulture),
                     "", "", "", "", "", "", // instrumentacion intra-trade no aplica
-                    "" // Trade_Contracts
+                    "0" // Trade_Contracts
                 ) + Environment.NewLine
             );
         }
@@ -1290,6 +1335,8 @@ namespace ATAS.Indicators
             _bestRejectedScore = null;
             _bestRejectedScoreBar = -1;
             _bestRejectedScoreNyTime = DateTime.MinValue;
+            _shadowMaeTicks = 0;
+            _shadowMfeTicks = 0;
         }
 
         private void UpdateAPlusStructureFromBar(int bar, dynamic candle, DateTime nyTime)
