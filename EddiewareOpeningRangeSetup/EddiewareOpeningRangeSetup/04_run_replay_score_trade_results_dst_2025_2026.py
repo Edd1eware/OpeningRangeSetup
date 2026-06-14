@@ -658,7 +658,7 @@ def stop_replay(stop_button=None):
     print("No encontre boton Stop; probablemente el replay ya termino.")
 
 
-MAX_WAIT_SECONDS = 1200
+MAX_WAIT_SECONDS = 120
 
 def format_countdown(seconds):
     seconds = max(0, int(seconds))
