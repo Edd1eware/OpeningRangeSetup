@@ -80,7 +80,7 @@ namespace ATAS.Indicators
         /// backtesteas sean el mismo sistema.
         /// </summary>
         [DisplayName("CVD AtEntry Filter (modo validado)")]
-        public bool EnableCvdAtEntryFilter { get; set; } = false;
+        public bool EnableCvdAtEntryFilter { get; set; } = true;
 
         [DisplayName("CVD AtEntry Threshold")]
         public decimal CvdAtEntryThreshold { get; set; } = 0.75m;

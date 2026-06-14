@@ -120,7 +120,7 @@ namespace ATAS.Indicators
         /// del dia no califica, el dia se omite (igual que en la validacion
         /// historica). Backtest 2025-2026: n=50, WR 84%, PF 4.64, maxDD 120 ticks.
         /// </summary>
-        public bool EnableCvdAtEntryFilter { get; set; } = false;
+        public bool EnableCvdAtEntryFilter { get; set; } = true;
 
         /// <summary>
         /// Umbral del pullback at-entry para el filtro y el sizing. Usar los
