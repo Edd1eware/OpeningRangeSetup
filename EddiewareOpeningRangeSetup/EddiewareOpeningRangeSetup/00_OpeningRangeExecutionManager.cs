@@ -38,7 +38,7 @@ namespace ATAS.Indicators
         private const decimal SetupTickSize = 0.25m;
         private const decimal ValueAcceptanceMinTradeTicks = 30m;
         private const decimal NormalScalpMaxTradeTicks = 120m;
-        private const string ExporterVersion = "ew-strategy-2026-06-13-v5-entrybar-no-preentry-tp";
+        private const string ExporterVersion = "ew-strategy-2026-06-14-v6-telegram-notrade-date";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 30, 0);
@@ -793,7 +793,7 @@ namespace ATAS.Indicators
 
             _timeOverWritten = true;
             WriteTimeOverFile(nyTime.Date, nyTime);
-            SendTelegramNoTradeMessage();
+            SendTelegramNoTradeMessage(nyTime.Date);
             RequestAutoStopAfterTerminalResult("TIME_OVER sin trade");
             return true;
         }
@@ -1744,10 +1744,10 @@ namespace ATAS.Indicators
             }
         }
 
-        private void SendTelegramNoTradeMessage()
+        private void SendTelegramNoTradeMessage(DateTime nyDate)
         {
             var motivo = _cvdFilterSkippedDay ? " (senal filtrada por CVD)" : "";
-            var dateText = FormatTelegramDate(DateTime.UtcNow);
+            var dateText = FormatTelegramDate(nyDate);
             SendTelegramText($"\u26AA {dateText} NO TRADE TODAY{motivo}");
         }
 
