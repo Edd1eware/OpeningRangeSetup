@@ -469,7 +469,11 @@ namespace ATAS.Indicators
 
         internal static bool IsSpeedValidForSignalTime(string speedLabel, TimeSpan signalTime, TimeSpan normalSpeedAllowedUntilTime)
         {
-            return speedLabel == "normal speed" || speedLabel == "A+ speed";
+            if (speedLabel == "A+ speed")
+                return true;
+            if (speedLabel == "normal speed")
+                return signalTime <= normalSpeedAllowedUntilTime;
+            return false;
         }
 
         private static void ApplyValueAcceptanceSignal(

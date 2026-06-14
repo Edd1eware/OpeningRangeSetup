@@ -2,7 +2,6 @@ namespace ATAS.Indicators
 {
     internal static class TradeManagerTpSlBeExit
     {
-        private const decimal NoImbalanceStopTicks = 60m;
 
         public sealed class ImbalanceDebugInfo
         {
@@ -231,9 +230,10 @@ namespace ATAS.Indicators
 
             if (!usesImbalanceStop)
             {
+                // slTicks already set per trade type: APlusStopTicks for A+ speed, MinTradeTicks otherwise
                 sl = request.Side == "BUY"
-                    ? entry - NoImbalanceStopTicks * request.TickSize
-                    : entry + NoImbalanceStopTicks * request.TickSize;
+                    ? entry - slTicks * request.TickSize
+                    : entry + slTicks * request.TickSize;
             }
 
             if (!usesNormalSpeedImbalanceStop)

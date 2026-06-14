@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using ATAS.DataFeedsCore;
@@ -32,13 +34,16 @@ namespace ATAS.Indicators
         private readonly string _telegramCredentialsFile =
             @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_credentials.txt";
 
+        private readonly string _telegramMessageIdsFile =
+            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_message_ids.txt";
+
         private readonly TimeZoneInfo _nyZone =
             TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
 
         private const decimal SetupTickSize = 0.25m;
         private const decimal ValueAcceptanceMinTradeTicks = 30m;
         private const decimal NormalScalpMaxTradeTicks = 120m;
-        private const string ExporterVersion = "ew-strategy-2026-06-14-v6-telegram-notrade-date";
+        private const string ExporterVersion = "ew-strategy-2026-06-14-v7-min20ticks";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 30, 0);
@@ -87,7 +92,7 @@ namespace ATAS.Indicators
         private int _lastSignalReadyBar = -1;
 
         public int MinScore { get; set; } = 5;
-        public decimal MinOrRangeTicks { get; set; } = 40;
+        public decimal MinOrRangeTicks { get; set; } = 20;
         public decimal MaxOrRangeTicks { get; set; } = 350;
         public decimal MinBodyBreakoutTicks { get; set; } = 10;
         public decimal MinVolume { get; set; } = 800;
@@ -98,7 +103,7 @@ namespace ATAS.Indicators
         public decimal ImbalanceRatio { get; set; } = 3m;
         public decimal ImbalanceCompareMinVolume { get; set; } = 70m;
         public decimal APlusPriceAcceptanceTicks { get; set; } = 20m;
-        public decimal MinTradeTicks { get; set; } = 60;
+        public decimal MinTradeTicks { get; set; } = 20;
         public decimal MaxTradeTicks { get; set; } = 60;
         public decimal HalfMfeExitMinMfeTicks { get; set; } = 40;
         public decimal FastExitMinMfeTicks { get; set; } = 40;
@@ -275,6 +280,7 @@ namespace ATAS.Indicators
 
             _lastReplayAutoStartMarkerUtc = markerUtc;
             BeginAutoStartRetryWindow(nowUtc, $"marcador de replay {_replayStartedFile}");
+            _ = DeletePreviousTelegramMessagesAsync();
         }
 
         protected override void OnCalculate(int bar, decimal value)
@@ -1801,15 +1807,19 @@ namespace ATAS.Indicators
                     AppendTelegramLog($"Enviando Telegram. ChatId='{chatId}', Texto='{texto}'");
                     using var content = new FormUrlEncodedContent(payload);
                     using var response = await TelegramHttpClient.PostAsync(url, content).ConfigureAwait(false);
+                    var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
                     if (!response.IsSuccessStatusCode)
                     {
-                        var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                         AppendTelegramLog($"Telegram HTTP {(int)response.StatusCode} {response.ReasonPhrase}: {body}");
                         System.Diagnostics.Debug.WriteLine(
                             $"EW Strategy: Telegram HTTP {(int)response.StatusCode} {response.ReasonPhrase}: {body}");
                         return;
                     }
+
+                    var match = Regex.Match(body, "\"message_id\":(\\d+)");
+                    if (match.Success && long.TryParse(match.Groups[1].Value, out var msgId))
+                        AppendMessageId(msgId);
 
                     AppendTelegramLog($"Telegram enviado OK. Status={(int)response.StatusCode}");
                 }
@@ -1834,6 +1844,75 @@ namespace ATAS.Indicators
             {
                 // El log de Telegram no debe afectar la estrategia.
             }
+        }
+
+        private void AppendMessageId(long messageId)
+        {
+            try
+            {
+                Directory.CreateDirectory(_exportFolder);
+                File.AppendAllText(_telegramMessageIdsFile, messageId.ToString(CultureInfo.InvariantCulture) + Environment.NewLine);
+            }
+            catch
+            {
+                // No afecta la operativa.
+            }
+        }
+
+        private async Task DeletePreviousTelegramMessagesAsync()
+        {
+            var token = ResolveTelegramSetting(TelegramBotToken, "TELEGRAM_BOT_TOKEN", "token");
+            var chatId = ResolveTelegramSetting(TelegramChatId, "TELEGRAM_CHAT_ID", "chat_id");
+
+            if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(chatId))
+                return;
+
+            long[] ids;
+
+            try
+            {
+                if (!File.Exists(_telegramMessageIdsFile))
+                    return;
+
+                ids = File.ReadAllLines(_telegramMessageIdsFile)
+                    .Select(l => l.Trim())
+                    .Where(l => l.Length > 0)
+                    .Select(l => long.TryParse(l, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id) ? id : -1L)
+                    .Where(id => id > 0)
+                    .ToArray();
+
+                File.Delete(_telegramMessageIdsFile);
+            }
+            catch (Exception ex)
+            {
+                AppendTelegramLog($"Error leyendo message IDs para borrar: {ex.Message}");
+                return;
+            }
+
+            if (ids.Length == 0)
+                return;
+
+            var deleteUrl = $"https://api.telegram.org/bot{token}/deleteMessage";
+
+            foreach (var msgId in ids)
+            {
+                try
+                {
+                    var payload = new Dictionary<string, string>
+                    {
+                        ["chat_id"] = chatId,
+                        ["message_id"] = msgId.ToString(CultureInfo.InvariantCulture)
+                    };
+                    using var content = new FormUrlEncodedContent(payload);
+                    await TelegramHttpClient.PostAsync(deleteUrl, content).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Si un mensaje ya fue borrado manualmente o expiró, ignorar.
+                }
+            }
+
+            AppendTelegramLog($"Borrados {ids.Length} mensajes Telegram de la corrida anterior.");
         }
 
         private string ResolveTelegramSetting(string propertyValue, string environmentVariable, string credentialsKey)

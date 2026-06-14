@@ -13,7 +13,9 @@
       "PowerShell($dll = Get-ChildItem -Path \"C:\\\\Users\\\\k_99_\\\\Desktop\\\\codding\\\\OpeningRangeSetup\\\\EddiewareOpeningRangeSetup\\\\EddiewareOpeningRangeSetup\\\\bin\\\\Release\" -Recurse -Filter \"EddiewareOpeningRangeSetup.dll\" -ErrorAction SilentlyContinue | Select-Object -First 1; $dll.FullName; $dll.LastWriteTime)",
       "PowerShell($src=\"C:\\\\Users\\\\k_99_\\\\Desktop\\\\codding\\\\OpeningRangeSetup\\\\EddiewareOpeningRangeSetup\\\\EddiewareOpeningRangeSetup\\\\bin\\\\Release\\\\net8.0\\\\EddiewareOpeningRangeSetup.dll\"; $dst=\"C:\\\\Users\\\\k_99_\\\\AppData\\\\Roaming\\\\ATAS\\\\Indicators\\\\\"; Copy-Item -Path $src -Destination $dst -Force; \"Copiado a $dst\"; Get-ChildItem \\($dst+\"EddiewareOpeningRangeSetup.dll\"\\) | Select-Object Name, LastWriteTime)",
       "Bash(rm -f \"C:\\\\Users\\\\k_99_\\\\Desktop\\\\codding\\\\data_footprint_generator\\\\exporter_diag_log.txt\" && echo \"Log diag eliminado.\")",
-      "Bash(python -m py_compile 04_run_replay_score_trade_results_dst.py)"
+      "Bash(python -m py_compile 04_run_replay_score_trade_results_dst.py)",
+      "PowerShell(python \"C:\\\\Users\\\\k_99_\\\\Desktop\\\\codding\\\\data_footprint_generator\\\\analyze_winners_losers.py\")",
+      "PowerShell(python \"C:\\\\Users\\\\k_99_\\\\Desktop\\\\codding\\\\data_footprint_generator\\\\analyze_winners_losers.py\" 2>&1)"
     ]
   }
 }
