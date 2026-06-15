@@ -21,6 +21,7 @@ namespace ATAS.Indicators
         private decimal _orLow;
         private int _orBar = -1;
         private bool _orReady;
+        private decimal? _openingVpocPrice;
         private bool _tradeDrawn;
         private bool _panicDrawn;
         private int _tradeBar = -1;
@@ -225,6 +226,7 @@ namespace ATAS.Indicators
                     _orHigh = closedCandle.High;
                     _orLow = closedCandle.Low;
                     _orBar = closedBar;
+                    _openingVpocPrice = CalculateVpocPrice(closedCandle);
                     _orReady = true;
 
                     if (ShowOpeningRange)
@@ -1338,6 +1340,29 @@ namespace ATAS.Indicators
                 14,
                 DrawingText.TextAlign.Center,
                 true);
+
+            DrawOpeningVpocLabel();
+        }
+
+        private void DrawOpeningVpocLabel()
+        {
+            if (!_openingVpocPrice.HasValue || _orBar < 0)
+                return;
+
+            AddText(
+                $"EW_VPOC_0930_{_currentDate:yyyyMMdd}",
+                $"vPOC 9:30 {_openingVpocPrice.Value:0.00}",
+                true,
+                _orBar,
+                _openingVpocPrice.Value,
+                18,
+                0,
+                Color.Black,
+                Color.Yellow,
+                Color.Yellow,
+                12,
+                DrawingText.TextAlign.Center,
+                true);
         }
 
         private void DrawScoreLabel(int bar, dynamic candle, ScoreTradeSignal score)
@@ -1503,6 +1528,7 @@ namespace ATAS.Indicators
             _orLow = 0;
             _orBar = -1;
             _orReady = false;
+            _openingVpocPrice = null;
             _tradeDrawn = false;
             _signalEngine.ResetDay();
             _panicDrawn = false;
@@ -1548,6 +1574,34 @@ namespace ATAS.Indicators
         private decimal GetTickSize()
         {
             return FallbackTickSize;
+        }
+
+        private decimal? CalculateVpocPrice(dynamic candle)
+        {
+            decimal? bestPrice = null;
+            decimal bestVolume = decimal.MinValue;
+
+            try
+            {
+                foreach (var level in candle.GetAllPriceLevels())
+                {
+                    var bid = Convert.ToDecimal(level.Bid);
+                    var ask = Convert.ToDecimal(level.Ask);
+                    var total = bid + ask;
+
+                    if (total <= bestVolume)
+                        continue;
+
+                    bestVolume = total;
+                    bestPrice = Convert.ToDecimal(level.Price);
+                }
+            }
+            catch
+            {
+                return null;
+            }
+
+            return bestPrice;
         }
 
         private string Flag(bool value)

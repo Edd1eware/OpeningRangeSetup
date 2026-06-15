@@ -1,7 +1,9 @@
 using System;
 using System.Globalization;
+using System.Drawing;
 using System.IO;
 using ATAS.Indicators;
+using ATAS.Indicators.Drawing;
 
 namespace ATAS.Indicators
 {
@@ -22,11 +24,13 @@ namespace ATAS.Indicators
         private const decimal SetupTickSize = 0.25m;
         private const decimal ValueAcceptanceMinTradeTicks = 30m;
         private const decimal NormalScalpMaxTradeTicks = 120m;
-        private const string ExporterVersion = "score-exporter-2026-06-13-v5-entrybar-no-preentry-tp";
+        private const string ExporterVersion = "score-exporter-2026-06-15-v6-research-columns";
+        private const decimal APlusReactionTicks = 10m;
+        private const decimal APlusContinuationTicks = 30m;
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
-        private readonly TimeSpan _signalEndNy = new TimeSpan(9, 38, 0);
+        private readonly TimeSpan _signalEndNy = new TimeSpan(9, 50, 0);
         private readonly TimeSpan _normalSpeedAllowedUntilNy = new TimeSpan(9, 33, 59); // time limit
         private const decimal HardMaxTradeTicks = 60m;
         private const decimal APlusStopTicks = 60m;
@@ -37,6 +41,9 @@ namespace ATAS.Indicators
         private decimal _orLow;
         private int _orBar = -1;
         private bool _orReady;
+        private decimal? _openingVpocPrice;
+        private bool _openingVpocLabelDrawn;
+        private FakeBreakoutState _fakeBreakout = new FakeBreakoutState();
         private bool _tradeCreated;
         private bool _timeOverWritten;
         private bool _isRecalculating;
@@ -52,6 +59,14 @@ namespace ATAS.Indicators
         private bool _hasSellAPlusStructure;
         private decimal? _sellAPlusStructurePrice;
         private int _sellAPlusStructureCount;
+        private string _aPlusObservedReaction = "";
+        private bool _aPlusObservedReactionAmbiguous;
+        private decimal _aPlusObservedMaxFavorableTicks;
+        private decimal _aPlusObservedMaxAdverseTicks;
+        private bool _aPlusObservedReached30Ticks;
+        private int _aPlusObservedBarsToFirst10Ticks = -1;
+        private int _aPlusObservedBarsTo30Ticks = -1;
+        private int _aPlusObservedBar = -1;
         private TradeState? _trade;
         private ScoreTradeSignal? _pendingScore;
         private int _pendingScoreBar = -1;
@@ -115,15 +130,17 @@ namespace ATAS.Indicators
         /// </summary>
         public int CvdAtEntrySizeMultiplier { get; set; } = 1;
         public decimal FastExitAdverseSpeedTicksPerSecond { get; set; } = 6;
-        public TimeSpan TimeOverTimeNy { get; set; } = new TimeSpan(9, 40, 0);
+        public TimeSpan TimeOverTimeNy { get; set; } = new TimeSpan(9, 50, 0);
         public int MinTimeOverRealtimeSeconds { get; set; } = 5;
         public bool RequireBodyOkForTrade { get; set; } = false;
         public bool RequireVwapOkForTrade { get; set; } = false;
+        public bool DisableTradeManager { get; set; } = true;
 
         public ATASScoreTradeResultExporter()
         {
             Name = "ATAS Score Trade Result Exporter ENTRY SL TP RESULT";
             EnableCustomDrawing = false;
+            DrawAbovePrice = true;
         }
 
         protected override void OnRecalculate()
@@ -168,12 +185,15 @@ namespace ATAS.Indicators
             UpdateSpeedClock(bar);
 
             UpdateAPlusStructureFromBar(closedBar, closedCandle, closedNyTime);
+            UpdateAPlusDailyObservation(closedBar, closedCandle);
 
             if (!_orReady && closedNyTime.TimeOfDay == _openingTimeNy)
             {
                 _orHigh = closedCandle.High;
                 _orLow = closedCandle.Low;
                 _orBar = closedBar;
+                _openingVpocPrice = CalculateVpocPrice(closedCandle);
+                DrawOpeningVpocLabel();
                 _orReady = true;
                 return;
             }
@@ -181,10 +201,13 @@ namespace ATAS.Indicators
             if (!_orReady)
                 return;
 
+            UpdateFakeBreakoutObservation(bar, current, currentNyTime);
+
             if (_tradeCreated || _cvdFilterSkippedDay || bar <= _orBar || !IsSignalWindow(currentNyTime))
                 return;
 
             UpdateAPlusStructureFromBar(bar, current, currentNyTime);
+            UpdateAPlusDailyObservation(bar, current);
 
             var score = CalculateLiveScore(current, bar, currentNyTime);
 
@@ -206,6 +229,14 @@ namespace ATAS.Indicators
 
             _lastSignalReadyBar = bar;
             ClearPendingScore();
+
+            if (DisableTradeManager)
+            {
+                TrackRejectedScore(bar, currentSignalNyTime, score);
+                _tradeCreated = true;
+                return;
+            }
+
             CreateTrade(bar, current, currentSignalNyTime, score);
             UpdateEntryBarTradeResult(bar, current);
         }
@@ -219,31 +250,44 @@ namespace ATAS.Indicators
                 ? score.Side
                 : score.ExecutionSide;
 
-            var plan = TradeManagerTpSlBeExit.CreateInitialPlan(new TradeManagerTpSlBeExit.TradePlanRequest
+            decimal sl = 0;
+            decimal tp = 0;
+            decimal slTicks = 0;
+            decimal tpTicks = 0;
+
+            if (!DisableTradeManager)
             {
-                Side = executionSide,
-                SpeedLabel = score.SpeedLabel,
-                Entry = score.EntryPrice,
-                OrLow = _orLow,
-                OrHigh = _orHigh,
-                TickSize = SetupTickSize,
-                MinTradeTicks = MinTradeTicks,
-                MaxTradeTicks = MaxTradeTicks,
-                HardMaxTradeTicks = HardMaxTradeTicks,
-                APlusStopTicks = APlusStopTicks,
-                NormalSpeedMaxTradeTicks = NormalScalpMaxTradeTicks,
-                ValueAcceptanceMinTradeTicks = ValueAcceptanceMinTradeTicks,
-                NormalSpeedImbalanceStopPrice = score.BreakoutSideImbalanceStopPrice,
-                ValueAcceptanceStopPrice = score.ValueAcceptanceStopPrice,
-                CapSellStopAtOrHigh = false,
-                EnforceMinExitDistance = true
-            });
+                var plan = TradeManagerTpSlBeExit.CreateInitialPlan(new TradeManagerTpSlBeExit.TradePlanRequest
+                {
+                    Side = executionSide,
+                    SpeedLabel = score.SpeedLabel,
+                    Entry = score.EntryPrice,
+                    OrLow = _orLow,
+                    OrHigh = _orHigh,
+                    TickSize = SetupTickSize,
+                    MinTradeTicks = MinTradeTicks,
+                    MaxTradeTicks = MaxTradeTicks,
+                    HardMaxTradeTicks = HardMaxTradeTicks,
+                    APlusStopTicks = APlusStopTicks,
+                    NormalSpeedMaxTradeTicks = NormalScalpMaxTradeTicks,
+                    ValueAcceptanceMinTradeTicks = ValueAcceptanceMinTradeTicks,
+                    NormalSpeedImbalanceStopPrice = score.BreakoutSideImbalanceStopPrice,
+                    ValueAcceptanceStopPrice = score.ValueAcceptanceStopPrice,
+                    CapSellStopAtOrHigh = false,
+                    EnforceMinExitDistance = true
+                });
 
-            if (!plan.IsValid)
-                return;
+                if (!plan.IsValid)
+                    return;
 
-            if (!plan.IsNormalSpeed)
-                ApplyDynamicImbalanceStop(candle, executionSide, plan);
+                if (!plan.IsNormalSpeed)
+                    ApplyDynamicImbalanceStop(candle, executionSide, plan);
+
+                sl = plan.Sl;
+                tp = plan.Tp;
+                slTicks = plan.SlTicks;
+                tpTicks = plan.TpTicks;
+            }
 
             var hasMatchingAPlusStructure = score.HasAPlusStructure;
             var matchingAPlusSide = score.APlusStructureSide;
@@ -291,10 +335,10 @@ namespace ATAS.Indicators
                 SpeedIgnoredByStructure = score.SpeedIgnoredByStructure,
                 Score = score.Score,
                 Entry = score.EntryPrice,
-                Sl = plan.Sl,
-                Tp = plan.Tp,
-                SlTicks = plan.SlTicks,
-                TpTicks = plan.TpTicks,
+                Sl = sl,
+                Tp = tp,
+                SlTicks = slTicks,
+                TpTicks = tpTicks,
                 EntryBarHighAtEntry = score.EntryBarHighAtEntry,
                 EntryBarLowAtEntry = score.EntryBarLowAtEntry,
                 BestFavorablePrice = score.EntryPrice,
@@ -306,6 +350,8 @@ namespace ATAS.Indicators
                 ImbalanceGroup3 = matchingAPlusSide,
                 ImbalanceGroupPrice = matchingAPlusPrice,
                 ImbalanceCount = matchingAPlusCount,
+                APlusObservationSide = matchingAPlusSide,
+                APlusObservationPrice = matchingAPlusPrice,
                 CvdSessionMaxAtEntry = score.CvdSessionMaxAtEntry,
                 CvdSessionMinAtEntry = score.CvdSessionMinAtEntry,
                 CvdPullbackPctAtEntry = score.CvdPullbackPctAtEntry,
@@ -355,8 +401,13 @@ namespace ATAS.Indicators
 
             UpdateTradeExcursion(tradeHigh, tradeLow);
             UpdateBestFavorablePrice(tradeHigh, tradeLow);
-            UpdateCvdProfitLock();
             UpdateCvdPullback(bar, candle);
+            UpdateResearchObservations(bar, candle, tradeHigh, tradeLow);
+
+            if (DisableTradeManager)
+                return TryCloseObservationAtTimeOver(bar, candle);
+
+            UpdateCvdProfitLock();
 
             if (TryApplyCvdRiskBracket())
                 return false;
@@ -411,8 +462,16 @@ namespace ATAS.Indicators
 
             UpdateTradeExcursion(tradeHigh, tradeLow);
             UpdateBestFavorablePrice(tradeHigh, tradeLow);
-            UpdateCvdProfitLock();
             UpdateCvdPullback(bar, candle);
+            UpdateResearchObservations(bar, candle, tradeHigh, tradeLow);
+
+            if (DisableTradeManager)
+            {
+                TryCloseObservationAtTimeOver(bar, candle);
+                return;
+            }
+
+            UpdateCvdProfitLock();
 
             if (TryApplyCvdRiskBracket())
                 return;
@@ -624,6 +683,15 @@ namespace ATAS.Indicators
             if (_trade == null)
                 return 0;
 
+            if (DisableTradeManager && _trade.Result == "TIME_OVER" && _trade.ExitPrice != 0)
+            {
+                if (_trade.Side == "BUY")
+                    return RoundToTicks(_trade.ExitPrice - _trade.Entry);
+
+                if (_trade.Side == "SELL")
+                    return RoundToTicks(_trade.Entry - _trade.ExitPrice);
+            }
+
             return TradeManagerTpSlBeExit.TradeResultTicks(
                 _trade.Result,
                 _trade.Entry,
@@ -683,11 +751,20 @@ namespace ATAS.Indicators
                 if (!PassesCvdAtEntryFilter(score))
                 {
                     _cvdFilterSkippedDay = true;
+                    TrackRejectedScore(scanBar, scanNyTime, score);
                     return false;
                 }
 
                 _lastSignalReadyBar = scanBar;
                 ClearPendingScore();
+
+                if (DisableTradeManager)
+                {
+                    TrackRejectedScore(scanBar, scanNyTime, score);
+                    _tradeCreated = true;
+                    return true;
+                }
+
                 CreateTrade(scanBar, scanCandle, scanNyTime, score);
 
                 if (_trade == null)
@@ -841,6 +918,342 @@ namespace ATAS.Indicators
                 _trade.MaeTicks = Math.Max(0, adverseTicks);
         }
 
+        private void UpdateResearchObservations(int bar, dynamic candle, decimal high, decimal low)
+        {
+            UpdateAPlusValueObservation(bar, candle, high, low);
+            CopyFakeBreakoutObservationToTrade();
+            UpdateCvdTradeCandidate(candle);
+        }
+
+        private void UpdateAPlusValueObservation(int bar, dynamic candle, decimal high, decimal low)
+        {
+            if (_trade == null || !_trade.APlusObservationPrice.HasValue || string.IsNullOrWhiteSpace(_trade.APlusObservationSide))
+                return;
+
+            var side = _trade.APlusObservationSide.Trim().ToUpperInvariant();
+            var structurePrice = _trade.APlusObservationPrice.Value;
+            decimal favorableTicks;
+            decimal adverseTicks;
+
+            if (side == "BUY")
+            {
+                favorableTicks = RoundToTicks(high - structurePrice);
+                adverseTicks = RoundToTicks(structurePrice - low);
+            }
+            else if (side == "SELL")
+            {
+                favorableTicks = RoundToTicks(structurePrice - low);
+                adverseTicks = RoundToTicks(high - structurePrice);
+            }
+            else
+            {
+                return;
+            }
+
+            favorableTicks = Math.Max(0, favorableTicks);
+            adverseTicks = Math.Max(0, adverseTicks);
+
+            if (favorableTicks > _trade.APlusMaxFavorableTicks)
+                _trade.APlusMaxFavorableTicks = favorableTicks;
+
+            if (adverseTicks > _trade.APlusMaxAdverseTicks)
+                _trade.APlusMaxAdverseTicks = adverseTicks;
+
+            var reachedFavor = favorableTicks >= APlusReactionTicks;
+            var reachedAdverse = adverseTicks >= APlusReactionTicks;
+
+            if (string.IsNullOrWhiteSpace(_trade.APlusReaction) && (reachedFavor || reachedAdverse))
+            {
+                _trade.APlusBarsToFirst10Ticks = bar - _trade.EntryBar;
+
+                if (reachedFavor && reachedAdverse)
+                {
+                    _trade.APlusReaction = IsCloseFavorableToSide(candle, side, structurePrice)
+                        ? "A+ STRUCTURE"
+                        : "A+ ABSORTION";
+                    _trade.APlusReactionAmbiguous = true;
+                }
+                else
+                {
+                    _trade.APlusReaction = reachedFavor ? "A+ STRUCTURE" : "A+ ABSORTION";
+                }
+            }
+
+            var continuationTicks = GetAPlusContinuationTicks(_trade.APlusReaction, favorableTicks, adverseTicks);
+
+            if (!_trade.APlusReached30Ticks && continuationTicks >= APlusContinuationTicks)
+            {
+                _trade.APlusReached30Ticks = true;
+                _trade.APlusBarsTo30Ticks = bar - _trade.EntryBar;
+            }
+        }
+
+        private bool IsCloseFavorableToSide(dynamic candle, string side, decimal referencePrice)
+        {
+            try
+            {
+                if (side == "BUY")
+                    return candle.Close >= referencePrice;
+
+                if (side == "SELL")
+                    return candle.Close <= referencePrice;
+            }
+            catch
+            {
+                return false;
+            }
+
+            return false;
+        }
+
+        private decimal GetAPlusContinuationTicks(string reaction, decimal favorableTicks, decimal adverseTicks)
+        {
+            if (reaction == "A+ STRUCTURE")
+                return favorableTicks;
+
+            if (reaction == "A+ ABSORTION")
+                return adverseTicks;
+
+            return 0;
+        }
+
+        private bool TryCloseObservationAtTimeOver(int bar, dynamic candle)
+        {
+            if (_trade == null || _trade.Result != "OPEN")
+                return false;
+
+            var nyTime = ConvertToNewYorkTime(candle.Time);
+
+            if (nyTime.TimeOfDay < TimeOverTimeNy)
+            {
+                WriteTradeFile(_currentNyDate);
+                return false;
+            }
+
+            _trade.Result = "TIME_OVER";
+            _trade.ExitPrice = candle.Close;
+            WriteTradeFile(_currentNyDate);
+            return true;
+        }
+
+        private void UpdateFakeBreakoutObservation(int bar, dynamic candle, DateTime nyTime)
+        {
+            if (!_orReady || _openingVpocPrice == null || _fakeBreakout.Completed)
+                return;
+
+            if (bar <= _orBar || nyTime.TimeOfDay < _signalStartNy || nyTime.TimeOfDay > TimeOverTimeNy)
+                return;
+
+            if (!_fakeBreakout.Started)
+            {
+                var brokeHigh = candle.High > _orHigh;
+                var brokeLow = candle.Low < _orLow;
+
+                if (!brokeHigh && !brokeLow)
+                    return;
+
+                _fakeBreakout.Started = true;
+                _fakeBreakout.Side = brokeHigh && brokeLow
+                    ? ResolveDominantBreakoutSide(candle)
+                    : brokeHigh ? "BUY" : "SELL";
+                _fakeBreakout.BreakoutBar = bar;
+                _fakeBreakout.BreakoutTimeNy = nyTime;
+                _fakeBreakout.VpocPrice = _openingVpocPrice.Value;
+                _fakeBreakout.BreakoutDelta = TryGetDecimal(candle, "Delta");
+                _fakeBreakout.BreakoutVolume = TryGetDecimal(candle, "Volume");
+                var cvd = CumulativeDeltaDetector.Detect(
+                    bar,
+                    candle,
+                    new Func<int, dynamic>(GetCandle),
+                    nyTime.Date,
+                    new Func<dynamic, DateTime>(c => ConvertToNewYorkTime(c.Time)));
+                _fakeBreakout.BreakoutCvd = cvd.Value;
+                _fakeBreakout.BreakoutCvdSource = cvd.Source;
+            }
+
+            UpdateFakeBreakoutExpansion(candle);
+
+            if (!PriceTouches(candle, _fakeBreakout.VpocPrice))
+                return;
+
+            _fakeBreakout.Completed = true;
+            _fakeBreakout.ReturnedToVpoc = true;
+            _fakeBreakout.ReturnBar = bar;
+            _fakeBreakout.ReturnTimeNy = nyTime;
+            _fakeBreakout.ReturnDelta = TryGetDecimal(candle, "Delta");
+            _fakeBreakout.ReturnVolume = TryGetDecimal(candle, "Volume");
+            var returnCvd = CumulativeDeltaDetector.Detect(
+                bar,
+                candle,
+                new Func<int, dynamic>(GetCandle),
+                nyTime.Date,
+                new Func<dynamic, DateTime>(c => ConvertToNewYorkTime(c.Time)));
+            _fakeBreakout.ReturnCvd = returnCvd.Value;
+            _fakeBreakout.CvdTradeCandidate = IsCvdTradeCandidate(_fakeBreakout);
+            CopyFakeBreakoutObservationToTrade();
+        }
+
+        private void UpdateFakeBreakoutExpansion(dynamic candle)
+        {
+            if (!_fakeBreakout.Started)
+                return;
+
+            decimal expansionTicks;
+
+            if (_fakeBreakout.Side == "BUY")
+                expansionTicks = RoundToTicks(candle.High - _orHigh);
+            else if (_fakeBreakout.Side == "SELL")
+                expansionTicks = RoundToTicks(_orLow - candle.Low);
+            else
+                return;
+
+            if (expansionTicks > _fakeBreakout.MaxExpansionTicks)
+            {
+                _fakeBreakout.MaxExpansionTicks = Math.Max(0, expansionTicks);
+                _fakeBreakout.ExtremePrice = _fakeBreakout.Side == "BUY" ? candle.High : candle.Low;
+            }
+        }
+
+        private void CopyFakeBreakoutObservationToTrade()
+        {
+            if (_trade == null)
+                return;
+
+            _trade.OpeningVpocPrice = _openingVpocPrice;
+            _trade.FakeBreakoutSide = _fakeBreakout.Side;
+            _trade.FakeBreakoutReturnedToVpoc = _fakeBreakout.ReturnedToVpoc;
+            _trade.FakeBreakoutMaxExpansionTicks = _fakeBreakout.MaxExpansionTicks;
+            _trade.FakeBreakoutExtremePrice = _fakeBreakout.ExtremePrice;
+            _trade.FakeBreakoutBarsToVpoc = _fakeBreakout.ReturnedToVpoc
+                ? _fakeBreakout.ReturnBar - _fakeBreakout.BreakoutBar
+                : -1;
+            _trade.FakeBreakoutBreakoutTimeNy = _fakeBreakout.BreakoutTimeNy;
+            _trade.FakeBreakoutReturnTimeNy = _fakeBreakout.ReturnTimeNy;
+            _trade.FakeBreakoutBreakoutCvd = _fakeBreakout.BreakoutCvd;
+            _trade.FakeBreakoutBreakoutDelta = _fakeBreakout.BreakoutDelta;
+            _trade.FakeBreakoutBreakoutVolume = _fakeBreakout.BreakoutVolume;
+            _trade.FakeBreakoutReturnCvd = _fakeBreakout.ReturnCvd;
+            _trade.FakeBreakoutReturnDelta = _fakeBreakout.ReturnDelta;
+            _trade.FakeBreakoutReturnVolume = _fakeBreakout.ReturnVolume;
+            _trade.CvdTradeCandidate = _fakeBreakout.CvdTradeCandidate;
+        }
+
+        private void UpdateCvdTradeCandidate(dynamic candle)
+        {
+            if (_trade == null)
+                return;
+
+            if (_trade.CvdTradeCandidate)
+                return;
+
+            _trade.CvdTradeCandidate = IsCvdDivergent(_trade.Side, _trade.CvdEntry, _trade.Delta) ||
+                (_fakeBreakout.ReturnedToVpoc && IsCvdTradeCandidate(_fakeBreakout));
+        }
+
+        private bool IsCvdTradeCandidate(FakeBreakoutState state)
+        {
+            return state.ReturnedToVpoc && IsCvdDivergent(state.Side, state.BreakoutCvd, state.BreakoutDelta);
+        }
+
+        private bool IsCvdDivergent(string side, decimal cvd, decimal delta)
+        {
+            side = (side ?? "").Trim().ToUpperInvariant();
+
+            if (side == "BUY")
+                return cvd <= 0 || delta <= 0;
+
+            if (side == "SELL")
+                return cvd >= 0 || delta >= 0;
+
+            return false;
+        }
+
+        private string ResolveDominantBreakoutSide(dynamic candle)
+        {
+            var highExpansion = Math.Max(0, RoundToTicks(candle.High - _orHigh));
+            var lowExpansion = Math.Max(0, RoundToTicks(_orLow - candle.Low));
+            return highExpansion >= lowExpansion ? "BUY" : "SELL";
+        }
+
+        private bool PriceTouches(dynamic candle, decimal price)
+        {
+            try
+            {
+                return candle.Low <= price && candle.High >= price;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private decimal? CalculateVpocPrice(dynamic candle)
+        {
+            decimal? bestPrice = null;
+            decimal bestVolume = decimal.MinValue;
+
+            try
+            {
+                foreach (var level in candle.GetAllPriceLevels())
+                {
+                    var bid = Convert.ToDecimal(level.Bid);
+                    var ask = Convert.ToDecimal(level.Ask);
+                    var total = bid + ask;
+
+                    if (total <= bestVolume)
+                        continue;
+
+                    bestVolume = total;
+                    bestPrice = Convert.ToDecimal(level.Price);
+                }
+            }
+            catch
+            {
+                return null;
+            }
+
+            return bestPrice;
+        }
+
+        private void DrawOpeningVpocLabel()
+        {
+            if (_openingVpocLabelDrawn || !_openingVpocPrice.HasValue || _orBar < 0)
+                return;
+
+            AddText(
+                $"EW_EXPORT_VPOC_0930_{_currentNyDate:yyyyMMdd}",
+                $"vPOC 9:30 {_openingVpocPrice.Value:0.00}",
+                true,
+                _orBar,
+                _openingVpocPrice.Value,
+                18,
+                0,
+                Color.Black,
+                Color.Yellow,
+                Color.Yellow,
+                12,
+                DrawingText.TextAlign.Center,
+                true);
+
+            _openingVpocLabelDrawn = true;
+        }
+
+        private decimal TryGetDecimal(dynamic source, string propertyName)
+        {
+            try
+            {
+                var value = source.GetType().GetProperty(propertyName)?.GetValue(source, null);
+                if (value == null)
+                    return 0;
+
+                return Convert.ToDecimal(value);
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
         private void GetPostEntryTradeRange(int bar, dynamic candle, out decimal tradeHigh, out decimal tradeLow)
         {
             if (_trade == null || bar != _trade.EntryBar)
@@ -979,7 +1392,7 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure,Cvd_SessMax_AtEntry,Cvd_SessMin_AtEntry,Cvd_Pullback_Pct_AtEntry,Cvd_Pullback_Label_AtEntry,Cvd_Slope3_AtEntry,Bars_Since_Cvd_Extreme_AtEntry,CvdWarn_First_BarOffset,CvdWarn_First_FavTicks,CvdRisk_First_BarOffset,CvdRisk_First_FavTicks,CvdRisk_First_MAE,CvdRisk_First_MFE,Trade_Contracts" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure,Cvd_SessMax_AtEntry,Cvd_SessMin_AtEntry,Cvd_Pullback_Pct_AtEntry,Cvd_Pullback_Label_AtEntry,Cvd_Slope3_AtEntry,Bars_Since_Cvd_Extreme_AtEntry,CvdWarn_First_BarOffset,CvdWarn_First_FavTicks,CvdRisk_First_BarOffset,CvdRisk_First_FavTicks,CvdRisk_First_MAE,CvdRisk_First_MFE,Trade_Contracts," + ResearchHeaderSuffix() + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     _trade.EntryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
@@ -1051,7 +1464,7 @@ namespace ATAS.Indicators
                     FormatTicks(_trade.CvdRiskFirstMaeTicks),
                     FormatTicks(_trade.CvdRiskFirstMfeTicks),
                     _trade.Contracts.ToString(CultureInfo.InvariantCulture)
-                ) + Environment.NewLine
+                ) + "," + string.Join(",", GetTradeResearchFields(_trade)) + Environment.NewLine
             );
         }
 
@@ -1067,7 +1480,7 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure,Cvd_SessMax_AtEntry,Cvd_SessMin_AtEntry,Cvd_Pullback_Pct_AtEntry,Cvd_Pullback_Label_AtEntry,Cvd_Slope3_AtEntry,Bars_Since_Cvd_Extreme_AtEntry,CvdWarn_First_BarOffset,CvdWarn_First_FavTicks,CvdRisk_First_BarOffset,CvdRisk_First_FavTicks,CvdRisk_First_MAE,CvdRisk_First_MFE,Trade_Contracts" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure,Cvd_SessMax_AtEntry,Cvd_SessMin_AtEntry,Cvd_Pullback_Pct_AtEntry,Cvd_Pullback_Label_AtEntry,Cvd_Slope3_AtEntry,Bars_Since_Cvd_Extreme_AtEntry,CvdWarn_First_BarOffset,CvdWarn_First_FavTicks,CvdRisk_First_BarOffset,CvdRisk_First_FavTicks,CvdRisk_First_MAE,CvdRisk_First_MFE,Trade_Contracts," + ResearchHeaderSuffix() + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
@@ -1129,7 +1542,7 @@ namespace ATAS.Indicators
                     "", "", "", "", "", "", // Cvd at-entry (sin trade)
                     "", "", "", "", "", "", // CvdWarn/CvdRisk (sin trade)
                     "" // Trade_Contracts
-                ) + Environment.NewLine
+                ) + "," + string.Join(",", GetNoTradeResearchFields()) + Environment.NewLine
             );
         }
 
@@ -1178,7 +1591,7 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure,Cvd_SessMax_AtEntry,Cvd_SessMin_AtEntry,Cvd_Pullback_Pct_AtEntry,Cvd_Pullback_Label_AtEntry,Cvd_Slope3_AtEntry,Bars_Since_Cvd_Extreme_AtEntry,CvdWarn_First_BarOffset,CvdWarn_First_FavTicks,CvdRisk_First_BarOffset,CvdRisk_First_FavTicks,CvdRisk_First_MAE,CvdRisk_First_MFE,Trade_Contracts" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure,Cvd_SessMax_AtEntry,Cvd_SessMin_AtEntry,Cvd_Pullback_Pct_AtEntry,Cvd_Pullback_Label_AtEntry,Cvd_Slope3_AtEntry,Bars_Since_Cvd_Extreme_AtEntry,CvdWarn_First_BarOffset,CvdWarn_First_FavTicks,CvdRisk_First_BarOffset,CvdRisk_First_FavTicks,CvdRisk_First_MAE,CvdRisk_First_MFE,Trade_Contracts," + ResearchHeaderSuffix() + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
@@ -1245,7 +1658,7 @@ namespace ATAS.Indicators
                     score.BarsSinceCvdExtremeAtEntry.ToString(CultureInfo.InvariantCulture),
                     "", "", "", "", "", "", // instrumentacion intra-trade no aplica
                     "" // Trade_Contracts
-                ) + Environment.NewLine
+                ) + "," + string.Join(",", GetRejectedResearchFields(score)) + Environment.NewLine
             );
         }
 
@@ -1256,6 +1669,9 @@ namespace ATAS.Indicators
             _orLow = 0;
             _orBar = -1;
             _orReady = false;
+            _openingVpocPrice = null;
+            _openingVpocLabelDrawn = false;
+            _fakeBreakout = new FakeBreakoutState();
             _tradeCreated = false;
             _timeOverWritten = false;
             _signalEngine.ResetDay();
@@ -1269,6 +1685,14 @@ namespace ATAS.Indicators
             _hasSellAPlusStructure = false;
             _sellAPlusStructurePrice = null;
             _sellAPlusStructureCount = 0;
+            _aPlusObservedReaction = "";
+            _aPlusObservedReactionAmbiguous = false;
+            _aPlusObservedMaxFavorableTicks = 0;
+            _aPlusObservedMaxAdverseTicks = 0;
+            _aPlusObservedReached30Ticks = false;
+            _aPlusObservedBarsToFirst10Ticks = -1;
+            _aPlusObservedBarsTo30Ticks = -1;
+            _aPlusObservedBar = -1;
             _trade = null;
             _lastManagePrice = 0;
             _lastManageTimeUtc = DateTime.MinValue;
@@ -1325,6 +1749,72 @@ namespace ATAS.Indicators
             }
 
             SyncAnyAPlusStructure();
+        }
+
+        private void UpdateAPlusDailyObservation(int bar, dynamic candle)
+        {
+            if (!_hasAPlusStructure || !_aPlusStructurePrice.HasValue || string.IsNullOrWhiteSpace(_aPlusStructureSide))
+                return;
+
+            if (_aPlusObservedBar < 0)
+                _aPlusObservedBar = bar;
+
+            var side = _aPlusStructureSide.Trim().ToUpperInvariant();
+            var structurePrice = _aPlusStructurePrice.Value;
+            decimal favorableTicks;
+            decimal adverseTicks;
+
+            if (side == "BUY")
+            {
+                favorableTicks = RoundToTicks(candle.High - structurePrice);
+                adverseTicks = RoundToTicks(structurePrice - candle.Low);
+            }
+            else if (side == "SELL")
+            {
+                favorableTicks = RoundToTicks(structurePrice - candle.Low);
+                adverseTicks = RoundToTicks(candle.High - structurePrice);
+            }
+            else
+            {
+                return;
+            }
+
+            favorableTicks = Math.Max(0, favorableTicks);
+            adverseTicks = Math.Max(0, adverseTicks);
+
+            if (favorableTicks > _aPlusObservedMaxFavorableTicks)
+                _aPlusObservedMaxFavorableTicks = favorableTicks;
+
+            if (adverseTicks > _aPlusObservedMaxAdverseTicks)
+                _aPlusObservedMaxAdverseTicks = adverseTicks;
+
+            var reachedFavor = favorableTicks >= APlusReactionTicks;
+            var reachedAdverse = adverseTicks >= APlusReactionTicks;
+
+            if (string.IsNullOrWhiteSpace(_aPlusObservedReaction) && (reachedFavor || reachedAdverse))
+            {
+                _aPlusObservedBarsToFirst10Ticks = bar - _aPlusObservedBar;
+
+                if (reachedFavor && reachedAdverse)
+                {
+                    _aPlusObservedReaction = IsCloseFavorableToSide(candle, side, structurePrice)
+                        ? "A+ STRUCTURE"
+                        : "A+ ABSORTION";
+                    _aPlusObservedReactionAmbiguous = true;
+                }
+                else
+                {
+                    _aPlusObservedReaction = reachedFavor ? "A+ STRUCTURE" : "A+ ABSORTION";
+                }
+            }
+
+            var continuationTicks = GetAPlusContinuationTicks(_aPlusObservedReaction, favorableTicks, adverseTicks);
+
+            if (!_aPlusObservedReached30Ticks && continuationTicks >= APlusContinuationTicks)
+            {
+                _aPlusObservedReached30Ticks = true;
+                _aPlusObservedBarsTo30Ticks = bar - _aPlusObservedBar;
+            }
         }
 
         private void GetAPlusStructureForSide(string side, out bool hasStructure, out string structureSide, out decimal? price, out int count)
@@ -1434,6 +1924,110 @@ namespace ATAS.Indicators
             return TradeManagerTpSlBeExit.GetEntryProfile(side, speedLabel);
         }
 
+        private string ResearchHeaderSuffix()
+        {
+            return "Opening_vPOC_0930,APlus_Reaction,APlus_Reaction_Ambiguous,APlus_Max_Favorable_Ticks,APlus_Max_Adverse_Ticks,APlus_Reached_30_Ticks,APlus_Bars_To_First_10,APlus_Bars_To_30,FakeBreakout_To_Opening_vPOC,FakeBreakout_Side,FakeBreakout_Max_Expansion_Ticks,FakeBreakout_Extreme_Price,FakeBreakout_Bars_To_vPOC,FakeBreakout_Breakout_Time_NY,FakeBreakout_Return_Time_NY,FakeBreakout_Breakout_CVD,FakeBreakout_Breakout_Delta,FakeBreakout_Breakout_Volume,FakeBreakout_Return_CVD,FakeBreakout_Return_Delta,FakeBreakout_Return_Volume,CVD_Trade_Candidate";
+        }
+
+        private string[] GetTradeResearchFields(TradeState trade)
+        {
+            return new[]
+            {
+                FormatNullablePrice(trade.OpeningVpocPrice),
+                trade.APlusReaction,
+                FormatBool(trade.APlusReactionAmbiguous),
+                FormatTicks(trade.APlusMaxFavorableTicks),
+                FormatTicks(trade.APlusMaxAdverseTicks),
+                FormatBool(trade.APlusReached30Ticks),
+                FormatObservationBars(trade.APlusBarsToFirst10Ticks),
+                FormatObservationBars(trade.APlusBarsTo30Ticks),
+                FormatBool(trade.FakeBreakoutReturnedToVpoc),
+                trade.FakeBreakoutSide,
+                FormatTicks(trade.FakeBreakoutMaxExpansionTicks),
+                FormatNullablePrice(trade.FakeBreakoutExtremePrice),
+                FormatObservationBars(trade.FakeBreakoutBarsToVpoc),
+                FormatOptionalTime(trade.FakeBreakoutBreakoutTimeNy),
+                FormatOptionalTime(trade.FakeBreakoutReturnTimeNy),
+                FormatTicks(trade.FakeBreakoutBreakoutCvd),
+                FormatTicks(trade.FakeBreakoutBreakoutDelta),
+                FormatTicks(trade.FakeBreakoutBreakoutVolume),
+                FormatTicks(trade.FakeBreakoutReturnCvd),
+                FormatTicks(trade.FakeBreakoutReturnDelta),
+                FormatTicks(trade.FakeBreakoutReturnVolume),
+                FormatBool(trade.CvdTradeCandidate)
+            };
+        }
+
+        private string[] GetNoTradeResearchFields()
+        {
+            return new[]
+            {
+                FormatNullablePrice(_openingVpocPrice),
+                _aPlusObservedReaction,
+                FormatBool(_aPlusObservedReactionAmbiguous),
+                FormatTicks(_aPlusObservedMaxFavorableTicks),
+                FormatTicks(_aPlusObservedMaxAdverseTicks),
+                FormatBool(_aPlusObservedReached30Ticks),
+                FormatObservationBars(_aPlusObservedBarsToFirst10Ticks),
+                FormatObservationBars(_aPlusObservedBarsTo30Ticks),
+                FormatBool(_fakeBreakout.ReturnedToVpoc),
+                _fakeBreakout.Side,
+                FormatTicks(_fakeBreakout.MaxExpansionTicks),
+                FormatNullablePrice(_fakeBreakout.ExtremePrice),
+                FormatObservationBars(_fakeBreakout.ReturnedToVpoc ? _fakeBreakout.ReturnBar - _fakeBreakout.BreakoutBar : -1),
+                FormatOptionalTime(_fakeBreakout.BreakoutTimeNy),
+                FormatOptionalTime(_fakeBreakout.ReturnTimeNy),
+                FormatTicks(_fakeBreakout.BreakoutCvd),
+                FormatTicks(_fakeBreakout.BreakoutDelta),
+                FormatTicks(_fakeBreakout.BreakoutVolume),
+                FormatTicks(_fakeBreakout.ReturnCvd),
+                FormatTicks(_fakeBreakout.ReturnDelta),
+                FormatTicks(_fakeBreakout.ReturnVolume),
+                FormatBool(_fakeBreakout.CvdTradeCandidate)
+            };
+        }
+
+        private string[] GetRejectedResearchFields(ScoreTradeSignal score)
+        {
+            return new[]
+            {
+                FormatNullablePrice(_openingVpocPrice),
+                !string.IsNullOrWhiteSpace(_aPlusObservedReaction)
+                    ? _aPlusObservedReaction
+                    : score.HasAPlusAbsorption ? "A+ ABSORTION" : score.HasAPlusStructure ? "A+ STRUCTURE" : "",
+                FormatBool(_aPlusObservedReactionAmbiguous),
+                FormatTicks(_aPlusObservedMaxFavorableTicks),
+                FormatTicks(_aPlusObservedMaxAdverseTicks),
+                FormatBool(_aPlusObservedReached30Ticks),
+                FormatObservationBars(_aPlusObservedBarsToFirst10Ticks),
+                FormatObservationBars(_aPlusObservedBarsTo30Ticks),
+                FormatBool(_fakeBreakout.ReturnedToVpoc),
+                _fakeBreakout.Side,
+                FormatTicks(_fakeBreakout.MaxExpansionTicks),
+                FormatNullablePrice(_fakeBreakout.ExtremePrice),
+                FormatObservationBars(_fakeBreakout.ReturnedToVpoc ? _fakeBreakout.ReturnBar - _fakeBreakout.BreakoutBar : -1),
+                FormatOptionalTime(_fakeBreakout.BreakoutTimeNy),
+                FormatOptionalTime(_fakeBreakout.ReturnTimeNy),
+                FormatTicks(_fakeBreakout.BreakoutCvd),
+                FormatTicks(_fakeBreakout.BreakoutDelta),
+                FormatTicks(_fakeBreakout.BreakoutVolume),
+                FormatTicks(_fakeBreakout.ReturnCvd),
+                FormatTicks(_fakeBreakout.ReturnDelta),
+                FormatTicks(_fakeBreakout.ReturnVolume),
+                FormatBool(_fakeBreakout.CvdTradeCandidate || IsCvdDivergent(score.Side, score.CumulativeDelta, score.Delta))
+            };
+        }
+
+        private string FormatObservationBars(int bars)
+        {
+            return bars < 0 ? "" : bars.ToString(CultureInfo.InvariantCulture);
+        }
+
+        private string FormatOptionalTime(DateTime time)
+        {
+            return time == DateTime.MinValue ? "" : time.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
+        }
+
         private string FormatPrice(decimal price)
         {
             return price.ToString("0.00", CultureInfo.InvariantCulture);
@@ -1538,6 +2132,30 @@ namespace ATAS.Indicators
             public decimal? ImbalanceGroupPrice { get; set; }
             public int ImbalanceCount { get; set; }
             public bool SpeedIgnoredByStructure { get; set; }
+            public decimal? OpeningVpocPrice { get; set; }
+            public string APlusObservationSide { get; set; } = "";
+            public decimal? APlusObservationPrice { get; set; }
+            public string APlusReaction { get; set; } = "";
+            public bool APlusReactionAmbiguous { get; set; }
+            public decimal APlusMaxFavorableTicks { get; set; }
+            public decimal APlusMaxAdverseTicks { get; set; }
+            public bool APlusReached30Ticks { get; set; }
+            public int APlusBarsToFirst10Ticks { get; set; } = -1;
+            public int APlusBarsTo30Ticks { get; set; } = -1;
+            public bool FakeBreakoutReturnedToVpoc { get; set; }
+            public string FakeBreakoutSide { get; set; } = "";
+            public decimal FakeBreakoutMaxExpansionTicks { get; set; }
+            public decimal? FakeBreakoutExtremePrice { get; set; }
+            public int FakeBreakoutBarsToVpoc { get; set; } = -1;
+            public DateTime FakeBreakoutBreakoutTimeNy { get; set; } = DateTime.MinValue;
+            public DateTime FakeBreakoutReturnTimeNy { get; set; } = DateTime.MinValue;
+            public decimal FakeBreakoutBreakoutCvd { get; set; }
+            public decimal FakeBreakoutBreakoutDelta { get; set; }
+            public decimal FakeBreakoutBreakoutVolume { get; set; }
+            public decimal FakeBreakoutReturnCvd { get; set; }
+            public decimal FakeBreakoutReturnDelta { get; set; }
+            public decimal FakeBreakoutReturnVolume { get; set; }
+            public bool CvdTradeCandidate { get; set; }
 
             // --- Features pre-entrada (sin lookahead) ---
             public decimal CvdSessionMaxAtEntry { get; set; }
@@ -1557,6 +2175,29 @@ namespace ATAS.Indicators
             public decimal CvdRiskFirstFavTicks { get; set; }
             public decimal CvdRiskFirstMaeTicks { get; set; }
             public decimal CvdRiskFirstMfeTicks { get; set; }
+        }
+
+        private class FakeBreakoutState
+        {
+            public bool Started { get; set; }
+            public bool Completed { get; set; }
+            public bool ReturnedToVpoc { get; set; }
+            public string Side { get; set; } = "";
+            public int BreakoutBar { get; set; } = -1;
+            public int ReturnBar { get; set; } = -1;
+            public DateTime BreakoutTimeNy { get; set; } = DateTime.MinValue;
+            public DateTime ReturnTimeNy { get; set; } = DateTime.MinValue;
+            public decimal VpocPrice { get; set; }
+            public decimal MaxExpansionTicks { get; set; }
+            public decimal? ExtremePrice { get; set; }
+            public decimal BreakoutCvd { get; set; }
+            public string BreakoutCvdSource { get; set; } = "";
+            public decimal BreakoutDelta { get; set; }
+            public decimal BreakoutVolume { get; set; }
+            public decimal ReturnCvd { get; set; }
+            public decimal ReturnDelta { get; set; }
+            public decimal ReturnVolume { get; set; }
+            public bool CvdTradeCandidate { get; set; }
         }
 
     }

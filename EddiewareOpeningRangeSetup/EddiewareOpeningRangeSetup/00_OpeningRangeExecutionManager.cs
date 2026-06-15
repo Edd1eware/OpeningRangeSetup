@@ -42,7 +42,7 @@ namespace ATAS.Indicators
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 30, 0);
-        private readonly TimeSpan _signalEndNy = new TimeSpan(9, 40, 0);
+        private readonly TimeSpan _signalEndNy = new TimeSpan(9, 50, 0);
         private readonly TimeSpan _normalSpeedAllowedUntilNy = new TimeSpan(9, 33, 59); // time limit
         private const decimal HardMaxTradeTicks = 60m;
         private const decimal APlusStopTicks = 60m;
@@ -160,7 +160,7 @@ namespace ATAS.Indicators
         public int AutoStartAttemptIntervalSeconds { get; set; } = 2;
         public bool EnableAutoStopAfterTerminalResult { get; set; } = true;
         public decimal FastExitAdverseSpeedTicksPerSecond { get; set; } = 6;
-        public TimeSpan TimeOverTimeNy { get; set; } = new TimeSpan(9, 40, 0);
+        public TimeSpan TimeOverTimeNy { get; set; } = new TimeSpan(9, 50, 0);
         public int MinTimeOverRealtimeSeconds { get; set; } = 5;
         public bool RequireBodyOkForTrade { get; set; } = false;
         public bool RequireVwapOkForTrade { get; set; } = false;
