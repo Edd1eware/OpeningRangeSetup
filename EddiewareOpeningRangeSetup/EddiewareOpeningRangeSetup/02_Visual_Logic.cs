@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using ATAS.Indicators;
@@ -15,7 +14,6 @@ namespace ATAS.Indicators
         private const decimal APlusStopTicks = 60m;
         private const decimal ValueAcceptanceMinTradeTicks = 30m;
         private const decimal NormalScalpMaxTradeTicks = 120m;
-        private const decimal OpeningValueAreaPercent = 0.70m;
         private readonly ScoreTradeSignalEngine _signalEngine = new ScoreTradeSignalEngine();
 
         private DateTime _currentDate = DateTime.MinValue;
@@ -23,9 +21,6 @@ namespace ATAS.Indicators
         private decimal _orLow;
         private int _orBar = -1;
         private bool _orReady;
-        private decimal? _opening930Vah;
-        private decimal? _opening930Vpoc;
-        private decimal? _opening930Val;
         private bool _tradeDrawn;
         private bool _panicDrawn;
         private int _tradeBar = -1;
@@ -123,9 +118,6 @@ namespace ATAS.Indicators
 
         [DisplayName("Show Opening Range")]
         public bool ShowOpeningRange { get; set; } = true;
-
-        [DisplayName("Show 9:30 VAH/vPOC/VAL")]
-        public bool ShowOpeningProfileLabels { get; set; } = true;
 
         [DisplayName("Show Entry SL TP")]
         public bool ShowEntrySlTp { get; set; } = true;
@@ -234,13 +226,9 @@ namespace ATAS.Indicators
                     _orLow = closedCandle.Low;
                     _orBar = closedBar;
                     _orReady = true;
-                    CaptureOpening930Profile(closedCandle);
 
                     if (ShowOpeningRange)
                         DrawOpeningRange();
-
-                    if (ShowOpeningProfileLabels)
-                        DrawOpeningProfileLabels();
                 }
             }
 
@@ -1352,127 +1340,6 @@ namespace ATAS.Indicators
                 true);
         }
 
-        private void DrawOpeningProfileLabels()
-        {
-            var labelBar = _orBar + 1;
-
-            if (_opening930Vah.HasValue)
-                DrawTradeLabel(
-                    $"EW_930_VAH_{_currentDate:yyyyMMdd}",
-                    $"VAH {_opening930Vah.Value:0.00}",
-                    labelBar,
-                    _opening930Vah.Value,
-                    Color.White,
-                    Color.RoyalBlue,
-                    -26);
-
-            if (_opening930Vpoc.HasValue)
-                DrawTradeLabel(
-                    $"EW_930_VPOC_{_currentDate:yyyyMMdd}",
-                    $"vPOC {_opening930Vpoc.Value:0.00}",
-                    labelBar,
-                    _opening930Vpoc.Value,
-                    Color.Black,
-                    Color.Gold,
-                    0);
-
-            if (_opening930Val.HasValue)
-                DrawTradeLabel(
-                    $"EW_930_VAL_{_currentDate:yyyyMMdd}",
-                    $"VAL {_opening930Val.Value:0.00}",
-                    labelBar,
-                    _opening930Val.Value,
-                    Color.White,
-                    Color.Purple,
-                    26);
-        }
-
-        private void CaptureOpening930Profile(dynamic candle)
-        {
-            _opening930Vah = null;
-            _opening930Vpoc = null;
-            _opening930Val = null;
-
-            var levels = GetOpeningProfileLevels(candle);
-            if (levels.Count == 0)
-                return;
-
-            var totalVolume = 0m;
-            var pocIndex = 0;
-            var maxVolume = decimal.MinValue;
-
-            for (var i = 0; i < levels.Count; i++)
-            {
-                totalVolume += levels[i].Volume;
-
-                if (levels[i].Volume > maxVolume)
-                {
-                    maxVolume = levels[i].Volume;
-                    pocIndex = i;
-                }
-            }
-
-            if (totalVolume <= 0 || maxVolume <= 0)
-                return;
-
-            var targetVolume = totalVolume * OpeningValueAreaPercent;
-            var includedVolume = levels[pocIndex].Volume;
-            var lowIndex = pocIndex;
-            var highIndex = pocIndex;
-
-            while (includedVolume < targetVolume && (lowIndex > 0 || highIndex < levels.Count - 1))
-            {
-                var lowerVolume = lowIndex > 0 ? levels[lowIndex - 1].Volume : decimal.MinValue;
-                var upperVolume = highIndex < levels.Count - 1 ? levels[highIndex + 1].Volume : decimal.MinValue;
-
-                if (upperVolume >= lowerVolume)
-                {
-                    highIndex++;
-                    includedVolume += levels[highIndex].Volume;
-                }
-                else
-                {
-                    lowIndex--;
-                    includedVolume += levels[lowIndex].Volume;
-                }
-            }
-
-            _opening930Val = levels[lowIndex].Price;
-            _opening930Vpoc = levels[pocIndex].Price;
-            _opening930Vah = levels[highIndex].Price;
-        }
-
-        private List<OpeningProfileLevel> GetOpeningProfileLevels(dynamic candle)
-        {
-            var levels = new List<OpeningProfileLevel>();
-
-            try
-            {
-                foreach (var level in candle.GetAllPriceLevels())
-                {
-                    var bid = Convert.ToDecimal(level.Bid);
-                    var ask = Convert.ToDecimal(level.Ask);
-                    var volume = bid + ask;
-
-                    if (volume <= 0)
-                        continue;
-
-                    levels.Add(new OpeningProfileLevel
-                    {
-                        Price = Convert.ToDecimal(level.Price),
-                        Volume = volume
-                    });
-                }
-            }
-            catch
-            {
-                return levels;
-            }
-
-            levels.Sort((left, right) => left.Price.CompareTo(right.Price));
-            return levels;
-        }
-
         private void DrawScoreLabel(int bar, dynamic candle, ScoreTradeSignal score)
         {
             var tickSize = GetTickSize();
@@ -1636,9 +1503,6 @@ namespace ATAS.Indicators
             _orLow = 0;
             _orBar = -1;
             _orReady = false;
-            _opening930Vah = null;
-            _opening930Vpoc = null;
-            _opening930Val = null;
             _tradeDrawn = false;
             _signalEngine.ResetDay();
             _panicDrawn = false;
@@ -1689,12 +1553,6 @@ namespace ATAS.Indicators
         private string Flag(bool value)
         {
             return value ? "+" : "-";
-        }
-
-        private sealed class OpeningProfileLevel
-        {
-            public decimal Price { get; set; }
-            public decimal Volume { get; set; }
         }
 
     }
