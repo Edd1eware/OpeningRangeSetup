@@ -107,6 +107,7 @@ HOLIDAY_RETRY_COUNT = 3
 HOLIDAY_NORMAL_WAIT_SECONDS = 2 * 60
 HOLIDAY_FINAL_WAIT_SECONDS = 3 * 60
 HOLIDAY_NO_DATA_LABEL = "HOLYDAY NO DATA"
+REPLAY_WINDOW_WAIT_SECONDS = 60
 
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
 RESULTS_FOLDER = os.path.join(EXPORT_FOLDER, "trade_results_score")
@@ -122,6 +123,14 @@ RUN_STARTED_AT = time.time()
 RESUME_EXISTING_RESULTS = True
 STALE_RESULT_BACKUP_DIR = os.path.join(RESULTS_FOLDER, "_replay_result_backups")
 EXCLUDED_EXCEL_HEADERS = {"Contracts"}
+
+
+class ReplayWindowNotFound(RuntimeError):
+    pass
+
+
+class ReplayControlNotFound(RuntimeError):
+    pass
 
 
 # =========================================================
@@ -150,16 +159,26 @@ def write_replay_started_marker():
 
 def get_replay():
     desktop = Desktop(backend="uia")
-    candidates = desktop.windows(title_re=".*Replay.*", visible_only=True)
+    deadline = time.time() + REPLAY_WINDOW_WAIT_SECONDS
+    candidates = []
+
+    while time.time() < deadline:
+        candidates = desktop.windows(title_re=".*Replay.*", visible_only=False)
+
+        if candidates:
+            break
+
+        print("Esperando ventana Replay visible/disponible...")
+        time.sleep(2)
 
     if not candidates:
-        raise RuntimeError("No encontre ninguna ventana Replay visible. Abre Replay en ATAS antes de correr el script.")
+        raise ReplayWindowNotFound("No encontre ninguna ventana Replay. Abre Replay en ATAS antes de correr el script.")
 
     print(f"Ventanas Replay encontradas: {len(candidates)}")
 
     for w in candidates:
         try:
-            if w.is_visible() and w.is_enabled():
+            if w.is_enabled():
                 print("Usando Replay:", w.window_text())
                 w.set_focus()
                 time.sleep(1)
@@ -187,11 +206,77 @@ def paste_text(control, value):
     time.sleep(0.8)
 
 
+def get_control_search_text(control):
+    parts = []
+
+    try:
+        parts.append(control.window_text())
+    except Exception:
+        pass
+
+    try:
+        info = control.element_info
+        parts.extend([info.name, info.automation_id, info.class_name])
+    except Exception:
+        pass
+
+    return " ".join(str(part or "") for part in parts).strip().lower()
+
+
+def print_replay_buttons(buttons):
+    print("Botones detectados en Replay:")
+
+    for idx, button in enumerate(buttons):
+        try:
+            info = button.element_info
+            print(
+                f"  #{idx}: text={button.window_text()!r} name={info.name!r} "
+                f"auto_id={info.automation_id!r} enabled={button.is_enabled()} visible={button.is_visible()}"
+            )
+        except Exception as exc:
+            print(f"  #{idx}: no pude leer boton ({exc})")
+
+
+def find_replay_button(buttons, role):
+    if role == "start":
+        tokens = ("start", "play", "iniciar", "reproducir", "resume", "continuar", "▶", "▷")
+        reject = ("stop", "detener", "parar")
+    else:
+        tokens = ("stop", "detener", "parar", "■", "□")
+        reject = ("start", "play", "iniciar", "reproducir")
+
+    for button in buttons:
+        search_text = get_control_search_text(button)
+
+        if any(token in search_text for token in tokens) and not any(token in search_text for token in reject):
+            return button
+
+    if role == "start":
+        enabled_buttons = []
+
+        for button in buttons:
+            try:
+                search_text = get_control_search_text(button)
+                if button.is_enabled() and not any(token in search_text for token in reject):
+                    enabled_buttons.append(button)
+            except Exception:
+                pass
+
+        if len(enabled_buttons) == 1:
+            print("No encontre texto Start/Play; uso el unico boton habilitado como Start.")
+            return enabled_buttons[0]
+
+    return None
+
+
 def get_controls():
     replay = get_replay()
 
     edits = replay.descendants(control_type="Edit")
     buttons = replay.descendants(control_type="Button")
+
+    if len(edits) < 3:
+        raise RuntimeError(f"Replay encontrado, pero no expuso los campos FROM/TO esperados. Edits detectados: {len(edits)}")
 
     from_box = edits[0]
     to_box = edits[2]
@@ -199,16 +284,8 @@ def get_controls():
     start_button = None
     stop_button = None
 
-    for b in buttons:
-        txt = b.window_text()
-
-        normalized = txt.strip().lower()
-
-        if normalized == "start":
-            start_button = b
-
-        if normalized in ("stop", "detener", "parar") or "stop" in normalized:
-            stop_button = b
+    start_button = find_replay_button(buttons, "start")
+    stop_button = find_replay_button(buttons, "stop")
 
     return replay, from_box, to_box, start_button, stop_button
 
@@ -798,7 +875,8 @@ try:
                 replay, from_box, to_box, start_button, stop_button = get_controls()
 
                 if start_button is None:
-                    raise RuntimeError("No se encontro boton Start")
+                    print_replay_buttons(replay.descendants(control_type="Button"))
+                    raise ReplayControlNotFound("No se encontro boton Start/Play en Replay. Corrida detenida para no saltar dias.")
 
                 clear_previous_result(result_path)
                 write_replay_started_marker()
@@ -822,6 +900,10 @@ try:
 
             time.sleep(5)
             print_result_file(result_path)
+        except (ReplayWindowNotFound, ReplayControlNotFound) as exc:
+            failed_dates.append((date, str(exc)))
+            print(f"ERROR FATAL de Replay procesando {date}: {exc}")
+            break
         except Exception as exc:
             failed_dates.append((date, str(exc)))
             print(f"ERROR procesando {date}: {exc}")
