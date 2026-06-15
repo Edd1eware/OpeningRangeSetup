@@ -22,7 +22,7 @@ namespace ATAS.Indicators
         private const decimal SetupTickSize = 0.25m;
         private const decimal ValueAcceptanceMinTradeTicks = 30m;
         private const decimal NormalScalpMaxTradeTicks = 120m;
-        private const string ExporterVersion = "ew-strategy-2026-06-14-v8-shadow-mae-mfe";
+        private const string ExporterVersion = "ew-strategy-2026-06-14-v9-imb50";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
@@ -76,7 +76,7 @@ namespace ATAS.Indicators
         public decimal APlusSpeedTicksPerSecond { get; set; } = 5;
         public decimal ReplaySpeedMultiplier { get; set; } = 10;
         public decimal ImbalanceRatio { get; set; } = 3m;
-        public decimal ImbalanceCompareMinVolume { get; set; } = 70m;
+        public decimal ImbalanceCompareMinVolume { get; set; } = 50m;
         public decimal APlusPriceAcceptanceTicks { get; set; } = 20m;
         public decimal MinTradeTicks { get; set; } = 60;
         public decimal MaxTradeTicks { get; set; } = 60;

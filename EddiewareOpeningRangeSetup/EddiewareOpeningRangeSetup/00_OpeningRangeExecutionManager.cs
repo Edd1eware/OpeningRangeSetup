@@ -37,6 +37,12 @@ namespace ATAS.Indicators
         private readonly string _telegramMessageIdsFile =
             @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_message_ids.txt";
 
+        // El runner Python crea este archivo UNA sola vez, antes de la primera fecha del replay.
+        // Mientras exista, la estrategia borra la conversacion anterior y elimina el archivo,
+        // de modo que los mensajes de resultados de la corrida actual se queden apilados.
+        private readonly string _telegramClearRequestFile =
+            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_clear_requested.txt";
+
         private readonly TimeZoneInfo _nyZone =
             TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
 
@@ -280,7 +286,7 @@ namespace ATAS.Indicators
 
             _lastReplayAutoStartMarkerUtc = markerUtc;
             BeginAutoStartRetryWindow(nowUtc, $"marcador de replay {_replayStartedFile}");
-            _ = DeletePreviousTelegramMessagesAsync();
+            MaybeClearTelegramConversation();
         }
 
         protected override void OnCalculate(int bar, decimal value)
@@ -1857,6 +1863,27 @@ namespace ATAS.Indicators
             {
                 // No afecta la operativa.
             }
+        }
+
+        // Borra la conversacion anterior SOLO cuando el runner pidio limpieza (primera fecha del replay).
+        // Elimina el archivo de solicitud de inmediato para que las fechas siguientes no vuelvan a borrar
+        // y los mensajes de resultados se queden apilados.
+        private void MaybeClearTelegramConversation()
+        {
+            try
+            {
+                if (!File.Exists(_telegramClearRequestFile))
+                    return;
+
+                File.Delete(_telegramClearRequestFile);
+            }
+            catch (Exception ex)
+            {
+                AppendTelegramLog($"Error procesando solicitud de limpieza Telegram: {ex.Message}");
+                return;
+            }
+
+            _ = DeletePreviousTelegramMessagesAsync();
         }
 
         private async Task DeletePreviousTelegramMessagesAsync()
