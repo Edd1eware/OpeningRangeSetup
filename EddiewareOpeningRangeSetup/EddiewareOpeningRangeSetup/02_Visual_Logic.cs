@@ -75,8 +75,8 @@ namespace ATAS.Indicators
         public int MinScore { get; set; } = 5;
 
         /// <summary>
-        /// MODO FILTRO validado 2025-2026 (n=50, WR 84%, PF 4.64): solo dibuja
-        /// el trade del dia si Cvd_Pullback_Pct_AtEntry >= umbral. Si la senal
+        /// MODO FILTRO (evidencia real v7, 232 dias: cvd>=0.90 -> WR 75%, PF 3.13):
+        /// solo dibuja el trade del dia si Cvd_Pullback_Pct_AtEntry >= umbral. Si la senal
         /// del dia no califica, marca el dia como NO TRADE. Debe coincidir con
         /// EnableCvdAtEntryFilter del exporter para que lo que operas y lo que
         /// backtesteas sean el mismo sistema.
@@ -85,7 +85,15 @@ namespace ATAS.Indicators
         public bool EnableCvdAtEntryFilter { get; set; } = true;
 
         [DisplayName("CVD AtEntry Threshold")]
-        public decimal CvdAtEntryThreshold { get; set; } = 0.75m;
+        public decimal CvdAtEntryThreshold { get; set; } = 0.90m;
+
+        // Bucket A: sweet spot [Threshold, SweetSpotMax) -> WR 88%, PF 7.20.
+        [DisplayName("CVD Sweet Spot Max")]
+        public decimal CvdAtEntrySweetSpotMax { get; set; } = 0.95m;
+
+        // Bucket B: cvd>=SweetSpotMax solo si score <= este valor -> WR 83%, PF 5.62.
+        [DisplayName("CVD High-Cvd Max Score")]
+        public int CvdAtEntryHighCvdMaxScore { get; set; } = 4;
 
         [DisplayName("Alerta sonora en senal")]
         public bool EnableSignalAlert { get; set; } = true;
@@ -264,7 +272,7 @@ namespace ATAS.Indicators
             if (!score.IsReady)
                 return;
 
-            if (EnableCvdAtEntryFilter && score.CvdPullbackPctAtEntry < CvdAtEntryThreshold)
+            if (EnableCvdAtEntryFilter && !PassesCvdAtEntryFilter(score))
             {
                 _cvdFilterSkippedDay = true;
                 DrawCvdFilterSkippedLabel(bar, candle, score);
@@ -326,6 +334,20 @@ namespace ATAS.Indicators
                     true);
                 _waitingLabelVisible = false;
             }
+        }
+
+        // Debe coincidir con la version del exporter/manager para que lo que dibujas
+        // y lo que backtesteas sean el mismo sistema. Solo los 2 buckets de mayor PF:
+        //  A) sweet spot [Threshold, SweetSpotMax)  B) cvd>=SweetSpotMax con score<=maxScore.
+        private bool PassesCvdAtEntryFilter(ScoreTradeSignal score)
+        {
+            var cvd = score.CvdPullbackPctAtEntry;
+            if (cvd < CvdAtEntryThreshold)
+                return false;
+
+            var sweetSpot = cvd < CvdAtEntrySweetSpotMax;
+            var lowScoreHighCvd = score.Score <= CvdAtEntryHighCvdMaxScore;
+            return sweetSpot || lowScoreHighCvd;
         }
 
         private void DrawCvdFilterSkippedLabel(int bar, dynamic candle, ScoreTradeSignal score)

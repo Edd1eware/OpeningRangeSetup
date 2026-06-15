@@ -129,16 +129,30 @@ namespace ATAS.Indicators
         /// Cvd_Pullback_Pct_AtEntry >= CvdAtEntryThreshold (entrada contrarian:
         /// CVD cerca del extremo opuesto a la direccion del trade). Si la senal
         /// del dia no califica, el dia se omite (igual que en la validacion
-        /// historica). Backtest 2025-2026: n=50, WR 84%, PF 4.64, maxDD 120 ticks.
+        /// historica). Evidencia real v7 (replay 232 dias mar2025-may2026):
+        /// cvd>=0.90 -> n=24, WR 75%, PF 3.13, ~2.2 trades/mes.
         /// </summary>
         public bool EnableCvdAtEntryFilter { get; set; } = true;
 
         /// <summary>
-        /// Umbral del pullback at-entry para el filtro y el sizing. Usar los
-        /// cortes naturales de etiqueta (0.75 = "Riesgo de reversion").
-        /// No optimizar al decimal: eso seria sobreajuste.
+        /// Umbral del pullback at-entry para el filtro y el sizing. 0.90 es la
+        /// union de los mejores cortes CVD (sweet spot 0.90-0.95 y cvd>=0.90+score<=4)
+        /// sin matar la operativa. No optimizar al decimal: eso seria sobreajuste.
         /// </summary>
-        public decimal CvdAtEntryThreshold { get; set; } = 0.75m;
+        public decimal CvdAtEntryThreshold { get; set; } = 0.90m;
+
+        /// <summary>
+        /// Limite superior del sweet spot CVD. Trades con cvd en [Threshold, SweetSpotMax)
+        /// se aceptan siempre (bucket A: 0.90-0.95, WR 88% PF 7.20).
+        /// </summary>
+        public decimal CvdAtEntrySweetSpotMax { get; set; } = 0.95m;
+
+        /// <summary>
+        /// Score maximo para aceptar trades con cvd >= SweetSpotMax (bucket B:
+        /// cvd>=0.90 + score<=4, WR 83% PF 5.62). Encima de este score y con cvd
+        /// alto el trade se descarta. Union A∪B: n=17, ~1.5/mes, WR 82%, PF 5.09.
+        /// </summary>
+        public int CvdAtEntryHighCvdMaxScore { get; set; } = 4;
 
         /// <summary>
         /// MODO SIZING: contratos cuando la senal califica (pct >= umbral).
@@ -1297,7 +1311,17 @@ namespace ATAS.Indicators
             if (!EnableCvdAtEntryFilter)
                 return true;
 
-            return score.CvdPullbackPctAtEntry >= CvdAtEntryThreshold;
+            var cvd = score.CvdPullbackPctAtEntry;
+            if (cvd < CvdAtEntryThreshold)
+                return false;
+
+            // Solo los 2 buckets de mayor PF (evidencia v7, replay 232 dias):
+            //  A) sweet spot [0.90, 0.95)        -> WR 88%, PF 7.20
+            //  B) cvd>=0.90 con score <= maxScore -> WR 83%, PF 5.62
+            // Se descartan los cvd altos (>=0.95) con score alto (PF mas bajo).
+            var sweetSpot = cvd < CvdAtEntrySweetSpotMax;
+            var lowScoreHighCvd = score.Score <= CvdAtEntryHighCvdMaxScore;
+            return sweetSpot || lowScoreHighCvd;
         }
 
         private void TrackRejectedScore(int bar, DateTime nyTime, ScoreTradeSignal score)
