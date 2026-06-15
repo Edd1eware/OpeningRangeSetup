@@ -28,7 +28,7 @@ REPLAY_START_TIME = "09:30"
 REPLAY_END_TIME = "09:50"
 NO_TRADE_CUTOFF_TIME = "09:40"
 POLL_SECONDS = 0.02
-NO_TRADE_CUTOFF_SECONDS = 2 * 60
+NO_TRADE_CUTOFF_SECONDS = 10 * 60
 HOLIDAY_RETRY_COUNT = 3
 HOLIDAY_NORMAL_WAIT_SECONDS = 2 * 60
 HOLIDAY_FINAL_WAIT_SECONDS = 3 * 60
@@ -38,9 +38,6 @@ EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
 RESULTS_FOLDER = os.path.join(EXPORT_FOLDER, "trade_results_score")
 TARGET_FILE = os.path.join(EXPORT_FOLDER, "target_trade_result_date.txt")
 REPLAY_STARTED_FILE = os.path.join(EXPORT_FOLDER, "replay_trade_result_started_at.txt")
-# Signals the strategy to wipe the previous Telegram conversation ONCE, before the first date.
-TELEGRAM_CLEAR_FILE = os.path.join(RESULTS_FOLDER, "telegram_clear_requested.txt")
-_telegram_clear_requested = False
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TESTING_OUTPUT_DIR = r"C:\Users\k_99_\Desktop\codding\corridas_testing_indicator"
 SCORE_WORKBOOK_TEMPLATE = os.path.join(BASE_DIR, "Score_indicator_results_updated.xlsx")
@@ -71,16 +68,7 @@ def write_target_date(date_ddmmyyyy):
 
 
 def write_replay_started_marker():
-    global _telegram_clear_requested
     os.makedirs(EXPORT_FOLDER, exist_ok=True)
-    os.makedirs(RESULTS_FOLDER, exist_ok=True)
-    # Only on the very first date: ask the strategy to wipe the previous conversation.
-    # The strategy consumes (deletes) this file, so later dates keep stacking their results.
-    if not _telegram_clear_requested:
-        with open(TELEGRAM_CLEAR_FILE, "w", encoding="utf-8") as f:
-            f.write(str(time.time()))
-        _telegram_clear_requested = True
-        print("Solicitud de limpieza de Telegram escrita (solo primera fecha).")
     with open(REPLAY_STARTED_FILE, "w", encoding="utf-8") as f:
         f.write(str(time.time()))
     print("Marcador de inicio de replay escrito.")
@@ -354,7 +342,7 @@ def stop_replay(stop_button=None):
     print("No encontre boton Stop; probablemente el replay ya termino.")
 
 
-MAX_WAIT_SECONDS = 120
+MAX_WAIT_SECONDS = 1200
 
 def format_countdown(seconds):
     seconds = max(0, int(seconds))

@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using ATAS.DataFeedsCore;
@@ -34,22 +32,13 @@ namespace ATAS.Indicators
         private readonly string _telegramCredentialsFile =
             @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_credentials.txt";
 
-        private readonly string _telegramMessageIdsFile =
-            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_message_ids.txt";
-
-        // El runner Python crea este archivo UNA sola vez, antes de la primera fecha del replay.
-        // Mientras exista, la estrategia borra la conversacion anterior y elimina el archivo,
-        // de modo que los mensajes de resultados de la corrida actual se queden apilados.
-        private readonly string _telegramClearRequestFile =
-            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_clear_requested.txt";
-
         private readonly TimeZoneInfo _nyZone =
             TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
 
         private const decimal SetupTickSize = 0.25m;
         private const decimal ValueAcceptanceMinTradeTicks = 30m;
         private const decimal NormalScalpMaxTradeTicks = 120m;
-        private const string ExporterVersion = "ew-strategy-2026-06-14-v7-min20ticks";
+        private const string ExporterVersion = "ew-strategy-2026-06-13-v5-entrybar-no-preentry-tp";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 30, 0);
@@ -98,7 +87,7 @@ namespace ATAS.Indicators
         private int _lastSignalReadyBar = -1;
 
         public int MinScore { get; set; } = 5;
-        public decimal MinOrRangeTicks { get; set; } = 20;
+        public decimal MinOrRangeTicks { get; set; } = 40;
         public decimal MaxOrRangeTicks { get; set; } = 350;
         public decimal MinBodyBreakoutTicks { get; set; } = 10;
         public decimal MinVolume { get; set; } = 800;
@@ -109,7 +98,7 @@ namespace ATAS.Indicators
         public decimal ImbalanceRatio { get; set; } = 3m;
         public decimal ImbalanceCompareMinVolume { get; set; } = 70m;
         public decimal APlusPriceAcceptanceTicks { get; set; } = 20m;
-        public decimal MinTradeTicks { get; set; } = 20;
+        public decimal MinTradeTicks { get; set; } = 60;
         public decimal MaxTradeTicks { get; set; } = 60;
         public decimal HalfMfeExitMinMfeTicks { get; set; } = 40;
         public decimal FastExitMinMfeTicks { get; set; } = 40;
@@ -129,30 +118,16 @@ namespace ATAS.Indicators
         /// Cvd_Pullback_Pct_AtEntry >= CvdAtEntryThreshold (entrada contrarian:
         /// CVD cerca del extremo opuesto a la direccion del trade). Si la senal
         /// del dia no califica, el dia se omite (igual que en la validacion
-        /// historica). Evidencia real v7 (replay 232 dias mar2025-may2026):
-        /// cvd>=0.90 -> n=24, WR 75%, PF 3.13, ~2.2 trades/mes.
+        /// historica). Backtest 2025-2026: n=50, WR 84%, PF 4.64, maxDD 120 ticks.
         /// </summary>
         public bool EnableCvdAtEntryFilter { get; set; } = true;
 
         /// <summary>
-        /// Umbral del pullback at-entry para el filtro y el sizing. 0.90 es la
-        /// union de los mejores cortes CVD (sweet spot 0.90-0.95 y cvd>=0.90+score<=4)
-        /// sin matar la operativa. No optimizar al decimal: eso seria sobreajuste.
+        /// Umbral del pullback at-entry para el filtro y el sizing. Usar los
+        /// cortes naturales de etiqueta (0.75 = "Riesgo de reversion").
+        /// No optimizar al decimal: eso seria sobreajuste.
         /// </summary>
-        public decimal CvdAtEntryThreshold { get; set; } = 0.90m;
-
-        /// <summary>
-        /// Limite superior del sweet spot CVD. Trades con cvd en [Threshold, SweetSpotMax)
-        /// se aceptan siempre (bucket A: 0.90-0.95, WR 88% PF 7.20).
-        /// </summary>
-        public decimal CvdAtEntrySweetSpotMax { get; set; } = 0.95m;
-
-        /// <summary>
-        /// Score maximo para aceptar trades con cvd >= SweetSpotMax (bucket B:
-        /// cvd>=0.90 + score<=4, WR 83% PF 5.62). Encima de este score y con cvd
-        /// alto el trade se descarta. Union A∪B: n=17, ~1.5/mes, WR 82%, PF 5.09.
-        /// </summary>
-        public int CvdAtEntryHighCvdMaxScore { get; set; } = 4;
+        public decimal CvdAtEntryThreshold { get; set; } = 0.75m;
 
         /// <summary>
         /// MODO SIZING: contratos cuando la senal califica (pct >= umbral).
@@ -300,7 +275,6 @@ namespace ATAS.Indicators
 
             _lastReplayAutoStartMarkerUtc = markerUtc;
             BeginAutoStartRetryWindow(nowUtc, $"marcador de replay {_replayStartedFile}");
-            MaybeClearTelegramConversation();
         }
 
         protected override void OnCalculate(int bar, decimal value)
@@ -819,7 +793,7 @@ namespace ATAS.Indicators
 
             _timeOverWritten = true;
             WriteTimeOverFile(nyTime.Date, nyTime);
-            SendTelegramNoTradeMessage(nyTime.Date);
+            SendTelegramNoTradeMessage();
             RequestAutoStopAfterTerminalResult("TIME_OVER sin trade");
             return true;
         }
@@ -1311,17 +1285,7 @@ namespace ATAS.Indicators
             if (!EnableCvdAtEntryFilter)
                 return true;
 
-            var cvd = score.CvdPullbackPctAtEntry;
-            if (cvd < CvdAtEntryThreshold)
-                return false;
-
-            // Solo los 2 buckets de mayor PF (evidencia v7, replay 232 dias):
-            //  A) sweet spot [0.90, 0.95)        -> WR 88%, PF 7.20
-            //  B) cvd>=0.90 con score <= maxScore -> WR 83%, PF 5.62
-            // Se descartan los cvd altos (>=0.95) con score alto (PF mas bajo).
-            var sweetSpot = cvd < CvdAtEntrySweetSpotMax;
-            var lowScoreHighCvd = score.Score <= CvdAtEntryHighCvdMaxScore;
-            return sweetSpot || lowScoreHighCvd;
+            return score.CvdPullbackPctAtEntry >= CvdAtEntryThreshold;
         }
 
         private void TrackRejectedScore(int bar, DateTime nyTime, ScoreTradeSignal score)
@@ -1780,10 +1744,10 @@ namespace ATAS.Indicators
             }
         }
 
-        private void SendTelegramNoTradeMessage(DateTime nyDate)
+        private void SendTelegramNoTradeMessage()
         {
             var motivo = _cvdFilterSkippedDay ? " (senal filtrada por CVD)" : "";
-            var dateText = FormatTelegramDate(nyDate);
+            var dateText = FormatTelegramDate(DateTime.UtcNow);
             SendTelegramText($"\u26AA {dateText} NO TRADE TODAY{motivo}");
         }
 
@@ -1837,19 +1801,15 @@ namespace ATAS.Indicators
                     AppendTelegramLog($"Enviando Telegram. ChatId='{chatId}', Texto='{texto}'");
                     using var content = new FormUrlEncodedContent(payload);
                     using var response = await TelegramHttpClient.PostAsync(url, content).ConfigureAwait(false);
-                    var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
                     if (!response.IsSuccessStatusCode)
                     {
+                        var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                         AppendTelegramLog($"Telegram HTTP {(int)response.StatusCode} {response.ReasonPhrase}: {body}");
                         System.Diagnostics.Debug.WriteLine(
                             $"EW Strategy: Telegram HTTP {(int)response.StatusCode} {response.ReasonPhrase}: {body}");
                         return;
                     }
-
-                    var match = Regex.Match(body, "\"message_id\":(\\d+)");
-                    if (match.Success && long.TryParse(match.Groups[1].Value, out var msgId))
-                        AppendMessageId(msgId);
 
                     AppendTelegramLog($"Telegram enviado OK. Status={(int)response.StatusCode}");
                 }
@@ -1874,96 +1834,6 @@ namespace ATAS.Indicators
             {
                 // El log de Telegram no debe afectar la estrategia.
             }
-        }
-
-        private void AppendMessageId(long messageId)
-        {
-            try
-            {
-                Directory.CreateDirectory(_exportFolder);
-                File.AppendAllText(_telegramMessageIdsFile, messageId.ToString(CultureInfo.InvariantCulture) + Environment.NewLine);
-            }
-            catch
-            {
-                // No afecta la operativa.
-            }
-        }
-
-        // Borra la conversacion anterior SOLO cuando el runner pidio limpieza (primera fecha del replay).
-        // Elimina el archivo de solicitud de inmediato para que las fechas siguientes no vuelvan a borrar
-        // y los mensajes de resultados se queden apilados.
-        private void MaybeClearTelegramConversation()
-        {
-            try
-            {
-                if (!File.Exists(_telegramClearRequestFile))
-                    return;
-
-                File.Delete(_telegramClearRequestFile);
-            }
-            catch (Exception ex)
-            {
-                AppendTelegramLog($"Error procesando solicitud de limpieza Telegram: {ex.Message}");
-                return;
-            }
-
-            _ = DeletePreviousTelegramMessagesAsync();
-        }
-
-        private async Task DeletePreviousTelegramMessagesAsync()
-        {
-            var token = ResolveTelegramSetting(TelegramBotToken, "TELEGRAM_BOT_TOKEN", "token");
-            var chatId = ResolveTelegramSetting(TelegramChatId, "TELEGRAM_CHAT_ID", "chat_id");
-
-            if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(chatId))
-                return;
-
-            long[] ids;
-
-            try
-            {
-                if (!File.Exists(_telegramMessageIdsFile))
-                    return;
-
-                ids = File.ReadAllLines(_telegramMessageIdsFile)
-                    .Select(l => l.Trim())
-                    .Where(l => l.Length > 0)
-                    .Select(l => long.TryParse(l, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id) ? id : -1L)
-                    .Where(id => id > 0)
-                    .ToArray();
-
-                File.Delete(_telegramMessageIdsFile);
-            }
-            catch (Exception ex)
-            {
-                AppendTelegramLog($"Error leyendo message IDs para borrar: {ex.Message}");
-                return;
-            }
-
-            if (ids.Length == 0)
-                return;
-
-            var deleteUrl = $"https://api.telegram.org/bot{token}/deleteMessage";
-
-            foreach (var msgId in ids)
-            {
-                try
-                {
-                    var payload = new Dictionary<string, string>
-                    {
-                        ["chat_id"] = chatId,
-                        ["message_id"] = msgId.ToString(CultureInfo.InvariantCulture)
-                    };
-                    using var content = new FormUrlEncodedContent(payload);
-                    await TelegramHttpClient.PostAsync(deleteUrl, content).ConfigureAwait(false);
-                }
-                catch
-                {
-                    // Si un mensaje ya fue borrado manualmente o expiró, ignorar.
-                }
-            }
-
-            AppendTelegramLog($"Borrados {ids.Length} mensajes Telegram de la corrida anterior.");
         }
 
         private string ResolveTelegramSetting(string propertyValue, string environmentVariable, string credentialsKey)
