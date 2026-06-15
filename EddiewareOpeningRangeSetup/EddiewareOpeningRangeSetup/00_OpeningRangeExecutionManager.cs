@@ -169,6 +169,7 @@ namespace ATAS.Indicators
         {
             Name = "EW OpeningRange Execution Strategy";
             EnableCustomDrawing = false;
+            EnableExecution = false;
             StartAutoStartWatcher();
         }
 
@@ -1630,29 +1631,8 @@ namespace ATAS.Indicators
 
         private void ExecuteEntryOrder()
         {
-            if (!EnableExecution || _trade == null)
-                return;
-
-            try
-            {
-                var qty = Math.Max(1, Contracts) * Math.Max(1, _trade.Contracts);
-                var direction = _trade.Side == "BUY" ? OrderDirections.Buy : OrderDirections.Sell;
-
-                var order = new Order
-                {
-                    Portfolio = Portfolio,
-                    Security = Security,
-                    Direction = direction,
-                    Type = OrderTypes.Market,
-                    QuantityToFill = qty
-                };
-
-                OpenOrder(order);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"EW Strategy: error al colocar entrada: {ex.Message}");
-            }
+            EnableExecution = false;
+            System.Diagnostics.Debug.WriteLine("EW Strategy: apertura real deshabilitada; solo simulacion/exporter.");
         }
 
         private void HandleSimulatedClose()

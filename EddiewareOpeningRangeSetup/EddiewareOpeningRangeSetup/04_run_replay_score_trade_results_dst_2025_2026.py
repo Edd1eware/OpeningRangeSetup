@@ -337,14 +337,13 @@ DATES_DST = [
     "01/06/2026",
     "02/06/2026",
 ]
-# Replay recomendado para esta prueba: X1.
-# Ventana por dia: 09:30 a 09:50 NY. El exporter escribe TIME_OVER si no hay trade antes/de 09:40;
-# si ya hay trade abierto, dejamos correr hasta 09:50 para que resuelva TP/SL/EXIT/BE.
+# Replay recomendado para esta prueba: X10.
+# Ventana por dia: 09:30 a 09:40 NY.
 REPLAY_START_TIME = "09:30"
-REPLAY_END_TIME = "09:50"
+REPLAY_END_TIME = "09:40"
 NO_TRADE_CUTOFF_TIME = "09:40"
 POLL_SECONDS = 0.02
-NO_TRADE_CUTOFF_SECONDS = 10 * 60
+NO_TRADE_CUTOFF_SECONDS = 2 * 60
 HOLIDAY_RETRY_COUNT = 3
 HOLIDAY_NORMAL_WAIT_SECONDS = 2 * 60
 HOLIDAY_FINAL_WAIT_SECONDS = 3 * 60
@@ -444,10 +443,12 @@ def get_controls():
     for b in buttons:
         txt = b.window_text()
 
-        if txt == "Start":
+        normalized = txt.strip().lower()
+
+        if normalized == "start":
             start_button = b
 
-        if txt == "Stop":
+        if normalized in ("stop", "detener", "parar") or "stop" in normalized:
             stop_button = b
 
     return replay, from_box, to_box, start_button, stop_button
@@ -566,7 +567,7 @@ def result_is_terminal(path, min_modified_time=None):
         return False
 
     result_label = str(row.get("Result_Label") or row.get("RESULT") or "").strip().upper()
-    if result_label in ("TP", "SL", "EXIT", "BE", "TIME_OVER", "NO_TRADE", HOLIDAY_NO_DATA_LABEL):
+    if result_label in ("TP", "SL", "EXIT", "BE", "TIME_OVER", HOLIDAY_NO_DATA_LABEL):
         return True
 
     ticks = parse_result_ticks(row.get("result TP SL BE") or row.get("RESULT"))
@@ -635,6 +636,10 @@ def stop_replay(stop_button=None):
             replay.set_focus()
             if refreshed_stop_button is not None:
                 candidates.insert(0, refreshed_stop_button)
+            candidates.extend([
+                button for button in replay.descendants(control_type="Button")
+                if button.window_text().strip().lower() not in ("", "start")
+            ])
         except Exception:
             pass
 
@@ -655,10 +660,10 @@ def stop_replay(stop_button=None):
 
         time.sleep(0.05)
 
-    print("No encontre boton Stop; probablemente el replay ya termino.")
+    print("No pude confirmar click en Stop; probablemente el replay ya termino o el boton no expuso texto.")
 
 
-MAX_WAIT_SECONDS = 1200
+MAX_WAIT_SECONDS = 4 * 60
 
 def format_countdown(seconds):
     seconds = max(0, int(seconds))
@@ -697,7 +702,7 @@ def wait_until_result(path, min_modified_time=None, no_trade_cutoff_seconds=None
 
         if elapsed > MAX_WAIT_SECONDS:
             print("\r" + " " * max(len(last_status_line), 80), end="\r", flush=True)
-            print(f"Timeout ({MAX_WAIT_SECONDS}s) esperando resultado terminal. Saltando al siguiente dia.")
+            print(f"Timeout ({MAX_WAIT_SECONDS}s) esperando resultado terminal. Deteniendo replay; no se avanza sin terminal.")
             stop_replay(stop_button)
             return False
 
@@ -798,6 +803,9 @@ def get_or_create_headers(ws):
         "or_low",
         "or_high",
         "range",
+        "Opening_930_VAH",
+        "Opening_930_vPOC",
+        "Opening_930_VAL",
         "VWAP_entry",
         "Body",
         "Volume_entry",
@@ -810,12 +818,29 @@ def get_or_create_headers(ws):
         "TP_price",
         "SL_ticks",
         "TP_ticks",
+        "Trade_Clasification",
+        "Simulation_Result",
         "Exit_price",
         "result TP SL BE",
         "Side",
         "Speed_Profile",
         "MAE_ticks",
         "MFE_ticks",
+        "APlus_3Imb_Count",
+        "APlus_Structure_Count",
+        "APlus_Absorption_Count",
+        "APlus_Structure_30t_Count",
+        "APlus_Absorption_30t_Count",
+        "vPOC_FakeBreakout_Returned",
+        "vPOC_FakeBreakout_Side",
+        "vPOC_FakeBreakout_MaxExtensionTicks",
+        "vPOC_FakeBreakout_BreakoutCVD",
+        "vPOC_FakeBreakout_BreakoutDelta",
+        "vPOC_FakeBreakout_BreakoutVolume",
+        "vPOC_FakeBreakout_ReturnCVD",
+        "vPOC_FakeBreakout_ReturnDelta",
+        "vPOC_FakeBreakout_ReturnVolume",
+        "CVD_Trade_Candidate",
     ]
 
     headers = [
