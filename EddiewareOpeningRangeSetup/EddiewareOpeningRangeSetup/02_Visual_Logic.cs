@@ -16,12 +16,12 @@ namespace ATAS.Indicators
         private const decimal NormalScalpMaxTradeTicks = 120m;
         private readonly ScoreTradeSignalEngine _signalEngine = new ScoreTradeSignalEngine();
 
+        private readonly TimeZoneInfo _nyZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
         private DateTime _currentDate = DateTime.MinValue;
         private decimal _orHigh;
         private decimal _orLow;
         private int _orBar = -1;
         private bool _orReady;
-        private decimal? _openingVpocPrice;
         private bool _tradeDrawn;
         private bool _panicDrawn;
         private int _tradeBar = -1;
@@ -57,25 +57,26 @@ namespace ATAS.Indicators
         private bool _cvdPullbackExtremeDrawn;
         private bool _cvdRiskBracketActive;
         private bool _tradeHitDrawn;
+        private bool _trailingZoneDrawn;
         private bool _timeOverDrawn;
         private bool _cvdFilterSkippedDay;
         private bool _waitingLabelVisible;
 
-        [DisplayName("Opening Time UTC")]
-        public TimeSpan OpeningTimeUtc { get; set; } = new TimeSpan(13, 30, 0);
+        [DisplayName("Opening Time NY")]
+        public TimeSpan OpeningTimeNy { get; set; } = new TimeSpan(9, 30, 0);
 
-        [DisplayName("Max Signal Time UTC")]
-        public TimeSpan MaxSignalTimeUtc { get; set; } = new TimeSpan(13, 41, 0);
+        [DisplayName("Max Signal Time NY")]
+        public TimeSpan MaxSignalTimeNy { get; set; } = new TimeSpan(9, 41, 0);
 
-        [DisplayName("Signal End Time UTC")]
-        public TimeSpan SignalEndTimeUtc { get; set; } = new TimeSpan(13, 40, 0);
+        [DisplayName("Signal End Time NY")]
+        public TimeSpan SignalEndTimeNy { get; set; } = new TimeSpan(9, 40, 0);
 
         [DisplayName("Min Score / Cutoff Score")]
         public int MinScore { get; set; } = 5;
 
         /// <summary>
-        /// MODO FILTRO validado 2025-2026 (n=50, WR 84%, PF 4.64): solo dibuja
-        /// el trade del dia si Cvd_Pullback_Pct_AtEntry >= umbral. Si la senal
+        /// MODO FILTRO (evidencia real v7, 232 dias: cvd>=0.90 -> WR 75%, PF 3.13):
+        /// solo dibuja el trade del dia si Cvd_Pullback_Pct_AtEntry >= umbral. Si la senal
         /// del dia no califica, marca el dia como NO TRADE. Debe coincidir con
         /// EnableCvdAtEntryFilter del exporter para que lo que operas y lo que
         /// backtesteas sean el mismo sistema.
@@ -84,7 +85,15 @@ namespace ATAS.Indicators
         public bool EnableCvdAtEntryFilter { get; set; } = true;
 
         [DisplayName("CVD AtEntry Threshold")]
-        public decimal CvdAtEntryThreshold { get; set; } = 0.75m;
+        public decimal CvdAtEntryThreshold { get; set; } = 0.90m;
+
+        // Bucket A: sweet spot [Threshold, SweetSpotMax) -> WR 88%, PF 7.20.
+        [DisplayName("CVD Sweet Spot Max")]
+        public decimal CvdAtEntrySweetSpotMax { get; set; } = 0.95m;
+
+        // Bucket B: cvd>=SweetSpotMax solo si score <= este valor -> WR 83%, PF 5.62.
+        [DisplayName("CVD High-Cvd Max Score")]
+        public int CvdAtEntryHighCvdMaxScore { get; set; } = 4;
 
         [DisplayName("Alerta sonora en senal")]
         public bool EnableSignalAlert { get; set; } = true;
@@ -94,7 +103,7 @@ namespace ATAS.Indicators
 
 
         [DisplayName("Min OR Range Ticks")]
-        public decimal MinOrRangeTicks { get; set; } = 40;
+        public decimal MinOrRangeTicks { get; set; } = 20;
 
         [DisplayName("Max OR Range Ticks")]
         public decimal MaxOrRangeTicks { get; set; } = 350;
@@ -109,10 +118,16 @@ namespace ATAS.Indicators
         public decimal MinAbsDelta { get; set; } = 25;
 
         [DisplayName("Min SL/TP Ticks")]
-        public decimal MinTradeTicks { get; set; } = 60;
+        public decimal MinTradeTicks { get; set; } = 20;
 
         [DisplayName("Max SL/TP Ticks")]
         public decimal MaxTradeTicks { get; set; } = 60;
+
+        [DisplayName("Trailing Zone Trigger MFE Ticks")]
+        public decimal TrailingTriggerMfeTicks { get; set; } = 30;
+
+        [DisplayName("Show Trailing Zone Label")]
+        public bool ShowTrailingLabel { get; set; } = true;
 
         [DisplayName("Line Length (bars)")]
         public int LineLength { get; set; } = 80;
@@ -202,8 +217,9 @@ namespace ATAS.Indicators
 
             var candle = GetCandle(bar);
 
-            if (candle.Time.Date != _currentDate)
-                ResetDay(candle.Time.Date);
+            var _nyTime = ToNyTime(candle.Time);
+            if (_nyTime.Date != _currentDate)
+                ResetDay(_nyTime.Date);
 
             UpdateSpeedClock(bar);
 
@@ -226,7 +242,6 @@ namespace ATAS.Indicators
                     _orHigh = closedCandle.High;
                     _orLow = closedCandle.Low;
                     _orBar = closedBar;
-                    _openingVpocPrice = CalculateVpocPrice(closedCandle);
                     _orReady = true;
 
                     if (ShowOpeningRange)
@@ -257,7 +272,7 @@ namespace ATAS.Indicators
             if (!score.IsReady)
                 return;
 
-            if (EnableCvdAtEntryFilter && score.CvdPullbackPctAtEntry < CvdAtEntryThreshold)
+            if (EnableCvdAtEntryFilter && !PassesCvdAtEntryFilter(score))
             {
                 _cvdFilterSkippedDay = true;
                 DrawCvdFilterSkippedLabel(bar, candle, score);
@@ -321,6 +336,20 @@ namespace ATAS.Indicators
             }
         }
 
+        // Debe coincidir con la version del exporter/manager para que lo que dibujas
+        // y lo que backtesteas sean el mismo sistema. Solo los 2 buckets de mayor PF:
+        //  A) sweet spot [Threshold, SweetSpotMax)  B) cvd>=SweetSpotMax con score<=maxScore.
+        private bool PassesCvdAtEntryFilter(ScoreTradeSignal score)
+        {
+            var cvd = score.CvdPullbackPctAtEntry;
+            if (cvd < CvdAtEntryThreshold)
+                return false;
+
+            var sweetSpot = cvd < CvdAtEntrySweetSpotMax;
+            var lowScoreHighCvd = score.Score <= CvdAtEntryHighCvdMaxScore;
+            return sweetSpot || lowScoreHighCvd;
+        }
+
         private void DrawCvdFilterSkippedLabel(int bar, dynamic candle, ScoreTradeSignal score)
         {
             var side = string.IsNullOrWhiteSpace(score.ExecutionSide) ? score.Side : score.ExecutionSide;
@@ -349,12 +378,12 @@ namespace ATAS.Indicators
             {
                 OrLow = _orLow,
                 OrHigh = _orHigh,
-                CurrentTime = candle.Time,
+                CurrentTime = ToNyTime(candle.Time),
                 SessionDate = candle.Time.Date,
                 GetSessionTime = c => c.Time,
-                SignalStartTime = OpeningTimeUtc,
-                SignalEndTime = SignalEndTimeUtc,
-                NormalSpeedAllowedUntilTime = OpeningTimeUtc.Add(new TimeSpan(0, 3, 59)),
+                SignalStartTime = OpeningTimeNy,
+                SignalEndTime = SignalEndTimeNy,
+                NormalSpeedAllowedUntilTime = OpeningTimeNy.Add(new TimeSpan(0, 3, 59)),
                 TickSize = GetTickSize(),
                 MinScore = MinScore,
                 MinOrRangeTicks = MinOrRangeTicks,
@@ -535,6 +564,15 @@ namespace ATAS.Indicators
             return price.HasValue ? price.Value.ToString("0.00") : "NA";
         }
 
+        private static string GetTradeTypeLabel(ScoreTradeSignal score)
+        {
+            if (score.SpeedLabel == "A+ speed")   return "A+ SPEED";
+            if (score.SignalSource == "JUDAS SWING")      return "JUDAS SWING";
+            if (score.SignalSource == "A+ ABSORTION")     return "A+ ABSORPTION";
+            if (score.SignalSource == "VALUE_ACCEPTANCE") return "A+ STRUCTURE";
+            return "NORMAL SCALP";
+        }
+
         private static string FormatSpeedLabel(string speedLabel)
         {
             if (speedLabel == "A+ speed")
@@ -613,7 +651,7 @@ namespace ATAS.Indicators
             var entryLabelId = $"EW_SCORE_ENTRY_{candle.Time:yyyyMMdd_HHmm}_{bar}";
             AddText(
                 entryLabelId,
-                $"{score.SignalSource} {executionSide} | S{score.Score} | CVDpct {score.CvdPullbackPctAtEntry:0.00} | {FormatSpeedLabel(score.SpeedLabel)} {score.BreakoutSpeed:0.00}t/s",
+                $"[{GetTradeTypeLabel(score)}] {executionSide} | S{score.Score} | CVDpct {score.CvdPullbackPctAtEntry:0.00} | {FormatSpeedLabel(score.SpeedLabel)} {score.BreakoutSpeed:0.00}t/s",
                 executionSide == "SELL",
                 bar,
                 labelPrice,
@@ -727,6 +765,7 @@ namespace ATAS.Indicators
                 return;
 
             UpdateActiveTradeStopFromLastImbalance(bar, candle);
+            TryDrawTrailingZoneLabel(bar, candle);
             if (!_tradeIsNormalSpeed)
             {
                 UpdateCvdProfitLock(bar, candle);
@@ -839,9 +878,10 @@ namespace ATAS.Indicators
                 tickSize,
                 ImbalanceRatio,
                 ImbalanceCompareMinVolume);
+            var fallbackSl = _tradeIsAPlusSpeed ? APlusStopTicks : MinTradeTicks;
             var nextSl = imbalanceStop?.StopPrice ?? (_tradeSide == "BUY"
-                ? _tradeEntry - 60m * tickSize
-                : _tradeEntry + 60m * tickSize);
+                ? _tradeEntry - fallbackSl * tickSize
+                : _tradeEntry + fallbackSl * tickSize);
 
             if (_tradeSl == nextSl)
                 return;
@@ -923,6 +963,41 @@ namespace ATAS.Indicators
             }
 
         }
+
+        private void TryDrawTrailingZoneLabel(int bar, dynamic candle)
+        {
+            if (!ShowTrailingLabel || _trailingZoneDrawn || _tradeSide == "" || _tradeEntry == 0)
+                return;
+
+            var mfeTicks = _tradeSide == "BUY"
+                ? RoundToTicks(candle.High - _tradeEntry)
+                : RoundToTicks(_tradeEntry - candle.Low);
+
+            if (mfeTicks < TrailingTriggerMfeTicks)
+                return;
+
+            var tickSize = GetTickSize();
+            var labelPrice = _tradeSide == "BUY"
+                ? _bestFavorablePrice + tickSize * 18
+                : _bestFavorablePrice - tickSize * 18;
+
+            // Line at best favorable price — same color as Entry (Gold)
+            TrendLines.Add(new TrendLine(bar, _bestFavorablePrice, bar + LineLength, _bestFavorablePrice, new Pen(Color.Gold, 2)));
+
+            // Label — background = trade side color (Blue/Orange), same palette que Entry/TP/SL
+            DrawTradeLabel(
+                $"EW_TRAILING_ZONE_{_currentDate:yyyyMMdd}",
+                $"TRAILING ZONE | MFE {mfeTicks:0}t | SL={FormatPrice(_tradeSl)} TP={FormatPrice(_tradeTp)}",
+                bar + 1,
+                labelPrice,
+                Color.White,
+                GetTradeSideColor(_tradeSide),
+                _tradeSide == "BUY" ? 20 : -20);
+
+            _trailingZoneDrawn = true;
+        }
+
+        private string FormatPrice(decimal price) => price == 0 ? "?" : price.ToString("0.00");
 
         private void DrawTradeHit(int bar, string text, decimal price, Color bgColor, Color textColor, int yOffset)
         {
@@ -1340,29 +1415,6 @@ namespace ATAS.Indicators
                 14,
                 DrawingText.TextAlign.Center,
                 true);
-
-            DrawOpeningVpocLabel();
-        }
-
-        private void DrawOpeningVpocLabel()
-        {
-            if (!_openingVpocPrice.HasValue || _orBar < 0)
-                return;
-
-            AddText(
-                $"EW_VPOC_0930_{_currentDate:yyyyMMdd}",
-                $"vPOC 9:30 {_openingVpocPrice.Value:0.00}",
-                true,
-                _orBar,
-                _openingVpocPrice.Value,
-                18,
-                0,
-                Color.Black,
-                Color.Yellow,
-                Color.Yellow,
-                12,
-                DrawingText.TextAlign.Center,
-                true);
         }
 
         private void DrawScoreLabel(int bar, dynamic candle, ScoreTradeSignal score)
@@ -1440,11 +1492,11 @@ namespace ATAS.Indicators
 
         private bool TryDrawTimeOver(int bar, dynamic candle)
         {
-            var time = candle.Time.TimeOfDay;
+            var time = ToNyTime(candle.Time).TimeOfDay;
 
             if (_timeOverDrawn ||
                 _tradeDrawn ||
-                time < MaxSignalTimeUtc)
+                time < MaxSignalTimeNy)
             {
                 return false;
             }
@@ -1472,10 +1524,16 @@ namespace ATAS.Indicators
                 true);
         }
 
+        private DateTime ToNyTime(DateTime utcTime)
+        {
+            var utc = utcTime.Kind == DateTimeKind.Utc ? utcTime : DateTime.SpecifyKind(utcTime, DateTimeKind.Utc);
+            return TimeZoneInfo.ConvertTimeFromUtc(utc, _nyZone);
+        }
+
         private bool IsOpeningCandle(dynamic candle)
         {
-            var time = candle.Time.TimeOfDay;
-            return time.Hours == OpeningTimeUtc.Hours && time.Minutes == OpeningTimeUtc.Minutes;
+            var time = ToNyTime(candle.Time).TimeOfDay;
+            return time.Hours == OpeningTimeNy.Hours && time.Minutes == OpeningTimeNy.Minutes;
         }
 
         private void UpdateSpeedClock(int bar)
@@ -1513,10 +1571,10 @@ namespace ATAS.Indicators
 
         private bool IsSignalWindow(dynamic candle)
         {
-            var time = candle.Time.TimeOfDay;
+            var time = ToNyTime(candle.Time).TimeOfDay;
             return
-                time > OpeningTimeUtc &&
-                time <= SignalEndTimeUtc;
+                time > OpeningTimeNy &&
+                time <= SignalEndTimeNy;
         }
 
         private void ResetDay(DateTime date)
@@ -1528,7 +1586,6 @@ namespace ATAS.Indicators
             _orLow = 0;
             _orBar = -1;
             _orReady = false;
-            _openingVpocPrice = null;
             _tradeDrawn = false;
             _signalEngine.ResetDay();
             _panicDrawn = false;
@@ -1558,6 +1615,7 @@ namespace ATAS.Indicators
             _cvdRiskDetectedDrawn = false;
             _cvdPullbackExtremeDrawn = false;
             _cvdRiskBracketActive = false;
+            _trailingZoneDrawn = false;
             _cvdProfitLockArmed = false;
             _cvdProfitLockExitPrice = 0;
             _cvdProfitLockTicks = 0;
@@ -1574,34 +1632,6 @@ namespace ATAS.Indicators
         private decimal GetTickSize()
         {
             return FallbackTickSize;
-        }
-
-        private decimal? CalculateVpocPrice(dynamic candle)
-        {
-            decimal? bestPrice = null;
-            decimal bestVolume = decimal.MinValue;
-
-            try
-            {
-                foreach (var level in candle.GetAllPriceLevels())
-                {
-                    var bid = Convert.ToDecimal(level.Bid);
-                    var ask = Convert.ToDecimal(level.Ask);
-                    var total = bid + ask;
-
-                    if (total <= bestVolume)
-                        continue;
-
-                    bestVolume = total;
-                    bestPrice = Convert.ToDecimal(level.Price);
-                }
-            }
-            catch
-            {
-                return null;
-            }
-
-            return bestPrice;
         }
 
         private string Flag(bool value)

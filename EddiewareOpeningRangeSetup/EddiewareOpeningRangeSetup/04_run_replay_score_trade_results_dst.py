@@ -19,18 +19,17 @@ DATES_DST = [
     "15/05/2026",
     "20/05/2026",
     "26/05/2026",
-    
 
 ]
 # Replay recomendado para esta prueba: X1.
-# Ventana por dia: 09:30 a 09:50 NY. El exporter escribe TIME_OVER si no hay trade antes/de 09:50.
+# Ventana por dia: 09:30 a 09:50 NY. El exporter escribe TIME_OVER si no hay trade antes/de 09:40;
 # si ya hay trade abierto, dejamos correr hasta 09:50 para que resuelva TP/SL/EXIT/BE.
 REPLAY_START_TIME = "09:30"
 REPLAY_END_TIME = "09:50"
-NO_TRADE_CUTOFF_TIME = "09:50"
+NO_TRADE_CUTOFF_TIME = "09:40"
 POLL_SECONDS = 0.02
-NO_TRADE_CUTOFF_SECONDS = 3 * 60
-HOLIDAY_RETRY_COUNT = 1
+NO_TRADE_CUTOFF_SECONDS = 2 * 60
+HOLIDAY_RETRY_COUNT = 3
 HOLIDAY_NORMAL_WAIT_SECONDS = 2 * 60
 HOLIDAY_FINAL_WAIT_SECONDS = 3 * 60
 HOLIDAY_NO_DATA_LABEL = "HOLYDAY NO DATA"
@@ -39,14 +38,18 @@ EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
 RESULTS_FOLDER = os.path.join(EXPORT_FOLDER, "trade_results_score")
 TARGET_FILE = os.path.join(EXPORT_FOLDER, "target_trade_result_date.txt")
 REPLAY_STARTED_FILE = os.path.join(EXPORT_FOLDER, "replay_trade_result_started_at.txt")
+# Signals the strategy to wipe the previous Telegram conversation ONCE, before the first date.
+TELEGRAM_CLEAR_FILE = os.path.join(RESULTS_FOLDER, "telegram_clear_requested.txt")
+_telegram_clear_requested = False
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TESTING_OUTPUT_DIR = RESULTS_FOLDER
+TESTING_OUTPUT_DIR = r"C:\Users\k_99_\Desktop\codding\corridas_testing_indicator"
 SCORE_WORKBOOK_TEMPLATE = os.path.join(BASE_DIR, "Score_indicator_results_updated.xlsx")
 SCORE_WORKBOOK_TEMPLATE_FALLBACK = os.path.join(BASE_DIR, "Score_indicator_results_updated_fallback.xlsx")
 SCORE_WORKBOOK = os.path.join(TESTING_OUTPUT_DIR, "Score_indicator_results_updated.xlsx")
 SCORE_WORKBOOK_FALLBACK = os.path.join(TESTING_OUTPUT_DIR, "Score_indicator_results_updated_fallback.xlsx")
 RUN_STARTED_AT = time.time()
 RESUME_EXISTING_RESULTS = True
+STALE_RESULT_BACKUP_DIR = os.path.join(RESULTS_FOLDER, "_replay_result_backups")
 EXCLUDED_EXCEL_HEADERS = {"Contracts"}
 
 
@@ -68,7 +71,16 @@ def write_target_date(date_ddmmyyyy):
 
 
 def write_replay_started_marker():
+    global _telegram_clear_requested
     os.makedirs(EXPORT_FOLDER, exist_ok=True)
+    os.makedirs(RESULTS_FOLDER, exist_ok=True)
+    # Only on the very first date: ask the strategy to wipe the previous conversation.
+    # The strategy consumes (deletes) this file, so later dates keep stacking their results.
+    if not _telegram_clear_requested:
+        with open(TELEGRAM_CLEAR_FILE, "w", encoding="utf-8") as f:
+            f.write(str(time.time()))
+        _telegram_clear_requested = True
+        print("Solicitud de limpieza de Telegram escrita (solo primera fecha).")
     with open(REPLAY_STARTED_FILE, "w", encoding="utf-8") as f:
         f.write(str(time.time()))
     print("Marcador de inicio de replay escrito.")
@@ -164,7 +176,13 @@ def backup_previous_result(path, reason):
     if not os.path.exists(path):
         return
 
-    print(f"Resultado previo conservado en trade_results_score ({reason}): {path}")
+    os.makedirs(STALE_RESULT_BACKUP_DIR, exist_ok=True)
+    base_name = os.path.basename(path)
+    name, ext = os.path.splitext(base_name)
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    backup_path = os.path.join(STALE_RESULT_BACKUP_DIR, f"{name}_{reason}_{timestamp}{ext}")
+    os.replace(path, backup_path)
+    print(f"Resultado previo no terminal movido a backup: {backup_path}")
 
 
 def clear_previous_result(path):
@@ -175,8 +193,8 @@ def clear_previous_result(path):
         print(f"Resultado terminal existente conservado: {path}")
         return False
 
-    print(f"Resultado previo parcial conservado: {path}")
-    return False
+    backup_previous_result(path, "stale")
+    return True
 
 
 def clear_expected_results():
@@ -275,83 +293,6 @@ def result_is_open_trade(path, min_modified_time=None):
     return result_label == "OPEN"
 
 
-def result_has_export_data(path, min_modified_time=None):
-    if not os.path.exists(path):
-        return False
-
-    if min_modified_time is not None and os.path.getmtime(path) < min_modified_time:
-        return False
-
-    try:
-        with open(path, "r", encoding="utf-8-sig", newline="") as f:
-            reader = csv.DictReader(f)
-            row = next(reader, None)
-    except (OSError, PermissionError):
-        return False
-
-    if not row:
-        return False
-
-    useful_fields = (
-        "EntryBar",
-        "Opening_vPOC_0930",
-        "FakeBreakout_To_Opening_vPOC",
-        "CVD_Trade_Candidate",
-        "Signal_Source",
-    )
-    return any(str(row.get(field) or "").strip() for field in useful_fields)
-
-
-def replay_playback_is_stopped():
-    try:
-        desktop = Desktop(backend="uia")
-        candidates = desktop.windows(title_re=".*Replay.*", visible_only=True)
-    except Exception:
-        return False
-
-    for candidate in candidates:
-        try:
-            if "stopped" in candidate.window_text().lower():
-                return True
-        except Exception:
-            pass
-
-    return False
-
-
-def mark_result_time_over_if_has_data(path, min_modified_time=None):
-    if not result_has_export_data(path, min_modified_time):
-        return False
-
-    try:
-        with open(path, "r", encoding="utf-8-sig", newline="") as f:
-            reader = csv.DictReader(f)
-            rows = list(reader)
-            fieldnames = list(reader.fieldnames or [])
-    except (OSError, PermissionError):
-        return False
-
-    if not rows:
-        return False
-
-    for header in ("Result_Label", "result TP SL BE"):
-        if header not in fieldnames:
-            fieldnames.append(header)
-
-    rows[0]["Result_Label"] = "TIME_OVER"
-    rows[0]["result TP SL BE"] = "TIME_OVER"
-
-    try:
-        with open(path, "w", encoding="utf-8", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-            writer.writeheader()
-            writer.writerows(rows)
-    except (OSError, PermissionError):
-        return False
-
-    return True
-
-
 def write_holiday_no_data_result(path, date_ddmmyyyy):
     dd, mm, yyyy = date_ddmmyyyy.split("/")
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -413,7 +354,7 @@ def stop_replay(stop_button=None):
     print("No encontre boton Stop; probablemente el replay ya termino.")
 
 
-MAX_WAIT_SECONDS = 3 * 60
+MAX_WAIT_SECONDS = 120
 
 def format_countdown(seconds):
     seconds = max(0, int(seconds))
@@ -435,13 +376,6 @@ def wait_until_result(path, min_modified_time=None, no_trade_cutoff_seconds=None
             stop_replay(stop_button)
             return True
 
-        if replay_playback_is_stopped() and mark_result_time_over_if_has_data(path, min_modified_time):
-            print("\r" + " " * max(len(last_status_line), 80), end="\r", flush=True)
-            print("Esperando... listo.")
-            print("Resultado terminal detectado en CSV; paso al siguiente dia.")
-            stop_replay(stop_button)
-            return True
-
         elapsed = time.time() - start
         has_open_trade = result_is_open_trade(path, min_modified_time)
         countdown_limit = no_trade_cutoff_seconds if no_trade_cutoff_seconds is not None else MAX_WAIT_SECONDS
@@ -453,11 +387,6 @@ def wait_until_result(path, min_modified_time=None, no_trade_cutoff_seconds=None
             not has_open_trade
         ):
             print("\r" + " " * max(len(last_status_line), 80), end="\r", flush=True)
-            if result_has_export_data(path, min_modified_time):
-                print(f"Corte {NO_TRADE_CUTOFF_TIME} sin trade OPEN ({int(elapsed)}s). Deteniendo replay del dia.")
-                stop_replay(stop_button)
-                return True
-
             print(f"Corte {NO_TRADE_CUTOFF_TIME} sin trade OPEN ({int(elapsed)}s). Deteniendo replay del dia.")
             stop_replay(stop_button)
             return False
@@ -583,14 +512,6 @@ def get_or_create_headers(ws):
         "Speed_Profile",
         "MAE_ticks",
         "MFE_ticks",
-        "FakeBreakout_Extreme_CVD",
-        "FakeBreakout_Extreme_Delta",
-        "FakeBreakout_Extreme_Volume",
-        "vPOC_Reaction_MaxFav_Ticks",
-        "vPOC_Reaction_MaxAdverse_Ticks",
-        "vPOC_Bounced",
-        "vPOC_CVD_atTouch",
-        "vPOC_Delta_atTouch",
     ]
 
     headers = [
@@ -663,15 +584,18 @@ def update_score_workbook():
     first_row = 4
     last_row = first_row + len(DATES_DST) - 1
 
+    for row in range(first_row, ws.max_row + 1):
+        for col in range(1, ws.max_column + 1):
+            ws.cell(row=row, column=col).value = None
+
     for row_offset, date in enumerate(DATES_DST, start=first_row):
         result = read_trade_result(expected_result_path(date), date)
         missing_result_file = result.get("result TP SL BE") in ("NO_CSV", "EMPTY_CSV")
 
-        if missing_result_file:
-            continue
-
         for col, header in enumerate(headers, start=1):
             if header not in result:
+                if missing_result_file:
+                    ws.cell(row=row_offset, column=col).value = None
                 continue
 
             value = to_number(result.get(header))
@@ -821,7 +745,6 @@ try:
 
             time.sleep(5)
             print_result_file(result_path)
-            update_score_workbook()
         except Exception as exc:
             failed_dates.append((date, str(exc)))
             print(f"ERROR procesando {date}: {exc}")
