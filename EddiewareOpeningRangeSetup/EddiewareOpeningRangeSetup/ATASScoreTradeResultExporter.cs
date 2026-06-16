@@ -1,11 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using ATAS.Indicators;
 
 namespace ATAS.Indicators
@@ -14,32 +9,6 @@ namespace ATAS.Indicators
     {
         private readonly string _exportFolder =
             @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score";
-
-        // ===================== TELEGRAM (espejo del ExecutionManager) =====================
-        private static readonly HttpClient TelegramHttpClient = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(10)
-        };
-
-        private Task _lastTelegramSendTask = Task.CompletedTask;
-
-        private readonly string _telegramCredentialsFile =
-            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_credentials.txt";
-
-        private readonly string _telegramMessageIdsFile =
-            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_message_ids.txt";
-
-        // El runner Python crea este archivo UNA sola vez, antes de la primera fecha del replay.
-        // Mientras exista, el exporter borra la conversacion anterior y elimina el archivo,
-        // de modo que los mensajes de resultados de la corrida actual se queden apilados.
-        private readonly string _telegramClearRequestFile =
-            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_clear_requested.txt";
-
-        private readonly string _telegramSentDatesFile =
-            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_sent_dates.txt";
-
-        private bool _telegramResultSent; // garantiza un solo mensaje por dia en memoria
-        private bool _telegramClearChecked; // limpieza de conversacion una vez por corrida
 
         private readonly string _targetDateFile =
             @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\target_trade_result_date.txt";
@@ -51,9 +20,7 @@ namespace ATAS.Indicators
             TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
 
         private const decimal SetupTickSize = 0.25m;
-        private const decimal ValueAcceptanceMinTradeTicks = 30m;
-        private const decimal NormalScalpMaxTradeTicks = 120m;
-        private const string ExporterVersion = "ew-strategy-2026-06-16-v11-stopimmediate";
+        private const string ExporterVersion = "score-exporter-2026-05-30-aplus-structure-export";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
@@ -87,24 +54,11 @@ namespace ATAS.Indicators
         private ScoreTradeSignal? _pendingScore;
         private int _pendingScoreBar = -1;
         private DateTime _pendingScoreNyTime = DateTime.MinValue;
-        private bool _cvdFilterSkippedDay;
         private ScoreTradeSignal? _bestRejectedScore;
         private int _bestRejectedScoreBar = -1;
         private DateTime _bestRejectedScoreNyTime = DateTime.MinValue;
-        private decimal _shadowMaeTicks;
-        private decimal _shadowMfeTicks;
-        // Runner shadow: sigue la excursion favorable del trade real hasta TIME_OVER,
-        // ignorando el cierre por TP. Solo activo con EnableRunnerShadow.
-        private bool _runnerActive;
-        private string _runnerSide = "";
-        private decimal _runnerEntry;
-        private int _runnerEntryBar = -1;
-        private decimal _runnerMfeTicks;
-        private int _runnerPeakBarOffset;
-        private bool _runnerClosePending; // trade ya cerro (TP/SL); esperamos a 9:40 para escribir
         private decimal _lastManagePrice;
         private DateTime _lastManageTimeUtc = DateTime.MinValue;
-        private int _lastSignalReadyBar = -1;
 
         public int MinScore { get; set; } = 5;
         public decimal MinOrRangeTicks { get; set; } = 40;
@@ -114,81 +68,20 @@ namespace ATAS.Indicators
         public decimal MinAbsDelta { get; set; } = 25;
         public decimal MinNormalSpeedTicksPerSecond { get; set; } = 2;
         public decimal APlusSpeedTicksPerSecond { get; set; } = 5;
-        public decimal ReplaySpeedMultiplier { get; set; } = 10;
+        public decimal ReplaySpeedMultiplier { get; set; } = 1;
         public decimal ImbalanceRatio { get; set; } = 3m;
-        public decimal ImbalanceCompareMinVolume { get; set; } = 50m;
+        public decimal ImbalanceCompareMinVolume { get; set; } = 70m;
         public decimal APlusPriceAcceptanceTicks { get; set; } = 20m;
         public decimal MinTradeTicks { get; set; } = 60;
         public decimal MaxTradeTicks { get; set; } = 60;
         public decimal HalfMfeExitMinMfeTicks { get; set; } = 40;
         public decimal FastExitMinMfeTicks { get; set; } = 40;
         public decimal FastExitPullbackTicks { get; set; } = 10;
-        public decimal CvdProfitLockPullbackTicks { get; set; } = 10;
-
-        /// <summary>
-        /// Si esta activo, la gestion de riesgo por CVD (risk bracket, profit lock
-        /// y salida por riesgo) tambien aplica a trades "normal speed".
-        /// Por defecto OFF: primero hay que medir con la instrumentacion
-        /// CvdRisk_First_* antes de cambiar el comportamiento del sistema.
-        /// </summary>
-        public bool EnableCvdRiskManagementForNormalSpeed { get; set; } = false;
-
-        /// <summary>
-        /// MODO FILTRO: si esta activo, solo se toma el trade del dia cuando
-        /// Cvd_Pullback_Pct_AtEntry >= CvdAtEntryThreshold (entrada contrarian:
-        /// CVD cerca del extremo opuesto a la direccion del trade). Si la senal
-        /// del dia no califica, el dia se omite (igual que en la validacion
-        /// historica). Evidencia real v7 (replay 232 dias mar2025-may2026):
-        /// cvd>=0.90 -> n=24, WR 75%, PF 3.13, ~2.2 trades/mes.
-        /// </summary>
-        public bool EnableCvdAtEntryFilter { get; set; } = true;
-
-        /// <summary>
-        /// Umbral del pullback at-entry para el filtro y el sizing. 0.90 es la
-        /// union de los mejores cortes CVD (sweet spot 0.90-0.95 y cvd>=0.90+score<=4)
-        /// sin matar la operativa. No optimizar al decimal: eso seria sobreajuste.
-        /// </summary>
-        public decimal CvdAtEntryThreshold { get; set; } = 0.90m;
-
-        /// <summary>
-        /// Limite superior del sweet spot CVD. Trades con cvd en [Threshold, SweetSpotMax)
-        /// se aceptan siempre (bucket A: 0.90-0.95, WR 88% PF 7.20).
-        /// </summary>
-        public decimal CvdAtEntrySweetSpotMax { get; set; } = 0.95m;
-
-        /// <summary>
-        /// Score maximo para aceptar trades con cvd >= SweetSpotMax (bucket B:
-        /// cvd>=0.90 + score<=4, WR 83% PF 5.62). Encima de este score y con cvd
-        /// alto el trade se descarta. Union A∪B: n=17, ~1.5/mes, WR 82%, PF 5.09.
-        /// </summary>
-        public int CvdAtEntryHighCvdMaxScore { get; set; } = 4;
-
-        /// <summary>
-        /// MODO MEDICION DE RUNNER: si esta activo, tras tocar TP/SL el dia NO se
-        /// cierra; se sigue midiendo la excursion favorable real hasta TIME_OVER
-        /// (9:40) y se exporta en Runner_MFE_ticks / Runner_Peak_BarOffset. El
-        /// resultado vivo (TP/SL) no cambia. Sirve para descubrir cuanto habria
-        /// corrido cada trade. El replay tarda mas por dia (corre hasta 9:40).
-        /// </summary>
-        public bool EnableRunnerShadow { get; set; } = false;
-
-        /// <summary>
-        /// MODO SIZING: contratos cuando la senal califica (pct >= umbral).
-        /// 1 = desactivado. La columna Trade_Contracts registra el tamano.
-        /// El PnL del CSV sigue siendo por contrato; el tamano se pondera
-        /// en el analisis.
-        /// </summary>
-        public int CvdAtEntrySizeMultiplier { get; set; } = 1;
         public decimal FastExitAdverseSpeedTicksPerSecond { get; set; } = 6;
         public TimeSpan TimeOverTimeNy { get; set; } = new TimeSpan(9, 40, 0);
         public int MinTimeOverRealtimeSeconds { get; set; } = 5;
         public bool RequireBodyOkForTrade { get; set; } = false;
         public bool RequireVwapOkForTrade { get; set; } = false;
-
-        // ===================== TELEGRAM =====================
-        public bool EnableTelegramAlerts { get; set; } = true;
-        public string TelegramBotToken { get; set; } = "";
-        public string TelegramChatId { get; set; } = "";
 
         public ATASScoreTradeResultExporter()
         {
@@ -215,20 +108,10 @@ namespace ATAS.Indicators
 
             var current = GetCandle(bar);
             var currentNyTime = ConvertToNewYorkTime(current.Time);
-            var currentSignalNyTime = ResolveSignalNewYorkTime(current);
-            var closedBar = bar - 1;
-            var closedCandle = GetCandle(closedBar);
-            var closedNyTime = ConvertToNewYorkTime(closedCandle.Time);
             var targetDate = ReadTargetDate();
 
             if (targetDate == null)
                 return;
-
-            if (!_telegramClearChecked && !_isRecalculating)
-            {
-                _telegramClearChecked = true;
-                MaybeClearTelegramConversation();
-            }
 
             if (currentNyTime.Date != _currentNyDate)
                 ResetDay(currentNyTime.Date);
@@ -236,17 +119,13 @@ namespace ATAS.Indicators
             if (currentNyTime.Date != targetDate.Value.Date)
                 return;
 
-            UpdateTradeResult(bar, current);
-            UpdateShadowExcursion(bar, current);
-            UpdateRunnerExcursion(bar, current);
-
-            if (TryFinalizeRunnerShadow(bar, current, currentNyTime))
-                return;
-
-            if (TryWriteTimeOver(bar, current, currentNyTime))
-                return;
-
             UpdateSpeedClock(bar);
+
+            UpdateAPlusStructureFromBar(bar, current, currentNyTime);
+
+            var closedBar = bar - 1;
+            var closedCandle = GetCandle(closedBar);
+            var closedNyTime = ConvertToNewYorkTime(closedCandle.Time);
 
             UpdateAPlusStructureFromBar(closedBar, closedCandle, closedNyTime);
 
@@ -259,41 +138,27 @@ namespace ATAS.Indicators
                 return;
             }
 
+            UpdateTradeResult(bar, current);
+
+            if (TryWriteTimeOver(bar, current, currentNyTime))
+                return;
+
             if (!_orReady)
                 return;
 
-            if (_tradeCreated || _cvdFilterSkippedDay || bar <= _orBar || !IsSignalWindow(currentNyTime))
+            if (_tradeCreated || bar <= _orBar || !IsSignalWindow(currentNyTime))
                 return;
-
-            UpdateAPlusStructureFromBar(bar, current, currentNyTime);
 
             var score = CalculateLiveScore(current, bar, currentNyTime);
 
             if (!score.IsReady)
             {
-                TrackRejectedScore(bar, currentSignalNyTime, score);
+                TrackRejectedScore(bar, currentNyTime, score);
                 return;
             }
 
-            if (bar <= _lastSignalReadyBar)
-                return;
-
-            // Filtro estructural: skip silencioso — no marca el dia como filtrado por CVD,
-            // permite seguir buscando mejor señal en barras posteriores.
-            if (!PassesStructuralFilter(score))
-                return;
-
-            if (!PassesCvdAtEntryFilter(score))
-            {
-                _cvdFilterSkippedDay = true;
-                TrackRejectedScore(bar, currentSignalNyTime, score);
-                return;
-            }
-
-            _lastSignalReadyBar = bar;
             ClearPendingScore();
-            CreateTrade(bar, current, currentSignalNyTime, score);
-            UpdateEntryBarTradeResult(bar, current);
+            CreateTrade(bar, current, currentNyTime, score);
         }
 
         private void CreateTrade(int bar, dynamic candle, DateTime nyTime, ScoreTradeSignal score)
@@ -317,19 +182,10 @@ namespace ATAS.Indicators
                 MaxTradeTicks = MaxTradeTicks,
                 HardMaxTradeTicks = HardMaxTradeTicks,
                 APlusStopTicks = APlusStopTicks,
-                NormalSpeedMaxTradeTicks = NormalScalpMaxTradeTicks,
-                ValueAcceptanceMinTradeTicks = ValueAcceptanceMinTradeTicks,
-                NormalSpeedImbalanceStopPrice = score.BreakoutSideImbalanceStopPrice,
-                ValueAcceptanceStopPrice = score.ValueAcceptanceStopPrice,
                 CapSellStopAtOrHigh = false,
                 EnforceMinExitDistance = true
             });
-
-            if (!plan.IsValid)
-                return;
-
-            if (!plan.IsNormalSpeed)
-                ApplyDynamicImbalanceStop(candle, executionSide, plan);
+            ApplyDynamicImbalanceStop(candle, executionSide, plan);
 
             var hasMatchingAPlusStructure = score.HasAPlusStructure;
             var matchingAPlusSide = score.APlusStructureSide;
@@ -391,31 +247,12 @@ namespace ATAS.Indicators
                 SignalSource = score.SignalSource,
                 ImbalanceGroup3 = matchingAPlusSide,
                 ImbalanceGroupPrice = matchingAPlusPrice,
-                ImbalanceCount = matchingAPlusCount,
-                CvdSessionMaxAtEntry = score.CvdSessionMaxAtEntry,
-                CvdSessionMinAtEntry = score.CvdSessionMinAtEntry,
-                CvdPullbackPctAtEntry = score.CvdPullbackPctAtEntry,
-                CvdPullbackLabelAtEntry = score.CvdPullbackLabelAtEntry,
-                CvdSlope3AtEntry = score.CvdSlope3AtEntry,
-                BarsSinceCvdExtremeAtEntry = score.BarsSinceCvdExtremeAtEntry,
-                Contracts = CvdAtEntrySizeMultiplier > 1 && score.CvdPullbackPctAtEntry >= CvdAtEntryThreshold
-                    ? CvdAtEntrySizeMultiplier
-                    : 1
+                ImbalanceCount = matchingAPlusCount
             };
 
             _lastManagePrice = score.EntryPrice;
             _lastManageTimeUtc = DateTime.MinValue;
             _tradeCreated = true;
-
-            // Inicia el tracker de runner shadow desde la entrada real.
-            _runnerActive = true;
-            _runnerSide = _trade.Side;
-            _runnerEntry = _trade.Entry;
-            _runnerEntryBar = _trade.EntryBar;
-            _runnerMfeTicks = 0;
-            _runnerPeakBarOffset = 0;
-            _runnerClosePending = false;
-
             WriteTradeFile(nyTime.Date);
         }
 
@@ -451,11 +288,7 @@ namespace ATAS.Indicators
 
             UpdateTradeExcursion(tradeHigh, tradeLow);
             UpdateBestFavorablePrice(tradeHigh, tradeLow);
-            UpdateCvdProfitLock();
             UpdateCvdPullback(bar, candle);
-
-            if (TryApplyCvdRiskBracket())
-                return false;
 
             var decision = TradeManagerTpSlBeExit.EvaluateExit(new TradeManagerTpSlBeExit.TradeExitRequest
             {
@@ -487,13 +320,7 @@ namespace ATAS.Indicators
 
             _trade.Result = decision.Result;
             _trade.ExitPrice = ResolveExitPrice(decision);
-            if (EnableRunnerShadow)
-            {
-                _runnerClosePending = true; // diferir escritura terminal hasta TIME_OVER
-                return true;
-            }
             WriteTradeFile(_currentNyDate);
-            SendTelegramTradeResultMessage();
             return true;
         }
 
@@ -513,11 +340,7 @@ namespace ATAS.Indicators
 
             UpdateTradeExcursion(tradeHigh, tradeLow);
             UpdateBestFavorablePrice(tradeHigh, tradeLow);
-            UpdateCvdProfitLock();
             UpdateCvdPullback(bar, candle);
-
-            if (TryApplyCvdRiskBracket())
-                return;
 
             var adverseSpeed = CalculateAdverseSpeed(candle.Close, manageTimeUtc, manageTimingSource);
 
@@ -551,140 +374,7 @@ namespace ATAS.Indicators
 
             _trade.Result = decision.Result;
             _trade.ExitPrice = ResolveExitPrice(decision);
-            if (EnableRunnerShadow)
-            {
-                _runnerClosePending = true; // diferir escritura terminal hasta TIME_OVER
-                return;
-            }
             WriteTradeFile(_currentNyDate);
-            SendTelegramTradeResultMessage();
-        }
-
-        private bool TryApplyCvdRiskBracket()
-        {
-            if (_trade == null || _trade.Result != "OPEN")
-                return false;
-
-            if (_trade.CvdRiskBracketActive)
-                return false;
-
-            if (_trade.SpeedLabel == "normal speed" && !EnableCvdRiskManagementForNormalSpeed)
-                return false;
-
-            if (_trade.TpTicks <= 0)
-                return false;
-
-            if (_trade.CvdPullbackLabel != "Riesgo de reversion")
-                return false;
-
-            var decision = ATASScoreTradeExecutionManager.TryApplyCvdRiskBracket(
-                new ATASScoreTradeExecutionManager.CvdRiskBracketRequest
-                {
-                    Side = _trade.Side,
-                    SpeedLabel = _trade.SpeedLabel,
-                    Result = _trade.Result,
-                    Entry = _trade.Entry,
-                    TpTicks = _trade.TpTicks,
-                    TickSize = SetupTickSize,
-                    CvdPullbackLabel = _trade.CvdPullbackLabel,
-                    CvdRiskBracketActive = _trade.CvdRiskBracketActive,
-                    AllowNormalSpeed = EnableCvdRiskManagementForNormalSpeed
-                });
-
-            if (!decision.ShouldApply)
-                return false;
-
-            _trade.Tp = decision.Tp;
-            _trade.TpTicks = decision.TpTicks;
-            _trade.CvdRiskBracketActive = true;
-            WriteTradeFile(_currentNyDate);
-            return true;
-        }
-
-        private bool HasCvdRiskExitProgress(decimal currentPrice)
-        {
-            if (_trade == null)
-                return false;
-
-            if (_trade.SpeedLabel == "normal speed" && !EnableCvdRiskManagementForNormalSpeed)
-                return false;
-
-            if (_trade.TpTicks <= 0)
-                return false;
-
-            if (!_trade.CvdProfitLockArmed || _trade.CvdProfitLockExitPrice == 0)
-                return false;
-
-            if (_trade.CvdPullbackLabel != "Riesgo de reversion")
-                return false;
-
-            if (_trade.CvdProfitLockBestMfeTicks <= _trade.CvdProfitLockTicks)
-                return false;
-
-            return ATASScoreTradeExecutionManager.HasCvdRiskExitProgress(
-                new ATASScoreTradeExecutionManager.CvdRiskExitProgressRequest
-                {
-                    Side = _trade.Side,
-                    SpeedLabel = _trade.SpeedLabel,
-                    Entry = _trade.Entry,
-                    TpTicks = _trade.TpTicks,
-                    TickSize = SetupTickSize,
-                    CurrentPrice = currentPrice,
-                    ProfitLockArmed = _trade.CvdProfitLockArmed,
-                    ProfitLockExitPrice = _trade.CvdProfitLockExitPrice,
-                    ProfitLockTicks = _trade.CvdProfitLockTicks,
-                    ProfitLockBestMfeTicks = _trade.CvdProfitLockBestMfeTicks,
-                    CvdPullbackLabel = _trade.CvdPullbackLabel,
-                    AllowNormalSpeed = EnableCvdRiskManagementForNormalSpeed
-                });
-        }
-
-        private void UpdateCvdProfitLock()
-        {
-            if (_trade == null)
-                return;
-
-            var update = ATASScoreTradeExecutionManager.UpdateCvdProfitLock(
-                new ATASScoreTradeExecutionManager.CvdProfitLockRequest
-                {
-                    Side = _trade.Side,
-                    SpeedLabel = _trade.SpeedLabel,
-                    Entry = _trade.Entry,
-                    TpTicks = _trade.TpTicks,
-                    TickSize = SetupTickSize,
-                    MfeTicks = _trade.MfeTicks,
-                    CurrentBestMfeTicks = _trade.CvdProfitLockBestMfeTicks,
-                    CurrentLockTicks = _trade.CvdProfitLockTicks,
-                    PullbackTicks = CvdProfitLockPullbackTicks,
-                    AllowNormalSpeed = EnableCvdRiskManagementForNormalSpeed
-                });
-
-            _trade.CvdProfitLockBestMfeTicks = update.BestMfeTicks;
-
-            if (!update.Armed)
-                return;
-
-            _trade.CvdProfitLockArmed = true;
-
-            if (update.ExitPrice == 0)
-                return;
-
-            _trade.CvdProfitLockTicks = update.LockTicks;
-            _trade.CvdProfitLockExitPrice = update.ExitPrice;
-        }
-
-        private decimal CalculateCurrentFavorableTicks(decimal currentPrice)
-        {
-            if (_trade == null)
-                return 0;
-
-            if (_trade.Side == "BUY")
-                return Math.Max(0, RoundToTicks(currentPrice - _trade.Entry));
-
-            if (_trade.Side == "SELL")
-                return Math.Max(0, RoundToTicks(_trade.Entry - currentPrice));
-
-            return 0;
         }
 
         private decimal ResolveExitPrice(TradeManagerTpSlBeExit.TradeExitDecision decision)
@@ -741,69 +431,6 @@ namespace ATAS.Indicators
                 SetupTickSize);
         }
 
-        private void UpdateShadowExcursion(int bar, dynamic candle)
-        {
-            if (_bestRejectedScore == null || bar <= _bestRejectedScoreBar)
-                return;
-
-            var entry = _bestRejectedScore.EntryPrice;
-            var side = _bestRejectedScore.Side;
-            decimal favorable, adverse;
-
-            if (side == "BUY")
-            {
-                favorable = RoundToTicks(candle.High - entry);
-                adverse = RoundToTicks(entry - candle.Low);
-            }
-            else
-            {
-                favorable = RoundToTicks(entry - candle.Low);
-                adverse = RoundToTicks(candle.High - entry);
-            }
-
-            if (favorable > _shadowMfeTicks)
-                _shadowMfeTicks = Math.Max(0, favorable);
-            if (adverse > _shadowMaeTicks)
-                _shadowMaeTicks = Math.Max(0, adverse);
-        }
-
-        // Sigue la excursion favorable del trade real desde la entrada, ignorando el
-        // cierre por TP/SL, para medir cuanto habria corrido hasta TIME_OVER.
-        private void UpdateRunnerExcursion(int bar, dynamic candle)
-        {
-            if (!_runnerActive || bar <= _runnerEntryBar || SetupTickSize <= 0)
-                return;
-
-            var favorable = _runnerSide == "BUY"
-                ? RoundToTicks(candle.High - _runnerEntry)
-                : RoundToTicks(_runnerEntry - candle.Low);
-
-            if (favorable > _runnerMfeTicks)
-            {
-                _runnerMfeTicks = Math.Max(0, favorable);
-                _runnerPeakBarOffset = bar - _runnerEntryBar;
-            }
-        }
-
-        // En modo medicion: al llegar a TIME_OVER con un trade ya cerrado (close diferido),
-        // escribe el CSV terminal incluyendo Runner_MFE_ticks / Runner_Peak_BarOffset.
-        private bool TryFinalizeRunnerShadow(int bar, dynamic candle, DateTime nyTime)
-        {
-            if (!EnableRunnerShadow || !_runnerClosePending || _timeOverWritten)
-                return false;
-
-            if (nyTime.TimeOfDay < TimeOverTimeNy)
-                return false;
-
-            UpdateRunnerExcursion(bar, candle);
-            WriteTradeFile(_currentNyDate);
-            SendTelegramTradeResultMessage();
-            _timeOverWritten = true;
-            _runnerActive = false;
-            _runnerClosePending = false;
-            return true;
-        }
-
         private bool TryWriteTimeOver(int bar, dynamic candle, DateTime nyTime)
         {
             var hasOpenTrade = _trade != null && _trade.Result == "OPEN";
@@ -818,75 +445,9 @@ namespace ATAS.Indicators
                 return false;
             }
 
-            if (_cvdFilterSkippedDay || _bestRejectedScore != null)
-            {
-                if (TryRecoverMissedReadyTradeBeforeTimeOver(bar, candle, nyTime))
-                    return false;
-
-                _timeOverWritten = true;
-                WriteRejectedScoreFile(nyTime.Date);
-                SendTelegramNoTradeMessage(nyTime.Date);
-                return true;
-            }
-
-            if (TryRecoverMissedReadyTradeBeforeTimeOver(bar, candle, nyTime))
-                return false;
-
             _timeOverWritten = true;
             WriteTimeOverFile(nyTime.Date, nyTime);
-            SendTelegramNoTradeMessage(nyTime.Date);
             return true;
-        }
-
-        private bool TryRecoverMissedReadyTradeBeforeTimeOver(int currentBar, dynamic currentCandle, DateTime currentNyTime)
-        {
-            if (!_orReady || _tradeCreated || _trade != null)
-                return false;
-
-            var startBar = Math.Max(_orBar + 1, 0);
-
-            for (var scanBar = startBar; scanBar <= currentBar; scanBar++)
-            {
-                var scanCandle = GetCandle(scanBar);
-                var scanNyTime = ConvertToNewYorkTime(scanCandle.Time);
-
-                if (scanNyTime.Date != currentNyTime.Date)
-                    continue;
-
-                if (!IsSignalWindow(scanNyTime))
-                    continue;
-
-                UpdateAPlusStructureFromBar(scanBar, scanCandle, scanNyTime);
-
-                var score = CalculateLiveScore(scanCandle, scanBar, scanNyTime);
-
-                if (!score.IsReady)
-                    continue;
-
-                if (!PassesStructuralFilter(score))
-                    continue;
-
-                if (!PassesCvdAtEntryFilter(score))
-                {
-                    _cvdFilterSkippedDay = true;
-                    return false;
-                }
-
-                _lastSignalReadyBar = scanBar;
-                ClearPendingScore();
-                CreateTrade(scanBar, scanCandle, scanNyTime, score);
-
-                if (_trade == null)
-                    return false;
-
-                if (UpdateEntryBarTradeResult(scanBar, scanCandle))
-                    return true;
-
-                UpdateTradeResult(currentBar, currentCandle);
-                return true;
-            }
-
-            return false;
         }
 
         private bool HasReplayStartDelayElapsed()
@@ -927,78 +488,26 @@ namespace ATAS.Indicators
             if (_trade == null)
                 return;
 
-            var update = ATASScoreTradeExecutionManager.UpdateCvdPullback(
-                new ATASScoreTradeExecutionManager.CvdPullbackUpdateRequest
-                {
-                    Side = _trade.Side,
-                    EntryCvd = _trade.CvdEntry,
-                    PreviousPeakCvd = _trade.CvdPeak,
-                    Bar = bar,
-                    Candle = candle,
-                    GetCandle = new Func<int, dynamic>(GetCandle),
-                    SessionDate = _currentNyDate,
-                    GetSessionTime = new Func<dynamic, DateTime>(c => ConvertToNewYorkTime(c.Time))
-                });
+            var currentCvd = CumulativeDeltaDetector.Detect(
+                bar,
+                candle,
+                new Func<int, dynamic>(GetCandle),
+                _currentNyDate,
+                new Func<dynamic, DateTime>(c => ConvertToNewYorkTime(c.Time)));
 
-            _trade.CumulativeDelta = update.CumulativeDelta;
-            _trade.CumulativeDeltaSource = update.CumulativeDeltaSource;
-            _trade.CvdPeak = update.CvdPeak;
-            _trade.CvdCurrent = update.CvdCurrent;
-            _trade.CvdPullbackPercent = update.CvdPullbackPercent;
-            _trade.CvdPullbackLabel = update.CvdPullbackLabel;
+            _trade.CumulativeDelta = currentCvd.Value;
+            _trade.CumulativeDeltaSource = currentCvd.Source;
 
-            RecordCvdLabelTransitions(bar, candle);
-        }
+            var pullback = CumulativeDeltaDetector.CalculatePullback(
+                _trade.Side,
+                _trade.CvdEntry,
+                currentCvd.Value,
+                _trade.CvdPeak);
 
-        /// <summary>
-        /// Registra la PRIMERA vez que la etiqueta CVD intra-trade alcanza
-        /// "Advertencia" y "Riesgo de reversion", junto con el contexto del
-        /// trade en ese instante. Esto permite cuantificar offline cuanto se
-        /// ahorraria una salida anticipada por riesgo CVD, sin cambiar todavia
-        /// el comportamiento del sistema.
-        /// </summary>
-        private void RecordCvdLabelTransitions(int bar, dynamic candle)
-        {
-            if (_trade == null)
-                return;
-
-            var label = _trade.CvdPullbackLabel;
-            var isWarn = label == "Advertencia" || label == "Riesgo de reversion";
-            var isRisk = label == "Riesgo de reversion";
-
-            if (!isWarn)
-                return;
-
-            var favTicks = CalculateSignedFavorableTicks(candle.Close);
-            var barOffset = bar - _trade.EntryBar;
-
-            if (_trade.CvdWarnFirstBarOffset < 0)
-            {
-                _trade.CvdWarnFirstBarOffset = barOffset;
-                _trade.CvdWarnFirstFavTicks = favTicks;
-            }
-
-            if (isRisk && _trade.CvdRiskFirstBarOffset < 0)
-            {
-                _trade.CvdRiskFirstBarOffset = barOffset;
-                _trade.CvdRiskFirstFavTicks = favTicks;
-                _trade.CvdRiskFirstMaeTicks = _trade.MaeTicks;
-                _trade.CvdRiskFirstMfeTicks = _trade.MfeTicks;
-            }
-        }
-
-        private decimal CalculateSignedFavorableTicks(decimal currentPrice)
-        {
-            if (_trade == null || SetupTickSize <= 0)
-                return 0;
-
-            if (_trade.Side == "BUY")
-                return Math.Round((currentPrice - _trade.Entry) / SetupTickSize, 0);
-
-            if (_trade.Side == "SELL")
-                return Math.Round((_trade.Entry - currentPrice) / SetupTickSize, 0);
-
-            return 0;
+            _trade.CvdPeak = pullback.PeakCvd;
+            _trade.CvdCurrent = pullback.CurrentCvd;
+            _trade.CvdPullbackPercent = pullback.PullbackPercent;
+            _trade.CvdPullbackLabel = pullback.PullbackLabel;
         }
 
         private void UpdateTradeExcursion(decimal high, decimal low)
@@ -1039,22 +548,11 @@ namespace ATAS.Indicators
             tradeHigh = candle.Close;
             tradeLow = candle.Close;
 
-            if (_trade.Side == "BUY")
-            {
-                if (candle.High > _trade.EntryBarHighAtEntry)
-                    tradeHigh = candle.High;
+            if (candle.High > _trade.EntryBarHighAtEntry)
+                tradeHigh = candle.High;
 
-                if (candle.Low < _trade.EntryBarLowAtEntry)
-                    tradeLow = candle.Low;
-            }
-            else if (_trade.Side == "SELL")
-            {
-                if (candle.High > _trade.EntryBarHighAtEntry)
-                    tradeHigh = candle.High;
-
-                if (candle.Low < _trade.EntryBarLowAtEntry)
-                    tradeLow = candle.Low;
-            }
+            if (candle.Low < _trade.EntryBarLowAtEntry)
+                tradeLow = candle.Low;
         }
 
         private ScoreTradeSignal CalculateLiveScore(dynamic candle, int bar, DateTime nyTime)
@@ -1119,17 +617,6 @@ namespace ATAS.Indicators
             return TimeZoneInfo.ConvertTimeFromUtc(utcTime, _nyZone);
         }
 
-        private DateTime ResolveSignalNewYorkTime(dynamic candle)
-        {
-            string timingSource;
-            var updateTime = TryGetCandleUpdateTime(candle, out timingSource);
-
-            if (timingSource == "UtcNow")
-                return ConvertToNewYorkTime(candle.Time);
-
-            return ConvertToNewYorkTime(updateTime);
-        }
-
         private DateTime? ReadTargetDate()
         {
             if (!File.Exists(_targetDateFile))
@@ -1165,12 +652,11 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure,Cvd_SessMax_AtEntry,Cvd_SessMin_AtEntry,Cvd_Pullback_Pct_AtEntry,Cvd_Pullback_Label_AtEntry,Cvd_Slope3_AtEntry,Bars_Since_Cvd_Extreme_AtEntry,CvdWarn_First_BarOffset,CvdWarn_First_FavTicks,CvdRisk_First_BarOffset,CvdRisk_First_FavTicks,CvdRisk_First_MAE,CvdRisk_First_MFE,Trade_Contracts,Runner_MFE_ticks,Runner_Peak_BarOffset" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     _trade.EntryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     _trade.EntryTimeNy.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
-                    _trade.EntryTimeNy.Second.ToString(CultureInfo.InvariantCulture),
                     _trade.EntryBar.ToString(CultureInfo.InvariantCulture),
                     FormatPrice(_trade.OrLow),
                     FormatPrice(_trade.OrHigh),
@@ -1179,7 +665,7 @@ namespace ATAS.Indicators
                     FormatTicks(_trade.BodyBreakoutTicks),
                     FormatTicks(_trade.Volume),
                     FormatTicks(_trade.Delta),
-                    FormatTicks(_trade.CvdEntry), // CVD real al momento de la entrada (CumulativeDelta se sobrescribe intra-trade)
+                    FormatTicks(_trade.CumulativeDelta),
                     _trade.CumulativeDeltaSource,
                     FormatTicks(_trade.CvdPeak),
                     FormatTicks(_trade.CvdCurrent),
@@ -1223,22 +709,7 @@ namespace ATAS.Indicators
                     _trade.ImbalanceGroup3,
                     FormatNullablePrice(_trade.ImbalanceGroupPrice),
                     _trade.ImbalanceCount.ToString(CultureInfo.InvariantCulture),
-                    FormatBool(_trade.SpeedIgnoredByStructure),
-                    FormatTicks(_trade.CvdSessionMaxAtEntry),
-                    FormatTicks(_trade.CvdSessionMinAtEntry),
-                    FormatSeconds(_trade.CvdPullbackPctAtEntry),
-                    _trade.CvdPullbackLabelAtEntry,
-                    FormatTicks(_trade.CvdSlope3AtEntry),
-                    _trade.BarsSinceCvdExtremeAtEntry.ToString(CultureInfo.InvariantCulture),
-                    _trade.CvdWarnFirstBarOffset.ToString(CultureInfo.InvariantCulture),
-                    FormatSignedTicks(_trade.CvdWarnFirstFavTicks),
-                    _trade.CvdRiskFirstBarOffset.ToString(CultureInfo.InvariantCulture),
-                    FormatSignedTicks(_trade.CvdRiskFirstFavTicks),
-                    FormatTicks(_trade.CvdRiskFirstMaeTicks),
-                    FormatTicks(_trade.CvdRiskFirstMfeTicks),
-                    _trade.Contracts.ToString(CultureInfo.InvariantCulture),
-                    FormatTicks(_runnerMfeTicks),
-                    _runnerPeakBarOffset.ToString(CultureInfo.InvariantCulture)
+                    FormatBool(_trade.SpeedIgnoredByStructure)
                 ) + Environment.NewLine
             );
         }
@@ -1255,12 +726,11 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure,Cvd_SessMax_AtEntry,Cvd_SessMin_AtEntry,Cvd_Pullback_Pct_AtEntry,Cvd_Pullback_Label_AtEntry,Cvd_Slope3_AtEntry,Bars_Since_Cvd_Extreme_AtEntry,CvdWarn_First_BarOffset,CvdWarn_First_FavTicks,CvdRisk_First_BarOffset,CvdRisk_First_FavTicks,CvdRisk_First_MAE,CvdRisk_First_MFE,Trade_Contracts" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     nyTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
-                    nyTime.Second.ToString(CultureInfo.InvariantCulture),
                     "", // EntryBar
                     FormatPrice(_orLow),
                     FormatPrice(_orHigh),
@@ -1313,53 +783,9 @@ namespace ATAS.Indicators
                     _aPlusStructureSide,
                     FormatNullablePrice(_aPlusStructurePrice),
                     _aPlusStructureCount.ToString(CultureInfo.InvariantCulture),
-                    "FALSE",
-                    "", "", "", "", "", "", // Cvd at-entry (sin trade)
-                    "", "", "", "", "", "", // CvdWarn/CvdRisk (sin trade)
-                    "0" // Trade_Contracts
+                    "FALSE"
                 ) + Environment.NewLine
             );
-        }
-
-        /// <summary>
-        /// True si la senal califica segun el filtro CVD at-entry (o si el
-        /// filtro esta apagado). La decision usa solo datos pre-entrada.
-        /// </summary>
-        private bool PassesCvdAtEntryFilter(ScoreTradeSignal score)
-        {
-            if (!EnableCvdAtEntryFilter)
-                return true;
-
-            var cvd = score.CvdPullbackPctAtEntry;
-            if (cvd < CvdAtEntryThreshold)
-                return false;
-
-            // Solo los 2 buckets de mayor PF (evidencia v7, replay 232 dias):
-            //  A) sweet spot [0.90, 0.95)        -> WR 88%, PF 7.20
-            //  B) cvd>=0.90 con score <= maxScore -> WR 83%, PF 5.62
-            // Se descartan los cvd altos (>=0.95) con score alto (PF mas bajo).
-            var sweetSpot = cvd < CvdAtEntrySweetSpotMax;
-            var lowScoreHighCvd = score.Score <= CvdAtEntryHighCvdMaxScore;
-            if (!(sweetSpot || lowScoreHighCvd))
-                return false;
-
-            return true;
-        }
-
-        // Pre-filtro estructural: rechaza señales sin calidad estructural minima.
-        // NO setea _cvdFilterSkippedDay — permite seguir buscando en barras posteriores.
-        private static bool PassesStructuralFilter(ScoreTradeSignal score)
-        {
-            // A+ SPEED desactivado — pendiente validacion estadistica.
-            if (score.SignalSource == "A+ SPEED")
-                return false;
-
-            // VALUE_ACCEPTANCE sin imbalances ni VWAP: analisis n=8 perdedores, WR 0%.
-            var imbalanceCount = score.Side == "BUY" ? score.BuyImbalanceCount : score.SellImbalanceCount;
-            if (score.SignalSource == "VALUE_ACCEPTANCE" && imbalanceCount == 0 && !score.VwapOk)
-                return false;
-
-            return true;
         }
 
         private void TrackRejectedScore(int bar, DateTime nyTime, ScoreTradeSignal score)
@@ -1373,15 +799,10 @@ namespace ATAS.Indicators
                 return;
             }
 
-            if (_bestRejectedScoreBar != bar)
-            {
-                _shadowMaeTicks = 0;
-                _shadowMfeTicks = 0;
-            }
-
             _bestRejectedScore = score;
             _bestRejectedScoreBar = bar;
             _bestRejectedScoreNyTime = nyTime;
+            WriteRejectedScoreFile(nyTime.Date);
         }
 
         private void WriteRejectedScoreFile(DateTime nyDate)
@@ -1400,12 +821,11 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure,Cvd_SessMax_AtEntry,Cvd_SessMin_AtEntry,Cvd_Pullback_Pct_AtEntry,Cvd_Pullback_Label_AtEntry,Cvd_Slope3_AtEntry,Bars_Since_Cvd_Extreme_AtEntry,CvdWarn_First_BarOffset,CvdWarn_First_FavTicks,CvdRisk_First_BarOffset,CvdRisk_First_FavTicks,CvdRisk_First_MAE,CvdRisk_First_MFE,Trade_Contracts" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     _bestRejectedScoreNyTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
-                    _bestRejectedScoreNyTime.Second.ToString(CultureInfo.InvariantCulture),
                     _bestRejectedScoreBar.ToString(CultureInfo.InvariantCulture),
                     FormatPrice(score.OrLow),
                     FormatPrice(score.OrHigh),
@@ -1450,23 +870,15 @@ namespace ATAS.Indicators
                     "NO_PROFILE",
                     "",
                     "NO_PROFILE",
-                    _shadowMaeTicks > 0 ? FormatTicks(_shadowMaeTicks) : "",
-                    _shadowMfeTicks > 0 ? FormatTicks(_shadowMfeTicks) : "",
+                    "",
+                    "",
                     FormatBool(score.HasAPlusStructure),
                     FormatBool(score.HasAPlusAbsorption),
                     FormatBool(score.HasAPlusSpeed),
                     score.APlusStructureSide,
                     FormatNullablePrice(score.APlusStructurePrice),
                     (score.HasAPlusStructure ? 3 : 0).ToString(CultureInfo.InvariantCulture),
-                    FormatBool(score.SpeedIgnoredByStructure),
-                    FormatTicks(score.CvdSessionMaxAtEntry),
-                    FormatTicks(score.CvdSessionMinAtEntry),
-                    FormatSeconds(score.CvdPullbackPctAtEntry),
-                    score.CvdPullbackLabelAtEntry,
-                    FormatTicks(score.CvdSlope3AtEntry),
-                    score.BarsSinceCvdExtremeAtEntry.ToString(CultureInfo.InvariantCulture),
-                    "", "", "", "", "", "", // instrumentacion intra-trade no aplica
-                    "0" // Trade_Contracts
+                    FormatBool(score.SpeedIgnoredByStructure)
                 ) + Environment.NewLine
             );
         }
@@ -1480,7 +892,6 @@ namespace ATAS.Indicators
             _orReady = false;
             _tradeCreated = false;
             _timeOverWritten = false;
-            _telegramResultSent = false;
             _signalEngine.ResetDay();
             _hasAPlusStructure = false;
             _aPlusStructureSide = "";
@@ -1495,15 +906,6 @@ namespace ATAS.Indicators
             _trade = null;
             _lastManagePrice = 0;
             _lastManageTimeUtc = DateTime.MinValue;
-            _lastSignalReadyBar = -1;
-            _cvdFilterSkippedDay = false;
-            _runnerActive = false;
-            _runnerClosePending = false;
-            _runnerSide = "";
-            _runnerEntry = 0;
-            _runnerEntryBar = -1;
-            _runnerMfeTicks = 0;
-            _runnerPeakBarOffset = 0;
             ClearPendingScore();
             ClearRejectedScore();
         }
@@ -1520,288 +922,6 @@ namespace ATAS.Indicators
             _bestRejectedScore = null;
             _bestRejectedScoreBar = -1;
             _bestRejectedScoreNyTime = DateTime.MinValue;
-            _shadowMaeTicks = 0;
-            _shadowMfeTicks = 0;
-        }
-
-        // ===================== TELEGRAM =====================
-        // Un solo mensaje por dia, nunca durante recalculo de la serie.
-
-        private void SendTelegramTradeResultMessage()
-        {
-            if (_telegramResultSent || _isRecalculating || _trade == null)
-                return;
-
-            if (IsTelegramSentForDate(_trade.EntryDate))
-            {
-                _telegramResultSent = true;
-                return;
-            }
-
-            _telegramResultSent = true;
-            MarkTelegramSentForDate(_trade.EntryDate);
-
-            var result = _trade.Result;
-            var signedTicks = TradeResultTicks();
-            var emoji = result == "TP" ? "\U0001F7E2" : result == "SL" ? "\U0001F534" : "⚪";
-            var signo = signedTicks >= 0 ? "+" : "";
-            var dateText = FormatTelegramDate(_trade.EntryDate);
-            var entryTimeText = _trade.EntryTimeNy.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
-            SendTelegramText($"{emoji} {dateText} {result} {signo}{signedTicks:0} ticks | entry {entryTimeText} NY");
-        }
-
-        private void SendTelegramNoTradeMessage(DateTime nyDate)
-        {
-            if (_telegramResultSent || _isRecalculating)
-                return;
-
-            if (IsTelegramSentForDate(nyDate))
-            {
-                _telegramResultSent = true;
-                return;
-            }
-
-            _telegramResultSent = true;
-            MarkTelegramSentForDate(nyDate);
-
-            var motivo = _cvdFilterSkippedDay ? " (senal filtrada por CVD)" : "";
-            var dateText = FormatTelegramDate(nyDate);
-            SendTelegramText($"⚪ {dateText} NO TRADE TODAY{motivo}");
-        }
-
-        private bool IsTelegramSentForDate(DateTime date)
-        {
-            try
-            {
-                if (!File.Exists(_telegramSentDatesFile)) return false;
-                var key = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-                return File.ReadAllLines(_telegramSentDatesFile).Any(l => l.Trim() == key);
-            }
-            catch { return false; }
-        }
-
-        private void MarkTelegramSentForDate(DateTime date)
-        {
-            try
-            {
-                Directory.CreateDirectory(_exportFolder);
-                var key = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-                File.AppendAllText(_telegramSentDatesFile, key + Environment.NewLine);
-            }
-            catch { }
-        }
-
-        private string FormatTelegramDate(DateTime dateTime)
-        {
-            var nyDate = dateTime.Kind == DateTimeKind.Utc
-                ? ConvertToNewYorkTime(dateTime).Date
-                : dateTime.Date;
-
-            return nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-        }
-
-        private void SendTelegramText(string texto)
-        {
-            if (!EnableTelegramAlerts)
-            {
-                AppendTelegramLog($"No enviado: alertas Telegram desactivadas. Texto='{texto}'");
-                return;
-            }
-
-            var token = ResolveTelegramSetting(TelegramBotToken, "TELEGRAM_BOT_TOKEN", "token");
-            var chatId = ResolveTelegramSetting(TelegramChatId, "TELEGRAM_CHAT_ID", "chat_id");
-
-            if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(chatId))
-            {
-                AppendTelegramLog(
-                    $"No enviado: token/chat_id vacio. TokenSet={!string.IsNullOrWhiteSpace(token)}, ChatIdSet={!string.IsNullOrWhiteSpace(chatId)}. Texto='{texto}'");
-                return;
-            }
-
-            var url = $"https://api.telegram.org/bot{token}/sendMessage";
-            var payload = new Dictionary<string, string>
-            {
-                ["chat_id"] = chatId,
-                ["text"] = texto,
-                ["disable_web_page_preview"] = "true"
-            };
-
-            _lastTelegramSendTask = Task.Run(async () =>
-            {
-                try
-                {
-                    AppendTelegramLog($"Enviando Telegram. ChatId='{chatId}', Texto='{texto}'");
-                    using var content = new FormUrlEncodedContent(payload);
-                    using var response = await TelegramHttpClient.PostAsync(url, content).ConfigureAwait(false);
-                    var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        AppendTelegramLog($"Telegram HTTP {(int)response.StatusCode} {response.ReasonPhrase}: {body}");
-                        System.Diagnostics.Debug.WriteLine(
-                            $"EW Exporter: Telegram HTTP {(int)response.StatusCode} {response.ReasonPhrase}: {body}");
-                        return;
-                    }
-
-                    var match = Regex.Match(body, "\"message_id\":(\\d+)");
-                    if (match.Success && long.TryParse(match.Groups[1].Value, out var msgId))
-                        AppendMessageId(msgId);
-
-                    AppendTelegramLog($"Telegram enviado OK. Status={(int)response.StatusCode}");
-                }
-                catch (Exception ex)
-                {
-                    // Telegram caido jamas afecta el exporter.
-                    AppendTelegramLog($"Error Telegram: {ex.GetType().Name}: {ex.Message}");
-                    System.Diagnostics.Debug.WriteLine($"EW Exporter: error Telegram: {ex.Message}");
-                }
-            });
-        }
-
-        private void AppendTelegramLog(string message)
-        {
-            try
-            {
-                Directory.CreateDirectory(_exportFolder);
-                var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} {message}{Environment.NewLine}";
-                File.AppendAllText(Path.Combine(_exportFolder, "telegram_debug.log"), line);
-            }
-            catch
-            {
-                // El log de Telegram no debe afectar el exporter.
-            }
-        }
-
-        private void AppendMessageId(long messageId)
-        {
-            try
-            {
-                Directory.CreateDirectory(_exportFolder);
-                File.AppendAllText(_telegramMessageIdsFile, messageId.ToString(CultureInfo.InvariantCulture) + Environment.NewLine);
-            }
-            catch
-            {
-                // No afecta el exporter.
-            }
-        }
-
-        // Borra la conversacion anterior SOLO cuando el runner pidio limpieza (primera fecha del replay).
-        // Elimina el archivo de solicitud de inmediato para que las fechas siguientes no vuelvan a borrar
-        // y los mensajes de resultados se queden apilados.
-        private void MaybeClearTelegramConversation()
-        {
-            try
-            {
-                if (!File.Exists(_telegramClearRequestFile))
-                    return;
-
-                File.Delete(_telegramClearRequestFile);
-            }
-            catch (Exception ex)
-            {
-                AppendTelegramLog($"Error procesando solicitud de limpieza Telegram: {ex.Message}");
-                return;
-            }
-
-            _ = DeletePreviousTelegramMessagesAsync();
-        }
-
-        private async Task DeletePreviousTelegramMessagesAsync()
-        {
-            var token = ResolveTelegramSetting(TelegramBotToken, "TELEGRAM_BOT_TOKEN", "token");
-            var chatId = ResolveTelegramSetting(TelegramChatId, "TELEGRAM_CHAT_ID", "chat_id");
-
-            if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(chatId))
-                return;
-
-            long[] ids;
-
-            try
-            {
-                if (!File.Exists(_telegramMessageIdsFile))
-                    return;
-
-                ids = File.ReadAllLines(_telegramMessageIdsFile)
-                    .Select(l => l.Trim())
-                    .Where(l => l.Length > 0)
-                    .Select(l => long.TryParse(l, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id) ? id : -1L)
-                    .Where(id => id > 0)
-                    .ToArray();
-
-                File.Delete(_telegramMessageIdsFile);
-            }
-            catch (Exception ex)
-            {
-                AppendTelegramLog($"Error leyendo message IDs para borrar: {ex.Message}");
-                return;
-            }
-
-            if (ids.Length == 0)
-                return;
-
-            var deleteUrl = $"https://api.telegram.org/bot{token}/deleteMessage";
-
-            foreach (var msgId in ids)
-            {
-                try
-                {
-                    var payload = new Dictionary<string, string>
-                    {
-                        ["chat_id"] = chatId,
-                        ["message_id"] = msgId.ToString(CultureInfo.InvariantCulture)
-                    };
-                    using var content = new FormUrlEncodedContent(payload);
-                    await TelegramHttpClient.PostAsync(deleteUrl, content).ConfigureAwait(false);
-                }
-                catch
-                {
-                    // Si un mensaje ya fue borrado manualmente o expiro, ignorar.
-                }
-            }
-
-            AppendTelegramLog($"Borrados {ids.Length} mensajes Telegram de la corrida anterior.");
-        }
-
-        private string ResolveTelegramSetting(string propertyValue, string environmentVariable, string credentialsKey)
-        {
-            if (!string.IsNullOrWhiteSpace(propertyValue))
-                return propertyValue.Trim();
-
-            var envValue = Environment.GetEnvironmentVariable(environmentVariable);
-            if (!string.IsNullOrWhiteSpace(envValue))
-                return envValue.Trim();
-
-            try
-            {
-                if (!File.Exists(_telegramCredentialsFile))
-                    return "";
-
-                foreach (var rawLine in File.ReadAllLines(_telegramCredentialsFile))
-                {
-                    var line = rawLine.Trim();
-
-                    if (line.Length == 0 || line.StartsWith("#", StringComparison.Ordinal))
-                        continue;
-
-                    var separatorIndex = line.IndexOf('=');
-
-                    if (separatorIndex <= 0)
-                        continue;
-
-                    var key = line.Substring(0, separatorIndex).Trim();
-
-                    if (!string.Equals(key, credentialsKey, StringComparison.OrdinalIgnoreCase))
-                        continue;
-
-                    return line.Substring(separatorIndex + 1).Trim();
-                }
-            }
-            catch (Exception ex)
-            {
-                AppendTelegramLog($"Error leyendo credenciales Telegram: {ex.Message}");
-            }
-
-            return "";
         }
 
         private void UpdateAPlusStructureFromBar(int bar, dynamic candle, DateTime nyTime)
@@ -2037,11 +1157,6 @@ namespace ATAS.Indicators
             public string Result { get; set; } = "";
             public decimal MaeTicks { get; set; }
             public decimal MfeTicks { get; set; }
-            public bool CvdProfitLockArmed { get; set; }
-            public decimal CvdProfitLockExitPrice { get; set; }
-            public decimal CvdProfitLockTicks { get; set; }
-            public decimal CvdProfitLockBestMfeTicks { get; set; }
-            public bool CvdRiskBracketActive { get; set; }
             public bool APlusStructure { get; set; }
             public bool APlusAbsorption { get; set; }
             public bool APlusSpeed { get; set; }
@@ -2050,25 +1165,6 @@ namespace ATAS.Indicators
             public decimal? ImbalanceGroupPrice { get; set; }
             public int ImbalanceCount { get; set; }
             public bool SpeedIgnoredByStructure { get; set; }
-
-            // --- Features pre-entrada (sin lookahead) ---
-            public decimal CvdSessionMaxAtEntry { get; set; }
-            public decimal CvdSessionMinAtEntry { get; set; }
-            public decimal CvdPullbackPctAtEntry { get; set; }
-            public string CvdPullbackLabelAtEntry { get; set; } = "";
-            public decimal CvdSlope3AtEntry { get; set; }
-            public int BarsSinceCvdExtremeAtEntry { get; set; }
-
-            // --- Instrumentacion intra-trade: primera transicion de etiqueta CVD ---
-            // BarOffset = barras despues de la entrada (-1 = nunca ocurrio).
-            // FavTicks = ticks a favor (con signo) al momento de la transicion.
-            public int CvdWarnFirstBarOffset { get; set; } = -1;
-            public decimal CvdWarnFirstFavTicks { get; set; }
-            public int Contracts { get; set; } = 1;
-            public int CvdRiskFirstBarOffset { get; set; } = -1;
-            public decimal CvdRiskFirstFavTicks { get; set; }
-            public decimal CvdRiskFirstMaeTicks { get; set; }
-            public decimal CvdRiskFirstMfeTicks { get; set; }
         }
 
     }

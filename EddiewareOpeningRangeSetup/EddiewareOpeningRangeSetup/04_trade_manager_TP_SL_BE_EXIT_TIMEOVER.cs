@@ -2,6 +2,7 @@ namespace ATAS.Indicators
 {
     internal static class TradeManagerTpSlBeExit
     {
+        private const decimal NoImbalanceStopTicks = 60m;
 
         public sealed class ImbalanceDebugInfo
         {
@@ -49,11 +50,7 @@ namespace ATAS.Indicators
             public decimal MaxTradeTicks { get; set; }
             public decimal HardMaxTradeTicks { get; set; }
             public decimal APlusStopTicks { get; set; }
-            public decimal NormalSpeedMaxTradeTicks { get; set; } = 120m;
-            public decimal ValueAcceptanceMinTradeTicks { get; set; } = 30m;
             public decimal? ImbalanceStopPrice { get; set; }
-            public decimal? NormalSpeedImbalanceStopPrice { get; set; }
-            public decimal? ValueAcceptanceStopPrice { get; set; }
             public bool CapSellStopAtOrHigh { get; set; }
             public bool EnforceMinExitDistance { get; set; }
         }
@@ -69,8 +66,6 @@ namespace ATAS.Indicators
             public bool UsesImbalanceStop { get; set; }
             public bool IsAPlusSpeed { get; set; }
             public bool IsNormalSpeed { get; set; }
-            public int Contracts { get; set; } = 2;
-            public bool IsValid { get; set; } = true;
         }
 
         public sealed class TradeExitRequest
@@ -128,81 +123,6 @@ namespace ATAS.Indicators
                 : entry - tradeTicks * request.TickSize;
             var entryProfile = GetTradeClassification(request.SpeedLabel);
             var usesImbalanceStop = false;
-            var usesNormalSpeedImbalanceStop = false;
-
-            if (request.ValueAcceptanceStopPrice.HasValue &&
-                IsStopBehindEntry(request.Side, entry, request.ValueAcceptanceStopPrice.Value))
-            {
-                sl = request.ValueAcceptanceStopPrice.Value;
-                slTicks = RoundToTicks(System.Math.Abs(entry - sl), request.TickSize);
-
-                if (slTicks < request.ValueAcceptanceMinTradeTicks)
-                {
-                    slTicks = request.ValueAcceptanceMinTradeTicks;
-                    sl = request.Side == "BUY"
-                        ? entry - slTicks * request.TickSize
-                        : entry + slTicks * request.TickSize;
-                }
-
-                if (slTicks > request.NormalSpeedMaxTradeTicks)
-                {
-                    return new TradePlan
-                    {
-                        EntryProfile = entryProfile,
-                        Entry = entry,
-                        Sl = sl,
-                        Tp = 0,
-                        SlTicks = slTicks,
-                        TpTicks = 0,
-                        UsesImbalanceStop = true,
-                        IsAPlusSpeed = isAPlusSpeed,
-                        IsNormalSpeed = isNormalSpeed,
-                        Contracts = 0,
-                        IsValid = false
-                    };
-                }
-
-                tp = request.Side == "BUY"
-                    ? entry + slTicks * request.TickSize
-                    : entry - slTicks * request.TickSize;
-                tradeTicks = slTicks;
-                usesImbalanceStop = true;
-                usesNormalSpeedImbalanceStop = true;
-            }
-
-            if (isNormalSpeed &&
-                !usesNormalSpeedImbalanceStop &&
-                request.NormalSpeedImbalanceStopPrice.HasValue &&
-                IsStopBehindEntry(request.Side, entry, request.NormalSpeedImbalanceStopPrice.Value))
-            {
-                sl = request.NormalSpeedImbalanceStopPrice.Value;
-                slTicks = RoundToTicks(System.Math.Abs(entry - sl), request.TickSize);
-
-                if (slTicks > request.NormalSpeedMaxTradeTicks)
-                {
-                    return new TradePlan
-                    {
-                        EntryProfile = entryProfile,
-                        Entry = entry,
-                        Sl = sl,
-                        Tp = 0,
-                        SlTicks = slTicks,
-                        TpTicks = 0,
-                        UsesImbalanceStop = true,
-                        IsAPlusSpeed = isAPlusSpeed,
-                        IsNormalSpeed = isNormalSpeed,
-                        Contracts = 0,
-                        IsValid = false
-                    };
-                }
-
-                tp = request.Side == "BUY"
-                    ? entry + slTicks * request.TickSize
-                    : entry - slTicks * request.TickSize;
-                tradeTicks = slTicks;
-                usesImbalanceStop = true;
-                usesNormalSpeedImbalanceStop = true;
-            }
 
             if (!isAPlusSpeed && !isNormalSpeed && request.ImbalanceStopPrice.HasValue)
             {
@@ -230,23 +150,19 @@ namespace ATAS.Indicators
 
             if (!usesImbalanceStop)
             {
-                // slTicks already set per trade type: APlusStopTicks for A+ speed, MinTradeTicks otherwise
                 sl = request.Side == "BUY"
-                    ? entry - slTicks * request.TickSize
-                    : entry + slTicks * request.TickSize;
+                    ? entry - NoImbalanceStopTicks * request.TickSize
+                    : entry + NoImbalanceStopTicks * request.TickSize;
             }
 
-            if (!usesNormalSpeedImbalanceStop)
-            {
-                tp = ClampExitDistance(
-                    entry,
-                    tp,
-                    request.Side == "BUY" ? 1 : -1,
-                    request.TickSize,
-                    request.MinTradeTicks,
-                    request.MaxTradeTicks,
-                    request.EnforceMinExitDistance);
-            }
+            tp = ClampExitDistance(
+                entry,
+                tp,
+                request.Side == "BUY" ? 1 : -1,
+                request.TickSize,
+                request.MinTradeTicks,
+                request.MaxTradeTicks,
+                request.EnforceMinExitDistance);
 
             return new TradePlan
             {
@@ -258,9 +174,7 @@ namespace ATAS.Indicators
                 TpTicks = RoundToTicks(System.Math.Abs(entry - tp), request.TickSize),
                 UsesImbalanceStop = usesImbalanceStop,
                 IsAPlusSpeed = isAPlusSpeed,
-                IsNormalSpeed = isNormalSpeed,
-                Contracts = isNormalSpeed && slTicks > request.MinTradeTicks ? 1 : 2,
-                IsValid = true
+                IsNormalSpeed = isNormalSpeed
             };
         }
 
@@ -285,10 +199,8 @@ namespace ATAS.Indicators
                 };
             }
 
-            // OHLC/backtest data cannot prove intrabar order when TP and SL are both inside
-            // the same range. Prefer the conservative outcome so exports match replay fills.
-            var result = hitSl ? "SL" : "TP";
-            var exitPrice = hitSl ? request.Sl : request.Tp;
+            var result = hitTp ? "TP" : "SL";
+            var exitPrice = hitTp ? request.Tp : request.Sl;
 
             return new TradeExitDecision
             {
@@ -776,13 +688,6 @@ namespace ATAS.Indicators
                 return maxTradeTicks;
 
             return ticks;
-        }
-
-        private static bool IsStopBehindEntry(string side, decimal entry, decimal stop)
-        {
-            return side == "BUY"
-                ? stop < entry
-                : stop > entry;
         }
 
         private static decimal ClampExitDistance(

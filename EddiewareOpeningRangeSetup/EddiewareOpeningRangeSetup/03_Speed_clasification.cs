@@ -4,8 +4,6 @@ namespace ATAS.Indicators
 {
     internal static class SpeedClasification
     {
-        private const double FallbackBarSeconds = 6d;
-
         public sealed class SpeedState
         {
             public decimal TicksPerSecond { get; set; }
@@ -32,9 +30,9 @@ namespace ATAS.Indicators
 
             if (elapsedSeconds <= 0 || elapsedSeconds > 300)
             {
+                elapsedSeconds = (DateTime.UtcNow - speedBarStartedAtUtc).TotalSeconds;
                 usedReplayFallback = true;
-                timingSource = "bar-close-fallback";
-                elapsedSeconds = FallbackBarSeconds / (double)NormalizeReplaySpeedMultiplier(replaySpeedMultiplier);
+                timingSource = "replay-fallback";
             }
 
             if (elapsedSeconds <= 0)

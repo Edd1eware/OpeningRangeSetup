@@ -61,139 +61,6 @@ namespace ATAS.Indicators
             };
         }
 
-        /// <summary>
-        /// Calcula estadisticas del CVD de la sesion usando UNICAMENTE barras
-        /// con indice menor o igual a <paramref name="bar"/> (sin lookahead).
-        /// El CVD se reconstruye barra a barra desde el inicio de la sesion.
-        /// </summary>
-        public static CumulativeDeltaSessionStats DetectSessionStats(
-            int bar,
-            Func<int, dynamic> getCandle,
-            DateTime sessionDate,
-            Func<dynamic, DateTime> getSessionTime,
-            int slopeBars)
-        {
-            var stats = new CumulativeDeltaSessionStats();
-
-            if (getCandle == null || getSessionTime == null || bar < 0)
-                return stats;
-
-            // 1) Encontrar la primera barra de la sesion caminando hacia atras.
-            var firstSessionBar = bar;
-
-            for (var i = bar; i >= 0; i--)
-            {
-                dynamic sessionCandle;
-                DateTime candleSessionTime;
-
-                try
-                {
-                    sessionCandle = getCandle(i);
-                    candleSessionTime = getSessionTime(sessionCandle);
-                }
-                catch
-                {
-                    break;
-                }
-
-                if (candleSessionTime.Date != sessionDate.Date)
-                    break;
-
-                firstSessionBar = i;
-            }
-
-            // 2) Reconstruir el CVD hacia adelante SOLO hasta la barra actual.
-            decimal cumulative = 0;
-            decimal sessionMax = decimal.MinValue;
-            decimal sessionMin = decimal.MaxValue;
-            var barOfMax = firstSessionBar;
-            var barOfMin = firstSessionBar;
-            decimal cvdSlopeBarsAgo = 0;
-            var slopeReferenceBar = bar - Math.Max(1, slopeBars);
-            var hasAnyBar = false;
-
-            for (var i = firstSessionBar; i <= bar; i++)
-            {
-                dynamic sessionCandle;
-
-                try
-                {
-                    sessionCandle = getCandle(i);
-                }
-                catch
-                {
-                    break;
-                }
-
-                cumulative += TryGetDecimal(sessionCandle, "Delta");
-                hasAnyBar = true;
-
-                if (cumulative > sessionMax)
-                {
-                    sessionMax = cumulative;
-                    barOfMax = i;
-                }
-
-                if (cumulative < sessionMin)
-                {
-                    sessionMin = cumulative;
-                    barOfMin = i;
-                }
-
-                if (i == slopeReferenceBar)
-                    cvdSlopeBarsAgo = cumulative;
-            }
-
-            if (!hasAnyBar)
-                return stats;
-
-            stats.HasData = true;
-            stats.CvdAtBar = cumulative;
-            stats.SessionMax = sessionMax;
-            stats.SessionMin = sessionMin;
-            stats.BarsSinceMax = bar - barOfMax;
-            stats.BarsSinceMin = bar - barOfMin;
-            stats.CvdSlope = slopeReferenceBar >= firstSessionBar
-                ? cumulative - cvdSlopeBarsAgo
-                : cumulative;
-
-            return stats;
-        }
-
-        /// <summary>
-        /// Pullback del CVD AL MOMENTO DE LA ENTRADA, normalizado por el rango
-        /// del CVD de la sesion. 0 = el CVD esta en su extremo a favor del lado;
-        /// 1 = el CVD esta en el extremo opuesto. Solo usa datos pre-entrada.
-        /// </summary>
-        public static decimal CalculateAtEntryPullbackPercent(
-            string side,
-            decimal cvdAtEntry,
-            decimal sessionMax,
-            decimal sessionMin)
-        {
-            side = string.IsNullOrWhiteSpace(side) ? "" : side.Trim().ToUpperInvariant();
-            var expansion = sessionMax - sessionMin;
-
-            if (expansion <= 0)
-                return 0;
-
-            decimal pullback;
-
-            if (side == "BUY")
-                pullback = sessionMax - cvdAtEntry;
-            else if (side == "SELL")
-                pullback = cvdAtEntry - sessionMin;
-            else
-                return 0;
-
-            var ratio = pullback / expansion;
-
-            if (ratio < 0)
-                return 0;
-
-            return ratio > 1 ? 1 : ratio;
-        }
-
         public static CumulativeDeltaPullbackState CalculatePullback(
             string side,
             decimal entryCvd,
@@ -254,7 +121,7 @@ namespace ATAS.Indicators
             return ratio;
         }
 
-        public static string ClassifyPullback(decimal pullbackPercent)
+        private static string ClassifyPullback(decimal pullbackPercent)
         {
             if (pullbackPercent < 0.25m)
                 return "Excelente";
@@ -341,16 +208,5 @@ namespace ATAS.Indicators
         public decimal CurrentCvd { get; set; }
         public decimal PullbackPercent { get; set; }
         public string PullbackLabel { get; set; } = "";
-    }
-
-    internal sealed class CumulativeDeltaSessionStats
-    {
-        public bool HasData { get; set; }
-        public decimal CvdAtBar { get; set; }
-        public decimal SessionMax { get; set; }
-        public decimal SessionMin { get; set; }
-        public decimal CvdSlope { get; set; }
-        public int BarsSinceMax { get; set; }
-        public int BarsSinceMin { get; set; }
     }
 }

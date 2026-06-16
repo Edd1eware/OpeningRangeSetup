@@ -1,228 +1,171 @@
 using System;
+using System.ComponentModel;
+using ATAS.Indicators;
 
 namespace ATAS.Indicators
 {
-    internal static class ATASScoreTradeExecutionManager
+    [DisplayName("02_B_ATASScoreTradeExecutionManager")]
+    public class ATASScoreTradeExecutionManager : Indicator
     {
-        public sealed class CvdPullbackUpdateRequest
+        private const decimal SetupTickSize = 0.25m;
+        private const decimal HardMaxTradeTicks = 120m;
+        private const decimal APlusStopTicks = 100m;
+        private readonly ScoreTradeSignalEngine _signalEngine = new ScoreTradeSignalEngine();
+
+        private DateTime _currentDate = DateTime.MinValue;
+        private decimal _orHigh;
+        private decimal _orLow;
+        private int _orBar = -1;
+        private bool _orReady;
+        private bool _tradePlanned;
+
+        [DisplayName("Enable Execution")]
+        public bool EnableExecution { get; set; } = false;
+
+        [DisplayName("Opening Time UTC")]
+        public TimeSpan OpeningTimeUtc { get; set; } = new TimeSpan(13, 30, 0);
+
+        [DisplayName("Max Signal Time UTC")]
+        public TimeSpan MaxSignalTimeUtc { get; set; } = new TimeSpan(14, 30, 0);
+
+        [DisplayName("Min Score / Cutoff Score")]
+        public int MinScore { get; set; } = 5;
+
+        [DisplayName("Min OR Range Ticks")]
+        public decimal MinOrRangeTicks { get; set; } = 40;
+
+        [DisplayName("Max OR Range Ticks")]
+        public decimal MaxOrRangeTicks { get; set; } = 350;
+
+        [DisplayName("Min Body Breakout Ticks")]
+        public decimal MinBodyBreakoutTicks { get; set; } = 10;
+
+        [DisplayName("Min Volume")]
+        public decimal MinVolume { get; set; } = 800;
+
+        [DisplayName("Min Abs Delta")]
+        public decimal MinAbsDelta { get; set; } = 25;
+
+        [DisplayName("Min Normal Speed Ticks/Sec")]
+        public decimal MinNormalSpeedTicksPerSecond { get; set; } = 2;
+
+        [DisplayName("Min A+ Speed Ticks/Sec")]
+        public decimal APlusSpeedTicksPerSecond { get; set; } = 5;
+
+        [DisplayName("Replay Speed Multiplier")]
+        public decimal ReplaySpeedMultiplier { get; set; } = 1;
+
+        [DisplayName("Min SL/TP Ticks")]
+        public decimal MinTradeTicks { get; set; } = 60;
+
+        [DisplayName("Max SL/TP Ticks")]
+        public decimal MaxTradeTicks { get; set; } = 120;
+
+        public ATASScoreTradeExecutionManager()
         {
-            public string Side { get; set; } = "";
-            public decimal EntryCvd { get; set; }
-            public decimal PreviousPeakCvd { get; set; }
-            public int Bar { get; set; }
-            public dynamic? Candle { get; set; }
-            public Func<int, dynamic>? GetCandle { get; set; }
-            public DateTime SessionDate { get; set; }
-            public Func<dynamic, DateTime>? GetSessionTime { get; set; }
+            Name = "02_B_ATASScoreTradeExecutionManager";
+            EnableCustomDrawing = false;
         }
 
-        public sealed class CvdPullbackUpdate
+        protected override void OnCalculate(int bar, decimal value)
         {
-            public decimal CumulativeDelta { get; set; }
-            public string CumulativeDeltaSource { get; set; } = "";
-            public decimal CvdPeak { get; set; }
-            public decimal CvdCurrent { get; set; }
-            public decimal CvdPullbackPercent { get; set; }
-            public string CvdPullbackLabel { get; set; } = "";
-        }
+            if (bar < 1)
+                return;
 
-        public sealed class CvdRiskBracketRequest
-        {
-            public string Side { get; set; } = "";
-            public string SpeedLabel { get; set; } = "";
-            public string Result { get; set; } = "";
-            public decimal Entry { get; set; }
-            public decimal TpTicks { get; set; }
-            public decimal TickSize { get; set; }
-            public string CvdPullbackLabel { get; set; } = "";
-            public bool CvdRiskBracketActive { get; set; }
-            public bool AllowNormalSpeed { get; set; }
-        }
+            var candle = GetCandle(bar);
 
-        public sealed class CvdRiskBracketDecision
-        {
-            public bool ShouldApply { get; set; }
-            public decimal Tp { get; set; }
-            public decimal TpTicks { get; set; }
-        }
+            if (candle.Time.Date != _currentDate)
+                ResetDay(candle.Time.Date);
 
-        public sealed class CvdProfitLockRequest
-        {
-            public string Side { get; set; } = "";
-            public string SpeedLabel { get; set; } = "";
-            public decimal Entry { get; set; }
-            public decimal TpTicks { get; set; }
-            public decimal TickSize { get; set; }
-            public decimal MfeTicks { get; set; }
-            public decimal CurrentBestMfeTicks { get; set; }
-            public decimal CurrentLockTicks { get; set; }
-            public decimal PullbackTicks { get; set; }
-            public bool AllowNormalSpeed { get; set; }
-        }
+            _signalEngine.UpdateSpeedClock(bar);
 
-        public sealed class CvdProfitLockUpdate
-        {
-            public bool Armed { get; set; }
-            public decimal BestMfeTicks { get; set; }
-            public decimal LockTicks { get; set; }
-            public decimal ExitPrice { get; set; }
-        }
+            var closedBar = bar - 1;
 
-        public sealed class CvdRiskExitProgressRequest
-        {
-            public string Side { get; set; } = "";
-            public string SpeedLabel { get; set; } = "";
-            public decimal Entry { get; set; }
-            public decimal TpTicks { get; set; }
-            public decimal TickSize { get; set; }
-            public decimal CurrentPrice { get; set; }
-            public bool ProfitLockArmed { get; set; }
-            public decimal ProfitLockExitPrice { get; set; }
-            public decimal ProfitLockTicks { get; set; }
-            public decimal ProfitLockBestMfeTicks { get; set; }
-            public string CvdPullbackLabel { get; set; } = "";
-            public bool AllowNormalSpeed { get; set; }
-        }
-
-        public static CvdPullbackUpdate UpdateCvdPullback(CvdPullbackUpdateRequest request)
-        {
-            if (request.Candle == null || request.GetCandle == null || request.GetSessionTime == null)
+            if (!_orReady && closedBar >= 0)
             {
-                return new CvdPullbackUpdate
+                var closedCandle = GetCandle(closedBar);
+
+                if (IsOpeningCandle(closedCandle))
                 {
-                    CumulativeDelta = request.EntryCvd,
-                    CumulativeDeltaSource = "Unavailable",
-                    CvdPeak = request.PreviousPeakCvd,
-                    CvdCurrent = request.EntryCvd,
-                    CvdPullbackPercent = 0,
-                    CvdPullbackLabel = "Excelente"
-                };
+                    _orHigh = closedCandle.High;
+                    _orLow = closedCandle.Low;
+                    _orBar = closedBar;
+                    _orReady = true;
+                }
             }
 
-            var currentCvd = CumulativeDeltaDetector.Detect(
-                request.Bar,
-                request.Candle,
-                request.GetCandle,
-                request.SessionDate,
-                request.GetSessionTime);
+            if (!_orReady || _tradePlanned || bar <= _orBar)
+                return;
 
-            var pullback = CumulativeDeltaDetector.CalculatePullback(
-                request.Side,
-                request.EntryCvd,
-                currentCvd.Value,
-                request.PreviousPeakCvd);
-
-            return new CvdPullbackUpdate
+            var signal = _signalEngine.Calculate(bar, candle, new Func<int, dynamic>(GetCandle), new ScoreTradeSignalRequest
             {
-                CumulativeDelta = currentCvd.Value,
-                CumulativeDeltaSource = currentCvd.Source,
-                CvdPeak = pullback.PeakCvd,
-                CvdCurrent = pullback.CurrentCvd,
-                CvdPullbackPercent = pullback.PullbackPercent,
-                CvdPullbackLabel = pullback.PullbackLabel
-            };
-        }
+                OrLow = _orLow,
+                OrHigh = _orHigh,
+                CurrentTime = candle.Time,
+                SessionDate = candle.Time.Date,
+                GetSessionTime = c => c.Time,
+                SignalStartTime = OpeningTimeUtc,
+                SignalEndTime = MaxSignalTimeUtc,
+                NormalSpeedAllowedUntilTime = OpeningTimeUtc.Add(new TimeSpan(0, 3, 59)),
+                TickSize = SetupTickSize,
+                MinScore = MinScore,
+                MinOrRangeTicks = MinOrRangeTicks,
+                MaxOrRangeTicks = MaxOrRangeTicks,
+                MinBodyBreakoutTicks = MinBodyBreakoutTicks,
+                MinVolume = MinVolume,
+                MinAbsDelta = MinAbsDelta,
+                MinNormalSpeedTicksPerSecond = MinNormalSpeedTicksPerSecond,
+                APlusSpeedTicksPerSecond = APlusSpeedTicksPerSecond,
+                ReplaySpeedMultiplier = ReplaySpeedMultiplier
+            });
 
-        public static CvdRiskBracketDecision TryApplyCvdRiskBracket(CvdRiskBracketRequest request)
-        {
-            if (request.Result != "OPEN")
-                return new CvdRiskBracketDecision();
+            if (!signal.IsReady)
+                return;
 
-            if (request.CvdRiskBracketActive)
-                return new CvdRiskBracketDecision();
+            var executionSide = string.IsNullOrWhiteSpace(signal.ExecutionSide)
+                ? signal.Side
+                : signal.ExecutionSide;
 
-            if (request.SpeedLabel == "normal speed" && !request.AllowNormalSpeed)
-                return new CvdRiskBracketDecision();
-
-            if (request.TpTicks <= 0 || request.TickSize <= 0)
-                return new CvdRiskBracketDecision();
-
-            if (request.CvdPullbackLabel != "Riesgo de reversion")
-                return new CvdRiskBracketDecision();
-
-            var tp50Ticks = Math.Max(1, Math.Floor(request.TpTicks * 0.50m));
-            var tp = request.Side == "BUY"
-                ? request.Entry + tp50Ticks * request.TickSize
-                : request.Entry - tp50Ticks * request.TickSize;
-
-            return new CvdRiskBracketDecision
+            var plan = TradeManagerTpSlBeExit.CreateInitialPlan(new TradeManagerTpSlBeExit.TradePlanRequest
             {
-                ShouldApply = true,
-                Tp = tp,
-                TpTicks = tp50Ticks
-            };
+                Side = executionSide,
+                SpeedLabel = signal.SpeedLabel,
+                Entry = signal.EntryPrice,
+                OrLow = signal.OrLow,
+                OrHigh = signal.OrHigh,
+                TickSize = SetupTickSize,
+                MinTradeTicks = MinTradeTicks,
+                MaxTradeTicks = Math.Min(MaxTradeTicks, HardMaxTradeTicks),
+                HardMaxTradeTicks = HardMaxTradeTicks,
+                APlusStopTicks = APlusStopTicks,
+                CapSellStopAtOrHigh = true,
+                EnforceMinExitDistance = false
+            });
+
+            _tradePlanned = true;
+
+            if (!EnableExecution)
+                return;
+
+            // Order submission will be added only after demo API wiring is confirmed.
+            _ = plan;
         }
 
-        public static CvdProfitLockUpdate UpdateCvdProfitLock(CvdProfitLockRequest request)
+        private bool IsOpeningCandle(dynamic candle)
         {
-            var bestMfeTicks = Math.Max(request.CurrentBestMfeTicks, request.MfeTicks);
-            var update = new CvdProfitLockUpdate
-            {
-                Armed = false,
-                BestMfeTicks = bestMfeTicks,
-                LockTicks = request.CurrentLockTicks,
-                ExitPrice = 0
-            };
-
-            if ((request.SpeedLabel == "normal speed" && !request.AllowNormalSpeed) || request.TpTicks <= 0 || request.TickSize <= 0)
-                return update;
-
-            var armTicks = request.TpTicks * 0.50m;
-            if (bestMfeTicks < armTicks)
-                return update;
-
-            var trailingTicks = bestMfeTicks - request.PullbackTicks;
-            var lockedTicks = Math.Min(request.TpTicks, Math.Max(armTicks, trailingTicks));
-            var exitPrice = request.Side == "BUY"
-                ? request.Entry + lockedTicks * request.TickSize
-                : request.Entry - lockedTicks * request.TickSize;
-
-            update.Armed = true;
-            update.LockTicks = Math.Max(request.CurrentLockTicks, lockedTicks);
-            update.ExitPrice = lockedTicks <= request.CurrentLockTicks ? 0 : exitPrice;
-            return update;
+            var time = candle.Time.TimeOfDay;
+            return time.Hours == OpeningTimeUtc.Hours && time.Minutes == OpeningTimeUtc.Minutes;
         }
 
-        public static bool HasCvdRiskExitProgress(CvdRiskExitProgressRequest request)
+        private void ResetDay(DateTime date)
         {
-            if (request.SpeedLabel == "normal speed" && !request.AllowNormalSpeed)
-                return false;
-
-            if (request.TpTicks <= 0 || request.TickSize <= 0)
-                return false;
-
-            if (!request.ProfitLockArmed || request.ProfitLockExitPrice == 0)
-                return false;
-
-            if (request.CvdPullbackLabel != "Riesgo de reversion")
-                return false;
-
-            if (request.ProfitLockBestMfeTicks <= request.ProfitLockTicks)
-                return false;
-
-            return CalculateCurrentFavorableTicks(
-                request.Side,
-                request.Entry,
-                request.CurrentPrice,
-                request.TickSize) <= request.ProfitLockTicks;
-        }
-
-        public static decimal CalculateCurrentFavorableTicks(
-            string side,
-            decimal entry,
-            decimal currentPrice,
-            decimal tickSize)
-        {
-            if (tickSize <= 0)
-                return 0;
-
-            if (side == "BUY")
-                return Math.Max(0, Math.Round((currentPrice - entry) / tickSize, 0));
-
-            if (side == "SELL")
-                return Math.Max(0, Math.Round((entry - currentPrice) / tickSize, 0));
-
-            return 0;
+            _currentDate = date;
+            _orHigh = 0;
+            _orLow = 0;
+            _orBar = -1;
+            _orReady = false;
+            _tradePlanned = false;
+            _signalEngine.ResetDay();
         }
     }
 }

@@ -9,10 +9,7 @@
       "EddiewareOpeningRangeSetup/1.0.0": {
         "dependencies": {
           "System.Drawing.Common": "10.0.7",
-          "ATAS.DataFeedsCore": "8.0.13.387",
-          "ATAS.Indicators": "8.0.13.387",
-          "ATAS.Strategies": "8.0.13.387",
-          "ATAS.Types": "8.0.13.387"
+          "ATAS.Indicators": "8.0.13.387"
         },
         "runtime": {
           "EddiewareOpeningRangeSetup.dll": {}
@@ -53,38 +50,9 @@
           }
         }
       },
-      "ATAS.DataFeedsCore/8.0.13.387": {
-        "runtime": {
-          "ATAS.DataFeedsCore.dll": {
-            "assemblyVersion": "8.0.13.387",
-            "fileVersion": "8.0.13.387"
-          }
-        }
-      },
       "ATAS.Indicators/8.0.13.387": {
         "runtime": {
           "ATAS.Indicators.dll": {
-            "assemblyVersion": "8.0.13.387",
-            "fileVersion": "8.0.13.387"
-          }
-        }
-      },
-      "ATAS.Strategies/8.0.13.387": {
-        "runtime": {
-          "ATAS.Strategies.dll": {
-            "assemblyVersion": "8.0.13.387",
-            "fileVersion": "8.0.13.387"
-          }
-        },
-        "resources": {
-          "ru-ru/ATAS.Strategies.resources.dll": {
-            "locale": "ru-ru"
-          }
-        }
-      },
-      "ATAS.Types/8.0.13.387": {
-        "runtime": {
-          "ATAS.Types.dll": {
             "assemblyVersion": "8.0.13.387",
             "fileVersion": "8.0.13.387"
           }
@@ -111,6 +79,14 @@
           "Newtonsoft.Json.dll": {
             "assemblyVersion": "13.0.0.0",
             "fileVersion": "13.0.3.27908"
+          }
+        }
+      },
+      "ATAS.DataFeedsCore/8.0.13.387": {
+        "runtime": {
+          "ATAS.DataFeedsCore.dll": {
+            "assemblyVersion": "8.0.13.387",
+            "fileVersion": "8.0.13.387"
           }
         }
       },
@@ -147,30 +123,6 @@
           },
           "zh-cn/OFT.Localization.resources.dll": {
             "locale": "zh-cn"
-          }
-        }
-      },
-      "ATAS.Indicators.Technical/8.0.13.387": {
-        "runtime": {
-          "ATAS.Indicators.Technical.dll": {
-            "assemblyVersion": "8.0.13.387",
-            "fileVersion": "8.0.13.387"
-          }
-        },
-        "resources": {
-          "de-de/ATAS.Indicators.Technical.resources.dll": {
-            "locale": "de-de"
-          },
-          "ru-ru/ATAS.Indicators.Technical.resources.dll": {
-            "locale": "ru-ru"
-          }
-        }
-      },
-      "OFT.Core/8.0.13.387": {
-        "runtime": {
-          "OFT.Core.dll": {
-            "assemblyVersion": "8.0.13.387",
-            "fileVersion": "8.0.13.387"
           }
         }
       },
@@ -262,22 +214,6 @@
           }
         }
       },
-      "System.Management/10.0.0.0": {
-        "runtime": {
-          "System.Management.dll": {
-            "assemblyVersion": "10.0.0.0",
-            "fileVersion": "10.0.25.52411"
-          }
-        }
-      },
-      "protobuf-net.Core/3.0.0.0": {
-        "runtime": {
-          "protobuf-net.Core.dll": {
-            "assemblyVersion": "3.0.0.0",
-            "fileVersion": "3.2.45.36865"
-          }
-        }
-      },
       "System.Configuration.ConfigurationManager/4.0.1.0": {
         "runtime": {
           "System.Configuration.ConfigurationManager.dll": {
@@ -286,11 +222,11 @@
           }
         }
       },
-      "System.CodeDom/10.0.0.0": {
+      "protobuf-net.Core/3.0.0.0": {
         "runtime": {
-          "System.CodeDom.dll": {
-            "assemblyVersion": "10.0.0.0",
-            "fileVersion": "10.0.25.52411"
+          "protobuf-net.Core.dll": {
+            "assemblyVersion": "3.0.0.0",
+            "fileVersion": "3.2.45.36865"
           }
         }
       },
@@ -324,22 +260,7 @@
       "path": "system.drawing.common/10.0.7",
       "hashPath": "system.drawing.common.10.0.7.nupkg.sha512"
     },
-    "ATAS.DataFeedsCore/8.0.13.387": {
-      "type": "reference",
-      "serviceable": false,
-      "sha512": ""
-    },
     "ATAS.Indicators/8.0.13.387": {
-      "type": "reference",
-      "serviceable": false,
-      "sha512": ""
-    },
-    "ATAS.Strategies/8.0.13.387": {
-      "type": "reference",
-      "serviceable": false,
-      "sha512": ""
-    },
-    "ATAS.Types/8.0.13.387": {
       "type": "reference",
       "serviceable": false,
       "sha512": ""
@@ -359,22 +280,17 @@
       "serviceable": false,
       "sha512": ""
     },
+    "ATAS.DataFeedsCore/8.0.13.387": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
     "OFT.Rendering/8.0.13.387": {
       "type": "reference",
       "serviceable": false,
       "sha512": ""
     },
     "OFT.Localization/1.0.0.0": {
-      "type": "reference",
-      "serviceable": false,
-      "sha512": ""
-    },
-    "ATAS.Indicators.Technical/8.0.13.387": {
-      "type": "reference",
-      "serviceable": false,
-      "sha512": ""
-    },
-    "OFT.Core/8.0.13.387": {
       "type": "reference",
       "serviceable": false,
       "sha512": ""
@@ -434,22 +350,12 @@
       "serviceable": false,
       "sha512": ""
     },
-    "System.Management/10.0.0.0": {
-      "type": "reference",
-      "serviceable": false,
-      "sha512": ""
-    },
-    "protobuf-net.Core/3.0.0.0": {
-      "type": "reference",
-      "serviceable": false,
-      "sha512": ""
-    },
     "System.Configuration.ConfigurationManager/4.0.1.0": {
       "type": "reference",
       "serviceable": false,
       "sha512": ""
     },
-    "System.CodeDom/10.0.0.0": {
+    "protobuf-net.Core/3.0.0.0": {
       "type": "reference",
       "serviceable": false,
       "sha512": ""
