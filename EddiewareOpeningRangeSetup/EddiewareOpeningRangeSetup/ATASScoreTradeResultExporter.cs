@@ -202,6 +202,7 @@ namespace ATAS.Indicators
                 return;
 
             UpdateFakeBreakoutObservation(bar, current, currentNyTime);
+            UpdateVpocReaction(bar, current, currentNyTime);
 
             if (_tradeCreated || _cvdFilterSkippedDay || bar <= _orBar || !IsSignalWindow(currentNyTime))
                 return;
@@ -1071,7 +1072,7 @@ namespace ATAS.Indicators
                 _fakeBreakout.BreakoutCvdSource = cvd.Source;
             }
 
-            UpdateFakeBreakoutExpansion(candle);
+            UpdateFakeBreakoutExpansion(bar, candle, nyTime);
 
             if (!PriceTouches(candle, _fakeBreakout.VpocPrice))
                 return;
@@ -1090,10 +1091,62 @@ namespace ATAS.Indicators
                 new Func<dynamic, DateTime>(c => ConvertToNewYorkTime(c.Time)));
             _fakeBreakout.ReturnCvd = returnCvd.Value;
             _fakeBreakout.CvdTradeCandidate = IsCvdTradeCandidate(_fakeBreakout);
+
+            // Tabla B: arranca medicion de la reaccion POST-toque del vPOC.
+            _fakeBreakout.VpocReactionActive = true;
+            _fakeBreakout.VpocCvdAtTouch = returnCvd.Value;
+            _fakeBreakout.VpocDeltaAtTouch = _fakeBreakout.ReturnDelta;
+
             CopyFakeBreakoutObservationToTrade();
         }
 
-        private void UpdateFakeBreakoutExpansion(dynamic candle)
+        /// <summary>
+        /// Mide la reaccion del precio DESPUES de que el fake breakout vuelve al
+        /// vPOC (iman). La direccion esperada es contraria al breakout: si rompio
+        /// arriba y regresa, el rebote operable es a la baja. Solo research.
+        /// </summary>
+        private void UpdateVpocReaction(int bar, dynamic candle, DateTime nyTime)
+        {
+            if (!_fakeBreakout.VpocReactionActive || nyTime.TimeOfDay > TimeOverTimeNy)
+                return;
+
+            var vpoc = _fakeBreakout.VpocPrice;
+            decimal favorableTicks;
+            decimal adverseTicks;
+
+            if (_fakeBreakout.Side == "BUY")
+            {
+                // rebote esperado: baja por debajo del vPOC.
+                favorableTicks = RoundToTicks(vpoc - candle.Low);
+                adverseTicks = RoundToTicks(candle.High - vpoc);
+            }
+            else if (_fakeBreakout.Side == "SELL")
+            {
+                // rebote esperado: sube por encima del vPOC.
+                favorableTicks = RoundToTicks(candle.High - vpoc);
+                adverseTicks = RoundToTicks(vpoc - candle.Low);
+            }
+            else
+            {
+                return;
+            }
+
+            favorableTicks = Math.Max(0, favorableTicks);
+            adverseTicks = Math.Max(0, adverseTicks);
+
+            if (favorableTicks > _fakeBreakout.VpocReactionMaxFavTicks)
+                _fakeBreakout.VpocReactionMaxFavTicks = favorableTicks;
+
+            if (adverseTicks > _fakeBreakout.VpocReactionMaxAdverseTicks)
+                _fakeBreakout.VpocReactionMaxAdverseTicks = adverseTicks;
+
+            if (_fakeBreakout.VpocReactionMaxFavTicks >= APlusReactionTicks)
+                _fakeBreakout.VpocBounced = true;
+
+            CopyFakeBreakoutObservationToTrade();
+        }
+
+        private void UpdateFakeBreakoutExpansion(int bar, dynamic candle, DateTime nyTime)
         {
             if (!_fakeBreakout.Started)
                 return;
@@ -1111,6 +1164,18 @@ namespace ATAS.Indicators
             {
                 _fakeBreakout.MaxExpansionTicks = Math.Max(0, expansionTicks);
                 _fakeBreakout.ExtremePrice = _fakeBreakout.Side == "BUY" ? candle.High : candle.Low;
+
+                // Tabla A: snapshot del order-flow en el extremo del fake.
+                _fakeBreakout.ExtremeBar = bar;
+                _fakeBreakout.ExtremeDelta = TryGetDecimal(candle, "Delta");
+                _fakeBreakout.ExtremeVolume = TryGetDecimal(candle, "Volume");
+                var extremeCvd = CumulativeDeltaDetector.Detect(
+                    bar,
+                    candle,
+                    new Func<int, dynamic>(GetCandle),
+                    nyTime.Date,
+                    new Func<dynamic, DateTime>(c => ConvertToNewYorkTime(c.Time)));
+                _fakeBreakout.ExtremeCvd = extremeCvd.Value;
             }
         }
 
@@ -1136,6 +1201,14 @@ namespace ATAS.Indicators
             _trade.FakeBreakoutReturnDelta = _fakeBreakout.ReturnDelta;
             _trade.FakeBreakoutReturnVolume = _fakeBreakout.ReturnVolume;
             _trade.CvdTradeCandidate = _fakeBreakout.CvdTradeCandidate;
+            _trade.FakeBreakoutExtremeCvd = _fakeBreakout.ExtremeCvd;
+            _trade.FakeBreakoutExtremeDelta = _fakeBreakout.ExtremeDelta;
+            _trade.FakeBreakoutExtremeVolume = _fakeBreakout.ExtremeVolume;
+            _trade.VpocReactionMaxFavTicks = _fakeBreakout.VpocReactionMaxFavTicks;
+            _trade.VpocReactionMaxAdverseTicks = _fakeBreakout.VpocReactionMaxAdverseTicks;
+            _trade.VpocBounced = _fakeBreakout.VpocBounced;
+            _trade.VpocCvdAtTouch = _fakeBreakout.VpocCvdAtTouch;
+            _trade.VpocDeltaAtTouch = _fakeBreakout.VpocDeltaAtTouch;
         }
 
         private void UpdateCvdTradeCandidate(dynamic candle)
@@ -1377,6 +1450,11 @@ namespace ATAS.Indicators
             return null;
         }
 
+        private string BuildResultCsvHeader()
+        {
+            return "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure,Cvd_SessMax_AtEntry,Cvd_SessMin_AtEntry,Cvd_Pullback_Pct_AtEntry,Cvd_Pullback_Label_AtEntry,Cvd_Slope3_AtEntry,Bars_Since_Cvd_Extreme_AtEntry,CvdWarn_First_BarOffset,CvdWarn_First_FavTicks,CvdRisk_First_BarOffset,CvdRisk_First_FavTicks,CvdRisk_First_MAE,CvdRisk_First_MFE,Trade_Contracts," + ResearchHeaderSuffix() + Environment.NewLine;
+        }
+
         private void WriteTradeFile(DateTime nyDate)
         {
             if (_trade == null)
@@ -1392,7 +1470,7 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure,Cvd_SessMax_AtEntry,Cvd_SessMin_AtEntry,Cvd_Pullback_Pct_AtEntry,Cvd_Pullback_Label_AtEntry,Cvd_Slope3_AtEntry,Bars_Since_Cvd_Extreme_AtEntry,CvdWarn_First_BarOffset,CvdWarn_First_FavTicks,CvdRisk_First_BarOffset,CvdRisk_First_FavTicks,CvdRisk_First_MAE,CvdRisk_First_MFE,Trade_Contracts," + ResearchHeaderSuffix() + Environment.NewLine +
+                BuildResultCsvHeader() +
                 string.Join(",",
                     ExporterVersion,
                     _trade.EntryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
@@ -1480,7 +1558,7 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure,Cvd_SessMax_AtEntry,Cvd_SessMin_AtEntry,Cvd_Pullback_Pct_AtEntry,Cvd_Pullback_Label_AtEntry,Cvd_Slope3_AtEntry,Bars_Since_Cvd_Extreme_AtEntry,CvdWarn_First_BarOffset,CvdWarn_First_FavTicks,CvdRisk_First_BarOffset,CvdRisk_First_FavTicks,CvdRisk_First_MAE,CvdRisk_First_MFE,Trade_Contracts," + ResearchHeaderSuffix() + Environment.NewLine +
+                BuildResultCsvHeader() +
                 string.Join(",",
                     ExporterVersion,
                     nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
@@ -1591,7 +1669,7 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure,Cvd_SessMax_AtEntry,Cvd_SessMin_AtEntry,Cvd_Pullback_Pct_AtEntry,Cvd_Pullback_Label_AtEntry,Cvd_Slope3_AtEntry,Bars_Since_Cvd_Extreme_AtEntry,CvdWarn_First_BarOffset,CvdWarn_First_FavTicks,CvdRisk_First_BarOffset,CvdRisk_First_FavTicks,CvdRisk_First_MAE,CvdRisk_First_MFE,Trade_Contracts," + ResearchHeaderSuffix() + Environment.NewLine +
+                BuildResultCsvHeader() +
                 string.Join(",",
                     ExporterVersion,
                     nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
@@ -1926,7 +2004,7 @@ namespace ATAS.Indicators
 
         private string ResearchHeaderSuffix()
         {
-            return "Opening_vPOC_0930,APlus_Reaction,APlus_Reaction_Ambiguous,APlus_Max_Favorable_Ticks,APlus_Max_Adverse_Ticks,APlus_Reached_30_Ticks,APlus_Bars_To_First_10,APlus_Bars_To_30,FakeBreakout_To_Opening_vPOC,FakeBreakout_Side,FakeBreakout_Max_Expansion_Ticks,FakeBreakout_Extreme_Price,FakeBreakout_Bars_To_vPOC,FakeBreakout_Breakout_Time_NY,FakeBreakout_Return_Time_NY,FakeBreakout_Breakout_CVD,FakeBreakout_Breakout_Delta,FakeBreakout_Breakout_Volume,FakeBreakout_Return_CVD,FakeBreakout_Return_Delta,FakeBreakout_Return_Volume,CVD_Trade_Candidate";
+            return "Opening_vPOC_0930,APlus_Reaction,APlus_Reaction_Ambiguous,APlus_Max_Favorable_Ticks,APlus_Max_Adverse_Ticks,APlus_Reached_30_Ticks,APlus_Bars_To_First_10,APlus_Bars_To_30,FakeBreakout_To_Opening_vPOC,FakeBreakout_Side,FakeBreakout_Max_Expansion_Ticks,FakeBreakout_Extreme_Price,FakeBreakout_Bars_To_vPOC,FakeBreakout_Breakout_Time_NY,FakeBreakout_Return_Time_NY,FakeBreakout_Breakout_CVD,FakeBreakout_Breakout_Delta,FakeBreakout_Breakout_Volume,FakeBreakout_Return_CVD,FakeBreakout_Return_Delta,FakeBreakout_Return_Volume,CVD_Trade_Candidate,FakeBreakout_Extreme_CVD,FakeBreakout_Extreme_Delta,FakeBreakout_Extreme_Volume,vPOC_Reaction_MaxFav_Ticks,vPOC_Reaction_MaxAdverse_Ticks,vPOC_Bounced,vPOC_CVD_atTouch,vPOC_Delta_atTouch";
         }
 
         private string[] GetTradeResearchFields(TradeState trade)
@@ -1954,7 +2032,15 @@ namespace ATAS.Indicators
                 FormatTicks(trade.FakeBreakoutReturnCvd),
                 FormatTicks(trade.FakeBreakoutReturnDelta),
                 FormatTicks(trade.FakeBreakoutReturnVolume),
-                FormatBool(trade.CvdTradeCandidate)
+                FormatBool(trade.CvdTradeCandidate),
+                FormatTicks(trade.FakeBreakoutExtremeCvd),
+                FormatTicks(trade.FakeBreakoutExtremeDelta),
+                FormatTicks(trade.FakeBreakoutExtremeVolume),
+                FormatTicks(trade.VpocReactionMaxFavTicks),
+                FormatTicks(trade.VpocReactionMaxAdverseTicks),
+                FormatBool(trade.VpocBounced),
+                FormatTicks(trade.VpocCvdAtTouch),
+                FormatTicks(trade.VpocDeltaAtTouch)
             };
         }
 
@@ -1983,7 +2069,15 @@ namespace ATAS.Indicators
                 FormatTicks(_fakeBreakout.ReturnCvd),
                 FormatTicks(_fakeBreakout.ReturnDelta),
                 FormatTicks(_fakeBreakout.ReturnVolume),
-                FormatBool(_fakeBreakout.CvdTradeCandidate)
+                FormatBool(_fakeBreakout.CvdTradeCandidate),
+                FormatTicks(_fakeBreakout.ExtremeCvd),
+                FormatTicks(_fakeBreakout.ExtremeDelta),
+                FormatTicks(_fakeBreakout.ExtremeVolume),
+                FormatTicks(_fakeBreakout.VpocReactionMaxFavTicks),
+                FormatTicks(_fakeBreakout.VpocReactionMaxAdverseTicks),
+                FormatBool(_fakeBreakout.VpocBounced),
+                FormatTicks(_fakeBreakout.VpocCvdAtTouch),
+                FormatTicks(_fakeBreakout.VpocDeltaAtTouch)
             };
         }
 
@@ -2014,7 +2108,15 @@ namespace ATAS.Indicators
                 FormatTicks(_fakeBreakout.ReturnCvd),
                 FormatTicks(_fakeBreakout.ReturnDelta),
                 FormatTicks(_fakeBreakout.ReturnVolume),
-                FormatBool(_fakeBreakout.CvdTradeCandidate || IsCvdDivergent(score.Side, score.CumulativeDelta, score.Delta))
+                FormatBool(_fakeBreakout.CvdTradeCandidate || IsCvdDivergent(score.Side, score.CumulativeDelta, score.Delta)),
+                FormatTicks(_fakeBreakout.ExtremeCvd),
+                FormatTicks(_fakeBreakout.ExtremeDelta),
+                FormatTicks(_fakeBreakout.ExtremeVolume),
+                FormatTicks(_fakeBreakout.VpocReactionMaxFavTicks),
+                FormatTicks(_fakeBreakout.VpocReactionMaxAdverseTicks),
+                FormatBool(_fakeBreakout.VpocBounced),
+                FormatTicks(_fakeBreakout.VpocCvdAtTouch),
+                FormatTicks(_fakeBreakout.VpocDeltaAtTouch)
             };
         }
 
@@ -2156,6 +2258,14 @@ namespace ATAS.Indicators
             public decimal FakeBreakoutReturnDelta { get; set; }
             public decimal FakeBreakoutReturnVolume { get; set; }
             public bool CvdTradeCandidate { get; set; }
+            public decimal FakeBreakoutExtremeCvd { get; set; }
+            public decimal FakeBreakoutExtremeDelta { get; set; }
+            public decimal FakeBreakoutExtremeVolume { get; set; }
+            public decimal VpocReactionMaxFavTicks { get; set; }
+            public decimal VpocReactionMaxAdverseTicks { get; set; }
+            public bool VpocBounced { get; set; }
+            public decimal VpocCvdAtTouch { get; set; }
+            public decimal VpocDeltaAtTouch { get; set; }
 
             // --- Features pre-entrada (sin lookahead) ---
             public decimal CvdSessionMaxAtEntry { get; set; }
@@ -2198,6 +2308,20 @@ namespace ATAS.Indicators
             public decimal ReturnDelta { get; set; }
             public decimal ReturnVolume { get; set; }
             public bool CvdTradeCandidate { get; set; }
+
+            // Tabla A: flow en la barra de maxima expansion del fake breakout.
+            public int ExtremeBar { get; set; } = -1;
+            public decimal ExtremeCvd { get; set; }
+            public decimal ExtremeDelta { get; set; }
+            public decimal ExtremeVolume { get; set; }
+
+            // Tabla B: reaccion del precio DESPUES de tocar el vPOC (iman).
+            public bool VpocReactionActive { get; set; }
+            public decimal VpocReactionMaxFavTicks { get; set; }
+            public decimal VpocReactionMaxAdverseTicks { get; set; }
+            public bool VpocBounced { get; set; }
+            public decimal VpocCvdAtTouch { get; set; }
+            public decimal VpocDeltaAtTouch { get; set; }
         }
 
     }

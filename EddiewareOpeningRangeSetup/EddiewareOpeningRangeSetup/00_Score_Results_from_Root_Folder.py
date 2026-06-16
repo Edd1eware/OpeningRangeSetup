@@ -245,6 +245,14 @@ def get_or_create_headers(ws, result_files):
         "Speed_Profile",
         "MAE_ticks",
         "MFE_ticks",
+        "FakeBreakout_Extreme_CVD",
+        "FakeBreakout_Extreme_Delta",
+        "FakeBreakout_Extreme_Volume",
+        "vPOC_Reaction_MaxFav_Ticks",
+        "vPOC_Reaction_MaxAdverse_Ticks",
+        "vPOC_Bounced",
+        "vPOC_CVD_atTouch",
+        "vPOC_Delta_atTouch",
     ]
 
     headers = [
