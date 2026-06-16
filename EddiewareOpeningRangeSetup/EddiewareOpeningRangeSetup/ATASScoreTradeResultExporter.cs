@@ -278,6 +278,11 @@ namespace ATAS.Indicators
             if (bar <= _lastSignalReadyBar)
                 return;
 
+            // Filtro estructural: skip silencioso — no marca el dia como filtrado por CVD,
+            // permite seguir buscando mejor señal en barras posteriores.
+            if (!PassesStructuralFilter(score))
+                return;
+
             if (!PassesCvdAtEntryFilter(score))
             {
                 _cvdFilterSkippedDay = true;
@@ -858,6 +863,9 @@ namespace ATAS.Indicators
                 if (!score.IsReady)
                     continue;
 
+                if (!PassesStructuralFilter(score))
+                    continue;
+
                 if (!PassesCvdAtEntryFilter(score))
                 {
                     _cvdFilterSkippedDay = true;
@@ -1335,14 +1343,20 @@ namespace ATAS.Indicators
             if (!(sweetSpot || lowScoreHighCvd))
                 return false;
 
-            // Rechazar VALUE_ACCEPTANCE sin estructura (analisis n=8 perdedores, 100% sin imbalances ni VWAP).
-            // Bucket A y B dejan pasar breakouts sin cuerpo, sin imbalances y sin VWAP -> WR local 12%.
-            var imbalanceCount = score.Side == "BUY" ? score.BuyImbalanceCount : score.SellImbalanceCount;
-            if (score.SignalSource == "VALUE_ACCEPTANCE" && imbalanceCount == 0 && !score.VwapOk)
+            return true;
+        }
+
+        // Pre-filtro estructural: rechaza señales sin calidad estructural minima.
+        // NO setea _cvdFilterSkippedDay — permite seguir buscando en barras posteriores.
+        private static bool PassesStructuralFilter(ScoreTradeSignal score)
+        {
+            // A+ SPEED desactivado — pendiente validacion estadistica.
+            if (score.SignalSource == "A+ SPEED")
                 return false;
 
-            // A+ SPEED desactivado temporalmente — pendiente validacion estadistica.
-            if (score.SignalSource == "A+ SPEED")
+            // VALUE_ACCEPTANCE sin imbalances ni VWAP: analisis n=8 perdedores, WR 0%.
+            var imbalanceCount = score.Side == "BUY" ? score.BuyImbalanceCount : score.SellImbalanceCount;
+            if (score.SignalSource == "VALUE_ACCEPTANCE" && imbalanceCount == 0 && !score.VwapOk)
                 return false;
 
             return true;
@@ -1368,7 +1382,6 @@ namespace ATAS.Indicators
             _bestRejectedScore = score;
             _bestRejectedScoreBar = bar;
             _bestRejectedScoreNyTime = nyTime;
-            WriteRejectedScoreFile(nyTime.Date);
         }
 
         private void WriteRejectedScoreFile(DateTime nyDate)
@@ -1533,7 +1546,8 @@ namespace ATAS.Indicators
             var emoji = result == "TP" ? "\U0001F7E2" : result == "SL" ? "\U0001F534" : "⚪";
             var signo = signedTicks >= 0 ? "+" : "";
             var dateText = FormatTelegramDate(_trade.EntryDate);
-            SendTelegramText($"{emoji} {dateText} {result} {signo}{signedTicks:0} ticks");
+            var entryTimeText = _trade.EntryTimeNy.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
+            SendTelegramText($"{emoji} {dateText} {result} {signo}{signedTicks:0} ticks | entry {entryTimeText} NY");
         }
 
         private void SendTelegramNoTradeMessage(DateTime nyDate)

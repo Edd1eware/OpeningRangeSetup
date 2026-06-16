@@ -172,7 +172,7 @@ namespace ATAS.Indicators
         public decimal ImbalanceRatio { get; set; } = 3m;
 
         [DisplayName("Volume filter")]
-        public decimal ImbalanceCompareMinVolume { get; set; } = 70m;
+        public decimal ImbalanceCompareMinVolume { get; set; } = 50m;
 
         [DisplayName("A+ Price Acceptance Ticks")]
         public decimal APlusPriceAcceptanceTicks { get; set; } = 20m;
@@ -272,6 +272,9 @@ namespace ATAS.Indicators
             if (!score.IsReady)
                 return;
 
+            if (!PassesStructuralFilter(score))
+                return;
+
             if (EnableCvdAtEntryFilter && !PassesCvdAtEntryFilter(score))
             {
                 _cvdFilterSkippedDay = true;
@@ -350,11 +353,16 @@ namespace ATAS.Indicators
             if (!(sweetSpot || lowScoreHighCvd))
                 return false;
 
-            var imbalanceCount = score.Side == "BUY" ? score.BuyImbalanceCount : score.SellImbalanceCount;
-            if (score.SignalSource == "VALUE_ACCEPTANCE" && imbalanceCount == 0 && !score.VwapOk)
+            return true;
+        }
+
+        private static bool PassesStructuralFilter(ScoreTradeSignal score)
+        {
+            if (score.SignalSource == "A+ SPEED")
                 return false;
 
-            if (score.SignalSource == "A+ SPEED")
+            var imbalanceCount = score.Side == "BUY" ? score.BuyImbalanceCount : score.SellImbalanceCount;
+            if (score.SignalSource == "VALUE_ACCEPTANCE" && imbalanceCount == 0 && !score.VwapOk)
                 return false;
 
             return true;
