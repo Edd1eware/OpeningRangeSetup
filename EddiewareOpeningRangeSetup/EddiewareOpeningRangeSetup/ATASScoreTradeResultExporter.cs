@@ -53,7 +53,7 @@ namespace ATAS.Indicators
         private const decimal SetupTickSize = 0.25m;
         private const decimal ValueAcceptanceMinTradeTicks = 30m;
         private const decimal NormalScalpMaxTradeTicks = 120m;
-        private const string ExporterVersion = "ew-strategy-2026-06-15-v10-runnershadow";
+        private const string ExporterVersion = "ew-strategy-2026-06-16-v11-stopimmediate";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
@@ -170,7 +170,7 @@ namespace ATAS.Indicators
         /// resultado vivo (TP/SL) no cambia. Sirve para descubrir cuanto habria
         /// corrido cada trade. El replay tarda mas por dia (corre hasta 9:40).
         /// </summary>
-        public bool EnableRunnerShadow { get; set; } = true;
+        public bool EnableRunnerShadow { get; set; } = false;
 
         /// <summary>
         /// MODO SIZING: contratos cuando la senal califica (pct >= umbral).
