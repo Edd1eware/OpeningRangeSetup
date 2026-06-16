@@ -19,15 +19,15 @@ namespace ATAS.Indicators
         private readonly TimeZoneInfo _nyZone =
             TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
 
-        private const decimal SetupTickSize = TradeRiskConstants.SetupTickSize;
+        private const decimal SetupTickSize = 0.25m;
         private const string ExporterVersion = "score-exporter-2026-05-30-aplus-structure-export";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
         private readonly TimeSpan _signalEndNy = new TimeSpan(9, 38, 0);
         private readonly TimeSpan _normalSpeedAllowedUntilNy = new TimeSpan(9, 33, 59); // time limit
-        private const decimal HardMaxTradeTicks = TradeRiskConstants.HardMaxTradeTicks;
-        private const decimal APlusStopTicks = TradeRiskConstants.APlusStopTicks;
+        private const decimal HardMaxTradeTicks = 60m;
+        private const decimal APlusStopTicks = 60m;
         private readonly ScoreTradeSignalEngine _signalEngine = new ScoreTradeSignalEngine();
 
         private DateTime _currentNyDate = DateTime.MinValue;
