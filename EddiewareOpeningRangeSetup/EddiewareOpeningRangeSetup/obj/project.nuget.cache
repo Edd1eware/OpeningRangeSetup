@@ -1,11 +1,14 @@
 {
   "version": 2,
-  "dgSpecHash": "wxE6GoQSFsk=",
+  "dgSpecHash": "4W+Su7t+7Z0=",
   "success": true,
   "projectFilePath": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\k_99_\\.nuget\\packages\\microsoft.win32.systemevents\\10.0.7\\microsoft.win32.systemevents.10.0.7.nupkg.sha512",
-    "C:\\Users\\k_99_\\.nuget\\packages\\system.drawing.common\\10.0.7\\system.drawing.common.10.0.7.nupkg.sha512"
+    "C:\\Users\\k_99_\\.nuget\\packages\\system.drawing.common\\10.0.7\\system.drawing.common.10.0.7.nupkg.sha512",
+    "C:\\Users\\k_99_\\.nuget\\packages\\microsoft.netcore.app.ref\\10.0.5\\microsoft.netcore.app.ref.10.0.5.nupkg.sha512",
+    "C:\\Users\\k_99_\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\10.0.5\\microsoft.windowsdesktop.app.ref.10.0.5.nupkg.sha512",
+    "C:\\Users\\k_99_\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\10.0.5\\microsoft.aspnetcore.app.ref.10.0.5.nupkg.sha512"
   ],
   "logs": []
 }

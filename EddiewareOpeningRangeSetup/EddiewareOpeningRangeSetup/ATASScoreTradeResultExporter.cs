@@ -35,7 +35,10 @@ namespace ATAS.Indicators
         private readonly string _telegramClearRequestFile =
             @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_clear_requested.txt";
 
-        private bool _telegramResultSent; // garantiza un solo mensaje por dia
+        private readonly string _telegramSentDatesFile =
+            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_sent_dates.txt";
+
+        private bool _telegramResultSent; // garantiza un solo mensaje por dia en memoria
         private bool _telegramClearChecked; // limpieza de conversacion una vez por corrida
 
         private readonly string _targetDateFile =
@@ -1329,7 +1332,20 @@ namespace ATAS.Indicators
             // Se descartan los cvd altos (>=0.95) con score alto (PF mas bajo).
             var sweetSpot = cvd < CvdAtEntrySweetSpotMax;
             var lowScoreHighCvd = score.Score <= CvdAtEntryHighCvdMaxScore;
-            return sweetSpot || lowScoreHighCvd;
+            if (!(sweetSpot || lowScoreHighCvd))
+                return false;
+
+            // Rechazar VALUE_ACCEPTANCE sin estructura (analisis n=8 perdedores, 100% sin imbalances ni VWAP).
+            // Bucket A y B dejan pasar breakouts sin cuerpo, sin imbalances y sin VWAP -> WR local 12%.
+            var imbalanceCount = score.Side == "BUY" ? score.BuyImbalanceCount : score.SellImbalanceCount;
+            if (score.SignalSource == "VALUE_ACCEPTANCE" && imbalanceCount == 0 && !score.VwapOk)
+                return false;
+
+            // A+ SPEED desactivado temporalmente — pendiente validacion estadistica.
+            if (score.SignalSource == "A+ SPEED")
+                return false;
+
+            return true;
         }
 
         private void TrackRejectedScore(int bar, DateTime nyTime, ScoreTradeSignal score)
@@ -1503,7 +1519,14 @@ namespace ATAS.Indicators
             if (_telegramResultSent || _isRecalculating || _trade == null)
                 return;
 
+            if (IsTelegramSentForDate(_trade.EntryDate))
+            {
+                _telegramResultSent = true;
+                return;
+            }
+
             _telegramResultSent = true;
+            MarkTelegramSentForDate(_trade.EntryDate);
 
             var result = _trade.Result;
             var signedTicks = TradeResultTicks();
@@ -1518,11 +1541,40 @@ namespace ATAS.Indicators
             if (_telegramResultSent || _isRecalculating)
                 return;
 
+            if (IsTelegramSentForDate(nyDate))
+            {
+                _telegramResultSent = true;
+                return;
+            }
+
             _telegramResultSent = true;
+            MarkTelegramSentForDate(nyDate);
 
             var motivo = _cvdFilterSkippedDay ? " (senal filtrada por CVD)" : "";
             var dateText = FormatTelegramDate(nyDate);
             SendTelegramText($"⚪ {dateText} NO TRADE TODAY{motivo}");
+        }
+
+        private bool IsTelegramSentForDate(DateTime date)
+        {
+            try
+            {
+                if (!File.Exists(_telegramSentDatesFile)) return false;
+                var key = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                return File.ReadAllLines(_telegramSentDatesFile).Any(l => l.Trim() == key);
+            }
+            catch { return false; }
+        }
+
+        private void MarkTelegramSentForDate(DateTime date)
+        {
+            try
+            {
+                Directory.CreateDirectory(_exportFolder);
+                var key = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                File.AppendAllText(_telegramSentDatesFile, key + Environment.NewLine);
+            }
+            catch { }
         }
 
         private string FormatTelegramDate(DateTime dateTime)

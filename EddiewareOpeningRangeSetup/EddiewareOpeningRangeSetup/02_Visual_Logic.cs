@@ -347,7 +347,17 @@ namespace ATAS.Indicators
 
             var sweetSpot = cvd < CvdAtEntrySweetSpotMax;
             var lowScoreHighCvd = score.Score <= CvdAtEntryHighCvdMaxScore;
-            return sweetSpot || lowScoreHighCvd;
+            if (!(sweetSpot || lowScoreHighCvd))
+                return false;
+
+            var imbalanceCount = score.Side == "BUY" ? score.BuyImbalanceCount : score.SellImbalanceCount;
+            if (score.SignalSource == "VALUE_ACCEPTANCE" && imbalanceCount == 0 && !score.VwapOk)
+                return false;
+
+            if (score.SignalSource == "A+ SPEED")
+                return false;
+
+            return true;
         }
 
         private void DrawCvdFilterSkippedLabel(int bar, dynamic candle, ScoreTradeSignal score)
