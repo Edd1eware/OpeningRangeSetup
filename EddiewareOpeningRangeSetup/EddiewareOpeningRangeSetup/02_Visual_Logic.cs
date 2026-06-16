@@ -9,9 +9,9 @@ namespace ATAS.Indicators
     [DisplayName("02_Visual_Logic")]
     public class EddiewareOpeningRangeVisual : Indicator
     {
-        private const decimal FallbackTickSize = 0.25m;
-        private const decimal HardMaxTradeTicks = 60m;
-        private const decimal APlusStopTicks = 60m;
+        private const decimal FallbackTickSize = TradeRiskConstants.SetupTickSize;
+        private const decimal HardMaxTradeTicks = TradeRiskConstants.HardMaxTradeTicks;
+        private const decimal APlusStopTicks = TradeRiskConstants.APlusStopTicks;
         private readonly ScoreTradeSignalEngine _signalEngine = new ScoreTradeSignalEngine();
 
         private DateTime _currentDate = DateTime.MinValue;

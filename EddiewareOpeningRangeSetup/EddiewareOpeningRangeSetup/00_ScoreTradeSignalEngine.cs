@@ -2,6 +2,13 @@ using System;
 
 namespace ATAS.Indicators
 {
+    internal static class TradeRiskConstants
+    {
+        public const decimal SetupTickSize = 0.25m;
+        public const decimal HardMaxTradeTicks = 60m;
+        public const decimal APlusStopTicks = 60m;
+    }
+
     internal sealed class ScoreTradeSignalEngine
     {
         private const int MinAPlusImbalanceCount = 3;

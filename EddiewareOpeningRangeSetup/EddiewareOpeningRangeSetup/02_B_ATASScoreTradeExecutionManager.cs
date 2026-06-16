@@ -7,9 +7,9 @@ namespace ATAS.Indicators
     [DisplayName("02_B_ATASScoreTradeExecutionManager")]
     public class ATASScoreTradeExecutionManager : Indicator
     {
-        private const decimal SetupTickSize = 0.25m;
-        private const decimal HardMaxTradeTicks = 120m;
-        private const decimal APlusStopTicks = 100m;
+        private const decimal SetupTickSize = TradeRiskConstants.SetupTickSize;
+        private const decimal HardMaxTradeTicks = TradeRiskConstants.HardMaxTradeTicks;
+        private const decimal APlusStopTicks = TradeRiskConstants.APlusStopTicks;
         private readonly ScoreTradeSignalEngine _signalEngine = new ScoreTradeSignalEngine();
 
         private DateTime _currentDate = DateTime.MinValue;
