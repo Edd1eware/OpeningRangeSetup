@@ -324,6 +324,17 @@ def update_score_workbook():
     for row_idx in range(first_row, last_row + 1):
         ws.cell(row=row_idx, column=result_col).number_format = "+0.##;-0.##;0"
 
+    for col_idx, header in enumerate(headers, start=1):
+        if header == "EntryTime_NY":
+            ws.column_dimensions[get_column_letter(col_idx)].width = 14
+            for row_idx in range(first_row, last_row + 1):
+                ws.cell(row=row_idx, column=col_idx).number_format = "@"
+
+        if header == "EntrySecond_NY":
+            ws.column_dimensions[get_column_letter(col_idx)].width = 14
+            for row_idx in range(first_row, last_row + 1):
+                ws.cell(row=row_idx, column=col_idx).number_format = "0"
+
     widths = {
         "A": 12,
         "B": 12,
@@ -346,6 +357,17 @@ def update_score_workbook():
 
     for col, width in widths.items():
         ws.column_dimensions[col].width = width
+
+    for col_idx, header in enumerate(headers, start=1):
+        if header == "EntryTime_NY":
+            ws.column_dimensions[get_column_letter(col_idx)].width = 14
+            for row_idx in range(first_row, last_row + 1):
+                ws.cell(row=row_idx, column=col_idx).number_format = "@"
+
+        if header == "EntrySecond_NY":
+            ws.column_dimensions[get_column_letter(col_idx)].width = 14
+            for row_idx in range(first_row, last_row + 1):
+                ws.cell(row=row_idx, column=col_idx).number_format = "0"
 
     try:
         wb.save(SCORE_WORKBOOK)

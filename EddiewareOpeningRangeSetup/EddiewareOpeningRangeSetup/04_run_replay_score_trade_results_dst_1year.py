@@ -15,11 +15,186 @@ from openpyxl.utils import get_column_letter
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 DATES_DST = [
 
-    
-    "15/05/2026",
-    "20/05/2026",
-    "26/05/2026",
+    # MARZO 2025
+    "10/03/2025",
+    "11/03/2025",
+    "12/03/2025",
+    "13/03/2025",
+    "14/03/2025",
+    "17/03/2025",
+    "18/03/2025",
+    "19/03/2025",
+    "20/03/2025",
+    "21/03/2025",
+    "24/03/2025",
+    "25/03/2025",
+    "26/03/2025",
+    "27/03/2025",
+    "28/03/2025",
+    "31/03/2025",
 
+    # ABRIL 2025
+    "01/04/2025",
+    "02/04/2025",
+    "03/04/2025",
+    "04/04/2025",
+    "07/04/2025",
+    "08/04/2025",
+    "09/04/2025",
+    "10/04/2025",
+    "11/04/2025",
+    "14/04/2025",
+    "15/04/2025",
+    "16/04/2025",
+    "17/04/2025",
+    "21/04/2025",
+    "22/04/2025",
+    "23/04/2025",
+    "24/04/2025",
+    "25/04/2025",
+    "28/04/2025",
+    "29/04/2025",
+    "30/04/2025",
+
+    # MAYO 2025
+    "01/05/2025",
+    "02/05/2025",
+    "05/05/2025",
+    "06/05/2025",
+    "07/05/2025",
+    "08/05/2025",
+    "09/05/2025",
+    "12/05/2025",
+    "13/05/2025",
+    "14/05/2025",
+    "15/05/2025",
+    "16/05/2025",
+    "19/05/2025",
+    "20/05/2025",
+    "21/05/2025",
+    "22/05/2025",
+    "23/05/2025",
+    "27/05/2025",
+    "28/05/2025",
+    "29/05/2025",
+    "30/05/2025",
+
+    # JUNIO 2025
+    "02/06/2025",
+    "03/06/2025",
+    "04/06/2025",
+    "05/06/2025",
+    "06/06/2025",
+    "09/06/2025",
+    "10/06/2025",
+    "11/06/2025",
+    "12/06/2025",
+    "13/06/2025",
+    "16/06/2025",
+    "17/06/2025",
+    "18/06/2025",
+    "20/06/2025",
+    "23/06/2025",
+    "24/06/2025",
+    "25/06/2025",
+    "26/06/2025",
+    "27/06/2025",
+    "30/06/2025",
+
+    # JULIO 2025
+    "01/07/2025",
+    "02/07/2025",
+    "03/07/2025",
+    "07/07/2025",
+    "08/07/2025",
+    "09/07/2025",
+    "10/07/2025",
+    "11/07/2025",
+    "14/07/2025",
+    "15/07/2025",
+    "16/07/2025",
+    "17/07/2025",
+    "18/07/2025",
+    "21/07/2025",
+    "22/07/2025",
+    "23/07/2025",
+    "24/07/2025",
+    "25/07/2025",
+    "28/07/2025",
+    "29/07/2025",
+    "30/07/2025",
+    "31/07/2025",
+
+    # AGOSTO 2025
+    "01/08/2025",
+    "04/08/2025",
+    "05/08/2025",
+    "06/08/2025",
+    "07/08/2025",
+    "08/08/2025",
+    "11/08/2025",
+    "12/08/2025",
+    "13/08/2025",
+    "14/08/2025",
+    "15/08/2025",
+    "18/08/2025",
+    "19/08/2025",
+    "20/08/2025",
+    "21/08/2025",
+    "22/08/2025",
+    "25/08/2025",
+    "26/08/2025",
+    "27/08/2025",
+    "28/08/2025",
+    "29/08/2025",
+
+    # SEPTIEMBRE 2025
+    "02/09/2025",
+    "03/09/2025",
+    "04/09/2025",
+    "05/09/2025",
+    "08/09/2025",
+    "09/09/2025",
+    "10/09/2025",
+    "11/09/2025",
+    "12/09/2025",
+    "15/09/2025",
+    "16/09/2025",
+    "17/09/2025",
+    "18/09/2025",
+    "19/09/2025",
+    "22/09/2025",
+    "23/09/2025",
+    "24/09/2025",
+    "25/09/2025",
+    "26/09/2025",
+    "29/09/2025",
+    "30/09/2025",
+
+    # OCTUBRE 2025
+    "01/10/2025",
+    "02/10/2025",
+    "03/10/2025",
+    "06/10/2025",
+    "07/10/2025",
+    "08/10/2025",
+    "09/10/2025",
+    "10/10/2025",
+    "13/10/2025",
+    "14/10/2025",
+    "15/10/2025",
+    "16/10/2025",
+    "17/10/2025",
+    "20/10/2025",
+    "21/10/2025",
+    "22/10/2025",
+    "23/10/2025",
+    "24/10/2025",
+    "27/10/2025",
+    "28/10/2025",
+    "29/10/2025",
+    "30/10/2025",
+    "31/10/2025",
 ]
 # Replay recomendado para esta prueba: X1.
 # Ventana por dia: 09:30 a 09:50 NY. El exporter escribe TIME_OVER si no hay trade antes/de 09:40;
@@ -27,11 +202,15 @@ DATES_DST = [
 REPLAY_END_TIME = "09:50"
 POLL_SECONDS = 0.02
 NO_TRADE_CUTOFF_SECONDS = 10 * 60 + 15
+REPLAY_START_MAX_ATTEMPTS = 3
+REPLAY_START_TIMEOUT_SECONDS = 2 * 60
+REPLAY_START_POLL_SECONDS = 5
 
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
 RESULTS_FOLDER = os.path.join(EXPORT_FOLDER, "trade_results_score")
 TARGET_FILE = os.path.join(EXPORT_FOLDER, "target_trade_result_date.txt")
 REPLAY_STARTED_FILE = os.path.join(EXPORT_FOLDER, "replay_trade_result_started_at.txt")
+TELEGRAM_CLEAR_REQUEST_FILE = os.path.join(RESULTS_FOLDER, "telegram_clear_requested.txt")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TESTING_OUTPUT_DIR = r"C:\Users\k_99_\Desktop\codding\corridas_testing_indicator"
 SCORE_WORKBOOK_TEMPLATE = os.path.join(BASE_DIR, "Score_indicator_results_updated.xlsx")
@@ -56,6 +235,13 @@ def write_target_date(date_ddmmyyyy):
         f.write(target)
 
     print(f"Fecha objetivo escrita para ATAS: {target}")
+
+
+def write_telegram_clear_request():
+    os.makedirs(RESULTS_FOLDER, exist_ok=True)
+    with open(TELEGRAM_CLEAR_REQUEST_FILE, "w", encoding="utf-8") as f:
+        f.write(str(time.time()))
+    print("Solicitud de limpieza de Telegram escrita (se borra conversacion anterior al inicio).")
 
 
 def write_replay_started_marker():
@@ -111,6 +297,7 @@ def get_controls():
     buttons = replay.descendants(control_type="Button")
 
     from_box = edits[0]
+    current_box = edits[1]
     to_box = edits[2]
 
     start_button = None
@@ -125,7 +312,7 @@ def get_controls():
         if txt == "Stop":
             stop_button = b
 
-    return replay, from_box, to_box, start_button, stop_button
+    return replay, from_box, current_box, to_box, start_button, stop_button
 
 
 def expected_result_path(date_ddmmyyyy):
@@ -260,7 +447,7 @@ def stop_replay(stop_button=None):
 
     for _ in range(5):
         try:
-            replay, from_box, to_box, start_button, refreshed_stop_button = get_controls()
+            replay, from_box, current_box, to_box, start_button, refreshed_stop_button = get_controls()
             replay.set_focus()
             if refreshed_stop_button is not None:
                 candidates.insert(0, refreshed_stop_button)
@@ -285,6 +472,61 @@ def stop_replay(stop_button=None):
         time.sleep(0.05)
 
     print("No encontre boton Stop; probablemente el replay ya termino.")
+
+
+def read_current_box_value(current_box):
+    try:
+        return current_box.window_text()
+    except Exception:
+        return None
+
+
+def wait_for_replay_progress(current_box, timeout_seconds, poll_seconds):
+    """Confirma que el replay realmente avanza (campo de tiempo actual cambia).
+    Si el valor no se mueve dentro del timeout, asumimos que el Start no
+    surtio efecto ("no se reproduce")."""
+    initial_value = read_current_box_value(current_box)
+    start = time.time()
+
+    while time.time() - start < timeout_seconds:
+        time.sleep(poll_seconds)
+        current_value = read_current_box_value(current_box)
+
+        if current_value is not None and current_value != initial_value:
+            print(f"Replay avanzando (tiempo actual: {current_value}).")
+            return True
+
+    print(f"Replay no avanzo en {timeout_seconds}s (valor estancado en '{initial_value}').")
+    return False
+
+
+def start_replay_with_retries(date, result_path, max_attempts, timeout_seconds, poll_seconds):
+    """Intenta iniciar el replay hasta max_attempts veces. Devuelve el
+    stop_button vigente si el replay quedo confirmado reproduciendo, o
+    None si se agotaron los intentos sin avance."""
+    for attempt in range(1, max_attempts + 1):
+        print(f"Intento de replay {attempt}/{max_attempts} para {date}...")
+
+        replay, from_box, current_box, to_box, start_button, stop_button = get_controls()
+        replay.set_focus()
+
+        if start_button is None:
+            raise RuntimeError("No se encontro boton Start")
+
+        clear_previous_result(result_path)
+        write_replay_started_marker()
+
+        start_button.click_input()
+
+        if wait_for_replay_progress(current_box, timeout_seconds, poll_seconds):
+            return stop_button
+
+        print(f"No se reproduce ({date}, intento {attempt}/{max_attempts}). Deteniendo y reintentando...")
+        stop_replay(stop_button)
+        time.sleep(2)
+
+    print(f"Se agotaron {max_attempts} intentos sin reproducir para {date}. Se cambia de fecha.")
+    return None
 
 
 MAX_WAIT_SECONDS = 1200
@@ -589,6 +831,7 @@ failed_dates = []
 
 try:
     clear_expected_results()
+    write_telegram_clear_request()
 
     for date in DATES_DST:
         print("\n" + "=" * 70)
@@ -604,7 +847,7 @@ try:
             from_value = f"{date} 09:30 a. m."
             to_value = f"{date} {REPLAY_END_TIME} a. m."
 
-            replay, from_box, to_box, start_button, stop_button = get_controls()
+            replay, from_box, current_box, to_box, start_button, stop_button = get_controls()
 
             paste_text(from_box, from_value)
             paste_text(to_box, to_value)
@@ -615,17 +858,20 @@ try:
 
             time.sleep(2)
 
-            replay, from_box, to_box, start_button, stop_button = get_controls()
-
-            if start_button is None:
-                raise RuntimeError("No se encontro boton Start")
-
-            clear_previous_result(result_path)
-            write_replay_started_marker()
-
-            print("Iniciando replay...")
             started_at = time.time()
-            start_button.click_input()
+            stop_button = start_replay_with_retries(
+                date, result_path,
+                REPLAY_START_MAX_ATTEMPTS,
+                REPLAY_START_TIMEOUT_SECONDS,
+                REPLAY_START_POLL_SECONDS,
+            )
+
+            if stop_button is None:
+                failed_dates.append((date, "no se reproduce tras 3 intentos"))
+                print(f"Saltando {date}: no se reproduce tras {REPLAY_START_MAX_ATTEMPTS} intentos.")
+                print("Pausa antes del siguiente dia...")
+                time.sleep(10)
+                continue
 
             print("Esperando hasta detectar TP/SL/EXIT/BE/TIME_OVER...")
             wait_until_result(result_path, started_at, NO_TRADE_CUTOFF_SECONDS, stop_button)

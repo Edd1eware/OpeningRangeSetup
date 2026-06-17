@@ -1,6 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using ATAS.Indicators;
 
 namespace ATAS.Indicators
@@ -16,11 +21,37 @@ namespace ATAS.Indicators
         private readonly string _replayStartedFile =
             @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\replay_trade_result_started_at.txt";
 
+        // ===================== TELEGRAM =====================
+        private static readonly HttpClient TelegramHttpClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(10)
+        };
+
+        private Task _lastTelegramSendTask = Task.CompletedTask;
+
+        private readonly string _telegramCredentialsFile =
+            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_credentials.txt";
+
+        private readonly string _telegramMessageIdsFile =
+            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_message_ids.txt";
+
+        // El runner Python crea este archivo UNA sola vez, antes de la primera fecha del replay.
+        // Mientras exista, el exporter borra la conversacion anterior y elimina el archivo,
+        // de modo que los mensajes de resultados de la corrida actual se queden apilados.
+        private readonly string _telegramClearRequestFile =
+            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_clear_requested.txt";
+
+        private readonly string _telegramSentDatesFile =
+            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_sent_dates.txt";
+
+        private bool _telegramResultSent; // garantiza un solo mensaje por dia en memoria
+        private bool _telegramClearChecked; // limpieza de conversacion una vez por corrida
+
         private readonly TimeZoneInfo _nyZone =
             TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
 
         private const decimal SetupTickSize = 0.25m;
-        private const string ExporterVersion = "score-exporter-2026-05-30-aplus-structure-export";
+        private const string ExporterVersion = "score-exporter-2026-06-16-x11-telegram";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
@@ -59,6 +90,7 @@ namespace ATAS.Indicators
         private DateTime _bestRejectedScoreNyTime = DateTime.MinValue;
         private decimal _lastManagePrice;
         private DateTime _lastManageTimeUtc = DateTime.MinValue;
+        private int _lastSignalReadyBar = -1;
 
         public int MinScore { get; set; } = 5;
         public decimal MinOrRangeTicks { get; set; } = 40;
@@ -77,11 +109,17 @@ namespace ATAS.Indicators
         public decimal HalfMfeExitMinMfeTicks { get; set; } = 40;
         public decimal FastExitMinMfeTicks { get; set; } = 40;
         public decimal FastExitPullbackTicks { get; set; } = 10;
+        public decimal CvdProfitLockPullbackTicks { get; set; } = 10;
         public decimal FastExitAdverseSpeedTicksPerSecond { get; set; } = 6;
         public TimeSpan TimeOverTimeNy { get; set; } = new TimeSpan(9, 40, 0);
         public int MinTimeOverRealtimeSeconds { get; set; } = 5;
         public bool RequireBodyOkForTrade { get; set; } = false;
         public bool RequireVwapOkForTrade { get; set; } = false;
+
+        // ===================== TELEGRAM =====================
+        public bool EnableTelegramAlerts { get; set; } = true;
+        public string TelegramBotToken { get; set; } = "";
+        public string TelegramChatId { get; set; } = "";
 
         public ATASScoreTradeResultExporter()
         {
@@ -108,10 +146,20 @@ namespace ATAS.Indicators
 
             var current = GetCandle(bar);
             var currentNyTime = ConvertToNewYorkTime(current.Time);
+            var currentSignalNyTime = ResolveSignalNewYorkTime(current);
+            var closedBar = bar - 1;
+            var closedCandle = GetCandle(closedBar);
+            var closedNyTime = ConvertToNewYorkTime(closedCandle.Time);
             var targetDate = ReadTargetDate();
 
             if (targetDate == null)
                 return;
+
+            if (!_telegramClearChecked && !_isRecalculating)
+            {
+                _telegramClearChecked = true;
+                MaybeClearTelegramConversation();
+            }
 
             if (currentNyTime.Date != _currentNyDate)
                 ResetDay(currentNyTime.Date);
@@ -119,13 +167,12 @@ namespace ATAS.Indicators
             if (currentNyTime.Date != targetDate.Value.Date)
                 return;
 
+            UpdateTradeResult(bar, current);
+
+            if (TryWriteTimeOver(bar, current, currentNyTime))
+                return;
+
             UpdateSpeedClock(bar);
-
-            UpdateAPlusStructureFromBar(bar, current, currentNyTime);
-
-            var closedBar = bar - 1;
-            var closedCandle = GetCandle(closedBar);
-            var closedNyTime = ConvertToNewYorkTime(closedCandle.Time);
 
             UpdateAPlusStructureFromBar(closedBar, closedCandle, closedNyTime);
 
@@ -138,27 +185,29 @@ namespace ATAS.Indicators
                 return;
             }
 
-            UpdateTradeResult(bar, current);
-
-            if (TryWriteTimeOver(bar, current, currentNyTime))
-                return;
-
             if (!_orReady)
                 return;
 
             if (_tradeCreated || bar <= _orBar || !IsSignalWindow(currentNyTime))
                 return;
 
+            UpdateAPlusStructureFromBar(bar, current, currentNyTime);
+
             var score = CalculateLiveScore(current, bar, currentNyTime);
 
             if (!score.IsReady)
             {
-                TrackRejectedScore(bar, currentNyTime, score);
+                TrackRejectedScore(bar, currentSignalNyTime, score);
                 return;
             }
 
+            if (bar <= _lastSignalReadyBar)
+                return;
+
+            _lastSignalReadyBar = bar;
             ClearPendingScore();
-            CreateTrade(bar, current, currentNyTime, score);
+            CreateTrade(bar, current, currentSignalNyTime, score);
+            UpdateEntryBarTradeResult(bar, current);
         }
 
         private void CreateTrade(int bar, dynamic candle, DateTime nyTime, ScoreTradeSignal score)
@@ -288,7 +337,11 @@ namespace ATAS.Indicators
 
             UpdateTradeExcursion(tradeHigh, tradeLow);
             UpdateBestFavorablePrice(tradeHigh, tradeLow);
+            UpdateCvdProfitLock();
             UpdateCvdPullback(bar, candle);
+
+            if (TryApplyCvdRiskBracket())
+                return false;
 
             var decision = TradeManagerTpSlBeExit.EvaluateExit(new TradeManagerTpSlBeExit.TradeExitRequest
             {
@@ -321,6 +374,7 @@ namespace ATAS.Indicators
             _trade.Result = decision.Result;
             _trade.ExitPrice = ResolveExitPrice(decision);
             WriteTradeFile(_currentNyDate);
+            SendTelegramTradeResultMessage();
             return true;
         }
 
@@ -340,7 +394,11 @@ namespace ATAS.Indicators
 
             UpdateTradeExcursion(tradeHigh, tradeLow);
             UpdateBestFavorablePrice(tradeHigh, tradeLow);
+            UpdateCvdProfitLock();
             UpdateCvdPullback(bar, candle);
+
+            if (TryApplyCvdRiskBracket())
+                return;
 
             var adverseSpeed = CalculateAdverseSpeed(candle.Close, manageTimeUtc, manageTimingSource);
 
@@ -375,6 +433,92 @@ namespace ATAS.Indicators
             _trade.Result = decision.Result;
             _trade.ExitPrice = ResolveExitPrice(decision);
             WriteTradeFile(_currentNyDate);
+            SendTelegramTradeResultMessage();
+        }
+
+        private bool TryApplyCvdRiskBracket()
+        {
+            if (_trade == null || _trade.Result != "OPEN")
+                return false;
+
+            if (_trade.CvdRiskBracketActive)
+                return false;
+
+            if (_trade.TpTicks <= 0)
+                return false;
+
+            if (_trade.CvdPullbackLabel != "Riesgo de reversion")
+                return false;
+
+            var tp50Ticks = Math.Max(1, Math.Floor(_trade.TpTicks * 0.50m));
+            _trade.Tp = _trade.Side == "BUY"
+                ? _trade.Entry + tp50Ticks * SetupTickSize
+                : _trade.Entry - tp50Ticks * SetupTickSize;
+            _trade.TpTicks = tp50Ticks;
+            _trade.CvdRiskBracketActive = true;
+            WriteTradeFile(_currentNyDate);
+            return true;
+        }
+
+        private bool HasCvdRiskExitProgress(decimal currentPrice)
+        {
+            if (_trade == null)
+                return false;
+
+            if (_trade.TpTicks <= 0)
+                return false;
+
+            if (!_trade.CvdProfitLockArmed || _trade.CvdProfitLockExitPrice == 0)
+                return false;
+
+            if (_trade.CvdPullbackLabel != "Riesgo de reversion")
+                return false;
+
+            if (_trade.CvdProfitLockBestMfeTicks <= _trade.CvdProfitLockTicks)
+                return false;
+
+            return CalculateCurrentFavorableTicks(currentPrice) <= _trade.CvdProfitLockTicks;
+        }
+
+        private void UpdateCvdProfitLock()
+        {
+            if (_trade == null)
+                return;
+
+            if (_trade.TpTicks <= 0)
+                return;
+
+            if (_trade.MfeTicks > _trade.CvdProfitLockBestMfeTicks)
+                _trade.CvdProfitLockBestMfeTicks = _trade.MfeTicks;
+
+            var armTicks = _trade.TpTicks * 0.50m;
+            if (_trade.CvdProfitLockBestMfeTicks < armTicks)
+                return;
+
+            _trade.CvdProfitLockArmed = true;
+            var trailingTicks = _trade.CvdProfitLockBestMfeTicks - CvdProfitLockPullbackTicks;
+            var lockedTicks = Math.Min(_trade.TpTicks, Math.Max(armTicks, trailingTicks));
+            if (lockedTicks <= _trade.CvdProfitLockTicks)
+                return;
+
+            _trade.CvdProfitLockTicks = lockedTicks;
+            _trade.CvdProfitLockExitPrice = _trade.Side == "BUY"
+                ? _trade.Entry + lockedTicks * SetupTickSize
+                : _trade.Entry - lockedTicks * SetupTickSize;
+        }
+
+        private decimal CalculateCurrentFavorableTicks(decimal currentPrice)
+        {
+            if (_trade == null)
+                return 0;
+
+            if (_trade.Side == "BUY")
+                return Math.Max(0, RoundToTicks(currentPrice - _trade.Entry));
+
+            if (_trade.Side == "SELL")
+                return Math.Max(0, RoundToTicks(_trade.Entry - currentPrice));
+
+            return 0;
         }
 
         private decimal ResolveExitPrice(TradeManagerTpSlBeExit.TradeExitDecision decision)
@@ -445,9 +589,57 @@ namespace ATAS.Indicators
                 return false;
             }
 
+            if (TryRecoverMissedReadyTradeBeforeTimeOver(bar, candle, nyTime))
+                return false;
+
             _timeOverWritten = true;
             WriteTimeOverFile(nyTime.Date, nyTime);
+            SendTelegramNoTradeMessage(nyTime.Date);
             return true;
+        }
+
+        private bool TryRecoverMissedReadyTradeBeforeTimeOver(int currentBar, dynamic currentCandle, DateTime currentNyTime)
+        {
+            if (!_orReady || _tradeCreated || _trade != null)
+                return false;
+
+            var startBar = Math.Max(_orBar + 1, 0);
+
+            for (var scanBar = startBar; scanBar <= currentBar; scanBar++)
+            {
+                var scanCandle = GetCandle(scanBar);
+                var scanNyTime = ConvertToNewYorkTime(scanCandle.Time);
+
+                if (scanNyTime.Date != currentNyTime.Date)
+                    continue;
+
+                if (!IsSignalWindow(scanNyTime))
+                    continue;
+
+                UpdateAPlusStructureFromBar(scanBar, scanCandle, scanNyTime);
+
+                var score = CalculateLiveScore(scanCandle, scanBar, scanNyTime);
+
+                if (!score.IsReady)
+                    continue;
+
+                var signalNyTime = ResolveSignalNewYorkTime(scanCandle);
+
+                _lastSignalReadyBar = scanBar;
+                ClearPendingScore();
+                CreateTrade(scanBar, scanCandle, signalNyTime, score);
+
+                if (_trade == null)
+                    return false;
+
+                if (UpdateEntryBarTradeResult(scanBar, scanCandle))
+                    return true;
+
+                UpdateTradeResult(currentBar, currentCandle);
+                return true;
+            }
+
+            return false;
         }
 
         private bool HasReplayStartDelayElapsed()
@@ -548,11 +740,22 @@ namespace ATAS.Indicators
             tradeHigh = candle.Close;
             tradeLow = candle.Close;
 
-            if (candle.High > _trade.EntryBarHighAtEntry)
-                tradeHigh = candle.High;
+            if (_trade.Side == "BUY")
+            {
+                if (candle.High > _trade.EntryBarHighAtEntry || candle.High >= _trade.Tp)
+                    tradeHigh = candle.High;
 
-            if (candle.Low < _trade.EntryBarLowAtEntry)
-                tradeLow = candle.Low;
+                if (candle.Low < _trade.EntryBarLowAtEntry)
+                    tradeLow = candle.Low;
+            }
+            else if (_trade.Side == "SELL")
+            {
+                if (candle.High > _trade.EntryBarHighAtEntry)
+                    tradeHigh = candle.High;
+
+                if (candle.Low < _trade.EntryBarLowAtEntry || candle.Low <= _trade.Tp)
+                    tradeLow = candle.Low;
+            }
         }
 
         private ScoreTradeSignal CalculateLiveScore(dynamic candle, int bar, DateTime nyTime)
@@ -617,6 +820,17 @@ namespace ATAS.Indicators
             return TimeZoneInfo.ConvertTimeFromUtc(utcTime, _nyZone);
         }
 
+        private DateTime ResolveSignalNewYorkTime(dynamic candle)
+        {
+            string timingSource;
+            var updateTime = TryGetCandleUpdateTime(candle, out timingSource);
+
+            if (timingSource == "UtcNow")
+                return ConvertToNewYorkTime(candle.Time);
+
+            return ConvertToNewYorkTime(updateTime);
+        }
+
         private DateTime? ReadTargetDate()
         {
             if (!File.Exists(_targetDateFile))
@@ -652,11 +866,12 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     _trade.EntryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     _trade.EntryTimeNy.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
+                    _trade.EntryTimeNy.Second.ToString(CultureInfo.InvariantCulture),
                     _trade.EntryBar.ToString(CultureInfo.InvariantCulture),
                     FormatPrice(_trade.OrLow),
                     FormatPrice(_trade.OrHigh),
@@ -726,11 +941,12 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     nyTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
+                    nyTime.Second.ToString(CultureInfo.InvariantCulture),
                     "", // EntryBar
                     FormatPrice(_orLow),
                     FormatPrice(_orHigh),
@@ -821,11 +1037,12 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     _bestRejectedScoreNyTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
+                    _bestRejectedScoreNyTime.Second.ToString(CultureInfo.InvariantCulture),
                     _bestRejectedScoreBar.ToString(CultureInfo.InvariantCulture),
                     FormatPrice(score.OrLow),
                     FormatPrice(score.OrHigh),
@@ -892,6 +1109,7 @@ namespace ATAS.Indicators
             _orReady = false;
             _tradeCreated = false;
             _timeOverWritten = false;
+            _telegramResultSent = false;
             _signalEngine.ResetDay();
             _hasAPlusStructure = false;
             _aPlusStructureSide = "";
@@ -906,6 +1124,7 @@ namespace ATAS.Indicators
             _trade = null;
             _lastManagePrice = 0;
             _lastManageTimeUtc = DateTime.MinValue;
+            _lastSignalReadyBar = -1;
             ClearPendingScore();
             ClearRejectedScore();
         }
@@ -1106,6 +1325,284 @@ namespace ATAS.Indicators
             return ticks.ToString("+0.##;-0.##;0", CultureInfo.InvariantCulture);
         }
 
+        // ===================== TELEGRAM =====================
+        // Un solo mensaje por dia, nunca durante recalculo de la serie.
+
+        private void SendTelegramTradeResultMessage()
+        {
+            if (_telegramResultSent || _isRecalculating || _trade == null)
+                return;
+
+            if (IsTelegramSentForDate(_trade.EntryDate))
+            {
+                _telegramResultSent = true;
+                return;
+            }
+
+            _telegramResultSent = true;
+            MarkTelegramSentForDate(_trade.EntryDate);
+
+            var result = _trade.Result;
+            var signedTicks = TradeResultTicks();
+            var emoji = result == "TP" ? "\U0001F7E2" : result == "SL" ? "\U0001F534" : "⚪";
+            var signo = signedTicks >= 0 ? "+" : "";
+            var dateText = FormatTelegramDate(_trade.EntryDate);
+            SendTelegramText($"{emoji} {dateText} {result} {signo}{signedTicks:0} ticks");
+        }
+
+        private void SendTelegramNoTradeMessage(DateTime nyDate)
+        {
+            if (_telegramResultSent || _isRecalculating)
+                return;
+
+            if (IsTelegramSentForDate(nyDate))
+            {
+                _telegramResultSent = true;
+                return;
+            }
+
+            _telegramResultSent = true;
+            MarkTelegramSentForDate(nyDate);
+
+            var dateText = FormatTelegramDate(nyDate);
+            SendTelegramText($"⚪ {dateText} NO TRADE TODAY");
+        }
+
+        private bool IsTelegramSentForDate(DateTime date)
+        {
+            try
+            {
+                if (!File.Exists(_telegramSentDatesFile)) return false;
+                var key = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                return File.ReadAllLines(_telegramSentDatesFile).Any(l => l.Trim() == key);
+            }
+            catch { return false; }
+        }
+
+        private void MarkTelegramSentForDate(DateTime date)
+        {
+            try
+            {
+                Directory.CreateDirectory(_exportFolder);
+                var key = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                File.AppendAllText(_telegramSentDatesFile, key + Environment.NewLine);
+            }
+            catch { }
+        }
+
+        private string FormatTelegramDate(DateTime dateTime)
+        {
+            var nyDate = dateTime.Kind == DateTimeKind.Utc
+                ? ConvertToNewYorkTime(dateTime).Date
+                : dateTime.Date;
+
+            return nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        }
+
+        private void SendTelegramText(string texto)
+        {
+            if (!EnableTelegramAlerts)
+            {
+                AppendTelegramLog($"No enviado: alertas Telegram desactivadas. Texto='{texto}'");
+                return;
+            }
+
+            var token = ResolveTelegramSetting(TelegramBotToken, "TELEGRAM_BOT_TOKEN", "token");
+            var chatId = ResolveTelegramSetting(TelegramChatId, "TELEGRAM_CHAT_ID", "chat_id");
+
+            if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(chatId))
+            {
+                AppendTelegramLog(
+                    $"No enviado: token/chat_id vacio. TokenSet={!string.IsNullOrWhiteSpace(token)}, ChatIdSet={!string.IsNullOrWhiteSpace(chatId)}. Texto='{texto}'");
+                return;
+            }
+
+            var url = $"https://api.telegram.org/bot{token}/sendMessage";
+            var payload = new Dictionary<string, string>
+            {
+                ["chat_id"] = chatId,
+                ["text"] = texto,
+                ["disable_web_page_preview"] = "true"
+            };
+
+            _lastTelegramSendTask = Task.Run(async () =>
+            {
+                try
+                {
+                    AppendTelegramLog($"Enviando Telegram. ChatId='{chatId}', Texto='{texto}'");
+                    using var content = new FormUrlEncodedContent(payload);
+                    using var response = await TelegramHttpClient.PostAsync(url, content).ConfigureAwait(false);
+                    var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        AppendTelegramLog($"Telegram HTTP {(int)response.StatusCode} {response.ReasonPhrase}: {body}");
+                        System.Diagnostics.Debug.WriteLine(
+                            $"EW Exporter: Telegram HTTP {(int)response.StatusCode} {response.ReasonPhrase}: {body}");
+                        return;
+                    }
+
+                    var match = Regex.Match(body, "\"message_id\":(\\d+)");
+                    if (match.Success && long.TryParse(match.Groups[1].Value, out var msgId))
+                        AppendMessageId(msgId);
+
+                    AppendTelegramLog($"Telegram enviado OK. Status={(int)response.StatusCode}");
+                }
+                catch (Exception ex)
+                {
+                    // Telegram caido jamas afecta el exporter.
+                    AppendTelegramLog($"Error Telegram: {ex.GetType().Name}: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"EW Exporter: error Telegram: {ex.Message}");
+                }
+            });
+        }
+
+        private void AppendTelegramLog(string message)
+        {
+            try
+            {
+                Directory.CreateDirectory(_exportFolder);
+                var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} {message}{Environment.NewLine}";
+                File.AppendAllText(Path.Combine(_exportFolder, "telegram_debug.log"), line);
+            }
+            catch
+            {
+                // El log de Telegram no debe afectar el exporter.
+            }
+        }
+
+        private void AppendMessageId(long messageId)
+        {
+            try
+            {
+                Directory.CreateDirectory(_exportFolder);
+                File.AppendAllText(_telegramMessageIdsFile, messageId.ToString(CultureInfo.InvariantCulture) + Environment.NewLine);
+            }
+            catch
+            {
+                // No afecta el exporter.
+            }
+        }
+
+        // Borra la conversacion anterior SOLO cuando el runner pidio limpieza (primera fecha del replay).
+        // Elimina el archivo de solicitud de inmediato para que las fechas siguientes no vuelvan a borrar
+        // y los mensajes de resultados se queden apilados.
+        private void MaybeClearTelegramConversation()
+        {
+            try
+            {
+                if (!File.Exists(_telegramClearRequestFile))
+                    return;
+
+                File.Delete(_telegramClearRequestFile);
+            }
+            catch (Exception ex)
+            {
+                AppendTelegramLog($"Error procesando solicitud de limpieza Telegram: {ex.Message}");
+                return;
+            }
+
+            _ = DeletePreviousTelegramMessagesAsync();
+        }
+
+        private async Task DeletePreviousTelegramMessagesAsync()
+        {
+            var token = ResolveTelegramSetting(TelegramBotToken, "TELEGRAM_BOT_TOKEN", "token");
+            var chatId = ResolveTelegramSetting(TelegramChatId, "TELEGRAM_CHAT_ID", "chat_id");
+
+            if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(chatId))
+                return;
+
+            long[] ids;
+
+            try
+            {
+                if (!File.Exists(_telegramMessageIdsFile))
+                    return;
+
+                ids = File.ReadAllLines(_telegramMessageIdsFile)
+                    .Select(l => l.Trim())
+                    .Where(l => l.Length > 0)
+                    .Select(l => long.TryParse(l, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id) ? id : -1L)
+                    .Where(id => id > 0)
+                    .ToArray();
+
+                File.Delete(_telegramMessageIdsFile);
+            }
+            catch (Exception ex)
+            {
+                AppendTelegramLog($"Error leyendo message IDs para borrar: {ex.Message}");
+                return;
+            }
+
+            if (ids.Length == 0)
+                return;
+
+            var deleteUrl = $"https://api.telegram.org/bot{token}/deleteMessage";
+
+            foreach (var msgId in ids)
+            {
+                try
+                {
+                    var payload = new Dictionary<string, string>
+                    {
+                        ["chat_id"] = chatId,
+                        ["message_id"] = msgId.ToString(CultureInfo.InvariantCulture)
+                    };
+                    using var content = new FormUrlEncodedContent(payload);
+                    await TelegramHttpClient.PostAsync(deleteUrl, content).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Si un mensaje ya fue borrado manualmente o expiro, ignorar.
+                }
+            }
+
+            AppendTelegramLog($"Borrados {ids.Length} mensajes Telegram de la corrida anterior.");
+        }
+
+        private string ResolveTelegramSetting(string propertyValue, string environmentVariable, string credentialsKey)
+        {
+            if (!string.IsNullOrWhiteSpace(propertyValue))
+                return propertyValue.Trim();
+
+            var envValue = Environment.GetEnvironmentVariable(environmentVariable);
+            if (!string.IsNullOrWhiteSpace(envValue))
+                return envValue.Trim();
+
+            try
+            {
+                if (!File.Exists(_telegramCredentialsFile))
+                    return "";
+
+                foreach (var rawLine in File.ReadAllLines(_telegramCredentialsFile))
+                {
+                    var line = rawLine.Trim();
+
+                    if (line.Length == 0 || line.StartsWith("#", StringComparison.Ordinal))
+                        continue;
+
+                    var separatorIndex = line.IndexOf('=');
+
+                    if (separatorIndex <= 0)
+                        continue;
+
+                    var key = line.Substring(0, separatorIndex).Trim();
+
+                    if (!string.Equals(key, credentialsKey, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    return line.Substring(separatorIndex + 1).Trim();
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendTelegramLog($"Error leyendo credenciales Telegram: {ex.Message}");
+            }
+
+            return "";
+        }
+
         private class TradeState
         {
             public int EntryBar { get; set; }
@@ -1157,6 +1654,11 @@ namespace ATAS.Indicators
             public string Result { get; set; } = "";
             public decimal MaeTicks { get; set; }
             public decimal MfeTicks { get; set; }
+            public bool CvdProfitLockArmed { get; set; }
+            public decimal CvdProfitLockExitPrice { get; set; }
+            public decimal CvdProfitLockTicks { get; set; }
+            public decimal CvdProfitLockBestMfeTicks { get; set; }
+            public bool CvdRiskBracketActive { get; set; }
             public bool APlusStructure { get; set; }
             public bool APlusAbsorption { get; set; }
             public bool APlusSpeed { get; set; }
