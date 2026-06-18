@@ -1,11 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using ATAS.Indicators;
 
 namespace ATAS.Indicators
@@ -21,37 +16,13 @@ namespace ATAS.Indicators
         private readonly string _replayStartedFile =
             @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\replay_trade_result_started_at.txt";
 
-        // ===================== TELEGRAM =====================
-        private static readonly HttpClient TelegramHttpClient = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(10)
-        };
-
-        private Task _lastTelegramSendTask = Task.CompletedTask;
-
-        private readonly string _telegramCredentialsFile =
-            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_credentials.txt";
-
-        private readonly string _telegramMessageIdsFile =
-            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_message_ids.txt";
-
-        // El runner Python crea este archivo UNA sola vez, antes de la primera fecha del replay.
-        // Mientras exista, el exporter borra la conversacion anterior y elimina el archivo,
-        // de modo que los mensajes de resultados de la corrida actual se queden apilados.
-        private readonly string _telegramClearRequestFile =
-            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_clear_requested.txt";
-
-        private readonly string _telegramSentDatesFile =
-            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_sent_dates.txt";
-
-        private bool _telegramResultSent; // garantiza un solo mensaje por dia en memoria
-        private bool _telegramClearChecked; // limpieza de conversacion una vez por corrida
-
         private readonly TimeZoneInfo _nyZone =
             TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
 
         private const decimal SetupTickSize = 0.25m;
-        private const string ExporterVersion = "score-exporter-2026-06-16-x11-telegram";
+        private const decimal ValueAcceptanceMinTradeTicks = 30m;
+        private const decimal NormalScalpMaxTradeTicks = 120m;
+        private const string ExporterVersion = "score-exporter-2026-06-10-x10-value-acceptance";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
@@ -100,7 +71,7 @@ namespace ATAS.Indicators
         public decimal MinAbsDelta { get; set; } = 25;
         public decimal MinNormalSpeedTicksPerSecond { get; set; } = 2;
         public decimal APlusSpeedTicksPerSecond { get; set; } = 5;
-        public decimal ReplaySpeedMultiplier { get; set; } = 1;
+        public decimal ReplaySpeedMultiplier { get; set; } = 10;
         public decimal ImbalanceRatio { get; set; } = 3m;
         public decimal ImbalanceCompareMinVolume { get; set; } = 70m;
         public decimal APlusPriceAcceptanceTicks { get; set; } = 20m;
@@ -115,11 +86,6 @@ namespace ATAS.Indicators
         public int MinTimeOverRealtimeSeconds { get; set; } = 5;
         public bool RequireBodyOkForTrade { get; set; } = false;
         public bool RequireVwapOkForTrade { get; set; } = false;
-
-        // ===================== TELEGRAM =====================
-        public bool EnableTelegramAlerts { get; set; } = true;
-        public string TelegramBotToken { get; set; } = "";
-        public string TelegramChatId { get; set; } = "";
 
         public ATASScoreTradeResultExporter()
         {
@@ -154,12 +120,6 @@ namespace ATAS.Indicators
 
             if (targetDate == null)
                 return;
-
-            if (!_telegramClearChecked && !_isRecalculating)
-            {
-                _telegramClearChecked = true;
-                MaybeClearTelegramConversation();
-            }
 
             if (currentNyTime.Date != _currentNyDate)
                 ResetDay(currentNyTime.Date);
@@ -231,10 +191,19 @@ namespace ATAS.Indicators
                 MaxTradeTicks = MaxTradeTicks,
                 HardMaxTradeTicks = HardMaxTradeTicks,
                 APlusStopTicks = APlusStopTicks,
+                NormalSpeedMaxTradeTicks = NormalScalpMaxTradeTicks,
+                ValueAcceptanceMinTradeTicks = ValueAcceptanceMinTradeTicks,
+                NormalSpeedImbalanceStopPrice = score.BreakoutSideImbalanceStopPrice,
+                ValueAcceptanceStopPrice = score.ValueAcceptanceStopPrice,
                 CapSellStopAtOrHigh = false,
                 EnforceMinExitDistance = true
             });
-            ApplyDynamicImbalanceStop(candle, executionSide, plan);
+
+            if (!plan.IsValid)
+                return;
+
+            if (!plan.IsNormalSpeed)
+                ApplyDynamicImbalanceStop(candle, executionSide, plan);
 
             var hasMatchingAPlusStructure = score.HasAPlusStructure;
             var matchingAPlusSide = score.APlusStructureSide;
@@ -374,7 +343,6 @@ namespace ATAS.Indicators
             _trade.Result = decision.Result;
             _trade.ExitPrice = ResolveExitPrice(decision);
             WriteTradeFile(_currentNyDate);
-            SendTelegramTradeResultMessage();
             return true;
         }
 
@@ -433,7 +401,6 @@ namespace ATAS.Indicators
             _trade.Result = decision.Result;
             _trade.ExitPrice = ResolveExitPrice(decision);
             WriteTradeFile(_currentNyDate);
-            SendTelegramTradeResultMessage();
         }
 
         private bool TryApplyCvdRiskBracket()
@@ -444,17 +411,33 @@ namespace ATAS.Indicators
             if (_trade.CvdRiskBracketActive)
                 return false;
 
+            if (_trade.SpeedLabel == "normal speed")
+                return false;
+
             if (_trade.TpTicks <= 0)
                 return false;
 
             if (_trade.CvdPullbackLabel != "Riesgo de reversion")
                 return false;
 
-            var tp50Ticks = Math.Max(1, Math.Floor(_trade.TpTicks * 0.50m));
-            _trade.Tp = _trade.Side == "BUY"
-                ? _trade.Entry + tp50Ticks * SetupTickSize
-                : _trade.Entry - tp50Ticks * SetupTickSize;
-            _trade.TpTicks = tp50Ticks;
+            var decision = ATASScoreTradeExecutionManager.TryApplyCvdRiskBracket(
+                new ATASScoreTradeExecutionManager.CvdRiskBracketRequest
+                {
+                    Side = _trade.Side,
+                    SpeedLabel = _trade.SpeedLabel,
+                    Result = _trade.Result,
+                    Entry = _trade.Entry,
+                    TpTicks = _trade.TpTicks,
+                    TickSize = SetupTickSize,
+                    CvdPullbackLabel = _trade.CvdPullbackLabel,
+                    CvdRiskBracketActive = _trade.CvdRiskBracketActive
+                });
+
+            if (!decision.ShouldApply)
+                return false;
+
+            _trade.Tp = decision.Tp;
+            _trade.TpTicks = decision.TpTicks;
             _trade.CvdRiskBracketActive = true;
             WriteTradeFile(_currentNyDate);
             return true;
@@ -463,6 +446,9 @@ namespace ATAS.Indicators
         private bool HasCvdRiskExitProgress(decimal currentPrice)
         {
             if (_trade == null)
+                return false;
+
+            if (_trade.SpeedLabel == "normal speed")
                 return false;
 
             if (_trade.TpTicks <= 0)
@@ -477,7 +463,21 @@ namespace ATAS.Indicators
             if (_trade.CvdProfitLockBestMfeTicks <= _trade.CvdProfitLockTicks)
                 return false;
 
-            return CalculateCurrentFavorableTicks(currentPrice) <= _trade.CvdProfitLockTicks;
+            return ATASScoreTradeExecutionManager.HasCvdRiskExitProgress(
+                new ATASScoreTradeExecutionManager.CvdRiskExitProgressRequest
+                {
+                    Side = _trade.Side,
+                    SpeedLabel = _trade.SpeedLabel,
+                    Entry = _trade.Entry,
+                    TpTicks = _trade.TpTicks,
+                    TickSize = SetupTickSize,
+                    CurrentPrice = currentPrice,
+                    ProfitLockArmed = _trade.CvdProfitLockArmed,
+                    ProfitLockExitPrice = _trade.CvdProfitLockExitPrice,
+                    ProfitLockTicks = _trade.CvdProfitLockTicks,
+                    ProfitLockBestMfeTicks = _trade.CvdProfitLockBestMfeTicks,
+                    CvdPullbackLabel = _trade.CvdPullbackLabel
+                });
         }
 
         private void UpdateCvdProfitLock()
@@ -485,26 +485,32 @@ namespace ATAS.Indicators
             if (_trade == null)
                 return;
 
-            if (_trade.TpTicks <= 0)
-                return;
+            var update = ATASScoreTradeExecutionManager.UpdateCvdProfitLock(
+                new ATASScoreTradeExecutionManager.CvdProfitLockRequest
+                {
+                    Side = _trade.Side,
+                    SpeedLabel = _trade.SpeedLabel,
+                    Entry = _trade.Entry,
+                    TpTicks = _trade.TpTicks,
+                    TickSize = SetupTickSize,
+                    MfeTicks = _trade.MfeTicks,
+                    CurrentBestMfeTicks = _trade.CvdProfitLockBestMfeTicks,
+                    CurrentLockTicks = _trade.CvdProfitLockTicks,
+                    PullbackTicks = CvdProfitLockPullbackTicks
+                });
 
-            if (_trade.MfeTicks > _trade.CvdProfitLockBestMfeTicks)
-                _trade.CvdProfitLockBestMfeTicks = _trade.MfeTicks;
+            _trade.CvdProfitLockBestMfeTicks = update.BestMfeTicks;
 
-            var armTicks = _trade.TpTicks * 0.50m;
-            if (_trade.CvdProfitLockBestMfeTicks < armTicks)
+            if (!update.Armed)
                 return;
 
             _trade.CvdProfitLockArmed = true;
-            var trailingTicks = _trade.CvdProfitLockBestMfeTicks - CvdProfitLockPullbackTicks;
-            var lockedTicks = Math.Min(_trade.TpTicks, Math.Max(armTicks, trailingTicks));
-            if (lockedTicks <= _trade.CvdProfitLockTicks)
+
+            if (update.ExitPrice == 0)
                 return;
 
-            _trade.CvdProfitLockTicks = lockedTicks;
-            _trade.CvdProfitLockExitPrice = _trade.Side == "BUY"
-                ? _trade.Entry + lockedTicks * SetupTickSize
-                : _trade.Entry - lockedTicks * SetupTickSize;
+            _trade.CvdProfitLockTicks = update.LockTicks;
+            _trade.CvdProfitLockExitPrice = update.ExitPrice;
         }
 
         private decimal CalculateCurrentFavorableTicks(decimal currentPrice)
@@ -594,7 +600,6 @@ namespace ATAS.Indicators
 
             _timeOverWritten = true;
             WriteTimeOverFile(nyTime.Date, nyTime);
-            SendTelegramNoTradeMessage(nyTime.Date);
             return true;
         }
 
@@ -680,26 +685,25 @@ namespace ATAS.Indicators
             if (_trade == null)
                 return;
 
-            var currentCvd = CumulativeDeltaDetector.Detect(
-                bar,
-                candle,
-                new Func<int, dynamic>(GetCandle),
-                _currentNyDate,
-                new Func<dynamic, DateTime>(c => ConvertToNewYorkTime(c.Time)));
+            var update = ATASScoreTradeExecutionManager.UpdateCvdPullback(
+                new ATASScoreTradeExecutionManager.CvdPullbackUpdateRequest
+                {
+                    Side = _trade.Side,
+                    EntryCvd = _trade.CvdEntry,
+                    PreviousPeakCvd = _trade.CvdPeak,
+                    Bar = bar,
+                    Candle = candle,
+                    GetCandle = new Func<int, dynamic>(GetCandle),
+                    SessionDate = _currentNyDate,
+                    GetSessionTime = new Func<dynamic, DateTime>(c => ConvertToNewYorkTime(c.Time))
+                });
 
-            _trade.CumulativeDelta = currentCvd.Value;
-            _trade.CumulativeDeltaSource = currentCvd.Source;
-
-            var pullback = CumulativeDeltaDetector.CalculatePullback(
-                _trade.Side,
-                _trade.CvdEntry,
-                currentCvd.Value,
-                _trade.CvdPeak);
-
-            _trade.CvdPeak = pullback.PeakCvd;
-            _trade.CvdCurrent = pullback.CurrentCvd;
-            _trade.CvdPullbackPercent = pullback.PullbackPercent;
-            _trade.CvdPullbackLabel = pullback.PullbackLabel;
+            _trade.CumulativeDelta = update.CumulativeDelta;
+            _trade.CumulativeDeltaSource = update.CumulativeDeltaSource;
+            _trade.CvdPeak = update.CvdPeak;
+            _trade.CvdCurrent = update.CvdCurrent;
+            _trade.CvdPullbackPercent = update.CvdPullbackPercent;
+            _trade.CvdPullbackLabel = update.CvdPullbackLabel;
         }
 
         private void UpdateTradeExcursion(decimal high, decimal low)
@@ -1109,7 +1113,6 @@ namespace ATAS.Indicators
             _orReady = false;
             _tradeCreated = false;
             _timeOverWritten = false;
-            _telegramResultSent = false;
             _signalEngine.ResetDay();
             _hasAPlusStructure = false;
             _aPlusStructureSide = "";
@@ -1323,284 +1326,6 @@ namespace ATAS.Indicators
         private string FormatSignedTicks(decimal ticks)
         {
             return ticks.ToString("+0.##;-0.##;0", CultureInfo.InvariantCulture);
-        }
-
-        // ===================== TELEGRAM =====================
-        // Un solo mensaje por dia, nunca durante recalculo de la serie.
-
-        private void SendTelegramTradeResultMessage()
-        {
-            if (_telegramResultSent || _isRecalculating || _trade == null)
-                return;
-
-            if (IsTelegramSentForDate(_trade.EntryDate))
-            {
-                _telegramResultSent = true;
-                return;
-            }
-
-            _telegramResultSent = true;
-            MarkTelegramSentForDate(_trade.EntryDate);
-
-            var result = _trade.Result;
-            var signedTicks = TradeResultTicks();
-            var emoji = result == "TP" ? "\U0001F7E2" : result == "SL" ? "\U0001F534" : "⚪";
-            var signo = signedTicks >= 0 ? "+" : "";
-            var dateText = FormatTelegramDate(_trade.EntryDate);
-            SendTelegramText($"{emoji} {dateText} {result} {signo}{signedTicks:0} ticks");
-        }
-
-        private void SendTelegramNoTradeMessage(DateTime nyDate)
-        {
-            if (_telegramResultSent || _isRecalculating)
-                return;
-
-            if (IsTelegramSentForDate(nyDate))
-            {
-                _telegramResultSent = true;
-                return;
-            }
-
-            _telegramResultSent = true;
-            MarkTelegramSentForDate(nyDate);
-
-            var dateText = FormatTelegramDate(nyDate);
-            SendTelegramText($"⚪ {dateText} NO TRADE TODAY");
-        }
-
-        private bool IsTelegramSentForDate(DateTime date)
-        {
-            try
-            {
-                if (!File.Exists(_telegramSentDatesFile)) return false;
-                var key = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-                return File.ReadAllLines(_telegramSentDatesFile).Any(l => l.Trim() == key);
-            }
-            catch { return false; }
-        }
-
-        private void MarkTelegramSentForDate(DateTime date)
-        {
-            try
-            {
-                Directory.CreateDirectory(_exportFolder);
-                var key = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-                File.AppendAllText(_telegramSentDatesFile, key + Environment.NewLine);
-            }
-            catch { }
-        }
-
-        private string FormatTelegramDate(DateTime dateTime)
-        {
-            var nyDate = dateTime.Kind == DateTimeKind.Utc
-                ? ConvertToNewYorkTime(dateTime).Date
-                : dateTime.Date;
-
-            return nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-        }
-
-        private void SendTelegramText(string texto)
-        {
-            if (!EnableTelegramAlerts)
-            {
-                AppendTelegramLog($"No enviado: alertas Telegram desactivadas. Texto='{texto}'");
-                return;
-            }
-
-            var token = ResolveTelegramSetting(TelegramBotToken, "TELEGRAM_BOT_TOKEN", "token");
-            var chatId = ResolveTelegramSetting(TelegramChatId, "TELEGRAM_CHAT_ID", "chat_id");
-
-            if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(chatId))
-            {
-                AppendTelegramLog(
-                    $"No enviado: token/chat_id vacio. TokenSet={!string.IsNullOrWhiteSpace(token)}, ChatIdSet={!string.IsNullOrWhiteSpace(chatId)}. Texto='{texto}'");
-                return;
-            }
-
-            var url = $"https://api.telegram.org/bot{token}/sendMessage";
-            var payload = new Dictionary<string, string>
-            {
-                ["chat_id"] = chatId,
-                ["text"] = texto,
-                ["disable_web_page_preview"] = "true"
-            };
-
-            _lastTelegramSendTask = Task.Run(async () =>
-            {
-                try
-                {
-                    AppendTelegramLog($"Enviando Telegram. ChatId='{chatId}', Texto='{texto}'");
-                    using var content = new FormUrlEncodedContent(payload);
-                    using var response = await TelegramHttpClient.PostAsync(url, content).ConfigureAwait(false);
-                    var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        AppendTelegramLog($"Telegram HTTP {(int)response.StatusCode} {response.ReasonPhrase}: {body}");
-                        System.Diagnostics.Debug.WriteLine(
-                            $"EW Exporter: Telegram HTTP {(int)response.StatusCode} {response.ReasonPhrase}: {body}");
-                        return;
-                    }
-
-                    var match = Regex.Match(body, "\"message_id\":(\\d+)");
-                    if (match.Success && long.TryParse(match.Groups[1].Value, out var msgId))
-                        AppendMessageId(msgId);
-
-                    AppendTelegramLog($"Telegram enviado OK. Status={(int)response.StatusCode}");
-                }
-                catch (Exception ex)
-                {
-                    // Telegram caido jamas afecta el exporter.
-                    AppendTelegramLog($"Error Telegram: {ex.GetType().Name}: {ex.Message}");
-                    System.Diagnostics.Debug.WriteLine($"EW Exporter: error Telegram: {ex.Message}");
-                }
-            });
-        }
-
-        private void AppendTelegramLog(string message)
-        {
-            try
-            {
-                Directory.CreateDirectory(_exportFolder);
-                var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} {message}{Environment.NewLine}";
-                File.AppendAllText(Path.Combine(_exportFolder, "telegram_debug.log"), line);
-            }
-            catch
-            {
-                // El log de Telegram no debe afectar el exporter.
-            }
-        }
-
-        private void AppendMessageId(long messageId)
-        {
-            try
-            {
-                Directory.CreateDirectory(_exportFolder);
-                File.AppendAllText(_telegramMessageIdsFile, messageId.ToString(CultureInfo.InvariantCulture) + Environment.NewLine);
-            }
-            catch
-            {
-                // No afecta el exporter.
-            }
-        }
-
-        // Borra la conversacion anterior SOLO cuando el runner pidio limpieza (primera fecha del replay).
-        // Elimina el archivo de solicitud de inmediato para que las fechas siguientes no vuelvan a borrar
-        // y los mensajes de resultados se queden apilados.
-        private void MaybeClearTelegramConversation()
-        {
-            try
-            {
-                if (!File.Exists(_telegramClearRequestFile))
-                    return;
-
-                File.Delete(_telegramClearRequestFile);
-            }
-            catch (Exception ex)
-            {
-                AppendTelegramLog($"Error procesando solicitud de limpieza Telegram: {ex.Message}");
-                return;
-            }
-
-            _ = DeletePreviousTelegramMessagesAsync();
-        }
-
-        private async Task DeletePreviousTelegramMessagesAsync()
-        {
-            var token = ResolveTelegramSetting(TelegramBotToken, "TELEGRAM_BOT_TOKEN", "token");
-            var chatId = ResolveTelegramSetting(TelegramChatId, "TELEGRAM_CHAT_ID", "chat_id");
-
-            if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(chatId))
-                return;
-
-            long[] ids;
-
-            try
-            {
-                if (!File.Exists(_telegramMessageIdsFile))
-                    return;
-
-                ids = File.ReadAllLines(_telegramMessageIdsFile)
-                    .Select(l => l.Trim())
-                    .Where(l => l.Length > 0)
-                    .Select(l => long.TryParse(l, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id) ? id : -1L)
-                    .Where(id => id > 0)
-                    .ToArray();
-
-                File.Delete(_telegramMessageIdsFile);
-            }
-            catch (Exception ex)
-            {
-                AppendTelegramLog($"Error leyendo message IDs para borrar: {ex.Message}");
-                return;
-            }
-
-            if (ids.Length == 0)
-                return;
-
-            var deleteUrl = $"https://api.telegram.org/bot{token}/deleteMessage";
-
-            foreach (var msgId in ids)
-            {
-                try
-                {
-                    var payload = new Dictionary<string, string>
-                    {
-                        ["chat_id"] = chatId,
-                        ["message_id"] = msgId.ToString(CultureInfo.InvariantCulture)
-                    };
-                    using var content = new FormUrlEncodedContent(payload);
-                    await TelegramHttpClient.PostAsync(deleteUrl, content).ConfigureAwait(false);
-                }
-                catch
-                {
-                    // Si un mensaje ya fue borrado manualmente o expiro, ignorar.
-                }
-            }
-
-            AppendTelegramLog($"Borrados {ids.Length} mensajes Telegram de la corrida anterior.");
-        }
-
-        private string ResolveTelegramSetting(string propertyValue, string environmentVariable, string credentialsKey)
-        {
-            if (!string.IsNullOrWhiteSpace(propertyValue))
-                return propertyValue.Trim();
-
-            var envValue = Environment.GetEnvironmentVariable(environmentVariable);
-            if (!string.IsNullOrWhiteSpace(envValue))
-                return envValue.Trim();
-
-            try
-            {
-                if (!File.Exists(_telegramCredentialsFile))
-                    return "";
-
-                foreach (var rawLine in File.ReadAllLines(_telegramCredentialsFile))
-                {
-                    var line = rawLine.Trim();
-
-                    if (line.Length == 0 || line.StartsWith("#", StringComparison.Ordinal))
-                        continue;
-
-                    var separatorIndex = line.IndexOf('=');
-
-                    if (separatorIndex <= 0)
-                        continue;
-
-                    var key = line.Substring(0, separatorIndex).Trim();
-
-                    if (!string.Equals(key, credentialsKey, StringComparison.OrdinalIgnoreCase))
-                        continue;
-
-                    return line.Substring(separatorIndex + 1).Trim();
-                }
-            }
-            catch (Exception ex)
-            {
-                AppendTelegramLog($"Error leyendo credenciales Telegram: {ex.Message}");
-            }
-
-            return "";
         }
 
         private class TradeState

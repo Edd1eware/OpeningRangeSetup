@@ -15,11 +15,86 @@ from openpyxl.utils import get_column_letter
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 DATES_DST = [
 
-    
-    "15/05/2026",
-    "20/05/2026",
-    "26/05/2026",
+    # =========================
+    # DST — 2026 (hasta hoy)
+    # =========================
 
+    "09/03/2026",
+    "10/03/2026",
+    "11/03/2026",
+    "12/03/2026",
+    "13/03/2026",
+
+    "16/03/2026",
+    "17/03/2026",
+    "18/03/2026",
+    "19/03/2026",
+    "20/03/2026",
+
+    "23/03/2026",
+    "24/03/2026",
+    "25/03/2026",
+    "26/03/2026",
+    "27/03/2026",
+
+    "30/03/2026",
+    "31/03/2026",
+
+    "01/04/2026",
+    "02/04/2026",
+    "03/04/2026",
+
+    "06/04/2026",
+    "07/04/2026",
+    "08/04/2026",
+    "09/04/2026",
+    "10/04/2026",
+
+    "13/04/2026",
+    "14/04/2026",
+    "15/04/2026",
+    "16/04/2026",
+    "17/04/2026",
+
+    "20/04/2026",
+    "21/04/2026",
+    "22/04/2026",
+    "23/04/2026",
+    "24/04/2026",
+
+    "27/04/2026",
+    "28/04/2026",
+    "29/04/2026",
+    "30/04/2026",
+
+    "01/05/2026",
+
+    "04/05/2026",
+    "05/05/2026",
+    "06/05/2026",
+    "07/05/2026",
+    "08/05/2026",
+
+    "11/05/2026",
+    "12/05/2026",
+    "13/05/2026",
+    "14/05/2026",
+    "15/05/2026",
+
+    "18/05/2026",
+    "19/05/2026",
+    "20/05/2026",
+    "21/05/2026",
+    "22/05/2026",
+
+    "25/05/2026",
+    "26/05/2026",
+    "27/05/2026",
+    "28/05/2026",
+    "29/05/2026",
+
+    "01/06/2026",
+    "02/06/2026",
 ]
 # Replay recomendado para esta prueba: X1.
 # Ventana por dia: 09:30 a 09:50 NY. El exporter escribe TIME_OVER si no hay trade antes/de 09:40;
@@ -637,17 +712,6 @@ def update_score_workbook():
 
     for col, width in widths.items():
         ws.column_dimensions[col].width = width
-
-    for col_idx, header in enumerate(headers, start=1):
-        if header == "EntryTime_NY":
-            ws.column_dimensions[get_column_letter(col_idx)].width = 14
-            for row_idx in range(first_row, last_row + 1):
-                ws.cell(row=row_idx, column=col_idx).number_format = "@"
-
-        if header == "EntrySecond_NY":
-            ws.column_dimensions[get_column_letter(col_idx)].width = 14
-            for row_idx in range(first_row, last_row + 1):
-                ws.cell(row=row_idx, column=col_idx).number_format = "0"
 
     try:
         wb.save(SCORE_WORKBOOK)

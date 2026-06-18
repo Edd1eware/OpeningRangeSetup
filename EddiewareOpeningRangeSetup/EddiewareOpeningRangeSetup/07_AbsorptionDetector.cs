@@ -80,6 +80,12 @@ namespace ATAS.Indicators
                 return;
             }
 
+            if (state.IsValueAcceptance)
+            {
+                state.SignalSource = "VALUE_ACCEPTANCE";
+                return;
+            }
+
             state.SignalSource = "BREAKOUT";
         }
     }

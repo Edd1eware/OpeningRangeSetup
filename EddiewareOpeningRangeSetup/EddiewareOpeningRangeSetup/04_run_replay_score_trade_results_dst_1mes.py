@@ -15,186 +15,35 @@ from openpyxl.utils import get_column_letter
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 DATES_DST = [
 
-    # MARZO 2025
-    "10/03/2025",
-    "11/03/2025",
-    "12/03/2025",
-    "13/03/2025",
-    "14/03/2025",
-    "17/03/2025",
-    "18/03/2025",
-    "19/03/2025",
-    "20/03/2025",
-    "21/03/2025",
-    "24/03/2025",
-    "25/03/2025",
-    "26/03/2025",
-    "27/03/2025",
-    "28/03/2025",
-    "31/03/2025",
+    "04/05/2026",
+    "05/05/2026",
+    "06/05/2026",
+    "07/05/2026",
+    "08/05/2026",
 
-    # ABRIL 2025
-    "01/04/2025",
-    "02/04/2025",
-    "03/04/2025",
-    "04/04/2025",
-    "07/04/2025",
-    "08/04/2025",
-    "09/04/2025",
-    "10/04/2025",
-    "11/04/2025",
-    "14/04/2025",
-    "15/04/2025",
-    "16/04/2025",
-    "17/04/2025",
-    "21/04/2025",
-    "22/04/2025",
-    "23/04/2025",
-    "24/04/2025",
-    "25/04/2025",
-    "28/04/2025",
-    "29/04/2025",
-    "30/04/2025",
+    "11/05/2026",
+    "12/05/2026",
+    "13/05/2026",
+    "14/05/2026",
+    "15/05/2026",
 
-    # MAYO 2025
-    "01/05/2025",
-    "02/05/2025",
-    "05/05/2025",
-    "06/05/2025",
-    "07/05/2025",
-    "08/05/2025",
-    "09/05/2025",
-    "12/05/2025",
-    "13/05/2025",
-    "14/05/2025",
-    "15/05/2025",
-    "16/05/2025",
-    "19/05/2025",
-    "20/05/2025",
-    "21/05/2025",
-    "22/05/2025",
-    "23/05/2025",
-    "27/05/2025",
-    "28/05/2025",
-    "29/05/2025",
-    "30/05/2025",
+    "18/05/2026",
+    "19/05/2026",
+    "20/05/2026",
+    "21/05/2026",
+    "22/05/2026",
 
-    # JUNIO 2025
-    "02/06/2025",
-    "03/06/2025",
-    "04/06/2025",
-    "05/06/2025",
-    "06/06/2025",
-    "09/06/2025",
-    "10/06/2025",
-    "11/06/2025",
-    "12/06/2025",
-    "13/06/2025",
-    "16/06/2025",
-    "17/06/2025",
-    "18/06/2025",
-    "20/06/2025",
-    "23/06/2025",
-    "24/06/2025",
-    "25/06/2025",
-    "26/06/2025",
-    "27/06/2025",
-    "30/06/2025",
+    "25/05/2026",
+    "26/05/2026",
+    "27/05/2026",
+    "28/05/2026",
+    "29/05/2026",
 
-    # JULIO 2025
-    "01/07/2025",
-    "02/07/2025",
-    "03/07/2025",
-    "07/07/2025",
-    "08/07/2025",
-    "09/07/2025",
-    "10/07/2025",
-    "11/07/2025",
-    "14/07/2025",
-    "15/07/2025",
-    "16/07/2025",
-    "17/07/2025",
-    "18/07/2025",
-    "21/07/2025",
-    "22/07/2025",
-    "23/07/2025",
-    "24/07/2025",
-    "25/07/2025",
-    "28/07/2025",
-    "29/07/2025",
-    "30/07/2025",
-    "31/07/2025",
-
-    # AGOSTO 2025
-    "01/08/2025",
-    "04/08/2025",
-    "05/08/2025",
-    "06/08/2025",
-    "07/08/2025",
-    "08/08/2025",
-    "11/08/2025",
-    "12/08/2025",
-    "13/08/2025",
-    "14/08/2025",
-    "15/08/2025",
-    "18/08/2025",
-    "19/08/2025",
-    "20/08/2025",
-    "21/08/2025",
-    "22/08/2025",
-    "25/08/2025",
-    "26/08/2025",
-    "27/08/2025",
-    "28/08/2025",
-    "29/08/2025",
-
-    # SEPTIEMBRE 2025
-    "02/09/2025",
-    "03/09/2025",
-    "04/09/2025",
-    "05/09/2025",
-    "08/09/2025",
-    "09/09/2025",
-    "10/09/2025",
-    "11/09/2025",
-    "12/09/2025",
-    "15/09/2025",
-    "16/09/2025",
-    "17/09/2025",
-    "18/09/2025",
-    "19/09/2025",
-    "22/09/2025",
-    "23/09/2025",
-    "24/09/2025",
-    "25/09/2025",
-    "26/09/2025",
-    "29/09/2025",
-    "30/09/2025",
-
-    # OCTUBRE 2025
-    "01/10/2025",
-    "02/10/2025",
-    "03/10/2025",
-    "06/10/2025",
-    "07/10/2025",
-    "08/10/2025",
-    "09/10/2025",
-    "10/10/2025",
-    "13/10/2025",
-    "14/10/2025",
-    "15/10/2025",
-    "16/10/2025",
-    "17/10/2025",
-    "20/10/2025",
-    "21/10/2025",
-    "22/10/2025",
-    "23/10/2025",
-    "24/10/2025",
-    "27/10/2025",
-    "28/10/2025",
-    "29/10/2025",
-    "30/10/2025",
-    "31/10/2025",
+    # JUNIO 2026
+    "01/06/2026",
+    "02/06/2026",
+    "03/06/2026",
+    "04/06/2026",
 ]
 # Replay recomendado para esta prueba: X1.
 # Ventana por dia: 09:30 a 09:50 NY. El exporter escribe TIME_OVER si no hay trade antes/de 09:40;
@@ -202,15 +51,15 @@ DATES_DST = [
 REPLAY_END_TIME = "09:50"
 POLL_SECONDS = 0.02
 NO_TRADE_CUTOFF_SECONDS = 10 * 60 + 15
-REPLAY_START_MAX_ATTEMPTS = 3
-REPLAY_START_TIMEOUT_SECONDS = 2 * 60
-REPLAY_START_POLL_SECONDS = 5
+HOLIDAY_RETRY_COUNT = 3
+HOLIDAY_NORMAL_WAIT_SECONDS = 2 * 60
+HOLIDAY_FINAL_WAIT_SECONDS = 3 * 60
+HOLIDAY_NO_DATA_LABEL = "HOLYDAY NO DATA"
 
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
 RESULTS_FOLDER = os.path.join(EXPORT_FOLDER, "trade_results_score")
 TARGET_FILE = os.path.join(EXPORT_FOLDER, "target_trade_result_date.txt")
 REPLAY_STARTED_FILE = os.path.join(EXPORT_FOLDER, "replay_trade_result_started_at.txt")
-TELEGRAM_CLEAR_REQUEST_FILE = os.path.join(RESULTS_FOLDER, "telegram_clear_requested.txt")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TESTING_OUTPUT_DIR = r"C:\Users\k_99_\Desktop\codding\corridas_testing_indicator"
 SCORE_WORKBOOK_TEMPLATE = os.path.join(BASE_DIR, "Score_indicator_results_updated.xlsx")
@@ -218,6 +67,9 @@ SCORE_WORKBOOK_TEMPLATE_FALLBACK = os.path.join(BASE_DIR, "Score_indicator_resul
 SCORE_WORKBOOK = os.path.join(TESTING_OUTPUT_DIR, "Score_indicator_results_updated.xlsx")
 SCORE_WORKBOOK_FALLBACK = os.path.join(TESTING_OUTPUT_DIR, "Score_indicator_results_updated_fallback.xlsx")
 RUN_STARTED_AT = time.time()
+RESUME_EXISTING_RESULTS = True
+STALE_RESULT_BACKUP_DIR = os.path.join(RESULTS_FOLDER, "_replay_result_backups")
+EXCLUDED_EXCEL_HEADERS = {"Contracts"}
 
 
 # =========================================================
@@ -235,13 +87,6 @@ def write_target_date(date_ddmmyyyy):
         f.write(target)
 
     print(f"Fecha objetivo escrita para ATAS: {target}")
-
-
-def write_telegram_clear_request():
-    os.makedirs(RESULTS_FOLDER, exist_ok=True)
-    with open(TELEGRAM_CLEAR_REQUEST_FILE, "w", encoding="utf-8") as f:
-        f.write(str(time.time()))
-    print("Solicitud de limpieza de Telegram escrita (se borra conversacion anterior al inicio).")
 
 
 def write_replay_started_marker():
@@ -297,7 +142,6 @@ def get_controls():
     buttons = replay.descendants(control_type="Button")
 
     from_box = edits[0]
-    current_box = edits[1]
     to_box = edits[2]
 
     start_button = None
@@ -312,7 +156,7 @@ def get_controls():
         if txt == "Stop":
             stop_button = b
 
-    return replay, from_box, current_box, to_box, start_button, stop_button
+    return replay, from_box, to_box, start_button, stop_button
 
 
 def expected_result_path(date_ddmmyyyy):
@@ -338,10 +182,29 @@ def print_result_file(path):
         print(f.read().strip())
 
 
+def backup_previous_result(path, reason):
+    if not os.path.exists(path):
+        return
+
+    os.makedirs(STALE_RESULT_BACKUP_DIR, exist_ok=True)
+    base_name = os.path.basename(path)
+    name, ext = os.path.splitext(base_name)
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    backup_path = os.path.join(STALE_RESULT_BACKUP_DIR, f"{name}_{reason}_{timestamp}{ext}")
+    os.replace(path, backup_path)
+    print(f"Resultado previo no terminal movido a backup: {backup_path}")
+
+
 def clear_previous_result(path):
-    if os.path.exists(path):
-        os.remove(path)
-        print(f"Resultado anterior eliminado: {path}")
+    if not os.path.exists(path):
+        return False
+
+    if RESUME_EXISTING_RESULTS and result_is_terminal(path):
+        print(f"Resultado terminal existente conservado: {path}")
+        return False
+
+    backup_previous_result(path, "stale")
+    return True
 
 
 def clear_expected_results():
@@ -409,7 +272,7 @@ def result_is_terminal(path, min_modified_time=None):
         return False
 
     result_label = str(row.get("Result_Label") or row.get("RESULT") or "").strip().upper()
-    if result_label in ("TP", "SL", "EXIT", "BE", "TIME_OVER", "NO_TRADE"):
+    if result_label in ("TP", "SL", "EXIT", "BE", "TIME_OVER", "NO_TRADE", HOLIDAY_NO_DATA_LABEL):
         return True
 
     ticks = parse_result_ticks(row.get("result TP SL BE") or row.get("RESULT"))
@@ -440,6 +303,33 @@ def result_is_open_trade(path, min_modified_time=None):
     return result_label == "OPEN"
 
 
+def write_holiday_no_data_result(path, date_ddmmyyyy):
+    dd, mm, yyyy = date_ddmmyyyy.split("/")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+
+    headers = [
+        "Exporter_VERSION",
+        "fecha",
+        "Result_Label",
+        "result TP SL BE",
+        "Signal_Source",
+    ]
+    row = [
+        "python-replay-holiday-no-data",
+        f"{yyyy}-{mm}-{dd}",
+        HOLIDAY_NO_DATA_LABEL,
+        HOLIDAY_NO_DATA_LABEL,
+        "NO_DATA",
+    ]
+
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        writer.writerow(row)
+
+    print(f"CSV marcado como {HOLIDAY_NO_DATA_LABEL}: {path}")
+
+
 def stop_replay(stop_button=None):
     print("Deteniendo replay...")
 
@@ -447,7 +337,7 @@ def stop_replay(stop_button=None):
 
     for _ in range(5):
         try:
-            replay, from_box, current_box, to_box, start_button, refreshed_stop_button = get_controls()
+            replay, from_box, to_box, start_button, refreshed_stop_button = get_controls()
             replay.set_focus()
             if refreshed_stop_button is not None:
                 candidates.insert(0, refreshed_stop_button)
@@ -474,95 +364,59 @@ def stop_replay(stop_button=None):
     print("No encontre boton Stop; probablemente el replay ya termino.")
 
 
-def read_current_box_value(current_box):
-    try:
-        return current_box.window_text()
-    except Exception:
-        return None
-
-
-def wait_for_replay_progress(current_box, timeout_seconds, poll_seconds):
-    """Confirma que el replay realmente avanza (campo de tiempo actual cambia).
-    Si el valor no se mueve dentro del timeout, asumimos que el Start no
-    surtio efecto ("no se reproduce")."""
-    initial_value = read_current_box_value(current_box)
-    start = time.time()
-
-    while time.time() - start < timeout_seconds:
-        time.sleep(poll_seconds)
-        current_value = read_current_box_value(current_box)
-
-        if current_value is not None and current_value != initial_value:
-            print(f"Replay avanzando (tiempo actual: {current_value}).")
-            return True
-
-    print(f"Replay no avanzo en {timeout_seconds}s (valor estancado en '{initial_value}').")
-    return False
-
-
-def start_replay_with_retries(date, result_path, max_attempts, timeout_seconds, poll_seconds):
-    """Intenta iniciar el replay hasta max_attempts veces. Devuelve el
-    stop_button vigente si el replay quedo confirmado reproduciendo, o
-    None si se agotaron los intentos sin avance."""
-    for attempt in range(1, max_attempts + 1):
-        print(f"Intento de replay {attempt}/{max_attempts} para {date}...")
-
-        replay, from_box, current_box, to_box, start_button, stop_button = get_controls()
-        replay.set_focus()
-
-        if start_button is None:
-            raise RuntimeError("No se encontro boton Start")
-
-        clear_previous_result(result_path)
-        write_replay_started_marker()
-
-        start_button.click_input()
-
-        if wait_for_replay_progress(current_box, timeout_seconds, poll_seconds):
-            return stop_button
-
-        print(f"No se reproduce ({date}, intento {attempt}/{max_attempts}). Deteniendo y reintentando...")
-        stop_replay(stop_button)
-        time.sleep(2)
-
-    print(f"Se agotaron {max_attempts} intentos sin reproducir para {date}. Se cambia de fecha.")
-    return None
-
-
 MAX_WAIT_SECONDS = 1200
+
+def format_countdown(seconds):
+    seconds = max(0, int(seconds))
+    minutes, seconds = divmod(seconds, 60)
+    return f"{minutes:02d}:{seconds:02d}"
+
 
 def wait_until_result(path, min_modified_time=None, no_trade_cutoff_seconds=None, stop_button=None):
     print("Esperando resultado terminal en CSV; si el trade esta OPEN no se cambia de dia.")
-    dot_count = 0
     start = time.time()
-    last_print = 0
+    last_print_second = -1
+    last_status_line = ""
 
     while True:
         if result_is_terminal(path, min_modified_time):
-            print("\rEsperando... listo.   ")
+            print("\r" + " " * max(len(last_status_line), 80), end="\r", flush=True)
+            print("Esperando... listo.")
             print("Resultado terminal detectado en CSV; paso al siguiente dia.")
             stop_replay(stop_button)
             return True
 
         elapsed = time.time() - start
+        has_open_trade = result_is_open_trade(path, min_modified_time)
+        countdown_limit = no_trade_cutoff_seconds if no_trade_cutoff_seconds is not None else MAX_WAIT_SECONDS
+        remaining = countdown_limit - elapsed
+
         if (
             no_trade_cutoff_seconds is not None and
             elapsed > no_trade_cutoff_seconds and
-            not result_is_open_trade(path, min_modified_time)
+            not has_open_trade
         ):
-            print(f"\rCorte 09:40 sin trade OPEN ({int(elapsed)}s). Deteniendo replay del dia.")
+            print("\r" + " " * max(len(last_status_line), 80), end="\r", flush=True)
+            print(f"Corte 09:40 sin trade OPEN ({int(elapsed)}s). Deteniendo replay del dia.")
             stop_replay(stop_button)
             return False
 
         if elapsed > MAX_WAIT_SECONDS:
-            print(f"\rTimeout ({MAX_WAIT_SECONDS}s) esperando resultado terminal. Saltando al siguiente dia.")
+            print("\r" + " " * max(len(last_status_line), 80), end="\r", flush=True)
+            print(f"Timeout ({MAX_WAIT_SECONDS}s) esperando resultado terminal. Saltando al siguiente dia.")
             stop_replay(stop_button)
             return False
 
-        if time.time() - last_print >= 0.5:
-            dot_count = dot_count % 3 + 1
-            print(f"\rEsperando{'.' * dot_count}{' ' * (3 - dot_count)}", end="", flush=True)
-            last_print = time.time()
+        elapsed_second = int(elapsed)
+        if elapsed_second != last_print_second:
+            open_status = "OPEN" if has_open_trade else "sin OPEN"
+            last_status_line = (
+                f"Esperando resultado... transcurrido {format_countdown(elapsed)} | "
+                f"restan {format_countdown(remaining)} | {open_status}"
+            )
+            print("\r" + last_status_line + " " * max(0, 100 - len(last_status_line)), end="", flush=True)
+            last_print_second = elapsed_second
+
         time.sleep(POLL_SECONDS)
 
 
@@ -578,8 +432,10 @@ def read_trade_result(path, date_ddmmyyyy):
         return default_row
 
     if os.path.getmtime(path) < RUN_STARTED_AT:
-        print(f"CSV viejo ignorado para {default_row['fecha']}: {path}")
-        return default_row
+        if not result_is_terminal(path):
+            print(f"CSV viejo no terminal ignorado para {default_row['fecha']}: {path}")
+            return default_row
+        print(f"CSV terminal preservado usado para {default_row['fecha']}: {path}")
 
     with open(path, "r", encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
@@ -639,6 +495,10 @@ def to_number(value):
 
 
 def get_or_create_headers(ws):
+    for col in range(ws.max_column, 0, -1):
+        if ws.cell(row=3, column=col).value in EXCLUDED_EXCEL_HEADERS:
+            ws.delete_cols(col)
+
     default_headers = [
         "fecha",
         "or_low",
@@ -667,7 +527,7 @@ def get_or_create_headers(ws):
     headers = [
         ws.cell(row=3, column=col).value
         for col in range(1, ws.max_column + 1)
-        if ws.cell(row=3, column=col).value
+        if ws.cell(row=3, column=col).value and ws.cell(row=3, column=col).value not in EXCLUDED_EXCEL_HEADERS
     ]
 
     if not headers:
@@ -706,7 +566,7 @@ def get_csv_headers_for_dates():
                     continue
 
                 for field in reader.fieldnames:
-                    if field and field not in headers:
+                    if field and field not in EXCLUDED_EXCEL_HEADERS and field not in headers:
                         headers.append(field)
         except OSError:
             continue
@@ -831,7 +691,6 @@ failed_dates = []
 
 try:
     clear_expected_results()
-    write_telegram_clear_request()
 
     for date in DATES_DST:
         print("\n" + "=" * 70)
@@ -841,43 +700,62 @@ try:
         result_path = expected_result_path(date)
 
         try:
-            write_target_date(date)
-            time.sleep(1)
-
-            from_value = f"{date} 09:30 a. m."
-            to_value = f"{date} {REPLAY_END_TIME} a. m."
-
-            replay, from_box, current_box, to_box, start_button, stop_button = get_controls()
-
-            paste_text(from_box, from_value)
-            paste_text(to_box, to_value)
-
-            print("Fechas configuradas:")
-            print(f"FROM: {from_value}")
-            print(f"TO:   {to_value}")
-
-            time.sleep(2)
-
-            started_at = time.time()
-            stop_button = start_replay_with_retries(
-                date, result_path,
-                REPLAY_START_MAX_ATTEMPTS,
-                REPLAY_START_TIMEOUT_SECONDS,
-                REPLAY_START_POLL_SECONDS,
-            )
-
-            if stop_button is None:
-                failed_dates.append((date, "no se reproduce tras 3 intentos"))
-                print(f"Saltando {date}: no se reproduce tras {REPLAY_START_MAX_ATTEMPTS} intentos.")
-                print("Pausa antes del siguiente dia...")
-                time.sleep(10)
+            if RESUME_EXISTING_RESULTS and result_is_terminal(result_path):
+                print("Fecha ya tiene CSV terminal; se conserva y se salta.")
+                print_result_file(result_path)
                 continue
 
-            print("Esperando hasta detectar TP/SL/EXIT/BE/TIME_OVER...")
-            wait_until_result(result_path, started_at, NO_TRADE_CUTOFF_SECONDS, stop_button)
+            date_completed = False
+
+            for attempt in range(1, HOLIDAY_RETRY_COUNT + 1):
+                wait_seconds = HOLIDAY_NORMAL_WAIT_SECONDS
+                if attempt == HOLIDAY_RETRY_COUNT:
+                    wait_seconds = HOLIDAY_FINAL_WAIT_SECONDS
+
+                print(f"Intento {attempt}/{HOLIDAY_RETRY_COUNT} para cargar datos de replay.")
+                write_target_date(date)
+                time.sleep(1)
+
+                from_value = f"{date} 09:30 a. m."
+                to_value = f"{date} {REPLAY_END_TIME} a. m."
+
+                replay, from_box, to_box, start_button, stop_button = get_controls()
+
+                paste_text(from_box, from_value)
+                paste_text(to_box, to_value)
+
+                print("Fechas configuradas:")
+                print(f"FROM: {from_value}")
+                print(f"TO:   {to_value}")
+
+                time.sleep(2)
+
+                replay, from_box, to_box, start_button, stop_button = get_controls()
+
+                if start_button is None:
+                    raise RuntimeError("No se encontro boton Start")
+
+                clear_previous_result(result_path)
+                write_replay_started_marker()
+
+                print("Iniciando replay...")
+                started_at = time.time()
+                start_button.click_input()
+
+                print("Esperando hasta detectar TP/SL/EXIT/BE/TIME_OVER...")
+                if wait_until_result(result_path, started_at, wait_seconds, stop_button):
+                    date_completed = True
+                    break
+
+                print(f"No hubo resultado terminal en intento {attempt}.")
+                time.sleep(5)
+
+            if not date_completed:
+                print(f"No cargaron datos despues de {HOLIDAY_RETRY_COUNT} intentos; marcando {HOLIDAY_NO_DATA_LABEL}.")
+                backup_previous_result(result_path, "no_data")
+                write_holiday_no_data_result(result_path, date)
 
             time.sleep(5)
-
             print_result_file(result_path)
         except Exception as exc:
             failed_dates.append((date, str(exc)))

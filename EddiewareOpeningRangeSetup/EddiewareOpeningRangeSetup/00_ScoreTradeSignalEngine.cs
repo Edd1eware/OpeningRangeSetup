@@ -5,6 +5,7 @@ namespace ATAS.Indicators
     internal sealed class ScoreTradeSignalEngine
     {
         private const int MinAPlusImbalanceCount = 3;
+        private const decimal ValueAcceptanceTicks = 10m;
 
         private int _speedBar = -1;
         private DateTime _speedBarStartedAtUtc = DateTime.MinValue;
@@ -156,6 +157,10 @@ namespace ATAS.Indicators
             state.HasSell3_ImbalanceGroup = imbalance.HasSell3_ImbalanceGroup;
             state.BuyImbalanceCount = imbalance.BuyImbalanceCount;
             state.SellImbalanceCount = imbalance.SellImbalanceCount;
+            state.BreakoutSideImbalanceStopPrice = ResolveBreakoutSideImbalanceStopPrice(state.Side, imbalance, request.TickSize);
+            ApplyValueAcceptanceSignal(candle, request, state, imbalance);
+            hasAPlusStructureForSignal = HasAPlusStructureForSide(state.Side);
+            aPlusStructurePrice = GetAPlusStructurePriceForSide(state.Side);
             state.HasSide3_ImbalanceGroup =
                 (state.Side == "BUY" && state.HasBuy3_ImbalanceGroup) ||
                 (state.Side == "SELL" && state.HasSell3_ImbalanceGroup);
@@ -205,16 +210,23 @@ namespace ATAS.Indicators
                 state.TimeOk &&
                 state.VolumeOk &&
                 !string.IsNullOrWhiteSpace(state.ExecutionSide);
+            var isValueAcceptanceReady =
+                state.IsValueAcceptance &&
+                state.TimeOk &&
+                state.VolumeOk &&
+                state.ValueAcceptanceStopPrice.HasValue &&
+                !string.IsNullOrWhiteSpace(state.ExecutionSide);
 
             state.IsReady =
                 isAPlusAbsorptionReady ||
+                isValueAcceptanceReady ||
                 (
                 state.IsBreakout &&
                 state.TimeOk &&
                 state.Score >= request.MinScore &&
                 state.SpeedValid &&
                 (state.SpeedLabel != "A+ speed" || state.HasAPlusStructure || state.PriceAcceptedAfterSpeed || state.HasAPlusAbsorption) &&
-                (state.SpeedLabel != "normal speed" || state.HasAPlusStructure || state.HasSide3_Imbalances || state.HasAny3_ImbalanceGroup) &&
+                (state.SpeedLabel != "normal speed" || HasBreakoutSideImbalance(state)) &&
                 state.VolumeOk &&
                 (!request.RequireBodyOkForTrade || state.BodyOk) &&
                 (!request.RequireVwapOkForTrade || state.VwapOk)
@@ -418,6 +430,90 @@ namespace ATAS.Indicators
             return speedLabel == "normal speed" || speedLabel == "A+ speed";
         }
 
+        private static void ApplyValueAcceptanceSignal(
+            dynamic candle,
+            ScoreTradeSignalRequest request,
+            ScoreTradeSignal state,
+            ImbalanceState imbalance)
+        {
+            var buyPrice = TryGetLastBuyImbalancePrice(imbalance);
+            var sellPrice = TryGetLastSellImbalancePrice(imbalance);
+            var buyAcceptanceTicks = buyPrice.HasValue
+                ? RoundToTicks(candle.High - buyPrice.Value, request.TickSize)
+                : 0;
+            var sellAcceptanceTicks = sellPrice.HasValue
+                ? RoundToTicks(sellPrice.Value - candle.Low, request.TickSize)
+                : 0;
+            var hasBuyAcceptance = buyAcceptanceTicks >= ValueAcceptanceTicks;
+            var hasSellAcceptance = sellAcceptanceTicks >= ValueAcceptanceTicks;
+
+            if (!hasBuyAcceptance && !hasSellAcceptance)
+                return;
+
+            var side = hasBuyAcceptance && (!hasSellAcceptance || buyAcceptanceTicks >= sellAcceptanceTicks)
+                ? "BUY"
+                : "SELL";
+            var imbalancePrice = side == "BUY" ? buyPrice : sellPrice;
+
+            if (!imbalancePrice.HasValue)
+                return;
+
+            state.Side = side;
+            state.ExecutionSide = side;
+            state.IsBreakout = true;
+            state.IsValueAcceptance = true;
+            state.SignalSource = "VALUE_ACCEPTANCE";
+            state.SpeedLabel = "normal speed";
+            state.SpeedValid = true;
+            state.SpeedTimingSource = "VALUE_ACCEPTANCE";
+            state.ValueAcceptanceStopPrice = side == "BUY"
+                ? imbalancePrice.Value - request.TickSize
+                : imbalancePrice.Value + request.TickSize;
+            state.BreakoutSideImbalanceStopPrice = state.ValueAcceptanceStopPrice;
+            state.PriceAcceptedAfterImbalance = true;
+        }
+
+        private static bool HasBreakoutSideImbalance(ScoreTradeSignal state)
+        {
+            if (state.Side == "BUY")
+                return state.BuyImbalanceCount > 0;
+
+            if (state.Side == "SELL")
+                return state.SellImbalanceCount > 0;
+
+            return false;
+        }
+
+        private static decimal? ResolveBreakoutSideImbalanceStopPrice(string side, ImbalanceState imbalance, decimal tickSize)
+        {
+            var buyPrice = TryGetLastBuyImbalancePrice(imbalance);
+            var sellPrice = TryGetLastSellImbalancePrice(imbalance);
+
+            if (side == "BUY" && buyPrice.HasValue)
+                return buyPrice.Value - tickSize;
+
+            if (side == "SELL" && sellPrice.HasValue)
+                return sellPrice.Value + tickSize;
+
+            return null;
+        }
+
+        private static decimal? TryGetLastBuyImbalancePrice(ImbalanceState imbalance)
+        {
+            if (imbalance.BuyImbalancePrices.Count == 0)
+                return null;
+
+            return imbalance.BuyImbalancePrices[imbalance.BuyImbalancePrices.Count - 1];
+        }
+
+        private static decimal? TryGetLastSellImbalancePrice(ImbalanceState imbalance)
+        {
+            if (imbalance.SellImbalancePrices.Count == 0)
+                return null;
+
+            return imbalance.SellImbalancePrices[0];
+        }
+
         private static decimal GetSessionVwap(int bar, DateTime sessionDate, Func<int, dynamic> getCandle, Func<dynamic, DateTime> getSessionTime)
         {
             decimal cumPv = 0;
@@ -545,6 +641,9 @@ namespace ATAS.Indicators
         public bool HasAny3_ImbalanceGroup { get; set; }
         public int BuyImbalanceCount { get; set; }
         public int SellImbalanceCount { get; set; }
+        public decimal? BreakoutSideImbalanceStopPrice { get; set; }
+        public decimal? ValueAcceptanceStopPrice { get; set; }
+        public bool IsValueAcceptance { get; set; }
         public bool HasAPlusStructure { get; set; }
         public bool HasAPlusAbsorption { get; set; }
         public bool HasAPlusSpeed { get; set; }
