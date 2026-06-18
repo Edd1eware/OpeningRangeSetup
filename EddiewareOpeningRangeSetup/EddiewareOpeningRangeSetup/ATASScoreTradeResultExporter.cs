@@ -211,7 +211,7 @@ namespace ATAS.Indicators
             if (!plan.IsValid)
                 return;
 
-            if (!plan.IsNormalSpeed)
+            if (!plan.IsNormalSpeed && !plan.IsAPlusSpeed)
                 ApplyDynamicImbalanceStop(candle, executionSide, plan);
 
             var hasMatchingAPlusStructure = score.HasAPlusStructure;
@@ -751,32 +751,22 @@ namespace ATAS.Indicators
 
         private void GetPostEntryTradeRange(int bar, dynamic candle, out decimal tradeHigh, out decimal tradeLow)
         {
-            if (_trade == null || bar != _trade.EntryBar)
+            if (_trade == null)
             {
                 tradeHigh = candle.High;
                 tradeLow = candle.Low;
                 return;
             }
 
-            tradeHigh = candle.Close;
-            tradeLow = candle.Close;
-
-            if (_trade.Side == "BUY")
-            {
-                if (candle.High > _trade.EntryBarHighAtEntry || candle.High >= _trade.Tp)
-                    tradeHigh = candle.High;
-
-                if (candle.Low < _trade.EntryBarLowAtEntry)
-                    tradeLow = candle.Low;
-            }
-            else if (_trade.Side == "SELL")
-            {
-                if (candle.High > _trade.EntryBarHighAtEntry)
-                    tradeHigh = candle.High;
-
-                if (candle.Low < _trade.EntryBarLowAtEntry || candle.Low <= _trade.Tp)
-                    tradeLow = candle.Low;
-            }
+            TradeManagerTpSlBeExit.GetPostEntryHitRange(
+                bar == _trade.EntryBar,
+                candle.High,
+                candle.Low,
+                candle.Close,
+                _trade.EntryBarHighAtEntry,
+                _trade.EntryBarLowAtEntry,
+                out tradeHigh,
+                out tradeLow);
         }
 
         private ScoreTradeSignal CalculateLiveScore(dynamic candle, int bar, DateTime nyTime)

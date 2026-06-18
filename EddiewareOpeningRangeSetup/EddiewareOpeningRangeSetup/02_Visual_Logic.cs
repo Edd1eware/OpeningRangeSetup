@@ -645,6 +645,9 @@ namespace ATAS.Indicators
 
             var tickSize = GetTickSize();
             var currentPrice = candle.Close;
+            decimal hitHigh;
+            decimal hitLow;
+            GetPostEntryHitRange(bar, candle, out hitHigh, out hitLow);
             string timingSource;
             var currentTime = TryGetCandleUpdateTime(candle, out timingSource);
             var elapsedSeconds = TradeManagerTpSlBeExit.NormalizeElapsedSeconds(
@@ -655,8 +658,8 @@ namespace ATAS.Indicators
             _bestFavorablePrice = TradeManagerTpSlBeExit.UpdateBestFavorablePrice(
                 _tradeSide,
                 _bestFavorablePrice,
-                candle.High,
-                candle.Low);
+                hitHigh,
+                hitLow);
 
             if (_bestFavorablePrice != previousBestFavorablePrice)
                 _bestFavorableTimeUtc = currentTime;
@@ -672,8 +675,8 @@ namespace ATAS.Indicators
                 _tradeEntry,
                 _bestFavorablePrice,
                 _lastManagePrice,
-                candle.High,
-                candle.Low,
+                hitHigh,
+                hitLow,
                 (decimal)elapsedSeconds,
                 (decimal)adverseElapsedSeconds,
                 PanicPullbackTicks,
@@ -696,9 +699,6 @@ namespace ATAS.Indicators
             _lastManagePrice = metrics.AdversePrice;
             _lastManageTimeUtc = currentTime;
 
-            decimal hitHigh;
-            decimal hitLow;
-            GetPostEntryHitRange(bar, candle, out hitHigh, out hitLow);
             var speedPanic = metrics.AdverseSpeed > PanicAdverseSpeedTicksPerSecond;
 
             TryDrawFirstTradeHit(bar, candle);
@@ -970,7 +970,7 @@ namespace ATAS.Indicators
 
             var pullback = UpdateCvdPullbackState(bar, candle);
             var closeTicks = CalculateFavorableCloseTicks(candle);
-            var progressTicks = CalculateFavorableProgressTicks(candle);
+            var progressTicks = CalculateFavorableProgressTicks(bar, candle);
             var retrace = HasCvdProfitLockRetrace(candle);
             var tpTicks = _tradeTp == 0 ? 0 : RoundToTicks(Math.Abs(_tradeTp - _tradeEntry));
             var risk = pullback.PullbackLabel == "Riesgo de reversion";
@@ -1035,13 +1035,17 @@ namespace ATAS.Indicators
             _cvdPullbackExtremeDrawn = true;
         }
 
-        private decimal CalculateFavorableProgressTicks(dynamic candle)
+        private decimal CalculateFavorableProgressTicks(int bar, dynamic candle)
         {
+            decimal hitHigh;
+            decimal hitLow;
+            GetPostEntryHitRange(bar, candle, out hitHigh, out hitLow);
+
             if (_tradeSide == "BUY")
-                return RoundToTicks(Math.Max(0, candle.High - _tradeEntry));
+                return RoundToTicks(Math.Max(0, hitHigh - _tradeEntry));
 
             if (_tradeSide == "SELL")
-                return RoundToTicks(Math.Max(0, _tradeEntry - candle.Low));
+                return RoundToTicks(Math.Max(0, _tradeEntry - hitLow));
 
             return 0;
         }
@@ -1062,7 +1066,7 @@ namespace ATAS.Indicators
             if (_tradeTp == 0 || _tradeEntry == 0)
                 return;
 
-            var progressTicks = CalculateFavorableProgressTicks(candle);
+            var progressTicks = CalculateFavorableProgressTicks(bar, candle);
             if (progressTicks > _cvdProfitLockBestMfeTicks)
                 _cvdProfitLockBestMfeTicks = progressTicks;
 

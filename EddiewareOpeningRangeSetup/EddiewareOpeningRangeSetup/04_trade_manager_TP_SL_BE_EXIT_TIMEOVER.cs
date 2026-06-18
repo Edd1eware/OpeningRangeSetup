@@ -112,6 +112,33 @@ namespace ATAS.Indicators
             var isAPlusSpeed = request.SpeedLabel == "A+ speed";
             var isNormalSpeed = request.SpeedLabel == "normal speed";
             var entry = request.Entry;
+
+            if (isAPlusSpeed)
+            {
+                const decimal aPlusBracketTicks = 60m;
+                var aPlusSl = request.Side == "BUY"
+                    ? entry - aPlusBracketTicks * request.TickSize
+                    : entry + aPlusBracketTicks * request.TickSize;
+                var aPlusTp = request.Side == "BUY"
+                    ? entry + aPlusBracketTicks * request.TickSize
+                    : entry - aPlusBracketTicks * request.TickSize;
+
+                return new TradePlan
+                {
+                    EntryProfile = GetTradeClassification(request.SpeedLabel),
+                    Entry = entry,
+                    Sl = aPlusSl,
+                    Tp = aPlusTp,
+                    SlTicks = aPlusBracketTicks,
+                    TpTicks = aPlusBracketTicks,
+                    UsesImbalanceStop = false,
+                    IsAPlusSpeed = true,
+                    IsNormalSpeed = false,
+                    Contracts = 2,
+                    IsValid = true
+                };
+            }
+
             var tradeTicks = isAPlusSpeed
                 ? request.HardMaxTradeTicks
                 : isNormalSpeed
@@ -120,7 +147,7 @@ namespace ATAS.Indicators
                     ? ClampTicks(RoundToTicks(entry - request.OrLow, request.TickSize), request.MinTradeTicks, request.MaxTradeTicks)
                     : ClampTicks(RoundToTicks(request.OrHigh - entry, request.TickSize), request.MinTradeTicks, request.MaxTradeTicks);
 
-            var slTicks = isAPlusSpeed ? request.APlusStopTicks : request.MinTradeTicks;
+            var slTicks = request.MinTradeTicks;
             var sl = request.Side == "BUY"
                 ? entry - slTicks * request.TickSize
                 : entry + slTicks * request.TickSize;
