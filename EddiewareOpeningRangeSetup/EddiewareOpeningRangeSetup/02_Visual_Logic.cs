@@ -218,6 +218,14 @@ namespace ATAS.Indicators
                 return;
 
             var score = CalculateScore(candle, bar);
+            var signalTime = TryGetCandleUpdateTime(candle);
+            var sharedSnapshot = SharedTradeSignalSnapshot.CaptureOrGet(
+                candle.Time.Date,
+                _orLow,
+                _orHigh,
+                bar,
+                signalTime,
+                score);
 
             // A+ Structure visual label is now filtered by the current setup side.
             // This prevents opposite-side imbalance groups from printing before/around the trade.
@@ -228,11 +236,11 @@ namespace ATAS.Indicators
             if (ShowScoreLabel)
                 DrawScoreLabel(bar, candle, score);
 
-            if (!score.IsReady)
+            if (sharedSnapshot == null)
                 return;
 
-            DrawTrade(bar, candle, score);
-            _tradeDrawn = true;
+            var snapshotCandle = GetCandle(sharedSnapshot.Bar);
+            _tradeDrawn = DrawTrade(sharedSnapshot.Bar, snapshotCandle, sharedSnapshot.Signal);
         }
 
         private ScoreTradeSignal CalculateScore(dynamic candle, int bar)
@@ -451,14 +459,14 @@ namespace ATAS.Indicators
             return side == "BUY" ? Color.Blue : Color.Red;
         }
 
-        private void DrawTrade(int bar, dynamic candle, ScoreTradeSignal score)
+        private bool DrawTrade(int bar, dynamic candle, ScoreTradeSignal score)
         {
             var executionSide = string.IsNullOrWhiteSpace(score.ExecutionSide)
                 ? score.Side
                 : score.ExecutionSide;
 
             if (!ShowEntrySlTp || executionSide == "")
-                return;
+                return false;
 
             var tickSize = GetTickSize();
             var rawImbalanceStop = score.SpeedLabel == "A+ speed" || score.SpeedLabel == "normal speed"
@@ -491,7 +499,7 @@ namespace ATAS.Indicators
             });
 
             if (!plan.IsValid)
-                return;
+                return false;
             var entry = plan.Entry;
             var sl = plan.Sl;
             var tp = plan.Tp;
@@ -558,6 +566,8 @@ namespace ATAS.Indicators
 
             if (!_tradeIsAPlusSpeed)
                 DrawLiveExitSpeed(bar, candle, 0);
+
+            return true;
         }
 
         private void DrawInitialNormalScalpBracket(int bar, TradeManagerTpSlBeExit.TradePlan plan)

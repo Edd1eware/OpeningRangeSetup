@@ -154,20 +154,29 @@ namespace ATAS.Indicators
             UpdateAPlusStructureFromBar(bar, current, currentNyTime);
 
             var score = CalculateLiveScore(current, bar, currentNyTime);
+            var sharedSnapshot = SharedTradeSignalSnapshot.CaptureOrGet(
+                currentNyTime.Date,
+                _orLow,
+                _orHigh,
+                bar,
+                TryGetCandleUpdateTime(current, out _),
+                score);
 
-            if (!score.IsReady)
+            if (sharedSnapshot == null)
             {
                 TrackRejectedScore(bar, currentSignalNyTime, score);
                 return;
             }
 
-            if (bar <= _lastSignalReadyBar)
+            if (sharedSnapshot.Bar <= _lastSignalReadyBar)
                 return;
 
-            _lastSignalReadyBar = bar;
+            _lastSignalReadyBar = sharedSnapshot.Bar;
             ClearPendingScore();
-            CreateTrade(bar, current, currentSignalNyTime, score);
-            UpdateEntryBarTradeResult(bar, current);
+            var snapshotCandle = GetCandle(sharedSnapshot.Bar);
+            var snapshotNyTime = ConvertToNewYorkTime(sharedSnapshot.SignalTime);
+            CreateTrade(sharedSnapshot.Bar, snapshotCandle, snapshotNyTime, sharedSnapshot.Signal);
+            UpdateEntryBarTradeResult(sharedSnapshot.Bar, snapshotCandle);
         }
 
         private void CreateTrade(int bar, dynamic candle, DateTime nyTime, ScoreTradeSignal score)
@@ -624,20 +633,28 @@ namespace ATAS.Indicators
                 UpdateAPlusStructureFromBar(scanBar, scanCandle, scanNyTime);
 
                 var score = CalculateLiveScore(scanCandle, scanBar, scanNyTime);
+                var sharedSnapshot = SharedTradeSignalSnapshot.CaptureOrGet(
+                    scanNyTime.Date,
+                    _orLow,
+                    _orHigh,
+                    scanBar,
+                    TryGetCandleUpdateTime(scanCandle, out _),
+                    score);
 
-                if (!score.IsReady)
+                if (sharedSnapshot == null)
                     continue;
 
-                var signalNyTime = ResolveSignalNewYorkTime(scanCandle);
+                var snapshotCandle = GetCandle(sharedSnapshot.Bar);
+                var signalNyTime = ConvertToNewYorkTime(sharedSnapshot.SignalTime);
 
-                _lastSignalReadyBar = scanBar;
+                _lastSignalReadyBar = sharedSnapshot.Bar;
                 ClearPendingScore();
-                CreateTrade(scanBar, scanCandle, signalNyTime, score);
+                CreateTrade(sharedSnapshot.Bar, snapshotCandle, signalNyTime, sharedSnapshot.Signal);
 
                 if (_trade == null)
                     return false;
 
-                if (UpdateEntryBarTradeResult(scanBar, scanCandle))
+                if (UpdateEntryBarTradeResult(sharedSnapshot.Bar, snapshotCandle))
                     return true;
 
                 UpdateTradeResult(currentBar, currentCandle);
