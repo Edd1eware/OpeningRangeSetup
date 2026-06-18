@@ -16,4 +16,15 @@
     </Reference>
   </ItemGroup>
 
+  <Target Name="CopyIndicatorToAtas" AfterTargets="Build">
+    <PropertyGroup>
+      <AtasIndicatorsDirectory>$(APPDATA)\ATAS\Indicators</AtasIndicatorsDirectory>
+    </PropertyGroup>
+    <MakeDir Directories="$(AtasIndicatorsDirectory)" />
+    <Copy
+      SourceFiles="$(TargetPath)"
+      DestinationFolder="$(AtasIndicatorsDirectory)"
+      SkipUnchangedFiles="true" />
+  </Target>
+
 </Project>

@@ -2,7 +2,12 @@ import csv
 import json
 import os
 from urllib.parse import urlencode
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
+
+
+TELEGRAM_MESSAGE_IDS_FILE = "telegram_message_ids.txt"
+TELEGRAM_SENT_DATES_FILE = "telegram_sent_dates.txt"
 
 
 def _parse_result_ticks(value):
@@ -88,6 +93,85 @@ def _send_message(token, chat_id, message):
     return payload.get("result", {}).get("message_id")
 
 
+def _delete_message(token, chat_id, message_id):
+    body = urlencode(
+        {
+            "chat_id": chat_id,
+            "message_id": message_id,
+        }
+    ).encode("utf-8")
+    request = Request(
+        f"https://api.telegram.org/bot{token}/deleteMessage",
+        data=body,
+        method="POST",
+    )
+
+    try:
+        with urlopen(request, timeout=15) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        try:
+            payload = json.loads(exc.read().decode("utf-8"))
+            description = payload.get("description", str(exc))
+        except Exception:
+            description = str(exc)
+        return False, description
+
+    return bool(payload.get("ok")), payload.get("description", "")
+
+
+def clear_telegram_before_run(results_folder):
+    """Borra una sola vez los mensajes registrados por corridas anteriores."""
+    credentials = _read_credentials(results_folder)
+    if credentials is None:
+        print("Telegram limpieza inicial: faltan credenciales.")
+        return False
+
+    message_ids_path = os.path.join(results_folder, TELEGRAM_MESSAGE_IDS_FILE)
+    sent_dates_path = os.path.join(results_folder, TELEGRAM_SENT_DATES_FILE)
+
+    message_ids = []
+    if os.path.exists(message_ids_path):
+        with open(message_ids_path, "r", encoding="utf-8") as file:
+            for raw_line in file:
+                value = raw_line.strip()
+                if value.isdigit():
+                    message_ids.append(int(value))
+
+    deleted = 0
+    failed = 0
+    for message_id in dict.fromkeys(message_ids):
+        try:
+            ok, description = _delete_message(
+                credentials[0],
+                credentials[1],
+                message_id,
+            )
+        except Exception as exc:
+            ok, description = False, str(exc)
+
+        if ok:
+            deleted += 1
+        else:
+            failed += 1
+            print(
+                f"Telegram limpieza: no pude borrar message_id={message_id}: "
+                f"{description}"
+            )
+
+    os.makedirs(results_folder, exist_ok=True)
+    with open(message_ids_path, "w", encoding="utf-8"):
+        pass
+    with open(sent_dates_path, "w", encoding="utf-8"):
+        pass
+
+    print(
+        f"Telegram limpieza inicial terminada: {deleted} borrados, "
+        f"{failed} no borrados. Historial de la corrida reiniciado."
+    )
+    return failed == 0
+
+
 def send_run_summary(results_folder, dates, failed_dates=None, run_label="Replay"):
     credentials = _read_credentials(results_folder)
     if credentials is None:
@@ -134,7 +218,7 @@ def send_run_summary(results_folder, dates, failed_dates=None, run_label="Replay
             return False
 
         with open(
-            os.path.join(results_folder, "telegram_message_ids.txt"),
+            os.path.join(results_folder, TELEGRAM_MESSAGE_IDS_FILE),
             "a",
             encoding="utf-8",
         ) as file:
