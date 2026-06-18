@@ -216,8 +216,13 @@ namespace ATAS.Indicators
                 state.VolumeOk &&
                 state.ValueAcceptanceStopPrice.HasValue &&
                 !string.IsNullOrWhiteSpace(state.ExecutionSide);
+            var isEntryOutsideOpeningRange =
+                state.EntryPrice > state.OrHigh ||
+                state.EntryPrice < state.OrLow;
 
             state.IsReady =
+                isEntryOutsideOpeningRange &&
+                (
                 isAPlusAbsorptionReady ||
                 isValueAcceptanceReady ||
                 (
@@ -230,6 +235,7 @@ namespace ATAS.Indicators
                 state.VolumeOk &&
                 (!request.RequireBodyOkForTrade || state.BodyOk) &&
                 (!request.RequireVwapOkForTrade || state.VwapOk)
+                )
                 );
 
             return state;
