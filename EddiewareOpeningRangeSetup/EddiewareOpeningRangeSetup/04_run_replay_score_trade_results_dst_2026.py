@@ -6,6 +6,7 @@ import pyperclip
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
+from telegram_run_summary import send_run_summary
 
 # =========================================================
 # CONFIG
@@ -815,5 +816,7 @@ if failed_dates:
     print("\nFECHAS CON ERROR DE SCRIPT/UI:")
     for failed_date, error in failed_dates:
         print(f"- {failed_date}: {error}")
+
+send_run_summary(RESULTS_FOLDER, DATES_DST, failed_dates, "DST 2026")
 
 print("\nTERMINO LA PRUEBA DST.\n")

@@ -938,6 +938,14 @@ namespace ATAS.Indicators
                     FormatBool(_trade.SpeedIgnoredByStructure)
                 ) + Environment.NewLine
             );
+
+            if (_trade.Result != "OPEN")
+            {
+                TelegramTradeNotifier.QueueTerminalResult(
+                    _exportFolder,
+                    nyDate,
+                    BuildTelegramTradeMessage());
+            }
         }
 
         private void WriteTimeOverFile(DateTime nyDate, DateTime nyTime)
@@ -1013,6 +1021,25 @@ namespace ATAS.Indicators
                     "FALSE"
                 ) + Environment.NewLine
             );
+
+            TelegramTradeNotifier.QueueTerminalResult(
+                _exportFolder,
+                nyDate,
+                $"EW Opening Range | {nyDate:yyyy-MM-dd}\nTIME OVER | Sin trade");
+        }
+
+        private string BuildTelegramTradeMessage()
+        {
+            if (_trade == null)
+                return "";
+
+            return string.Join(
+                Environment.NewLine,
+                $"EW Opening Range | {_trade.EntryDate:yyyy-MM-dd}",
+                $"{_trade.Result} {_trade.Side} | {_trade.SignalSource} | S{_trade.Score}",
+                $"Entry {_trade.Entry:0.00} | SL {_trade.Sl:0.00} | TP {_trade.Tp:0.00}",
+                $"Resultado {FormatSignedTicks(TradeResultTicks())} ticks | MAE {_trade.MaeTicks:0} | MFE {_trade.MfeTicks:0}",
+                $"Hora NY {_trade.EntryTimeNy:HH:mm:ss}");
         }
 
         private void TrackRejectedScore(int bar, DateTime nyTime, ScoreTradeSignal score)
