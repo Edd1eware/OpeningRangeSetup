@@ -309,11 +309,14 @@ namespace ATAS.Indicators
             if (_trade == null || _trade.Result != "OPEN" || bar != _trade.EntryBar)
                 return false;
 
+            string timingSource;
+            var updateTimeUtc = TryGetCandleUpdateTime(candle, out timingSource);
             decimal tradeHigh;
             decimal tradeLow;
             GetPostEntryTradeRange(bar, candle, out tradeHigh, out tradeLow);
 
             UpdateTradeExcursion(tradeHigh, tradeLow);
+            UpdateTradePathMetrics(candle.Close, updateTimeUtc, timingSource);
             UpdateBestFavorablePrice(tradeHigh, tradeLow);
             UpdateCvdProfitLock();
             UpdateCvdPullback(bar, candle);
@@ -351,6 +354,7 @@ namespace ATAS.Indicators
 
             _trade.Result = decision.Result;
             _trade.ExitPrice = ResolveExitPrice(decision);
+            _trade.ExitTimeNy = ResolveSignalNewYorkTime(candle);
             WriteTradeFile(_currentNyDate);
             return true;
         }
@@ -370,6 +374,7 @@ namespace ATAS.Indicators
             GetPostEntryTradeRange(bar, candle, out tradeHigh, out tradeLow);
 
             UpdateTradeExcursion(tradeHigh, tradeLow);
+            UpdateTradePathMetrics(candle.Close, manageTimeUtc, manageTimingSource);
             UpdateBestFavorablePrice(tradeHigh, tradeLow);
             UpdateCvdProfitLock();
             UpdateCvdPullback(bar, candle);
@@ -409,6 +414,7 @@ namespace ATAS.Indicators
 
             _trade.Result = decision.Result;
             _trade.ExitPrice = ResolveExitPrice(decision);
+            _trade.ExitTimeNy = ResolveSignalNewYorkTime(candle);
             WriteTradeFile(_currentNyDate);
         }
 
@@ -749,6 +755,87 @@ namespace ATAS.Indicators
                 _trade.MaeTicks = Math.Max(0, adverseTicks);
         }
 
+        private void UpdateTradePathMetrics(decimal currentPrice, DateTime updateTimeUtc, string timingSource)
+        {
+            if (_trade == null)
+                return;
+
+            var favorableTicks = _trade.Side == "BUY"
+                ? RoundToTicks(currentPrice - _trade.Entry)
+                : RoundToTicks(_trade.Entry - currentPrice);
+            var adverseTicks = _trade.Side == "BUY"
+                ? RoundToTicks(_trade.Entry - currentPrice)
+                : RoundToTicks(currentPrice - _trade.Entry);
+
+            favorableTicks = Math.Max(0, favorableTicks);
+            adverseTicks = Math.Max(0, adverseTicks);
+
+            if (!_trade.HasPathSample)
+            {
+                _trade.HasPathSample = true;
+                _trade.LastPathFavorableTicks = favorableTicks;
+                _trade.LastPathAdverseTicks = adverseTicks;
+                _trade.MfePullupStartTicks = favorableTicks;
+                _trade.MaePullbackStartTicks = adverseTicks;
+                _trade.LastPathUpdateTimeUtc = updateTimeUtc;
+                return;
+            }
+
+            var elapsedSeconds = (updateTimeUtc - _trade.LastPathUpdateTimeUtc).TotalSeconds;
+            if (elapsedSeconds <= 0 || elapsedSeconds > 300)
+                elapsedSeconds = 1;
+            else if (timingSource == "UtcNow" || elapsedSeconds < 1)
+                elapsedSeconds *= (double)NormalizeReplaySpeedMultiplier();
+
+            var favorableIncrease = favorableTicks - _trade.LastPathFavorableTicks;
+            if (favorableIncrease > 0)
+            {
+                if (!_trade.IsMfePullupActive)
+                {
+                    _trade.IsMfePullupActive = true;
+                    _trade.MfePullupStartTicks = _trade.LastPathFavorableTicks;
+                    _trade.NumberOfPullUpsDuringTrade++;
+                }
+
+                _trade.LargestMfePullupTicks = Math.Max(
+                    _trade.LargestMfePullupTicks,
+                    favorableTicks - _trade.MfePullupStartTicks);
+                _trade.MaxSpeedMfeDuringTrade = Math.Max(
+                    _trade.MaxSpeedMfeDuringTrade,
+                    favorableIncrease / (decimal)elapsedSeconds);
+            }
+            else if (favorableIncrease < 0)
+            {
+                _trade.IsMfePullupActive = false;
+            }
+
+            var adverseIncrease = adverseTicks - _trade.LastPathAdverseTicks;
+            if (adverseIncrease > 0)
+            {
+                if (!_trade.IsMaePullbackActive)
+                {
+                    _trade.IsMaePullbackActive = true;
+                    _trade.MaePullbackStartTicks = _trade.LastPathAdverseTicks;
+                    _trade.NumberOfPullbacksDuringTrade++;
+                }
+
+                _trade.LargestMaePullbackTicks = Math.Max(
+                    _trade.LargestMaePullbackTicks,
+                    adverseTicks - _trade.MaePullbackStartTicks);
+                _trade.MaxSpeedMaeDuringTrade = Math.Max(
+                    _trade.MaxSpeedMaeDuringTrade,
+                    adverseIncrease / (decimal)elapsedSeconds);
+            }
+            else if (adverseIncrease < 0)
+            {
+                _trade.IsMaePullbackActive = false;
+            }
+
+            _trade.LastPathFavorableTicks = favorableTicks;
+            _trade.LastPathAdverseTicks = adverseTicks;
+            _trade.LastPathUpdateTimeUtc = updateTimeUtc;
+        }
+
         private void GetPostEntryTradeRange(int bar, dynamic candle, out decimal tradeHigh, out decimal tradeLow)
         {
             if (_trade == null)
@@ -877,11 +964,13 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,ExitTime_NY,Trade_Duration,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,Largest_MAE_pullback_ticks,Largest_MFE_pullup_ticks,Number_of_Pullbacks_during_Trade,Number_of_PullUps_during_Trade,Max_Speed_MAE_during_trade,Max_Speed_MFE_during_trade,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     _trade.EntryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     _trade.EntryTimeNy.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
+                    FormatExitTimeNy(),
+                    FormatTradeDuration(),
                     _trade.EntryTimeNy.Second.ToString(CultureInfo.InvariantCulture),
                     _trade.EntryBar.ToString(CultureInfo.InvariantCulture),
                     FormatPrice(_trade.OrLow),
@@ -929,6 +1018,12 @@ namespace ATAS.Indicators
                     FormatSignedTicks(TradeResultTicks()),
                     FormatTicks(_trade.MaeTicks),
                     FormatTicks(_trade.MfeTicks),
+                    FormatTicks(_trade.LargestMaePullbackTicks),
+                    FormatTicks(_trade.LargestMfePullupTicks),
+                    _trade.NumberOfPullbacksDuringTrade.ToString(CultureInfo.InvariantCulture),
+                    _trade.NumberOfPullUpsDuringTrade.ToString(CultureInfo.InvariantCulture),
+                    FormatSeconds(_trade.MaxSpeedMaeDuringTrade),
+                    FormatSeconds(_trade.MaxSpeedMfeDuringTrade),
                     FormatBool(_trade.APlusStructure),
                     FormatBool(_trade.APlusAbsorption),
                     FormatBool(_trade.APlusSpeed),
@@ -960,11 +1055,13 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,ExitTime_NY,Trade_Duration,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,Largest_MAE_pullback_ticks,Largest_MFE_pullup_ticks,Number_of_Pullbacks_during_Trade,Number_of_PullUps_during_Trade,Max_Speed_MAE_during_trade,Max_Speed_MFE_during_trade,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     nyTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
+                    "", // ExitTime_NY
+                    "", // Trade_Duration
                     nyTime.Second.ToString(CultureInfo.InvariantCulture),
                     "", // EntryBar
                     FormatPrice(_orLow),
@@ -1012,6 +1109,12 @@ namespace ATAS.Indicators
                     "TIME_OVER",
                     "", // MAE_ticks
                     "", // MFE_ticks
+                    "", // Largest_MAE_pullback_ticks
+                    "", // Largest_MFE_pullup_ticks
+                    "", // Number_of_Pullbacks_during_Trade
+                    "", // Number_of_PullUps_during_Trade
+                    "", // Max_Speed_MAE_during_trade
+                    "", // Max_Speed_MFE_during_trade
                     FormatBool(_hasAPlusStructure),
                     "FALSE",
                     "FALSE",
@@ -1039,7 +1142,10 @@ namespace ATAS.Indicators
                 $"{_trade.Result} {_trade.Side} | {_trade.SignalSource} | S{_trade.Score}",
                 $"Entry {_trade.Entry:0.00} | SL {_trade.Sl:0.00} | TP {_trade.Tp:0.00}",
                 $"Resultado {FormatSignedTicks(TradeResultTicks())} ticks | MAE {_trade.MaeTicks:0} | MFE {_trade.MfeTicks:0}",
-                $"Hora NY {_trade.EntryTimeNy:HH:mm:ss}");
+                $"Pullback MAE {_trade.LargestMaePullbackTicks:0.##}t ({_trade.NumberOfPullbacksDuringTrade}) | Pullup MFE {_trade.LargestMfePullupTicks:0.##}t ({_trade.NumberOfPullUpsDuringTrade})",
+                $"Vel max MAE {_trade.MaxSpeedMaeDuringTrade:0.####} t/s | MFE {_trade.MaxSpeedMfeDuringTrade:0.####} t/s",
+                $"Entrada NY {_trade.EntryTimeNy:HH:mm:ss} | Salida NY {FormatExitTimeNy()}",
+                $"Duracion {FormatTradeDuration()}");
         }
 
         private void TrackRejectedScore(int bar, DateTime nyTime, ScoreTradeSignal score)
@@ -1075,11 +1181,13 @@ namespace ATAS.Indicators
 
             File.WriteAllText(
                 filePath,
-                "Exporter_VERSION,fecha,EntryTime_NY,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
+                "Exporter_VERSION,fecha,EntryTime_NY,ExitTime_NY,Trade_Duration,EntrySecond_NY,EntryBar,or_low,or_high,range,VWAP_entry,Body,Volume_entry,Delta_entry,Cumulative_Delta_entry,Cumulative_Delta_Source,Cvd_Peak,Cvd_Current,Cvd_Pullback_Pct,Cvd_Pullback_Label,Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change,Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS,Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK,score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label,Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,Largest_MAE_pullback_ticks,Largest_MFE_pullup_ticks,Number_of_Pullbacks_during_Trade,Number_of_PullUps_during_Trade,Max_Speed_MAE_during_trade,Max_Speed_MFE_during_trade,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3,Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure" + Environment.NewLine +
                 string.Join(",",
                     ExporterVersion,
                     nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     _bestRejectedScoreNyTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
+                    "", // ExitTime_NY
+                    "", // Trade_Duration
                     _bestRejectedScoreNyTime.Second.ToString(CultureInfo.InvariantCulture),
                     _bestRejectedScoreBar.ToString(CultureInfo.InvariantCulture),
                     FormatPrice(score.OrLow),
@@ -1127,6 +1235,12 @@ namespace ATAS.Indicators
                     "NO_PROFILE",
                     "",
                     "",
+                    "", // Largest_MAE_pullback_ticks
+                    "", // Largest_MFE_pullup_ticks
+                    "", // Number_of_Pullbacks_during_Trade
+                    "", // Number_of_PullUps_during_Trade
+                    "", // Max_Speed_MAE_during_trade
+                    "", // Max_Speed_MFE_during_trade
                     FormatBool(score.HasAPlusStructure),
                     FormatBool(score.HasAPlusAbsorption),
                     FormatBool(score.HasAPlusSpeed),
@@ -1342,6 +1456,26 @@ namespace ATAS.Indicators
             return FormatPrice(_trade.ExitPrice);
         }
 
+        private string FormatExitTimeNy()
+        {
+            if (_trade == null || _trade.Result == "OPEN" || !_trade.ExitTimeNy.HasValue)
+                return "";
+
+            return _trade.ExitTimeNy.Value.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
+        }
+
+        private string FormatTradeDuration()
+        {
+            if (_trade == null || _trade.Result == "OPEN" || !_trade.ExitTimeNy.HasValue)
+                return "";
+
+            var duration = _trade.ExitTimeNy.Value - _trade.EntryTimeNy;
+            if (duration < TimeSpan.Zero)
+                duration = TimeSpan.Zero;
+
+            return $"{(int)duration.TotalMinutes:00}:{duration.Seconds:00}";
+        }
+
         private string FormatTicks(decimal ticks)
         {
             return ticks.ToString("0.##", CultureInfo.InvariantCulture);
@@ -1367,6 +1501,7 @@ namespace ATAS.Indicators
             public int EntryBar { get; set; }
             public DateTime EntryDate { get; set; }
             public DateTime EntryTimeNy { get; set; }
+            public DateTime? ExitTimeNy { get; set; }
             public string Side { get; set; } = "";
             public decimal OrLow { get; set; }
             public decimal OrHigh { get; set; }
@@ -1413,6 +1548,20 @@ namespace ATAS.Indicators
             public string Result { get; set; } = "";
             public decimal MaeTicks { get; set; }
             public decimal MfeTicks { get; set; }
+            public bool HasPathSample { get; set; }
+            public DateTime LastPathUpdateTimeUtc { get; set; }
+            public decimal LastPathFavorableTicks { get; set; }
+            public decimal LastPathAdverseTicks { get; set; }
+            public bool IsMaePullbackActive { get; set; }
+            public bool IsMfePullupActive { get; set; }
+            public decimal MaePullbackStartTicks { get; set; }
+            public decimal MfePullupStartTicks { get; set; }
+            public decimal LargestMaePullbackTicks { get; set; }
+            public decimal LargestMfePullupTicks { get; set; }
+            public int NumberOfPullbacksDuringTrade { get; set; }
+            public int NumberOfPullUpsDuringTrade { get; set; }
+            public decimal MaxSpeedMaeDuringTrade { get; set; }
+            public decimal MaxSpeedMfeDuringTrade { get; set; }
             public bool CvdProfitLockArmed { get; set; }
             public decimal CvdProfitLockExitPrice { get; set; }
             public decimal CvdProfitLockTicks { get; set; }

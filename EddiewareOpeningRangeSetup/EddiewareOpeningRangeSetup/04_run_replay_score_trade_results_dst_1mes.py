@@ -1,8 +1,10 @@
 from pywinauto import Desktop
 import csv
+from datetime import datetime, timedelta
 import os
 import time
 import pyperclip
+from zoneinfo import ZoneInfo
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
@@ -14,7 +16,7 @@ from telegram_run_summary import send_run_summary
 
 # Fechas operables en horario DST de Nueva York 2026.
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
-DATES_DST = [
+ALL_DATES_DST = [
 
     "04/05/2026",
     "05/05/2026",
@@ -46,6 +48,23 @@ DATES_DST = [
     "03/06/2026",
     "04/06/2026",
 ]
+
+TODAY_NY = datetime.now(ZoneInfo("America/New_York")).date()
+LAST_REPLAY_DATE = TODAY_NY - timedelta(days=1)
+DATES_DST = [
+    replay_date
+    for replay_date in ALL_DATES_DST
+    if datetime.strptime(replay_date, "%d/%m/%Y").date() <= LAST_REPLAY_DATE
+]
+
+
+def replay_date_is_allowed(date_ddmmyyyy):
+    today_ny = datetime.now(ZoneInfo("America/New_York")).date()
+    last_replay_date = today_ny - timedelta(days=1)
+    replay_date = datetime.strptime(date_ddmmyyyy, "%d/%m/%Y").date()
+    return replay_date <= last_replay_date
+
+
 # Replay recomendado para esta prueba: X1.
 # Ventana por dia: 09:30 a 09:50 NY. El exporter escribe TIME_OVER si no hay trade antes/de 09:40;
 # si ya hay trade abierto, dejamos correr hasta 09:50 para que resuelva TP/SL/EXIT/BE.
@@ -62,11 +81,10 @@ RESULTS_FOLDER = os.path.join(EXPORT_FOLDER, "trade_results_score")
 TARGET_FILE = os.path.join(EXPORT_FOLDER, "target_trade_result_date.txt")
 REPLAY_STARTED_FILE = os.path.join(EXPORT_FOLDER, "replay_trade_result_started_at.txt")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TESTING_OUTPUT_DIR = r"C:\Users\k_99_\Desktop\codding\corridas_testing_indicator"
 SCORE_WORKBOOK_TEMPLATE = os.path.join(BASE_DIR, "Score_indicator_results_updated.xlsx")
 SCORE_WORKBOOK_TEMPLATE_FALLBACK = os.path.join(BASE_DIR, "Score_indicator_results_updated_fallback.xlsx")
-SCORE_WORKBOOK = os.path.join(TESTING_OUTPUT_DIR, "Score_indicator_results_updated.xlsx")
-SCORE_WORKBOOK_FALLBACK = os.path.join(TESTING_OUTPUT_DIR, "Score_indicator_results_updated_fallback.xlsx")
+SCORE_WORKBOOK = os.path.join(BASE_DIR, "Score_indicator_results_updated_2025_2026.xlsx")
+SCORE_WORKBOOK_FALLBACK = os.path.join(BASE_DIR, "Score_indicator_results_updated_2025_2026_fallback.xlsx")
 RUN_STARTED_AT = time.time()
 RESUME_EXISTING_RESULTS = True
 STALE_RESULT_BACKUP_DIR = os.path.join(RESULTS_FOLDER, "_replay_result_backups")
@@ -579,8 +597,10 @@ def update_score_workbook():
     os.makedirs(os.path.dirname(SCORE_WORKBOOK), exist_ok=True)
 
     if os.path.exists(SCORE_WORKBOOK):
-        wb = load_workbook(SCORE_WORKBOOK)
-    elif os.path.exists(SCORE_WORKBOOK_TEMPLATE):
+        os.remove(SCORE_WORKBOOK)
+        print(f"Excel anterior eliminado: {SCORE_WORKBOOK}")
+
+    if os.path.exists(SCORE_WORKBOOK_TEMPLATE):
         wb = load_workbook(SCORE_WORKBOOK_TEMPLATE)
     elif os.path.exists(SCORE_WORKBOOK_FALLBACK):
         wb = load_workbook(SCORE_WORKBOOK_FALLBACK)
@@ -687,13 +707,25 @@ def update_score_workbook():
 # LOOP PRINCIPAL
 # =========================================================
 
-print("\nINICIANDO REPLAY DST PARA SCORE TRADE RESULTS\n")
+print(
+    f"\nINICIANDO REPLAY DST PARA SCORE TRADE RESULTS "
+    f"({len(DATES_DST)} sesiones)\n"
+    f"Fecha NY actual: {TODAY_NY:%d/%m/%Y} | "
+    f"Ultima fecha permitida: {LAST_REPLAY_DATE:%d/%m/%Y}\n"
+)
 failed_dates = []
 
 try:
     clear_expected_results()
 
     for date in DATES_DST:
+        if not replay_date_is_allowed(date):
+            print(
+                f"\nCORTE DE SEGURIDAD: {date} es hoy o una fecha futura en Nueva York. "
+                "La corrida termina sin configurar esa fecha en ATAS."
+            )
+            break
+
         print("\n" + "=" * 70)
         print(f"PROCESANDO {date}")
         print("=" * 70)
