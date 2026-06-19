@@ -98,6 +98,7 @@ HOLIDAY_NO_DATA_LABEL = "HOLYDAY NO DATA"
 
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
 RESULTS_FOLDER = os.path.join(EXPORT_FOLDER, "trade_results_score")
+TIMELINE_FOLDER = os.path.join(RESULTS_FOLDER, "dynamic_management_timeline")
 TARGET_FILE = os.path.join(EXPORT_FOLDER, "target_trade_result_date.txt")
 REPLAY_STARTED_FILE = os.path.join(EXPORT_FOLDER, "replay_trade_result_started_at.txt")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -108,6 +109,7 @@ SCORE_WORKBOOK_FALLBACK = os.path.join(BASE_DIR, "Score_indicator_results_update
 RUN_STARTED_AT = time.time()
 RESUME_EXISTING_RESULTS = True
 STALE_RESULT_BACKUP_DIR = os.path.join(RESULTS_FOLDER, "_replay_result_backups")
+STALE_TIMELINE_BACKUP_DIR = os.path.join(TIMELINE_FOLDER, "_replay_timeline_backups")
 EXCLUDED_EXCEL_HEADERS = {"Contracts"}
 
 
@@ -207,6 +209,15 @@ def expected_result_path(date_ddmmyyyy):
     )
 
 
+def expected_timeline_path(date_ddmmyyyy):
+    dd, mm, yyyy = date_ddmmyyyy.split("/")
+
+    return os.path.join(
+        TIMELINE_FOLDER,
+        f"dynamic_timeline_{yyyy}-{mm}-{dd}_NY.csv"
+    )
+
+
 def print_result_file(path):
     if not os.path.exists(path):
         print("WARNING: no encontre archivo esperado:")
@@ -234,11 +245,27 @@ def backup_previous_result(path, reason):
     print(f"Resultado previo no terminal movido a backup: {backup_path}")
 
 
-def clear_previous_result(path):
+def backup_previous_timeline(path, reason):
+    if not os.path.exists(path):
+        return
+
+    os.makedirs(STALE_TIMELINE_BACKUP_DIR, exist_ok=True)
+    base_name = os.path.basename(path)
+    name, ext = os.path.splitext(base_name)
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    backup_path = os.path.join(
+        STALE_TIMELINE_BACKUP_DIR,
+        f"{name}_{reason}_{timestamp}{ext}"
+    )
+    os.replace(path, backup_path)
+    print(f"Timeline previo movido a backup: {backup_path}")
+
+
+def clear_previous_result(path, force=False):
     if not os.path.exists(path):
         return False
 
-    if RESUME_EXISTING_RESULTS and result_is_terminal(path):
+    if RESUME_EXISTING_RESULTS and result_is_terminal(path) and not force:
         print(f"Resultado terminal existente conservado: {path}")
         return False
 
@@ -246,9 +273,30 @@ def clear_previous_result(path):
     return True
 
 
+def clear_previous_timeline(path):
+    if not os.path.exists(path):
+        return False
+
+    backup_previous_timeline(path, "stale")
+    return True
+
+
 def clear_expected_results():
     for date in DATES_DST:
-        clear_previous_result(expected_result_path(date))
+        result_path = expected_result_path(date)
+        timeline_path = expected_timeline_path(date)
+
+        if date_has_complete_artifacts(result_path, timeline_path):
+            continue
+
+        # Preserve terminal historical results until their date is actually
+        # replayed. This keeps a stopped run resumable without moving every
+        # future result to backup at startup.
+        if result_is_terminal(result_path):
+            continue
+
+        clear_previous_result(result_path)
+        clear_previous_timeline(timeline_path)
 
 
 def parse_result_ticks(value):
@@ -319,6 +367,61 @@ def result_is_terminal(path, min_modified_time=None):
         return False
 
     return ticks != 0
+
+
+def result_requires_timeline(path):
+    if not os.path.exists(path):
+        return False
+
+    try:
+        with open(path, "r", encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            row = next(reader, None)
+    except (OSError, PermissionError):
+        return False
+
+    if not row:
+        return False
+
+    result_label = str(row.get("Result_Label") or row.get("RESULT") or "").strip().upper()
+    return result_label in ("TP", "SL", "EXIT", "BE")
+
+
+def timeline_is_terminal(path, min_modified_time=None):
+    if not os.path.exists(path):
+        return False
+
+    if min_modified_time is not None and os.path.getmtime(path) < min_modified_time:
+        return False
+
+    try:
+        with open(path, "r", encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            last_row = None
+            for row in reader:
+                last_row = row
+    except (OSError, PermissionError):
+        return False
+
+    if not last_row:
+        return False
+
+    result_label = str(last_row.get("Result") or "").strip().upper()
+    event_name = str(last_row.get("Event") or "").strip().upper()
+    return (
+        result_label in ("TP", "SL", "EXIT", "BE") and
+        event_name.startswith("EXIT_")
+    )
+
+
+def date_has_complete_artifacts(result_path, timeline_path):
+    if not result_is_terminal(result_path):
+        return False
+
+    if not result_requires_timeline(result_path):
+        return True
+
+    return timeline_is_terminal(timeline_path)
 
 
 def result_is_open_trade(path, min_modified_time=None):
@@ -549,9 +652,7 @@ def get_or_create_headers(ws):
         "Delta_entry",
         "BreakOut_SPEED",
         "BreakOut_TICKS_PER_SEC",
-        "Entry_Score",
-        "Min_IN_TRADE_SCORE",
-        "Max_IN_TRADE_SCORE",
+        "score total",
         "SL_price",
         "Entry_price",
         "TP_price",
@@ -588,14 +689,6 @@ def get_or_create_headers(ws):
 
     entry_time_index = headers.index("EntryTime_NY") + 1
     headers[entry_time_index:entry_time_index] = ["ExitTime_NY", "Trade_Duration"]
-
-    in_trade_score_headers = ["Min_IN_TRADE_SCORE", "Max_IN_TRADE_SCORE"]
-    for header in in_trade_score_headers:
-        if header in headers:
-            headers.remove(header)
-
-    entry_score_index = headers.index("Entry_Score") + 1
-    headers[entry_score_index:entry_score_index] = in_trade_score_headers
 
     trade_path_headers = [
         "Largest_MAE_pullback_ticks",
@@ -795,12 +888,21 @@ try:
         print("=" * 70)
 
         result_path = expected_result_path(date)
+        timeline_path = expected_timeline_path(date)
 
         try:
-            if RESUME_EXISTING_RESULTS and result_is_terminal(result_path):
-                print("Fecha ya tiene CSV terminal; se conserva y se salta.")
+            if RESUME_EXISTING_RESULTS and date_has_complete_artifacts(result_path, timeline_path):
+                print("Fecha ya tiene resultado y timeline completos; se conserva y se salta.")
                 print_result_file(result_path)
                 continue
+
+            if (
+                RESUME_EXISTING_RESULTS and
+                result_is_terminal(result_path) and
+                result_requires_timeline(result_path) and
+                not timeline_is_terminal(timeline_path)
+            ):
+                print("El resultado existente no tiene timeline terminal; se reproducira nuevamente.")
 
             date_completed = False
 
@@ -832,7 +934,11 @@ try:
                 if start_button is None:
                     raise RuntimeError("No se encontro boton Start")
 
-                clear_previous_result(result_path)
+                clear_previous_result(
+                    result_path,
+                    force=result_requires_timeline(result_path)
+                )
+                clear_previous_timeline(timeline_path)
                 write_replay_started_marker()
 
                 print("Iniciando replay...")
@@ -841,6 +947,19 @@ try:
 
                 print("Esperando hasta detectar TP/SL/EXIT/BE/TIME_OVER...")
                 if wait_until_result(result_path, started_at, wait_seconds, stop_button):
+                    if (
+                        result_requires_timeline(result_path) and
+                        not timeline_is_terminal(timeline_path, started_at)
+                    ):
+                        print(
+                            "WARNING: resultado terminal detectado, pero el timeline no termino "
+                            "correctamente. Se reintentara la fecha."
+                        )
+                        backup_previous_result(result_path, "missing_timeline")
+                        backup_previous_timeline(timeline_path, "incomplete")
+                        time.sleep(5)
+                        continue
+
                     date_completed = True
                     break
 
@@ -854,6 +973,13 @@ try:
 
             time.sleep(5)
             print_result_file(result_path)
+            if result_requires_timeline(result_path):
+                if timeline_is_terminal(timeline_path):
+                    size_kb = round(os.path.getsize(timeline_path) / 1024, 2)
+                    print(f"TIMELINE OK: {timeline_path}")
+                    print(f"Tamano timeline: {size_kb} KB")
+                else:
+                    print(f"WARNING: timeline terminal ausente: {timeline_path}")
         except Exception as exc:
             failed_dates.append((date, str(exc)))
             print(f"ERROR procesando {date}: {exc}")

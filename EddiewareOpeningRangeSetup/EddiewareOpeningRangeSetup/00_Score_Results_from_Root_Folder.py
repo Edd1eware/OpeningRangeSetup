@@ -233,9 +233,7 @@ def get_or_create_headers(ws, result_files):
         "Delta_entry",
         "BreakOut_SPEED",
         "BreakOut_TICKS_PER_SEC",
-        "Entry_Score",
-        "Min_IN_TRADE_SCORE",
-        "Max_IN_TRADE_SCORE",
+        "score total",
         "SL_price",
         "Entry_price",
         "TP_price",
@@ -265,14 +263,6 @@ def get_or_create_headers(ws, result_files):
     for csv_header in get_csv_headers_for_result_files(result_files):
         if csv_header not in headers:
             headers.append(csv_header)
-
-    in_trade_score_headers = ["Min_IN_TRADE_SCORE", "Max_IN_TRADE_SCORE"]
-    for header in in_trade_score_headers:
-        if header in headers:
-            headers.remove(header)
-
-    entry_score_index = headers.index("Entry_Score") + 1
-    headers[entry_score_index:entry_score_index] = in_trade_score_headers
 
     for col, header in enumerate(headers, start=1):
         cell = ws.cell(row=3, column=col)

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using ATAS.Indicators;
@@ -25,7 +26,23 @@ namespace ATAS.Indicators
         private const decimal DynamicAlarmMaePullbackTicks = 15m;
         private const decimal DynamicAlarmMaeSpeedTicksPerSecond = 10m;
         private const int DynamicAlarmFieldCount = 37;
+        private const decimal DynamicTimelineSampleIntervalSeconds = 0.25m;
+        private const int DynamicTimelineFlushRowCount = 100;
         private const string ExporterVersion = "score-exporter-2026-06-18-dynamic-alarm-snapshot";
+        private const string DynamicTimelineVersion = "dynamic-timeline-2026-06-19-v1";
+        private const string DynamicTimelineCsvHeader =
+            "Timeline_VERSION,Trade_ID,Sequence,Event,Timestamp_NY,Seconds_From_Entry,Timing_Source," +
+            "Replay_Speed_Multiplier,Raw_Elapsed_Seconds,Normalized_Elapsed_Seconds,Bar,fecha," +
+            "EntryTime_NY,Side,Entry_Score,Balanced_Filter_Eligible,Entry_price,SL_price,TP_price,Current_price," +
+            "Open_PnL_Ticks,Current_Favorable_Ticks,Current_Adverse_Ticks,MAE_ticks_To_Now,MFE_ticks_To_Now," +
+            "Drawdown_From_MFE_Ticks,Current_MAE_Pullback_Ticks,Current_MAE_Speed_TPS," +
+            "Largest_MAE_Pullback_Ticks_To_Now,Max_MAE_Speed_TPS_To_Now,Distance_To_SL_Ticks," +
+            "Distance_To_TP_Ticks,Seconds_Since_Last_MFE,Cvd_Current,Cvd_Peak,Cvd_Pullback_Pct,Cvd_Label," +
+            "Cvd_NonExcellent_Seconds,Cvd_NonExcellent_Consecutive_Samples,Cvd_Excelente_Count,Cvd_Normal_Count," +
+            "Cvd_Advertencia_Count,Cvd_Riesgo_Reversion_Count,Cvd_Total_Samples,Cvd_Excelente_Time_Pct_To_Now," +
+            "Cvd_Negative_Episodes,Cvd_Label_Changes,Cvd_Worst_Label_To_Now,Current_Pullback_GE_15," +
+            "Current_MAE_Speed_GE_10,Causal_Alarm_Candidate,Legacy_Max_Alarm_Candidate,Causal_Alarm_Episode," +
+            "Dynamic_Alarm_Triggered,Dynamic_Alarm_Reason,Result";
         private const string DynamicAlarmCsvHeader =
             "Dynamic_Alarm_Triggered,Dynamic_Alarm_Time_NY,Dynamic_Alarm_Seconds_From_Entry,Dynamic_Alarm_Reason," +
             "Cvd_Label_At_Alarm,Cvd_Pullback_Pct_At_Alarm,MAE_Pullback_Ticks_At_Alarm,MAE_Speed_TPS_At_Alarm," +
@@ -47,7 +64,7 @@ namespace ATAS.Indicators
             "Cvd_Worst_Label," + DynamicAlarmCsvHeader + ",Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change," +
             "Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS," +
             "Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK," +
-            "Entry_Score,Min_IN_TRADE_SCORE,Max_IN_TRADE_SCORE,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label," +
+            "score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label," +
             "Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,Largest_MAE_pullback_ticks,Largest_MFE_pullup_ticks," +
             "Number_of_Pullbacks_during_Trade,Number_of_PullUps_during_Trade,Max_Speed_MAE_during_trade," +
             "Max_Speed_MFE_during_trade,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3," +
@@ -320,6 +337,12 @@ namespace ATAS.Indicators
             _lastManagePrice = score.EntryPrice;
             _lastManageTimeUtc = DateTime.MinValue;
             _tradeCreated = true;
+            InitializeDynamicTimeline(
+                bar,
+                score.EntryPrice,
+                entryUpdateTimeUtc,
+                entryTimingSource,
+                nyTime);
             WriteTradeFile(nyTime.Date);
         }
 
@@ -361,6 +384,13 @@ namespace ATAS.Indicators
             UpdateCvdProfitLock();
             UpdateCvdPullback(bar, candle, updateTimeUtc, timingSource);
             UpdateDynamicAlarmAnalytics(candle.Close, updateTimeUtc, timingSource, ResolveSignalNewYorkTime(candle));
+            RecordDynamicTimelineSample(
+                bar,
+                candle.Close,
+                updateTimeUtc,
+                timingSource,
+                ResolveSignalNewYorkTime(candle),
+                "UPDATE");
 
             if (TryApplyCvdRiskBracket())
                 return false;
@@ -397,6 +427,15 @@ namespace ATAS.Indicators
             _trade.ExitPrice = ResolveExitPrice(decision);
             _trade.ExitTimeNy = ResolveSignalNewYorkTime(candle);
             FinalizeDynamicAlarmAnalytics();
+            RecordDynamicTimelineSample(
+                bar,
+                _trade.ExitPrice,
+                updateTimeUtc,
+                timingSource,
+                _trade.ExitTimeNy.Value,
+                $"EXIT_{_trade.Result}",
+                true);
+            FlushDynamicTimelineBuffer();
             WriteTradeFile(_currentNyDate);
             return true;
         }
@@ -421,6 +460,13 @@ namespace ATAS.Indicators
             UpdateCvdProfitLock();
             UpdateCvdPullback(bar, candle, manageTimeUtc, manageTimingSource);
             UpdateDynamicAlarmAnalytics(candle.Close, manageTimeUtc, manageTimingSource, ResolveSignalNewYorkTime(candle));
+            RecordDynamicTimelineSample(
+                bar,
+                candle.Close,
+                manageTimeUtc,
+                manageTimingSource,
+                ResolveSignalNewYorkTime(candle),
+                "UPDATE");
 
             if (TryApplyCvdRiskBracket())
                 return;
@@ -459,6 +505,15 @@ namespace ATAS.Indicators
             _trade.ExitPrice = ResolveExitPrice(decision);
             _trade.ExitTimeNy = ResolveSignalNewYorkTime(candle);
             FinalizeDynamicAlarmAnalytics();
+            RecordDynamicTimelineSample(
+                bar,
+                _trade.ExitPrice,
+                manageTimeUtc,
+                manageTimingSource,
+                _trade.ExitTimeNy.Value,
+                $"EXIT_{_trade.Result}",
+                true);
+            FlushDynamicTimelineBuffer();
             WriteTradeFile(_currentNyDate);
         }
 
@@ -1030,6 +1085,332 @@ namespace ATAS.Indicators
             _trade.ResultBreakevenAtAlarm ??= baselineTicks;
         }
 
+        private void InitializeDynamicTimeline(
+            int bar,
+            decimal currentPrice,
+            DateTime updateTimeUtc,
+            string timingSource,
+            DateTime sampleTimeNy)
+        {
+            if (_trade == null)
+                return;
+
+            try
+            {
+                var timelineFolder = Path.Combine(_exportFolder, "dynamic_management_timeline");
+                Directory.CreateDirectory(timelineFolder);
+
+                _trade.TimelineFilePath = Path.Combine(
+                    timelineFolder,
+                    $"dynamic_timeline_{_trade.EntryDate:yyyy-MM-dd}_NY.csv");
+                _trade.TimelineTradeId =
+                    $"{_trade.EntryDate:yyyy-MM-dd}_{_trade.EntryTimeNy:HHmmss}_{_trade.Side}";
+                _trade.TimelineLastObservationTimeUtc = updateTimeUtc;
+
+                File.WriteAllText(
+                    _trade.TimelineFilePath,
+                    DynamicTimelineCsvHeader + Environment.NewLine);
+
+                RecordDynamicTimelineSample(
+                    bar,
+                    currentPrice,
+                    updateTimeUtc,
+                    timingSource,
+                    sampleTimeNy,
+                    "ENTRY",
+                    true);
+                FlushDynamicTimelineBuffer();
+            }
+            catch
+            {
+                // Timeline analytics must never interrupt the trade exporter.
+            }
+        }
+
+        private void RecordDynamicTimelineSample(
+            int bar,
+            decimal currentPrice,
+            DateTime updateTimeUtc,
+            string timingSource,
+            DateTime sampleTimeNy,
+            string requestedEvent,
+            bool force = false)
+        {
+            if (_trade == null || string.IsNullOrWhiteSpace(_trade.TimelineFilePath))
+                return;
+
+            try
+            {
+                var rawElapsedSeconds =
+                    _trade.TimelineLastObservationTimeUtc == DateTime.MinValue ||
+                    updateTimeUtc == DateTime.MinValue
+                        ? 0
+                        : Math.Max(
+                            0,
+                            (decimal)(updateTimeUtc - _trade.TimelineLastObservationTimeUtc).TotalSeconds);
+                var elapsedSinceObservation = NormalizeObservationElapsedSeconds(
+                    _trade.TimelineLastObservationTimeUtc,
+                    updateTimeUtc,
+                    timingSource);
+
+                if (elapsedSinceObservation > 0 && elapsedSinceObservation <= 300)
+                    _trade.TimelineElapsedSeconds += elapsedSinceObservation;
+
+                if (updateTimeUtc != DateTime.MinValue)
+                    _trade.TimelineLastObservationTimeUtc = updateTimeUtc;
+
+                var signedPnlTicks = CalculateSignedTradeTicks(currentPrice);
+                var currentFavorableTicks = Math.Max(0, signedPnlTicks);
+                var currentAdverseTicks = Math.Max(0, -signedPnlTicks);
+                var drawdownFromMfeTicks = Math.Max(0, _trade.MfeTicks - signedPnlTicks);
+                var cvdIsNotExcellent =
+                    !string.Equals(_trade.CvdPullbackLabel, "Excelente", StringComparison.Ordinal);
+                var currentPullbackThresholdReached =
+                    _trade.CurrentMaePullbackTicks >= DynamicAlarmMaePullbackTicks;
+                var currentSpeedThresholdReached =
+                    _trade.CurrentMaeSpeedTicksPerSecond >= DynamicAlarmMaeSpeedTicksPerSecond;
+                var causalAlarmCandidate =
+                    cvdIsNotExcellent &&
+                    (currentPullbackThresholdReached || currentSpeedThresholdReached);
+                var legacyMaxAlarmCandidate =
+                    cvdIsNotExcellent &&
+                    (_trade.LargestMaePullbackTicks >= DynamicAlarmMaePullbackTicks ||
+                     _trade.MaxSpeedMaeDuringTrade >= DynamicAlarmMaeSpeedTicksPerSecond);
+
+                if (causalAlarmCandidate && !_trade.TimelineCausalAlarmCandidateActive)
+                    _trade.TimelineCausalAlarmEpisode++;
+
+                var cvdLabelChanged =
+                    !string.Equals(
+                        _trade.TimelineLastWrittenCvdLabel,
+                        _trade.CvdPullbackLabel,
+                        StringComparison.Ordinal);
+                var causalAlarmChanged =
+                    causalAlarmCandidate != _trade.TimelineLastWrittenCausalAlarmCandidate;
+                var legacyAlarmChanged =
+                    legacyMaxAlarmCandidate != _trade.TimelineLastWrittenLegacyAlarmCandidate;
+                var dynamicAlarmChanged =
+                    _trade.DynamicAlarmTriggered != _trade.TimelineLastWrittenDynamicAlarmTriggered;
+                var resultChanged =
+                    !string.Equals(
+                        _trade.TimelineLastWrittenResult,
+                        _trade.Result,
+                        StringComparison.Ordinal);
+                var enoughTimeElapsed =
+                    _trade.TimelineElapsedSeconds - _trade.TimelineLastWrittenElapsedSeconds >=
+                    DynamicTimelineSampleIntervalSeconds;
+
+                if (!force &&
+                    !cvdLabelChanged &&
+                    !causalAlarmChanged &&
+                    !legacyAlarmChanged &&
+                    !dynamicAlarmChanged &&
+                    !resultChanged &&
+                    !enoughTimeElapsed)
+                {
+                    _trade.TimelineCausalAlarmCandidateActive = causalAlarmCandidate;
+                    return;
+                }
+
+                var eventName = ResolveDynamicTimelineEvent(
+                    requestedEvent,
+                    cvdLabelChanged,
+                    causalAlarmChanged,
+                    causalAlarmCandidate,
+                    dynamicAlarmChanged);
+                var effectiveTimeNy = string.Equals(timingSource, "UtcNow", StringComparison.Ordinal)
+                    ? _trade.EntryTimeNy.AddSeconds((double)_trade.TimelineElapsedSeconds)
+                    : sampleTimeNy;
+                var cvdNonExcellentSeconds = cvdIsNotExcellent
+                    ? NormalizeObservationElapsedSeconds(
+                        _trade.CvdNonExcellentStartTimeUtc,
+                        updateTimeUtc,
+                        timingSource)
+                    : 0;
+                var secondsSinceLastMfe = NormalizeObservationElapsedSeconds(
+                    _trade.LastMfeTimeUtc,
+                    updateTimeUtc,
+                    timingSource);
+                var cvdExcellentTimePercent = CalculateCvdExcellentTimePercentToNow(
+                    updateTimeUtc,
+                    timingSource);
+
+                _trade.TimelineSequence++;
+                _trade.TimelineBuffer.Add(string.Join(",",
+                    EscapeCsv(DynamicTimelineVersion),
+                    EscapeCsv(_trade.TimelineTradeId),
+                    _trade.TimelineSequence.ToString(CultureInfo.InvariantCulture),
+                    EscapeCsv(eventName),
+                    effectiveTimeNy.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture),
+                    FormatSeconds(_trade.TimelineElapsedSeconds),
+                    EscapeCsv(timingSource),
+                    FormatSeconds(NormalizeReplaySpeedMultiplier()),
+                    FormatSeconds(rawElapsedSeconds),
+                    FormatSeconds(elapsedSinceObservation),
+                    bar.ToString(CultureInfo.InvariantCulture),
+                    _trade.EntryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    _trade.EntryTimeNy.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
+                    EscapeCsv(_trade.Side),
+                    _trade.Score.ToString(CultureInfo.InvariantCulture),
+                    FormatBool(IsBalancedFilterEligible()),
+                    FormatPrice(_trade.Entry),
+                    FormatPrice(_trade.Sl),
+                    FormatPrice(_trade.Tp),
+                    FormatPrice(currentPrice),
+                    FormatSignedTicks(signedPnlTicks),
+                    FormatTicks(currentFavorableTicks),
+                    FormatTicks(currentAdverseTicks),
+                    FormatTicks(_trade.MaeTicks),
+                    FormatTicks(_trade.MfeTicks),
+                    FormatTicks(drawdownFromMfeTicks),
+                    FormatTicks(_trade.CurrentMaePullbackTicks),
+                    FormatSeconds(_trade.CurrentMaeSpeedTicksPerSecond),
+                    FormatTicks(_trade.LargestMaePullbackTicks),
+                    FormatSeconds(_trade.MaxSpeedMaeDuringTrade),
+                    FormatTicks(CalculateDistanceToStopTicks(currentPrice)),
+                    FormatTicks(CalculateDistanceToTargetTicks(currentPrice)),
+                    FormatSeconds(secondsSinceLastMfe),
+                    FormatTicks(_trade.CvdCurrent),
+                    FormatTicks(_trade.CvdPeak),
+                    FormatTicks(_trade.CvdPullbackPercent),
+                    EscapeCsv(_trade.CvdPullbackLabel),
+                    FormatSeconds(cvdNonExcellentSeconds),
+                    _trade.CvdNonExcellentConsecutiveSamples.ToString(CultureInfo.InvariantCulture),
+                    _trade.CvdExcellentCount.ToString(CultureInfo.InvariantCulture),
+                    _trade.CvdNormalCount.ToString(CultureInfo.InvariantCulture),
+                    _trade.CvdWarningCount.ToString(CultureInfo.InvariantCulture),
+                    _trade.CvdRiskReversalCount.ToString(CultureInfo.InvariantCulture),
+                    _trade.CvdTotalSamples.ToString(CultureInfo.InvariantCulture),
+                    FormatNullableRatio(cvdExcellentTimePercent),
+                    _trade.CvdNegativeEpisodes.ToString(CultureInfo.InvariantCulture),
+                    _trade.CvdLabelChanges.ToString(CultureInfo.InvariantCulture),
+                    EscapeCsv(_trade.CvdWorstLabel),
+                    FormatBool(currentPullbackThresholdReached),
+                    FormatBool(currentSpeedThresholdReached),
+                    FormatBool(causalAlarmCandidate),
+                    FormatBool(legacyMaxAlarmCandidate),
+                    _trade.TimelineCausalAlarmEpisode.ToString(CultureInfo.InvariantCulture),
+                    FormatBool(_trade.DynamicAlarmTriggered),
+                    EscapeCsv(_trade.DynamicAlarmReason),
+                    EscapeCsv(_trade.Result)));
+
+                _trade.TimelineLastWrittenElapsedSeconds = _trade.TimelineElapsedSeconds;
+                _trade.TimelineLastWrittenCvdLabel = _trade.CvdPullbackLabel;
+                _trade.TimelineLastWrittenCausalAlarmCandidate = causalAlarmCandidate;
+                _trade.TimelineLastWrittenLegacyAlarmCandidate = legacyMaxAlarmCandidate;
+                _trade.TimelineLastWrittenDynamicAlarmTriggered = _trade.DynamicAlarmTriggered;
+                _trade.TimelineLastWrittenResult = _trade.Result;
+                _trade.TimelineCausalAlarmCandidateActive = causalAlarmCandidate;
+
+                if (_trade.TimelineBuffer.Count >= DynamicTimelineFlushRowCount)
+                    FlushDynamicTimelineBuffer();
+            }
+            catch
+            {
+                // Timeline analytics must never interrupt trade management or CSV export.
+            }
+        }
+
+        private static string ResolveDynamicTimelineEvent(
+            string requestedEvent,
+            bool cvdLabelChanged,
+            bool causalAlarmChanged,
+            bool causalAlarmCandidate,
+            bool dynamicAlarmChanged)
+        {
+            if (!string.Equals(requestedEvent, "UPDATE", StringComparison.Ordinal))
+                return requestedEvent;
+
+            if (dynamicAlarmChanged)
+                return "DYNAMIC_ALARM_TRIGGERED";
+
+            if (causalAlarmChanged)
+                return causalAlarmCandidate
+                    ? "CAUSAL_ALARM_START"
+                    : "CAUSAL_ALARM_END";
+
+            if (cvdLabelChanged)
+                return "CVD_LABEL_CHANGE";
+
+            return "SAMPLE";
+        }
+
+        private decimal? CalculateCvdExcellentTimePercentToNow(
+            DateTime updateTimeUtc,
+            string timingSource)
+        {
+            if (_trade == null)
+                return null;
+
+            var observedSeconds = _trade.CvdObservedSeconds;
+            var excellentSeconds = _trade.CvdExcellentSeconds;
+            var currentStateSeconds = NormalizeObservationElapsedSeconds(
+                _trade.CvdLastStateTimeUtc,
+                updateTimeUtc,
+                timingSource);
+
+            observedSeconds += currentStateSeconds;
+
+            if (string.Equals(_trade.CvdPullbackLabel, "Excelente", StringComparison.Ordinal))
+                excellentSeconds += currentStateSeconds;
+
+            return observedSeconds > 0
+                ? excellentSeconds / observedSeconds
+                : null;
+        }
+
+        private bool IsBalancedFilterEligible()
+        {
+            if (_trade == null)
+                return false;
+
+            var fridayAndHighScore =
+                _trade.EntryDate.DayOfWeek == DayOfWeek.Friday &&
+                _trade.Score >= 7;
+            var sellInPreferredWindow =
+                string.Equals(_trade.Side, "SELL", StringComparison.Ordinal) &&
+                _trade.EntryTimeNy.TimeOfDay >= new TimeSpan(9, 33, 0) &&
+                _trade.EntryTimeNy.TimeOfDay < new TimeSpan(9, 36, 0);
+
+            return fridayAndHighScore || sellInPreferredWindow;
+        }
+
+        private void FlushDynamicTimelineBuffer()
+        {
+            if (_trade == null ||
+                string.IsNullOrWhiteSpace(_trade.TimelineFilePath) ||
+                _trade.TimelineBuffer.Count == 0)
+            {
+                return;
+            }
+
+            try
+            {
+                File.AppendAllLines(_trade.TimelineFilePath, _trade.TimelineBuffer);
+                _trade.TimelineBuffer.Clear();
+            }
+            catch
+            {
+                // Preserve buffered samples for a later flush attempt.
+            }
+        }
+
+        private static string EscapeCsv(string? value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return "";
+
+            if (!value.Contains(',') &&
+                !value.Contains('"') &&
+                !value.Contains('\r') &&
+                !value.Contains('\n'))
+            {
+                return value;
+            }
+
+            return $"\"{value.Replace("\"", "\"\"")}\"";
+        }
+
         private decimal CalculateSignedTradeTicks(decimal currentPrice)
         {
             if (_trade == null)
@@ -1380,8 +1761,6 @@ namespace ATAS.Indicators
                     FormatBool(_trade.VwapOk),
                     FormatBool(_trade.SpeedValid),
                     _trade.Score.ToString(CultureInfo.InvariantCulture),
-                    "", // Min_IN_TRADE_SCORE: pendiente de definir
-                    "", // Max_IN_TRADE_SCORE: pendiente de definir
                     _trade.Side,
                     _trade.SignalSource,
                     GetEntryProfile(_trade.Side, _trade.SpeedLabel),
@@ -1482,9 +1861,7 @@ namespace ATAS.Indicators
                     "TRUE",
                     "", // VWAP_OK
                     "", // Speed_OK
-                    "", // Entry_Score
-                    "", // Min_IN_TRADE_SCORE
-                    "", // Max_IN_TRADE_SCORE
+                    "", // score total
                     "", // Side
                     "TIME_OVER",
                     "", // Speed_Profile
@@ -1533,9 +1910,9 @@ namespace ATAS.Indicators
                 $"Resultado {FormatSignedTicks(TradeResultTicks())} ticks | MAE {_trade.MaeTicks:0} | MFE {_trade.MfeTicks:0}",
                 $"Pullback MAE {_trade.LargestMaePullbackTicks:0.##}t ({_trade.NumberOfPullbacksDuringTrade}) | Pullup MFE {_trade.LargestMfePullupTicks:0.##}t ({_trade.NumberOfPullUpsDuringTrade})",
                 $"Vel max MAE {_trade.MaxSpeedMaeDuringTrade:0.####} t/s | MFE {_trade.MaxSpeedMfeDuringTrade:0.####} t/s",
-                $"CVD E{_trade.CvdExcellentCount} N{_trade.CvdNormalCount} A{_trade.CvdWarningCount} R{_trade.CvdRiskReversalCount} | Excelente {FormatCvdExcellentPercent()} | Neg {_trade.CvdNegativeEpisodes}",
-                FormatTelegramCvdQuality(),
-                FormatTelegramDynamicAlarm(),
+                $"CVD E{_trade.CvdExcellentCount} N{_trade.CvdNormalCount} A{_trade.CvdWarningCount} R{_trade.CvdRiskReversalCount} | Excelente {FormatCvdExcellentPercent()} | Neg {_trade.CvdNegativeEpisodes} | Peor {_trade.CvdWorstLabel}",
+                $"Alarma dinamica {FormatBool(_trade.DynamicAlarmTriggered)} | PnL al disparo {FormatDynamicAlarmOpenPnl()}",
+                $"Criterio CVD no Excelente + (PB MAE >=15t o Vel MAE >=10t/s) | Motivo {FormatDynamicAlarmReason()}",
                 $"Entrada NY {_trade.EntryTimeNy:HH:mm:ss} | Salida NY {FormatExitTimeNy()}",
                 $"Duracion {FormatTradeDuration()}");
         }
@@ -1624,8 +2001,6 @@ namespace ATAS.Indicators
                     FormatBool(score.VwapOk),
                     FormatBool(score.SpeedValid),
                     score.Score.ToString(CultureInfo.InvariantCulture),
-                    "", // Min_IN_TRADE_SCORE: pendiente de definir
-                    "", // Max_IN_TRADE_SCORE: pendiente de definir
                     score.Side,
                     score.SignalSource,
                     GetEntryProfile(score.Side, score.SpeedLabel),
@@ -1658,6 +2033,7 @@ namespace ATAS.Indicators
 
         private void ResetDay(DateTime nyDate)
         {
+            FlushDynamicTimelineBuffer();
             _currentNyDate = nyDate;
             _orHigh = 0;
             _orLow = 0;
@@ -1984,31 +2360,6 @@ namespace ATAS.Indicators
             return _trade.DynamicAlarmReason;
         }
 
-        private string FormatTelegramCvdQuality()
-        {
-            if (_trade == null)
-                return "";
-
-            if (string.Equals(_trade.CvdWorstLabel, "Excelente", StringComparison.Ordinal))
-                return "CVD se mantuvo Excelente durante todo el trade";
-
-            return $"Estado CVD mas debil: {_trade.CvdWorstLabel}";
-        }
-
-        private string FormatTelegramDynamicAlarm()
-        {
-            if (_trade == null || !_trade.DynamicAlarmTriggered)
-            {
-                return
-                    "Alarma dinamica NO ACTIVADA | " +
-                    "CVD no Excelente + (PB MAE >=15t o Vel MAE >=10t/s)";
-            }
-
-            return
-                $"Alarma dinamica ACTIVADA | PnL al disparo {FormatDynamicAlarmOpenPnl()} | " +
-                $"Motivo {FormatDynamicAlarmReason()}";
-        }
-
         private string FormatTicks(decimal ticks)
         {
             return ticks.ToString("0.##", CultureInfo.InvariantCulture);
@@ -2106,6 +2457,20 @@ namespace ATAS.Indicators
             public decimal? ResultTrail15 { get; set; }
             public decimal? ResultTrail20 { get; set; }
             public decimal? ResultBreakevenAtAlarm { get; set; }
+            public string TimelineFilePath { get; set; } = "";
+            public string TimelineTradeId { get; set; } = "";
+            public List<string> TimelineBuffer { get; } = new List<string>();
+            public int TimelineSequence { get; set; }
+            public DateTime TimelineLastObservationTimeUtc { get; set; }
+            public decimal TimelineElapsedSeconds { get; set; }
+            public decimal TimelineLastWrittenElapsedSeconds { get; set; }
+            public string TimelineLastWrittenCvdLabel { get; set; } = "";
+            public bool TimelineLastWrittenCausalAlarmCandidate { get; set; }
+            public bool TimelineLastWrittenLegacyAlarmCandidate { get; set; }
+            public bool TimelineLastWrittenDynamicAlarmTriggered { get; set; }
+            public string TimelineLastWrittenResult { get; set; } = "";
+            public bool TimelineCausalAlarmCandidateActive { get; set; }
+            public int TimelineCausalAlarmEpisode { get; set; }
             public decimal PreviousVolume { get; set; }
             public decimal PreviousDelta { get; set; }
             public bool VolumeIncreasing { get; set; }
