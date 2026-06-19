@@ -47,7 +47,7 @@ namespace ATAS.Indicators
             "Cvd_Worst_Label," + DynamicAlarmCsvHeader + ",Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change," +
             "Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS," +
             "Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK," +
-            "score total,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label," +
+            "Entry_Score,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label," +
             "Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,Largest_MAE_pullback_ticks,Largest_MFE_pullup_ticks," +
             "Number_of_Pullbacks_during_Trade,Number_of_PullUps_during_Trade,Max_Speed_MAE_during_trade," +
             "Max_Speed_MFE_during_trade,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3," +
@@ -1480,7 +1480,7 @@ namespace ATAS.Indicators
                     "TRUE",
                     "", // VWAP_OK
                     "", // Speed_OK
-                    "", // score total
+                    "", // Entry_Score
                     "", // Side
                     "TIME_OVER",
                     "", // Speed_Profile
@@ -1529,9 +1529,9 @@ namespace ATAS.Indicators
                 $"Resultado {FormatSignedTicks(TradeResultTicks())} ticks | MAE {_trade.MaeTicks:0} | MFE {_trade.MfeTicks:0}",
                 $"Pullback MAE {_trade.LargestMaePullbackTicks:0.##}t ({_trade.NumberOfPullbacksDuringTrade}) | Pullup MFE {_trade.LargestMfePullupTicks:0.##}t ({_trade.NumberOfPullUpsDuringTrade})",
                 $"Vel max MAE {_trade.MaxSpeedMaeDuringTrade:0.####} t/s | MFE {_trade.MaxSpeedMfeDuringTrade:0.####} t/s",
-                $"CVD E{_trade.CvdExcellentCount} N{_trade.CvdNormalCount} A{_trade.CvdWarningCount} R{_trade.CvdRiskReversalCount} | Excelente {FormatCvdExcellentPercent()} | Neg {_trade.CvdNegativeEpisodes} | Peor {_trade.CvdWorstLabel}",
-                $"Alarma dinamica {FormatBool(_trade.DynamicAlarmTriggered)} | PnL al disparo {FormatDynamicAlarmOpenPnl()}",
-                $"Criterio CVD no Excelente + (PB MAE >=15t o Vel MAE >=10t/s) | Motivo {FormatDynamicAlarmReason()}",
+                $"CVD E{_trade.CvdExcellentCount} N{_trade.CvdNormalCount} A{_trade.CvdWarningCount} R{_trade.CvdRiskReversalCount} | Excelente {FormatCvdExcellentPercent()} | Neg {_trade.CvdNegativeEpisodes}",
+                FormatTelegramCvdQuality(),
+                FormatTelegramDynamicAlarm(),
                 $"Entrada NY {_trade.EntryTimeNy:HH:mm:ss} | Salida NY {FormatExitTimeNy()}",
                 $"Duracion {FormatTradeDuration()}");
         }
@@ -1976,6 +1976,31 @@ namespace ATAS.Indicators
                 return "N/A";
 
             return _trade.DynamicAlarmReason;
+        }
+
+        private string FormatTelegramCvdQuality()
+        {
+            if (_trade == null)
+                return "";
+
+            if (string.Equals(_trade.CvdWorstLabel, "Excelente", StringComparison.Ordinal))
+                return "CVD se mantuvo Excelente durante todo el trade";
+
+            return $"Estado CVD mas debil: {_trade.CvdWorstLabel}";
+        }
+
+        private string FormatTelegramDynamicAlarm()
+        {
+            if (_trade == null || !_trade.DynamicAlarmTriggered)
+            {
+                return
+                    "Alarma dinamica NO ACTIVADA | " +
+                    "CVD no Excelente + (PB MAE >=15t o Vel MAE >=10t/s)";
+            }
+
+            return
+                $"Alarma dinamica ACTIVADA | PnL al disparo {FormatDynamicAlarmOpenPnl()} | " +
+                $"Motivo {FormatDynamicAlarmReason()}";
         }
 
         private string FormatTicks(decimal ticks)

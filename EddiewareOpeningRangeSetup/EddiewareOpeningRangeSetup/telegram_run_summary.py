@@ -120,8 +120,35 @@ def _delete_message(token, chat_id, message_id):
     return bool(payload.get("ok")), payload.get("description", "")
 
 
+def _delete_messages(token, chat_id, message_ids):
+    body = urlencode(
+        {
+            "chat_id": chat_id,
+            "message_ids": json.dumps(message_ids),
+        }
+    ).encode("utf-8")
+    request = Request(
+        f"https://api.telegram.org/bot{token}/deleteMessages",
+        data=body,
+        method="POST",
+    )
+
+    try:
+        with urlopen(request, timeout=15) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        try:
+            payload = json.loads(exc.read().decode("utf-8"))
+            description = payload.get("description", str(exc))
+        except Exception:
+            description = str(exc)
+        return False, description
+
+    return bool(payload.get("ok")), payload.get("description", "")
+
+
 def clear_telegram_before_run(results_folder):
-    """Borra una sola vez los mensajes registrados por corridas anteriores."""
+    """Borra en lotes los mensajes registrados por corridas anteriores."""
     credentials = _read_credentials(results_folder)
     if credentials is None:
         print("Telegram limpieza inicial: faltan credenciales.")
@@ -138,24 +165,29 @@ def clear_telegram_before_run(results_folder):
                 if value.isdigit():
                     message_ids.append(int(value))
 
-    deleted = 0
-    failed = 0
-    for message_id in dict.fromkeys(message_ids):
+    unique_message_ids = list(dict.fromkeys(message_ids))
+    processed = 0
+    failed_batches = 0
+
+    for start in range(0, len(unique_message_ids), 100):
+        message_id_batch = unique_message_ids[start:start + 100]
+
         try:
-            ok, description = _delete_message(
+            ok, description = _delete_messages(
                 credentials[0],
                 credentials[1],
-                message_id,
+                message_id_batch,
             )
         except Exception as exc:
             ok, description = False, str(exc)
 
         if ok:
-            deleted += 1
+            processed += len(message_id_batch)
         else:
-            failed += 1
+            failed_batches += 1
             print(
-                f"Telegram limpieza: no pude borrar message_id={message_id}: "
+                f"Telegram limpieza: no pude procesar lote "
+                f"{message_id_batch[0]}-{message_id_batch[-1]}: "
                 f"{description}"
             )
 
@@ -166,10 +198,12 @@ def clear_telegram_before_run(results_folder):
         pass
 
     print(
-        f"Telegram limpieza inicial terminada: {deleted} borrados, "
-        f"{failed} no borrados. Historial de la corrida reiniciado."
+        f"Telegram limpieza inicial terminada: {processed} IDs procesados "
+        f"en lotes, {failed_batches} lotes fallidos. "
+        "Los mensajes inexistentes fueron omitidos por Telegram. "
+        "Historial de la corrida reiniciado."
     )
-    return failed == 0
+    return failed_batches == 0
 
 
 def send_run_summary(results_folder, dates, failed_dates=None, run_label="Replay"):

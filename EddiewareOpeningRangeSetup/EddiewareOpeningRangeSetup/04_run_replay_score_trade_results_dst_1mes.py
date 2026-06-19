@@ -83,8 +83,8 @@ REPLAY_STARTED_FILE = os.path.join(EXPORT_FOLDER, "replay_trade_result_started_a
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCORE_WORKBOOK_TEMPLATE = os.path.join(BASE_DIR, "Score_indicator_results_updated.xlsx")
 SCORE_WORKBOOK_TEMPLATE_FALLBACK = os.path.join(BASE_DIR, "Score_indicator_results_updated_fallback.xlsx")
-SCORE_WORKBOOK = os.path.join(BASE_DIR, "Score_indicator_results_updated_2025_2026.xlsx")
-SCORE_WORKBOOK_FALLBACK = os.path.join(BASE_DIR, "Score_indicator_results_updated_2025_2026_fallback.xlsx")
+SCORE_WORKBOOK = os.path.join(BASE_DIR, "Score_indicator_results_updated_1mes.xlsx")
+SCORE_WORKBOOK_FALLBACK = os.path.join(BASE_DIR, "Score_indicator_results_updated_1mes_fallback.xlsx")
 RUN_STARTED_AT = time.time()
 RESUME_EXISTING_RESULTS = True
 STALE_RESULT_BACKUP_DIR = os.path.join(RESULTS_FOLDER, "_replay_result_backups")
@@ -529,7 +529,7 @@ def get_or_create_headers(ws):
         "Delta_entry",
         "BreakOut_SPEED",
         "BreakOut_TICKS_PER_SEC",
-        "score total",
+        "Entry_Score",
         "SL_price",
         "Entry_price",
         "TP_price",

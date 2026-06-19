@@ -233,7 +233,7 @@ def get_or_create_headers(ws, result_files):
         "Delta_entry",
         "BreakOut_SPEED",
         "BreakOut_TICKS_PER_SEC",
-        "score total",
+        "Entry_Score",
         "SL_price",
         "Entry_price",
         "TP_price",
