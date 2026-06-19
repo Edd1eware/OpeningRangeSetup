@@ -61,8 +61,12 @@ namespace ATAS.Indicators
 
             if (state.HasAPlusStructure)
             {
-                state.HasAPlusAbsorption = !state.PriceAcceptedAfterImbalance;
-                state.SignalSource = state.PriceAcceptedAfterImbalance ? "A+ STRUCTURE" : "A+ ABSORTION";
+                state.HasAPlusAbsorption = state.PriceRejectedAfterImbalance;
+                state.SignalSource = state.PriceAcceptedAfterImbalance
+                    ? "A+ STRUCTURE"
+                    : state.PriceRejectedAfterImbalance
+                        ? "A+ ABSORTION"
+                        : "BREAKOUT";
                 return;
             }
 

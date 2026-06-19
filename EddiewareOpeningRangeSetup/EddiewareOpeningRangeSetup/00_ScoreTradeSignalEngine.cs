@@ -5,7 +5,6 @@ namespace ATAS.Indicators
     internal sealed class ScoreTradeSignalEngine
     {
         private const int MinAPlusImbalanceCount = 3;
-        private const decimal ValueAcceptanceTicks = 10m;
 
         private int _speedBar = -1;
         private DateTime _speedBarStartedAtUtc = DateTime.MinValue;
@@ -119,6 +118,9 @@ namespace ATAS.Indicators
                 state.BreakoutSpeed,
                 request.MinNormalSpeedTicksPerSecond,
                 request.APlusSpeedTicksPerSecond);
+            state.RawSpeedLabel = state.SpeedLabel;
+            state.HasAPlusSpeedThreshold =
+                state.BreakoutSpeed >= request.APlusSpeedTicksPerSecond;
             state.SpeedValid = IsSpeedValidForSignalTime(
                 state.SpeedLabel,
                 signalTime.TimeOfDay,
@@ -181,6 +183,11 @@ namespace ATAS.Indicators
                 state.APlusStructurePrice.HasValue &&
                 ((state.Side == "BUY" && candle.High >= state.APlusStructurePrice.Value + request.APlusPriceAcceptanceTicks * request.TickSize) ||
                  (state.Side == "SELL" && candle.Low <= state.APlusStructurePrice.Value - request.APlusPriceAcceptanceTicks * request.TickSize));
+            state.PriceRejectedAfterImbalance =
+                state.HasAPlusStructure &&
+                state.APlusStructurePrice.HasValue &&
+                ((state.Side == "BUY" && candle.Low <= state.APlusStructurePrice.Value - request.APlusPriceAcceptanceTicks * request.TickSize) ||
+                 (state.Side == "SELL" && candle.High >= state.APlusStructurePrice.Value + request.APlusPriceAcceptanceTicks * request.TickSize));
             state.PriceAcceptedAfterSpeed =
                 state.SpeedLabel == "A+ speed" &&
                 ((state.Side == "BUY" && candle.High >= state.EntryPrice + request.APlusPriceAcceptanceTicks * request.TickSize) ||
@@ -267,6 +274,10 @@ namespace ATAS.Indicators
                 _judasStructurePrice.HasValue &&
                 ((_judasStructureSide == "BUY" && candle.High >= _judasStructurePrice.Value + request.APlusPriceAcceptanceTicks * request.TickSize) ||
                  (_judasStructureSide == "SELL" && candle.Low <= _judasStructurePrice.Value - request.APlusPriceAcceptanceTicks * request.TickSize));
+            state.PriceRejectedAfterImbalance =
+                _judasStructurePrice.HasValue &&
+                ((_judasStructureSide == "BUY" && candle.Low <= _judasStructurePrice.Value - request.APlusPriceAcceptanceTicks * request.TickSize) ||
+                 (_judasStructureSide == "SELL" && candle.High >= _judasStructurePrice.Value + request.APlusPriceAcceptanceTicks * request.TickSize));
 
             if (state.PriceAcceptedAfterImbalance)
             {
@@ -275,8 +286,10 @@ namespace ATAS.Indicators
                 return;
             }
 
-            state.HasAPlusAbsorption = true;
-            state.SignalSource = "A+ ABSORTION";
+            state.HasAPlusAbsorption = state.PriceRejectedAfterImbalance;
+            state.SignalSource = state.HasAPlusAbsorption
+                ? "A+ ABSORTION"
+                : "BREAKOUT";
         }
 
         private void TryArmJudasSwing(int bar, dynamic candle, ScoreTradeSignal state)
@@ -354,10 +367,10 @@ namespace ATAS.Indicators
             var tickDistance = request.APlusPriceAcceptanceTicks * request.TickSize;
             var buyRejected = _buyAPlusStructureBar >= 0 &&
                 _buyAPlusStructurePrice.HasValue &&
-                candle.High < _buyAPlusStructurePrice.Value + tickDistance;
+                candle.Low <= _buyAPlusStructurePrice.Value - tickDistance;
             var sellRejected = _sellAPlusStructureBar >= 0 &&
                 _sellAPlusStructurePrice.HasValue &&
-                candle.Low > _sellAPlusStructurePrice.Value - tickDistance;
+                candle.High >= _sellAPlusStructurePrice.Value + tickDistance;
 
             if (buyRejected && sellRejected)
                 return _buyAPlusStructureBar >= _sellAPlusStructureBar ? "BUY" : "SELL";
@@ -436,22 +449,28 @@ namespace ATAS.Indicators
             return speedLabel == "normal speed" || speedLabel == "A+ speed";
         }
 
-        private static void ApplyValueAcceptanceSignal(
+        private void ApplyValueAcceptanceSignal(
             dynamic candle,
             ScoreTradeSignalRequest request,
             ScoreTradeSignal state,
             ImbalanceState imbalance)
         {
-            var buyPrice = TryGetLastBuyImbalancePrice(imbalance);
-            var sellPrice = TryGetLastSellImbalancePrice(imbalance);
+            // Value acceptance is only valid after a contiguous A+ group of
+            // at least three diagonal imbalances has been detected.
+            var buyPrice = _buyAPlusStructureBar >= 0
+                ? _buyAPlusStructurePrice
+                : null;
+            var sellPrice = _sellAPlusStructureBar >= 0
+                ? _sellAPlusStructurePrice
+                : null;
             var buyAcceptanceTicks = buyPrice.HasValue
                 ? RoundToTicks(candle.High - buyPrice.Value, request.TickSize)
                 : 0;
             var sellAcceptanceTicks = sellPrice.HasValue
                 ? RoundToTicks(sellPrice.Value - candle.Low, request.TickSize)
                 : 0;
-            var hasBuyAcceptance = buyAcceptanceTicks >= ValueAcceptanceTicks;
-            var hasSellAcceptance = sellAcceptanceTicks >= ValueAcceptanceTicks;
+            var hasBuyAcceptance = buyAcceptanceTicks >= request.APlusPriceAcceptanceTicks;
+            var hasSellAcceptance = sellAcceptanceTicks >= request.APlusPriceAcceptanceTicks;
 
             if (!hasBuyAcceptance && !hasSellAcceptance)
                 return;
@@ -595,7 +614,7 @@ namespace ATAS.Indicators
         public decimal ReplaySpeedMultiplier { get; set; }
         public decimal ImbalanceRatio { get; set; } = 3m;
         public decimal ImbalanceCompareMinVolume { get; set; } = 70m;
-        public decimal APlusPriceAcceptanceTicks { get; set; } = 20m;
+        public decimal APlusPriceAcceptanceTicks { get; set; } = 15m;
         public bool RequireBodyOkForTrade { get; set; }
         public bool RequireVwapOkForTrade { get; set; }
     }
@@ -620,6 +639,7 @@ namespace ATAS.Indicators
         public bool SpeedUsedReplayFallback { get; set; }
         public string SpeedTimingSource { get; set; } = "";
         public string SpeedLabel { get; set; } = "";
+        public string RawSpeedLabel { get; set; } = "";
         public decimal Volume { get; set; }
         public decimal Delta { get; set; }
         public decimal CumulativeDelta { get; set; }
@@ -630,6 +650,7 @@ namespace ATAS.Indicators
         public decimal DeltaChange { get; set; }
         public bool DeltaWithSide { get; set; }
         public bool PriceAcceptedAfterImbalance { get; set; }
+        public bool PriceRejectedAfterImbalance { get; set; }
         public bool PriceAcceptedAfterSpeed { get; set; }
         public bool RangeOk { get; set; }
         public bool BodyOk { get; set; }
@@ -653,6 +674,7 @@ namespace ATAS.Indicators
         public bool HasAPlusStructure { get; set; }
         public bool HasAPlusAbsorption { get; set; }
         public bool HasAPlusSpeed { get; set; }
+        public bool HasAPlusSpeedThreshold { get; set; }
         public bool IsFakeBreakout { get; set; }
         public bool IsJudasSwing { get; set; }
         public string APlusStructureSide { get; set; } = "";

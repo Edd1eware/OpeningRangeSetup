@@ -85,7 +85,7 @@ DATES_DST = [
     if datetime.strptime(replay_date, "%d/%m/%Y").date() <= LAST_REPLAY_DATE
 ]
 
-# Replay recomendado para esta prueba: X1.
+# Replay recomendado para esta prueba: X10.
 # Ventana por dia: 09:30 a 09:50 NY. El exporter escribe TIME_OVER si no hay trade antes/de 09:40;
 # si ya hay trade abierto, dejamos correr hasta 09:50 para que resuelva TP/SL/EXIT/BE.
 REPLAY_END_TIME = "09:50"
@@ -95,6 +95,7 @@ HOLIDAY_RETRY_COUNT = 3
 HOLIDAY_NORMAL_WAIT_SECONDS = 2 * 60
 HOLIDAY_FINAL_WAIT_SECONDS = 3 * 60
 HOLIDAY_NO_DATA_LABEL = "HOLYDAY NO DATA"
+REQUIRED_TIMELINE_VERSION = "dynamic-timeline-2026-06-19-v3-orderflow-latency"
 
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
 RESULTS_FOLDER = os.path.join(EXPORT_FOLDER, "trade_results_score")
@@ -397,13 +398,19 @@ def timeline_is_terminal(path, min_modified_time=None):
     try:
         with open(path, "r", encoding="utf-8-sig", newline="") as f:
             reader = csv.DictReader(f)
+            first_row = None
             last_row = None
             for row in reader:
+                if first_row is None:
+                    first_row = row
                 last_row = row
     except (OSError, PermissionError):
         return False
 
-    if not last_row:
+    if not first_row or not last_row:
+        return False
+
+    if str(first_row.get("Timeline_VERSION") or "").strip() != REQUIRED_TIMELINE_VERSION:
         return False
 
     result_label = str(last_row.get("Result") or "").strip().upper()

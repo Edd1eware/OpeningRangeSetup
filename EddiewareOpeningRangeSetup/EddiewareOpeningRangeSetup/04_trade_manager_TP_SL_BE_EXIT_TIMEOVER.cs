@@ -105,6 +105,9 @@ namespace ATAS.Indicators
             public decimal HalfMfeExitPrice { get; set; }
             public bool IsHalfMfeExit { get; set; }
             public bool IsFastExit { get; set; }
+            public bool HitTp { get; set; }
+            public bool HitSl { get; set; }
+            public bool HitTpAndSlSameUpdate { get; set; }
         }
 
         public static TradePlan CreateInitialPlan(TradePlanRequest request)
@@ -300,18 +303,31 @@ namespace ATAS.Indicators
                 request.TickSize);
             decimal halfMfeExit = 0;
 
-            var hitTp = IsTpHit(request.Side, request.CandleHigh, request.CandleLow, request.Tp);
-            var hitSl = IsSlHit(request.Side, request.CandleHigh, request.CandleLow, request.Sl);
+            var touchState = DetectExitTouches(
+                request.Side,
+                request.CandleHigh,
+                request.CandleLow,
+                request.Tp,
+                request.Sl);
+            var hitTp = touchState.HitTp;
+            var hitSl = touchState.HitSl;
 
             if (!hitTp && !hitSl)
             {
                 return new TradeExitDecision
                 {
                     MfeTicks = mfeTicks,
-                    HalfMfeExitPrice = halfMfeExit
+                    HalfMfeExitPrice = halfMfeExit,
+                    HitTp = false,
+                    HitSl = false,
+                    HitTpAndSlSameUpdate = false
                 };
             }
 
+            // OHLC/high-low data cannot establish which level traded first
+            // when both are touched in the same update. Keep the historical
+            // TP-first behavior for compatibility and export the ambiguity
+            // so it can be visually validated in Replay.
             var result = hitTp ? "TP" : "SL";
             var exitPrice = hitTp ? request.Tp : request.Sl;
 
@@ -328,7 +344,31 @@ namespace ATAS.Indicators
                     exitPrice,
                     request.TickSize),
                 MfeTicks = mfeTicks,
-                HalfMfeExitPrice = halfMfeExit
+                HalfMfeExitPrice = halfMfeExit,
+                HitTp = hitTp,
+                HitSl = hitSl,
+                HitTpAndSlSameUpdate = hitTp && hitSl
+            };
+        }
+
+        public sealed class ExitTouchState
+        {
+            public bool HitTp { get; set; }
+            public bool HitSl { get; set; }
+            public bool HitBoth => HitTp && HitSl;
+        }
+
+        public static ExitTouchState DetectExitTouches(
+            string side,
+            decimal high,
+            decimal low,
+            decimal tp,
+            decimal sl)
+        {
+            return new ExitTouchState
+            {
+                HitTp = tp != 0 && IsTpHit(side, high, low, tp),
+                HitSl = sl != 0 && IsSlHit(side, high, low, sl)
             };
         }
 

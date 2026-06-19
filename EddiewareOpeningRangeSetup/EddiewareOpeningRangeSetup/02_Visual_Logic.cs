@@ -137,7 +137,7 @@ namespace ATAS.Indicators
         public decimal ImbalanceCompareMinVolume { get; set; } = 70m;
 
         [DisplayName("A+ Price Acceptance Ticks")]
-        public decimal APlusPriceAcceptanceTicks { get; set; } = 20m;
+        public decimal APlusPriceAcceptanceTicks { get; set; } = 15m;
 
         [DisplayName("Show A+ Structure Label")]
         public bool ShowAPlusStructureLabel { get; set; } = true;

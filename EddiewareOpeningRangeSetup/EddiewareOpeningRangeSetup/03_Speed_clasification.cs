@@ -26,21 +26,32 @@ namespace ATAS.Indicators
 
             string timingSource;
             var currentTime = TryGetCandleUpdateTime(candle, out timingSource);
-            var startTime = candle.Time;
-            var elapsedSeconds = (currentTime - startTime).TotalSeconds;
             var usedReplayFallback = false;
+            double elapsedSeconds;
+
+            if (timingSource == "UtcNow")
+            {
+                usedReplayFallback = true;
+                timingSource = "UtcNow-ReplayAdjusted";
+                elapsedSeconds = speedBarStartedAtUtc == DateTime.MinValue
+                    ? 0
+                    : (DateTime.UtcNow - speedBarStartedAtUtc).TotalSeconds *
+                      (double)NormalizeReplaySpeedMultiplier(replaySpeedMultiplier);
+            }
+            else
+            {
+                // LastTime/LastTradeTime/etc. already contain historical market
+                // time during Replay. Multiplying them by X10 would count the
+                // replay acceleration twice and understate ticks per second.
+                elapsedSeconds = (currentTime - candle.Time).TotalSeconds;
+            }
 
             if (elapsedSeconds <= 0 || elapsedSeconds > 300)
             {
                 usedReplayFallback = true;
                 timingSource = "bar-close-fallback";
-                elapsedSeconds = FallbackBarSeconds / (double)NormalizeReplaySpeedMultiplier(replaySpeedMultiplier);
+                elapsedSeconds = FallbackBarSeconds;
             }
-
-            if (elapsedSeconds <= 0)
-                elapsedSeconds = 1;
-
-            elapsedSeconds *= (double)NormalizeReplaySpeedMultiplier(replaySpeedMultiplier);
 
             return new SpeedState
             {
@@ -61,10 +72,10 @@ namespace ATAS.Indicators
             decimal minNormalSpeedTicksPerSecond,
             decimal aPlusSpeedTicksPerSecond)
         {
-            if (speedTicksPerSecond <= minNormalSpeedTicksPerSecond)
+            if (speedTicksPerSecond < minNormalSpeedTicksPerSecond)
                 return "invalid speed";
 
-            if (speedTicksPerSecond <= aPlusSpeedTicksPerSecond)
+            if (speedTicksPerSecond < aPlusSpeedTicksPerSecond)
                 return "normal speed";
 
             return "A+ speed";

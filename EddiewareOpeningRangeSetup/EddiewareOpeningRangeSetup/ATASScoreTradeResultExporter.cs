@@ -26,10 +26,11 @@ namespace ATAS.Indicators
         private const decimal DynamicAlarmMaePullbackTicks = 15m;
         private const decimal DynamicAlarmMaeSpeedTicksPerSecond = 10m;
         private const int DynamicAlarmFieldCount = 37;
+        private const int ExtendedTelemetryFieldCount = 27;
         private const decimal DynamicTimelineSampleIntervalSeconds = 0.25m;
         private const int DynamicTimelineFlushRowCount = 100;
-        private const string ExporterVersion = "score-exporter-2026-06-18-dynamic-alarm-snapshot";
-        private const string DynamicTimelineVersion = "dynamic-timeline-2026-06-19-v1";
+        private const string ExporterVersion = "score-exporter-2026-06-19-v3-orderflow-latency";
+        private const string DynamicTimelineVersion = "dynamic-timeline-2026-06-19-v3-orderflow-latency";
         private const string DynamicTimelineCsvHeader =
             "Timeline_VERSION,Trade_ID,Sequence,Event,Timestamp_NY,Seconds_From_Entry,Timing_Source," +
             "Replay_Speed_Multiplier,Raw_Elapsed_Seconds,Normalized_Elapsed_Seconds,Bar,fecha," +
@@ -42,7 +43,10 @@ namespace ATAS.Indicators
             "Cvd_Advertencia_Count,Cvd_Riesgo_Reversion_Count,Cvd_Total_Samples,Cvd_Excelente_Time_Pct_To_Now," +
             "Cvd_Negative_Episodes,Cvd_Label_Changes,Cvd_Worst_Label_To_Now,Current_Pullback_GE_15," +
             "Current_MAE_Speed_GE_10,Causal_Alarm_Candidate,Legacy_Max_Alarm_Candidate,Causal_Alarm_Episode," +
-            "Dynamic_Alarm_Triggered,Dynamic_Alarm_Reason,Result";
+            "Dynamic_Alarm_Triggered,Dynamic_Alarm_Reason,Result,Current_Delta,Max_Delta_during_trade," +
+            "Min_Delta_during_trade,Current_Volume,Volume_Increasing_From_Previous_Update," +
+            "MAE_Speed_500ms_TPS,MAE_Speed_1s_TPS,MAE_Speed_2s_TPS,TP_And_SL_Hit_Same_Update," +
+            "No_Gestionable_Por_Latencia";
         private const string DynamicAlarmCsvHeader =
             "Dynamic_Alarm_Triggered,Dynamic_Alarm_Time_NY,Dynamic_Alarm_Seconds_From_Entry,Dynamic_Alarm_Reason," +
             "Cvd_Label_At_Alarm,Cvd_Pullback_Pct_At_Alarm,MAE_Pullback_Ticks_At_Alarm,MAE_Speed_TPS_At_Alarm," +
@@ -68,7 +72,16 @@ namespace ATAS.Indicators
             "Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,Largest_MAE_pullback_ticks,Largest_MFE_pullup_ticks," +
             "Number_of_Pullbacks_during_Trade,Number_of_PullUps_during_Trade,Max_Speed_MAE_during_trade," +
             "Max_Speed_MFE_during_trade,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3," +
-            "Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure";
+            "Imbalance_Group_Price,Imbalance_Count,Speed_Ignored_By_Structure," +
+            "EntryTime_NY_Milliseconds,ExitTime_NY_Milliseconds,Trade_Duration_Milliseconds,Subsecond_Trade," +
+            "Latency_Threshold_Milliseconds,No_Gestionable_Por_Latencia,Alarm_To_Exit_Milliseconds," +
+            "Dynamic_Alarm_No_Gestionable_Por_Latencia,Slippage_Ticks_Per_Fill,Result_After_Slippage_Ticks," +
+            "TP_And_SL_Hit_Same_Update,Raw_Speed_Label,APlus_Speed_Threshold_TPS," +
+            "APlus_Speed_Setup_Confirmed,Price_Rejected_After_Imbalance," +
+            "Buy_Imbalance_Count,Sell_Imbalance_Count," +
+            "Execution_Side_Imbalance_Count,Max_Delta_during_trade,Min_Delta_during_trade," +
+            "Volume_Increased_During_Trade,Volume_Increase_Samples,Volume_Observed_Samples," +
+            "Volume_Increasing_Pct_During_Trade,Max_MAE_Speed_500ms,Max_MAE_Speed_1s,Max_MAE_Speed_2s";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
@@ -120,7 +133,7 @@ namespace ATAS.Indicators
         public decimal ReplaySpeedMultiplier { get; set; } = 10;
         public decimal ImbalanceRatio { get; set; } = 3m;
         public decimal ImbalanceCompareMinVolume { get; set; } = 70m;
-        public decimal APlusPriceAcceptanceTicks { get; set; } = 20m;
+        public decimal APlusPriceAcceptanceTicks { get; set; } = 15m;
         public decimal MinTradeTicks { get; set; } = 60;
         public decimal MaxTradeTicks { get; set; } = 60;
         public decimal HalfMfeExitMinMfeTicks { get; set; } = 40;
@@ -128,6 +141,8 @@ namespace ATAS.Indicators
         public decimal FastExitPullbackTicks { get; set; } = 10;
         public decimal CvdProfitLockPullbackTicks { get; set; } = 10;
         public decimal FastExitAdverseSpeedTicksPerSecond { get; set; } = 6;
+        public decimal SlippageTicksPerFill { get; set; } = 1;
+        public int MaxExpectedLatencyMilliseconds { get; set; } = 20;
         public TimeSpan TimeOverTimeNy { get; set; } = new TimeSpan(9, 40, 0);
         public int MinTimeOverRealtimeSeconds { get; set; } = 5;
         public bool RequireBodyOkForTrade { get; set; } = false;
@@ -263,9 +278,11 @@ namespace ATAS.Indicators
             var hasMatchingAPlusStructure = score.HasAPlusStructure;
             var matchingAPlusSide = score.APlusStructureSide;
             var matchingAPlusPrice = score.APlusStructurePrice;
-            var matchingAPlusCount = hasMatchingAPlusStructure ? 3 : 0;
-            string entryTimingSource;
-            var entryUpdateTimeUtc = TryGetCandleUpdateTime(candle, out entryTimingSource);
+            var executionSideImbalanceCount = executionSide == "BUY"
+                ? score.BuyImbalanceCount
+                : score.SellImbalanceCount;
+            var entryTimingSource = "SignalSnapshotTime";
+            var entryUpdateTimeUtc = ConvertNewYorkTimeToUtc(nyTime);
 
             _trade = new TradeState
             {
@@ -283,6 +300,7 @@ namespace ATAS.Indicators
                 SpeedUsedReplayFallback = score.SpeedUsedReplayFallback,
                 SpeedTimingSource = score.SpeedTimingSource,
                 SpeedLabel = score.SpeedLabel,
+                RawSpeedLabel = score.RawSpeedLabel,
                 Volume = score.Volume,
                 Delta = score.Delta,
                 CumulativeDelta = score.CumulativeDelta,
@@ -306,6 +324,7 @@ namespace ATAS.Indicators
                 DeltaChange = score.DeltaChange,
                 DeltaWithSide = score.DeltaWithSide,
                 PriceAcceptedAfterImbalance = score.PriceAcceptedAfterImbalance,
+                PriceRejectedAfterImbalance = score.PriceRejectedAfterImbalance,
                 RangeOk = score.RangeOk,
                 BodyOk = score.BodyOk,
                 VolumeOk = score.VolumeOk,
@@ -327,13 +346,19 @@ namespace ATAS.Indicators
                 Result = "OPEN",
                 APlusStructure = hasMatchingAPlusStructure,
                 APlusAbsorption = score.HasAPlusAbsorption,
-                APlusSpeed = score.HasAPlusSpeed,
+                APlusSpeed = score.HasAPlusSpeedThreshold,
+                APlusSpeedSetupConfirmed = score.HasAPlusSpeed,
+                APlusSpeedThresholdTicksPerSecond = APlusSpeedTicksPerSecond,
                 SignalSource = score.SignalSource,
                 ImbalanceGroup3 = matchingAPlusSide,
                 ImbalanceGroupPrice = matchingAPlusPrice,
-                ImbalanceCount = matchingAPlusCount
+                ImbalanceCount = Math.Max(score.BuyImbalanceCount, score.SellImbalanceCount),
+                BuyImbalanceCount = score.BuyImbalanceCount,
+                SellImbalanceCount = score.SellImbalanceCount,
+                ExecutionSideImbalanceCount = executionSideImbalanceCount
             };
 
+            UpdateIntratradeOrderFlow(bar, score.Volume, score.Delta);
             _lastManagePrice = score.EntryPrice;
             _lastManageTimeUtc = DateTime.MinValue;
             _tradeCreated = true;
@@ -378,6 +403,7 @@ namespace ATAS.Indicators
             decimal tradeLow;
             GetPostEntryTradeRange(bar, candle, out tradeHigh, out tradeLow);
 
+            UpdateIntratradeOrderFlow(bar, candle.Volume, candle.Delta);
             UpdateTradeExcursion(tradeHigh, tradeLow, updateTimeUtc);
             UpdateTradePathMetrics(candle.Close, updateTimeUtc, timingSource);
             UpdateBestFavorablePrice(tradeHigh, tradeLow);
@@ -426,6 +452,7 @@ namespace ATAS.Indicators
             _trade.Result = decision.Result;
             _trade.ExitPrice = ResolveExitPrice(decision);
             _trade.ExitTimeNy = ResolveSignalNewYorkTime(candle);
+            _trade.TpAndSlHitSameUpdate |= decision.HitTpAndSlSameUpdate;
             FinalizeDynamicAlarmAnalytics();
             RecordDynamicTimelineSample(
                 bar,
@@ -454,6 +481,7 @@ namespace ATAS.Indicators
             decimal tradeLow;
             GetPostEntryTradeRange(bar, candle, out tradeHigh, out tradeLow);
 
+            UpdateIntratradeOrderFlow(bar, candle.Volume, candle.Delta);
             UpdateTradeExcursion(tradeHigh, tradeLow, manageTimeUtc);
             UpdateTradePathMetrics(candle.Close, manageTimeUtc, manageTimingSource);
             UpdateBestFavorablePrice(tradeHigh, tradeLow);
@@ -504,6 +532,7 @@ namespace ATAS.Indicators
             _trade.Result = decision.Result;
             _trade.ExitPrice = ResolveExitPrice(decision);
             _trade.ExitTimeNy = ResolveSignalNewYorkTime(candle);
+            _trade.TpAndSlHitSameUpdate |= decision.HitTpAndSlSameUpdate;
             FinalizeDynamicAlarmAnalytics();
             RecordDynamicTimelineSample(
                 bar,
@@ -664,12 +693,12 @@ namespace ATAS.Indicators
                 return 0;
             }
 
-            var elapsedSeconds = (manageTimeUtc - _lastManageTimeUtc).TotalSeconds;
-
+            var elapsedSeconds = (double)NormalizeObservationElapsedSeconds(
+                _lastManageTimeUtc,
+                manageTimeUtc,
+                timingSource);
             if (elapsedSeconds <= 0 || elapsedSeconds > 300)
                 elapsedSeconds = 1;
-            else if (timingSource == "UtcNow" || elapsedSeconds < 1)
-                elapsedSeconds *= (double)NormalizeReplaySpeedMultiplier();
 
             var adverseTicks = _trade.Side == "BUY"
                 ? RoundToTicks(_lastManagePrice - currentPrice)
@@ -949,9 +978,9 @@ namespace ATAS.Indicators
             var cvdIsNotExcellent =
                 !string.Equals(_trade.CvdPullbackLabel, "Excelente", StringComparison.Ordinal);
             var pullbackThresholdReached =
-                _trade.LargestMaePullbackTicks >= DynamicAlarmMaePullbackTicks;
+                _trade.CurrentMaePullbackTicks >= DynamicAlarmMaePullbackTicks;
             var speedThresholdReached =
-                _trade.MaxSpeedMaeDuringTrade >= DynamicAlarmMaeSpeedTicksPerSecond;
+                _trade.CurrentMaeSpeedTicksPerSecond >= DynamicAlarmMaeSpeedTicksPerSecond;
 
             if (!cvdIsNotExcellent || (!pullbackThresholdReached && !speedThresholdReached))
                 return;
@@ -1292,7 +1321,17 @@ namespace ATAS.Indicators
                     _trade.TimelineCausalAlarmEpisode.ToString(CultureInfo.InvariantCulture),
                     FormatBool(_trade.DynamicAlarmTriggered),
                     EscapeCsv(_trade.DynamicAlarmReason),
-                    EscapeCsv(_trade.Result)));
+                    EscapeCsv(_trade.Result),
+                    FormatTicks(_trade.CurrentDelta),
+                    FormatNullableTicks(_trade.MaxDeltaDuringTrade),
+                    FormatNullableTicks(_trade.MinDeltaDuringTrade),
+                    FormatTicks(_trade.CurrentVolume),
+                    FormatBool(_trade.CurrentVolumeIncreasing),
+                    FormatSeconds(_trade.CurrentMaeSpeed500Milliseconds),
+                    FormatSeconds(_trade.CurrentMaeSpeed1Second),
+                    FormatSeconds(_trade.CurrentMaeSpeed2Seconds),
+                    FormatBool(_trade.TpAndSlHitSameUpdate),
+                    FormatBool(IsTradeNotManageableByLatency())));
 
                 _trade.TimelineLastWrittenElapsedSeconds = _trade.TimelineElapsedSeconds;
                 _trade.TimelineLastWrittenCvdLabel = _trade.CvdPullbackLabel;
@@ -1458,7 +1497,10 @@ namespace ATAS.Indicators
             if (elapsedSeconds <= 0)
                 return 0;
 
-            if (timingSource == "UtcNow" || elapsedSeconds < 1)
+            // Historical candle timestamps already advance in market time at
+            // Replay X10. Only the UtcNow fallback measures wall-clock time and
+            // therefore needs the replay multiplier.
+            if (timingSource == "UtcNow")
                 elapsedSeconds *= (double)NormalizeReplaySpeedMultiplier();
 
             return (decimal)elapsedSeconds;
@@ -1493,6 +1535,89 @@ namespace ATAS.Indicators
                 _trade.MaeTicks = Math.Max(0, adverseTicks);
         }
 
+        private void UpdateIntratradeOrderFlow(int bar, decimal volume, decimal delta)
+        {
+            if (_trade == null)
+                return;
+
+            _trade.CurrentVolume = volume;
+            _trade.CurrentDelta = delta;
+            UpdateDirectionalDeltaExtremes(delta);
+
+            if (!_trade.HasOrderFlowSample)
+            {
+                _trade.HasOrderFlowSample = true;
+                _trade.LastOrderFlowBar = bar;
+                _trade.LastObservedVolume = volume;
+                _trade.CurrentVolumeIncreasing = false;
+                return;
+            }
+
+            if (_trade.LastOrderFlowBar == bar)
+            {
+                _trade.VolumeObservedSamples++;
+                _trade.CurrentVolumeIncreasing = volume > _trade.LastObservedVolume;
+
+                if (_trade.CurrentVolumeIncreasing)
+                {
+                    _trade.VolumeIncreaseSamples++;
+                    _trade.VolumeIncreasedDuringTrade = true;
+                }
+            }
+            else
+            {
+                // Candle volume resets when a new bar starts, so comparisons
+                // are only meaningful between updates of the same candle.
+                _trade.CurrentVolumeIncreasing = false;
+            }
+
+            _trade.LastOrderFlowBar = bar;
+            _trade.LastObservedVolume = volume;
+        }
+
+        private void UpdateDirectionalDeltaExtremes(decimal delta)
+        {
+            if (_trade == null)
+                return;
+
+            if (_trade.Side == "BUY")
+            {
+                if (delta <= 0)
+                    return;
+
+                if (!_trade.MaxDeltaDuringTrade.HasValue ||
+                    delta > _trade.MaxDeltaDuringTrade.Value)
+                {
+                    _trade.MaxDeltaDuringTrade = delta;
+                }
+
+                if (!_trade.MinDeltaDuringTrade.HasValue ||
+                    delta < _trade.MinDeltaDuringTrade.Value)
+                {
+                    _trade.MinDeltaDuringTrade = delta;
+                }
+
+                return;
+            }
+
+            if (delta >= 0)
+                return;
+
+            // For SELL, "Max" is the strongest aligned negative delta
+            // (for example -800) and "Min" is the weakest (-100).
+            if (!_trade.MaxDeltaDuringTrade.HasValue ||
+                delta < _trade.MaxDeltaDuringTrade.Value)
+            {
+                _trade.MaxDeltaDuringTrade = delta;
+            }
+
+            if (!_trade.MinDeltaDuringTrade.HasValue ||
+                delta > _trade.MinDeltaDuringTrade.Value)
+            {
+                _trade.MinDeltaDuringTrade = delta;
+            }
+        }
+
         private void UpdateTradePathMetrics(decimal currentPrice, DateTime updateTimeUtc, string timingSource)
         {
             if (_trade == null)
@@ -1516,14 +1641,27 @@ namespace ATAS.Indicators
                 _trade.MfePullupStartTicks = favorableTicks;
                 _trade.MaePullbackStartTicks = adverseTicks;
                 _trade.LastPathUpdateTimeUtc = updateTimeUtc;
+                _trade.PathObservations.Add(new PathObservation
+                {
+                    ElapsedSeconds = 0,
+                    AdverseTicks = adverseTicks
+                });
                 return;
             }
 
-            var elapsedSeconds = (updateTimeUtc - _trade.LastPathUpdateTimeUtc).TotalSeconds;
+            var normalizedElapsedSeconds = NormalizeObservationElapsedSeconds(
+                _trade.LastPathUpdateTimeUtc,
+                updateTimeUtc,
+                timingSource);
+            var elapsedSeconds = (double)normalizedElapsedSeconds;
             if (elapsedSeconds <= 0 || elapsedSeconds > 300)
                 elapsedSeconds = 1;
-            else if (timingSource == "UtcNow" || elapsedSeconds < 1)
-                elapsedSeconds *= (double)NormalizeReplaySpeedMultiplier();
+
+            if (normalizedElapsedSeconds > 0 && normalizedElapsedSeconds <= 300)
+            {
+                _trade.PathElapsedSeconds += normalizedElapsedSeconds;
+                UpdateRollingMaeSpeeds(adverseTicks);
+            }
 
             var favorableIncrease = favorableTicks - _trade.LastPathFavorableTicks;
             _trade.CurrentMaeSpeedTicksPerSecond = 0;
@@ -1580,6 +1718,72 @@ namespace ATAS.Indicators
             _trade.LastPathFavorableTicks = favorableTicks;
             _trade.LastPathAdverseTicks = adverseTicks;
             _trade.LastPathUpdateTimeUtc = updateTimeUtc;
+        }
+
+        private void UpdateRollingMaeSpeeds(decimal adverseTicks)
+        {
+            if (_trade == null)
+                return;
+
+            _trade.PathObservations.Add(new PathObservation
+            {
+                ElapsedSeconds = _trade.PathElapsedSeconds,
+                AdverseTicks = adverseTicks
+            });
+
+            var keepFrom = _trade.PathElapsedSeconds - 3m;
+            while (_trade.PathObservations.Count > 1 &&
+                   _trade.PathObservations[1].ElapsedSeconds < keepFrom)
+            {
+                _trade.PathObservations.RemoveAt(0);
+            }
+
+            _trade.CurrentMaeSpeed500Milliseconds =
+                CalculateRollingMaeSpeed(adverseTicks, 0.5m);
+            _trade.CurrentMaeSpeed1Second =
+                CalculateRollingMaeSpeed(adverseTicks, 1m);
+            _trade.CurrentMaeSpeed2Seconds =
+                CalculateRollingMaeSpeed(adverseTicks, 2m);
+
+            _trade.MaxMaeSpeed500Milliseconds = Math.Max(
+                _trade.MaxMaeSpeed500Milliseconds,
+                _trade.CurrentMaeSpeed500Milliseconds);
+            _trade.MaxMaeSpeed1Second = Math.Max(
+                _trade.MaxMaeSpeed1Second,
+                _trade.CurrentMaeSpeed1Second);
+            _trade.MaxMaeSpeed2Seconds = Math.Max(
+                _trade.MaxMaeSpeed2Seconds,
+                _trade.CurrentMaeSpeed2Seconds);
+        }
+
+        private decimal CalculateRollingMaeSpeed(decimal currentAdverseTicks, decimal windowSeconds)
+        {
+            if (_trade == null || _trade.PathElapsedSeconds < windowSeconds)
+                return 0;
+
+            var targetTime = _trade.PathElapsedSeconds - windowSeconds;
+            PathObservation? baseline = null;
+
+            for (var i = _trade.PathObservations.Count - 1; i >= 0; i--)
+            {
+                var observation = _trade.PathObservations[i];
+                if (observation.ElapsedSeconds <= targetTime)
+                {
+                    baseline = observation;
+                    break;
+                }
+            }
+
+            if (baseline == null)
+                return 0;
+
+            var elapsedSeconds = _trade.PathElapsedSeconds - baseline.ElapsedSeconds;
+            if (elapsedSeconds <= 0)
+                return 0;
+
+            return Math.Max(
+                0,
+                (currentAdverseTicks - baseline.AdverseTicks) / elapsedSeconds);
         }
 
         private void GetPostEntryTradeRange(int bar, dynamic candle, out decimal tradeHigh, out decimal tradeLow)
@@ -1664,6 +1868,14 @@ namespace ATAS.Indicators
             return TimeZoneInfo.ConvertTimeFromUtc(utcTime, _nyZone);
         }
 
+        private DateTime ConvertNewYorkTimeToUtc(DateTime newYorkTime)
+        {
+            var unspecified = DateTime.SpecifyKind(
+                newYorkTime,
+                DateTimeKind.Unspecified);
+            return TimeZoneInfo.ConvertTimeToUtc(unspecified, _nyZone);
+        }
+
         private DateTime ResolveSignalNewYorkTime(dynamic candle)
         {
             string timingSource;
@@ -1726,7 +1938,7 @@ namespace ATAS.Indicators
                     FormatTicks(_trade.BodyBreakoutTicks),
                     FormatTicks(_trade.Volume),
                     FormatTicks(_trade.Delta),
-                    FormatTicks(_trade.CumulativeDelta),
+                    FormatTicks(_trade.CvdEntry),
                     _trade.CumulativeDeltaSource,
                     FormatTicks(_trade.CvdPeak),
                     FormatTicks(_trade.CvdCurrent),
@@ -1786,7 +1998,8 @@ namespace ATAS.Indicators
                     _trade.ImbalanceGroup3,
                     FormatNullablePrice(_trade.ImbalanceGroupPrice),
                     _trade.ImbalanceCount.ToString(CultureInfo.InvariantCulture),
-                    FormatBool(_trade.SpeedIgnoredByStructure)
+                    FormatBool(_trade.SpeedIgnoredByStructure),
+                    BuildExtendedTelemetryCsvFields()
                 ) + Environment.NewLine
             );
 
@@ -1887,7 +2100,8 @@ namespace ATAS.Indicators
                     _aPlusStructureSide,
                     FormatNullablePrice(_aPlusStructurePrice),
                     _aPlusStructureCount.ToString(CultureInfo.InvariantCulture),
-                    "FALSE"
+                    "FALSE",
+                    BuildEmptyExtendedTelemetryCsvFields()
                 ) + Environment.NewLine
             );
 
@@ -1910,11 +2124,11 @@ namespace ATAS.Indicators
                 $"Resultado {FormatSignedTicks(TradeResultTicks())} ticks | MAE {_trade.MaeTicks:0} | MFE {_trade.MfeTicks:0}",
                 $"Pullback MAE {_trade.LargestMaePullbackTicks:0.##}t ({_trade.NumberOfPullbacksDuringTrade}) | Pullup MFE {_trade.LargestMfePullupTicks:0.##}t ({_trade.NumberOfPullUpsDuringTrade})",
                 $"Vel max MAE {_trade.MaxSpeedMaeDuringTrade:0.####} t/s | MFE {_trade.MaxSpeedMfeDuringTrade:0.####} t/s",
-                $"CVD E{_trade.CvdExcellentCount} N{_trade.CvdNormalCount} A{_trade.CvdWarningCount} R{_trade.CvdRiskReversalCount} | Excelente {FormatCvdExcellentPercent()} | Neg {_trade.CvdNegativeEpisodes} | Peor {_trade.CvdWorstLabel}",
+                $"CVD E{_trade.CvdExcellentCount} N{_trade.CvdNormalCount} A{_trade.CvdWarningCount} R{_trade.CvdRiskReversalCount} | Excelente {FormatCvdExcellentPercent()} | Neg {_trade.CvdNegativeEpisodes} | {FormatTelegramCvdWorstState()}",
                 $"Alarma dinamica {FormatBool(_trade.DynamicAlarmTriggered)} | PnL al disparo {FormatDynamicAlarmOpenPnl()}",
-                $"Criterio CVD no Excelente + (PB MAE >=15t o Vel MAE >=10t/s) | Motivo {FormatDynamicAlarmReason()}",
+                $"Criterio simultaneo: CVD no Excelente + (PB MAE actual >=15t o Vel MAE actual >=10t/s) | Motivo {FormatDynamicAlarmReason()}",
                 $"Entrada NY {_trade.EntryTimeNy:HH:mm:ss} | Salida NY {FormatExitTimeNy()}",
-                $"Duracion {FormatTradeDuration()}");
+                $"Duracion {FormatTradeDuration()} | {FormatTradeDurationMilliseconds()}");
         }
 
         private void TrackRejectedScore(int bar, DateTime nyTime, ScoreTradeSignal score)
@@ -2022,11 +2236,13 @@ namespace ATAS.Indicators
                     "", // Max_Speed_MFE_during_trade
                     FormatBool(score.HasAPlusStructure),
                     FormatBool(score.HasAPlusAbsorption),
-                    FormatBool(score.HasAPlusSpeed),
+                    FormatBool(score.HasAPlusSpeedThreshold),
                     score.APlusStructureSide,
                     FormatNullablePrice(score.APlusStructurePrice),
-                    (score.HasAPlusStructure ? 3 : 0).ToString(CultureInfo.InvariantCulture),
-                    FormatBool(score.SpeedIgnoredByStructure)
+                    Math.Max(score.BuyImbalanceCount, score.SellImbalanceCount)
+                        .ToString(CultureInfo.InvariantCulture),
+                    FormatBool(score.SpeedIgnoredByStructure),
+                    BuildEmptyExtendedTelemetryCsvFields()
                 ) + Environment.NewLine
             );
         }
@@ -2256,6 +2472,128 @@ namespace ATAS.Indicators
             return $"{(int)duration.TotalMinutes:00}:{duration.Seconds:00}";
         }
 
+        private decimal? GetTradeDurationMilliseconds()
+        {
+            if (_trade == null || _trade.Result == "OPEN" || !_trade.ExitTimeNy.HasValue)
+                return null;
+
+            return Math.Max(
+                0,
+                (decimal)(_trade.ExitTimeNy.Value - _trade.EntryTimeNy).TotalMilliseconds);
+        }
+
+        private string FormatTradeDurationMilliseconds()
+        {
+            var durationMilliseconds = GetTradeDurationMilliseconds();
+            return durationMilliseconds.HasValue
+                ? $"{durationMilliseconds.Value:0.###} ms"
+                : "N/A ms";
+        }
+
+        private decimal? GetAlarmToExitMilliseconds()
+        {
+            if (_trade == null ||
+                !_trade.DynamicAlarmTriggered ||
+                !_trade.ExitTimeNy.HasValue)
+            {
+                return null;
+            }
+
+            return Math.Max(
+                0,
+                (decimal)(_trade.ExitTimeNy.Value - _trade.DynamicAlarmTimeNy).TotalMilliseconds);
+        }
+
+        private bool IsTradeNotManageableByLatency()
+        {
+            var durationMilliseconds = GetTradeDurationMilliseconds();
+            return durationMilliseconds.HasValue &&
+                durationMilliseconds.Value < Math.Max(0, MaxExpectedLatencyMilliseconds);
+        }
+
+        private bool? IsDynamicAlarmNotManageableByLatency()
+        {
+            var alarmToExitMilliseconds = GetAlarmToExitMilliseconds();
+            if (!alarmToExitMilliseconds.HasValue)
+                return null;
+
+            return alarmToExitMilliseconds.Value <
+                Math.Max(0, MaxExpectedLatencyMilliseconds);
+        }
+
+        private decimal? CalculateResultAfterSlippage()
+        {
+            if (_trade == null || _trade.Result == "OPEN")
+                return null;
+
+            return TradeResultTicks() -
+                Math.Max(0, SlippageTicksPerFill) * 2m;
+        }
+
+        private decimal? CalculateVolumeIncreasingPercent()
+        {
+            if (_trade == null || _trade.VolumeObservedSamples <= 0)
+                return null;
+
+            return (decimal)_trade.VolumeIncreaseSamples /
+                _trade.VolumeObservedSamples;
+        }
+
+        private string BuildExtendedTelemetryCsvFields()
+        {
+            if (_trade == null)
+                return BuildEmptyExtendedTelemetryCsvFields();
+
+            var durationMilliseconds = GetTradeDurationMilliseconds();
+            var alarmToExitMilliseconds = GetAlarmToExitMilliseconds();
+            var dynamicAlarmNotManageable = IsDynamicAlarmNotManageableByLatency();
+            var resultAfterSlippage = CalculateResultAfterSlippage();
+
+            return string.Join(",",
+                _trade.EntryTimeNy.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
+                _trade.ExitTimeNy.HasValue
+                    ? _trade.ExitTimeNy.Value.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture)
+                    : "",
+                FormatNullableMilliseconds(durationMilliseconds),
+                durationMilliseconds.HasValue
+                    ? FormatBool(durationMilliseconds.Value < 1000m)
+                    : "",
+                Math.Max(0, MaxExpectedLatencyMilliseconds).ToString(CultureInfo.InvariantCulture),
+                durationMilliseconds.HasValue
+                    ? FormatBool(IsTradeNotManageableByLatency())
+                    : "",
+                FormatNullableMilliseconds(alarmToExitMilliseconds),
+                dynamicAlarmNotManageable.HasValue
+                    ? FormatBool(dynamicAlarmNotManageable.Value)
+                    : "",
+                FormatTicks(Math.Max(0, SlippageTicksPerFill)),
+                resultAfterSlippage.HasValue
+                    ? FormatSignedTicks(resultAfterSlippage.Value)
+                    : "",
+                FormatBool(_trade.TpAndSlHitSameUpdate),
+                EscapeCsv(_trade.RawSpeedLabel),
+                FormatSeconds(_trade.APlusSpeedThresholdTicksPerSecond),
+                FormatBool(_trade.APlusSpeedSetupConfirmed),
+                FormatBool(_trade.PriceRejectedAfterImbalance),
+                _trade.BuyImbalanceCount.ToString(CultureInfo.InvariantCulture),
+                _trade.SellImbalanceCount.ToString(CultureInfo.InvariantCulture),
+                _trade.ExecutionSideImbalanceCount.ToString(CultureInfo.InvariantCulture),
+                FormatNullableTicks(_trade.MaxDeltaDuringTrade),
+                FormatNullableTicks(_trade.MinDeltaDuringTrade),
+                FormatBool(_trade.VolumeIncreasedDuringTrade),
+                _trade.VolumeIncreaseSamples.ToString(CultureInfo.InvariantCulture),
+                _trade.VolumeObservedSamples.ToString(CultureInfo.InvariantCulture),
+                FormatNullableRatio(CalculateVolumeIncreasingPercent()),
+                FormatSeconds(_trade.MaxMaeSpeed500Milliseconds),
+                FormatSeconds(_trade.MaxMaeSpeed1Second),
+                FormatSeconds(_trade.MaxMaeSpeed2Seconds));
+        }
+
+        private static string BuildEmptyExtendedTelemetryCsvFields()
+        {
+            return new string(',', ExtendedTelemetryFieldCount - 1);
+        }
+
         private string FormatCvdExcellentPercent()
         {
             if (_trade == null || _trade.CvdTotalSamples <= 0)
@@ -2275,7 +2613,7 @@ namespace ATAS.Indicators
 
             return string.Join(",",
                 "TRUE",
-                _trade.DynamicAlarmTimeNy.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
+                _trade.DynamicAlarmTimeNy.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
                 FormatSeconds(_trade.DynamicAlarmSecondsFromEntry),
                 _trade.DynamicAlarmReason,
                 _trade.CvdLabelAtAlarm,
@@ -2325,6 +2663,20 @@ namespace ATAS.Indicators
                 : "";
         }
 
+        private string FormatNullableTicks(decimal? value)
+        {
+            return value.HasValue
+                ? FormatTicks(value.Value)
+                : "";
+        }
+
+        private string FormatNullableMilliseconds(decimal? value)
+        {
+            return value.HasValue
+                ? value.Value.ToString("0.###", CultureInfo.InvariantCulture)
+                : "";
+        }
+
         private string FormatNullableSignedTicks(decimal? value)
         {
             return value.HasValue
@@ -2358,6 +2710,17 @@ namespace ATAS.Indicators
                 return "N/A";
 
             return _trade.DynamicAlarmReason;
+        }
+
+        private string FormatTelegramCvdWorstState()
+        {
+            if (_trade == null ||
+                string.Equals(_trade.CvdWorstLabel, "Excelente", StringComparison.Ordinal))
+            {
+                return "CVD se mantuvo Excelente";
+            }
+
+            return $"Peor estado CVD: {_trade.CvdWorstLabel}";
         }
 
         private string FormatTicks(decimal ticks)
@@ -2397,6 +2760,7 @@ namespace ATAS.Indicators
             public bool SpeedUsedReplayFallback { get; set; }
             public string SpeedTimingSource { get; set; } = "";
             public string SpeedLabel { get; set; } = "";
+            public string RawSpeedLabel { get; set; } = "";
             public decimal Volume { get; set; }
             public decimal Delta { get; set; }
             public decimal CumulativeDelta { get; set; }
@@ -2474,9 +2838,21 @@ namespace ATAS.Indicators
             public decimal PreviousVolume { get; set; }
             public decimal PreviousDelta { get; set; }
             public bool VolumeIncreasing { get; set; }
+            public bool HasOrderFlowSample { get; set; }
+            public int LastOrderFlowBar { get; set; } = -1;
+            public decimal LastObservedVolume { get; set; }
+            public decimal CurrentVolume { get; set; }
+            public decimal CurrentDelta { get; set; }
+            public bool CurrentVolumeIncreasing { get; set; }
+            public bool VolumeIncreasedDuringTrade { get; set; }
+            public int VolumeIncreaseSamples { get; set; }
+            public int VolumeObservedSamples { get; set; }
+            public decimal? MaxDeltaDuringTrade { get; set; }
+            public decimal? MinDeltaDuringTrade { get; set; }
             public decimal DeltaChange { get; set; }
             public bool DeltaWithSide { get; set; }
             public bool PriceAcceptedAfterImbalance { get; set; }
+            public bool PriceRejectedAfterImbalance { get; set; }
             public bool RangeOk { get; set; }
             public bool BodyOk { get; set; }
             public bool VolumeOk { get; set; }
@@ -2513,6 +2889,14 @@ namespace ATAS.Indicators
             public decimal MaxSpeedMfeDuringTrade { get; set; }
             public decimal CurrentMaePullbackTicks { get; set; }
             public decimal CurrentMaeSpeedTicksPerSecond { get; set; }
+            public decimal PathElapsedSeconds { get; set; }
+            public List<PathObservation> PathObservations { get; } = new List<PathObservation>();
+            public decimal CurrentMaeSpeed500Milliseconds { get; set; }
+            public decimal CurrentMaeSpeed1Second { get; set; }
+            public decimal CurrentMaeSpeed2Seconds { get; set; }
+            public decimal MaxMaeSpeed500Milliseconds { get; set; }
+            public decimal MaxMaeSpeed1Second { get; set; }
+            public decimal MaxMaeSpeed2Seconds { get; set; }
             public DateTime LastMfeTimeUtc { get; set; }
             public bool CvdProfitLockArmed { get; set; }
             public decimal CvdProfitLockExitPrice { get; set; }
@@ -2522,11 +2906,23 @@ namespace ATAS.Indicators
             public bool APlusStructure { get; set; }
             public bool APlusAbsorption { get; set; }
             public bool APlusSpeed { get; set; }
+            public bool APlusSpeedSetupConfirmed { get; set; }
+            public decimal APlusSpeedThresholdTicksPerSecond { get; set; }
             public string SignalSource { get; set; } = "";
             public string ImbalanceGroup3 { get; set; } = "";
             public decimal? ImbalanceGroupPrice { get; set; }
             public int ImbalanceCount { get; set; }
+            public int BuyImbalanceCount { get; set; }
+            public int SellImbalanceCount { get; set; }
+            public int ExecutionSideImbalanceCount { get; set; }
             public bool SpeedIgnoredByStructure { get; set; }
+            public bool TpAndSlHitSameUpdate { get; set; }
+        }
+
+        private sealed class PathObservation
+        {
+            public decimal ElapsedSeconds { get; set; }
+            public decimal AdverseTicks { get; set; }
         }
 
     }
