@@ -550,6 +550,8 @@ def get_or_create_headers(ws):
         "BreakOut_SPEED",
         "BreakOut_TICKS_PER_SEC",
         "Entry_Score",
+        "Min_IN_TRADE_SCORE",
+        "Max_IN_TRADE_SCORE",
         "SL_price",
         "Entry_price",
         "TP_price",
@@ -586,6 +588,14 @@ def get_or_create_headers(ws):
 
     entry_time_index = headers.index("EntryTime_NY") + 1
     headers[entry_time_index:entry_time_index] = ["ExitTime_NY", "Trade_Duration"]
+
+    in_trade_score_headers = ["Min_IN_TRADE_SCORE", "Max_IN_TRADE_SCORE"]
+    for header in in_trade_score_headers:
+        if header in headers:
+            headers.remove(header)
+
+    entry_score_index = headers.index("Entry_Score") + 1
+    headers[entry_score_index:entry_score_index] = in_trade_score_headers
 
     trade_path_headers = [
         "Largest_MAE_pullback_ticks",

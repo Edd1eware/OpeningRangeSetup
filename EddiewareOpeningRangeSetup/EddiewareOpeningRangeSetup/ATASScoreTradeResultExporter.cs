@@ -47,7 +47,7 @@ namespace ATAS.Indicators
             "Cvd_Worst_Label," + DynamicAlarmCsvHeader + ",Previous_Volume,Previous_Delta,Volume_Increasing,Delta_Change," +
             "Delta_With_Side,Price_Accepted_After_Imbalance,BreakOut_SPEED,BreakOut_TICKS_PER_SEC,Speed_Elapsed_SECONDS," +
             "Speed_Replay_Fallback,Speed_Timing_Source,Range_OK,Body_OK,Volume_OK,Delta_OK,Time_OK,VWAP_OK,Speed_OK," +
-            "Entry_Score,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label," +
+            "Entry_Score,Min_IN_TRADE_SCORE,Max_IN_TRADE_SCORE,Side,Signal_Source,Speed_Profile,SL_price,Entry_price,TP_price,SL_ticks,TP_ticks,Result_Label," +
             "Exit_price,result TP SL BE,MAE_ticks,MFE_ticks,Largest_MAE_pullback_ticks,Largest_MFE_pullup_ticks," +
             "Number_of_Pullbacks_during_Trade,Number_of_PullUps_during_Trade,Max_Speed_MAE_during_trade," +
             "Max_Speed_MFE_during_trade,APlus_Structure,APlus_Absorption,APlus_Speed,Imbalance_Group_3," +
@@ -1380,6 +1380,8 @@ namespace ATAS.Indicators
                     FormatBool(_trade.VwapOk),
                     FormatBool(_trade.SpeedValid),
                     _trade.Score.ToString(CultureInfo.InvariantCulture),
+                    "", // Min_IN_TRADE_SCORE: pendiente de definir
+                    "", // Max_IN_TRADE_SCORE: pendiente de definir
                     _trade.Side,
                     _trade.SignalSource,
                     GetEntryProfile(_trade.Side, _trade.SpeedLabel),
@@ -1481,6 +1483,8 @@ namespace ATAS.Indicators
                     "", // VWAP_OK
                     "", // Speed_OK
                     "", // Entry_Score
+                    "", // Min_IN_TRADE_SCORE
+                    "", // Max_IN_TRADE_SCORE
                     "", // Side
                     "TIME_OVER",
                     "", // Speed_Profile
@@ -1620,6 +1624,8 @@ namespace ATAS.Indicators
                     FormatBool(score.VwapOk),
                     FormatBool(score.SpeedValid),
                     score.Score.ToString(CultureInfo.InvariantCulture),
+                    "", // Min_IN_TRADE_SCORE: pendiente de definir
+                    "", // Max_IN_TRADE_SCORE: pendiente de definir
                     score.Side,
                     score.SignalSource,
                     GetEntryProfile(score.Side, score.SpeedLabel),
