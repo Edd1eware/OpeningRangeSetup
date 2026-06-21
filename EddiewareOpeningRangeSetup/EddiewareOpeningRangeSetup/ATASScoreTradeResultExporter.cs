@@ -390,6 +390,11 @@ namespace ATAS.Indicators
                 : plan.Entry - plan.SlTicks * SetupTickSize;
             plan.TpTicks = plan.SlTicks;
             plan.UsesImbalanceStop = imbalanceStop != null;
+
+            TradeManagerTpSlBeExit.EnforceMinimumOneToOneBracket(
+                plan,
+                executionSide,
+                SetupTickSize);
         }
 
         private bool UpdateEntryBarTradeResult(int bar, dynamic candle)

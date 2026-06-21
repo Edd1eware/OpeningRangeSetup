@@ -3,6 +3,7 @@ namespace ATAS.Indicators
     internal static class TradeManagerTpSlBeExit
     {
         private const decimal NoImbalanceStopTicks = 60m;
+        internal const decimal MinimumExecutableBracketTicks = 20m;
 
         public sealed class ImbalanceDebugInfo
         {
@@ -278,7 +279,7 @@ namespace ATAS.Indicators
                     request.EnforceMinExitDistance);
             }
 
-            return new TradePlan
+            var plan = new TradePlan
             {
                 EntryProfile = entryProfile,
                 Entry = entry,
@@ -292,6 +293,46 @@ namespace ATAS.Indicators
                 Contracts = isNormalSpeed && slTicks > request.MinTradeTicks ? 1 : 2,
                 IsValid = true
             };
+
+            EnforceMinimumOneToOneBracket(
+                plan,
+                request.Side,
+                request.TickSize);
+
+            return plan;
+        }
+
+        public static void EnforceMinimumOneToOneBracket(
+            TradePlan plan,
+            string side,
+            decimal tickSize,
+            decimal minimumTicks = MinimumExecutableBracketTicks)
+        {
+            if (plan == null || !plan.IsValid || tickSize <= 0 || minimumTicks <= 0)
+                return;
+
+            var currentSlTicks = RoundToTicks(
+                System.Math.Abs(plan.Entry - plan.Sl),
+                tickSize);
+            var currentTpTicks = RoundToTicks(
+                System.Math.Abs(plan.Entry - plan.Tp),
+                tickSize);
+
+            if (currentSlTicks >= minimumTicks && currentTpTicks >= minimumTicks)
+            {
+                plan.SlTicks = currentSlTicks;
+                plan.TpTicks = currentTpTicks;
+                return;
+            }
+
+            plan.SlTicks = minimumTicks;
+            plan.TpTicks = minimumTicks;
+            plan.Sl = side == "BUY"
+                ? plan.Entry - minimumTicks * tickSize
+                : plan.Entry + minimumTicks * tickSize;
+            plan.Tp = side == "BUY"
+                ? plan.Entry + minimumTicks * tickSize
+                : plan.Entry - minimumTicks * tickSize;
         }
 
         public static TradeExitDecision EvaluateExit(TradeExitRequest request)
