@@ -29,8 +29,8 @@ namespace ATAS.Indicators
         private const int ExtendedTelemetryFieldCount = 27;
         private const decimal DynamicTimelineSampleIntervalSeconds = 0.25m;
         private const int DynamicTimelineFlushRowCount = 100;
-        private const string ExporterVersion = "score-exporter-2026-06-19-v3-orderflow-latency";
-        private const string DynamicTimelineVersion = "dynamic-timeline-2026-06-19-v3-orderflow-latency";
+        private const string ExporterVersion = "score-exporter-2026-06-22-v4-market-time-sync";
+        private const string DynamicTimelineVersion = "dynamic-timeline-2026-06-22-v4-market-time-sync";
         private const string DynamicTimelineCsvHeader =
             "Timeline_VERSION,Trade_ID,Sequence,Event,Timestamp_NY,Seconds_From_Entry,Timing_Source," +
             "Replay_Speed_Multiplier,Raw_Elapsed_Seconds,Normalized_Elapsed_Seconds,Bar,fecha," +
@@ -121,6 +121,14 @@ namespace ATAS.Indicators
         private decimal _lastManagePrice;
         private DateTime _lastManageTimeUtc = DateTime.MinValue;
         private int _lastSignalReadyBar = -1;
+        private int _activeMarketUpdateBar = -1;
+        private DateTime _activeMarketUpdateTime = DateTime.MinValue;
+        private DateTime _activeMarketCandleTime = DateTime.MinValue;
+        private int _lastProcessedMarketBar = -1;
+        private DateTime _lastProcessedMarketTime = DateTime.MinValue;
+        private decimal _lastProcessedMarketClose;
+        private decimal _lastProcessedMarketVolume;
+        private decimal _lastProcessedMarketDelta;
 
         public int MinScore { get; set; } = 5;
         public decimal MinOrRangeTicks { get; set; } = 40;
@@ -166,14 +174,49 @@ namespace ATAS.Indicators
             _isRecalculating = false;
         }
 
+        protected override void OnNewTrade(MarketDataArg trade)
+        {
+            base.OnNewTrade(trade);
+
+            var bar = CurrentBar - 1;
+            if (bar < 2)
+                return;
+
+            ProcessMarketUpdate(bar, trade.Time);
+        }
+
         protected override void OnCalculate(int bar, decimal value)
         {
             if (bar < 2)
                 return;
 
+            var candle = GetCandle(bar);
+            ProcessMarketUpdate(bar, ResolveMarketUpdateTime(bar, candle));
+        }
+
+        private void ProcessMarketUpdate(int bar, DateTime marketUpdateTime)
+        {
+            if (bar < 2)
+                return;
+
             var current = GetCandle(bar);
+
+            if (_lastProcessedMarketTime != DateTime.MinValue &&
+                marketUpdateTime < _lastProcessedMarketTime &&
+                ConvertToNewYorkTime(current.Time).Date == _currentNyDate)
+            {
+                ResetDay(ConvertToNewYorkTime(current.Time).Date);
+            }
+
+            if (!ShouldProcessMarketState(bar, current, marketUpdateTime))
+                return;
+
+            _activeMarketUpdateBar = bar;
+            _activeMarketUpdateTime = marketUpdateTime;
+            _activeMarketCandleTime = current.Time;
+
             var currentNyTime = ConvertToNewYorkTime(current.Time);
-            var currentSignalNyTime = ResolveSignalNewYorkTime(current);
+            var currentSignalNyTime = ConvertToNewYorkTime(marketUpdateTime);
             var closedBar = bar - 1;
             var closedCandle = GetCandle(closedBar);
             var closedNyTime = ConvertToNewYorkTime(closedCandle.Time);
@@ -190,10 +233,10 @@ namespace ATAS.Indicators
 
             UpdateTradeResult(bar, current);
 
-            if (TryWriteTimeOver(bar, current, currentNyTime))
+            if (TryWriteTimeOver(bar, current, currentSignalNyTime))
                 return;
 
-            UpdateSpeedClock(bar);
+            UpdateSpeedClock(bar, current.Time);
 
             UpdateAPlusStructureFromBar(closedBar, closedCandle, closedNyTime);
 
@@ -209,18 +252,18 @@ namespace ATAS.Indicators
             if (!_orReady)
                 return;
 
-            if (_tradeCreated || bar <= _orBar || !IsSignalWindow(currentNyTime))
+            if (_tradeCreated || bar <= _orBar || !IsSignalWindow(currentSignalNyTime))
                 return;
 
-            UpdateAPlusStructureFromBar(bar, current, currentNyTime);
+            UpdateAPlusStructureFromBar(bar, current, currentSignalNyTime);
 
-            var score = CalculateLiveScore(current, bar, currentNyTime);
+            var score = CalculateLiveScore(current, bar, currentSignalNyTime, marketUpdateTime);
             var sharedSnapshot = SharedTradeSignalSnapshot.CaptureOrGet(
                 currentNyTime.Date,
                 _orLow,
                 _orHigh,
                 bar,
-                TryGetCandleUpdateTime(current, out _),
+                marketUpdateTime,
                 score);
 
             if (sharedSnapshot == null)
@@ -771,13 +814,18 @@ namespace ATAS.Indicators
 
                 UpdateAPlusStructureFromBar(scanBar, scanCandle, scanNyTime);
 
-                var score = CalculateLiveScore(scanCandle, scanBar, scanNyTime);
+                var scanUpdateTime = TryGetCandleUpdateTime(scanCandle, out _);
+                var score = CalculateLiveScore(
+                    scanCandle,
+                    scanBar,
+                    scanNyTime,
+                    scanUpdateTime);
                 var sharedSnapshot = SharedTradeSignalSnapshot.CaptureOrGet(
                     scanNyTime.Date,
                     _orLow,
                     _orHigh,
                     scanBar,
-                    TryGetCandleUpdateTime(scanCandle, out _),
+                    scanUpdateTime,
                     score);
 
                 if (sharedSnapshot == null)
@@ -1811,13 +1859,18 @@ namespace ATAS.Indicators
                 out tradeLow);
         }
 
-        private ScoreTradeSignal CalculateLiveScore(dynamic candle, int bar, DateTime nyTime)
+        private ScoreTradeSignal CalculateLiveScore(
+            dynamic candle,
+            int bar,
+            DateTime nyTime,
+            DateTime marketUpdateTime)
         {
             return _signalEngine.Calculate(bar, candle, new Func<int, dynamic>(GetCandle), new ScoreTradeSignalRequest
             {
                 OrLow = _orLow,
                 OrHigh = _orHigh,
                 CurrentTime = nyTime,
+                MarketUpdateTime = marketUpdateTime,
                 SessionDate = nyTime.Date,
                 GetSessionTime = c => ConvertToNewYorkTime(c.Time),
                 SignalStartTime = _signalStartNy,
@@ -1841,14 +1894,86 @@ namespace ATAS.Indicators
             });
         }
 
-        private void UpdateSpeedClock(int bar)
+        private void UpdateSpeedClock(int bar, DateTime barStartMarketTime)
         {
-            _signalEngine.UpdateSpeedClock(bar);
+            _signalEngine.UpdateSpeedClock(bar, barStartMarketTime);
         }
 
         private DateTime TryGetCandleUpdateTime(dynamic candle, out string timingSource)
         {
+            if (IsActiveMarketCandle(candle))
+            {
+                timingSource = "MarketTradeTime";
+                return _activeMarketUpdateTime;
+            }
+
             return SpeedClasification.TryGetCandleUpdateTime(candle, out timingSource);
+        }
+
+        private DateTime ResolveMarketUpdateTime(int bar, dynamic candle)
+        {
+            string timingSource;
+            var candleUpdateTime = SpeedClasification.TryGetCandleUpdateTime(candle, out timingSource);
+            if (timingSource != "UtcNow" && IsPlausibleMarketTime(candle.Time, candleUpdateTime))
+                return candleUpdateTime;
+
+            if (bar == CurrentBar - 1)
+            {
+                var marketTime = MarketTime;
+                if (IsPlausibleMarketTime(candle.Time, marketTime))
+                    return marketTime;
+            }
+
+            return candle.Time;
+        }
+
+        private bool IsActiveMarketCandle(dynamic candle)
+        {
+            if (_activeMarketUpdateBar < 0 ||
+                _activeMarketUpdateTime == DateTime.MinValue)
+            {
+                return false;
+            }
+
+            try
+            {
+                return candle.Time == _activeMarketCandleTime;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool IsPlausibleMarketTime(DateTime candleTime, DateTime marketTime)
+        {
+            if (marketTime == DateTime.MinValue || marketTime < candleTime)
+                return false;
+
+            return marketTime - candleTime <= TimeSpan.FromDays(1);
+        }
+
+        private bool ShouldProcessMarketState(int bar, dynamic candle, DateTime marketUpdateTime)
+        {
+            var close = Convert.ToDecimal(candle.Close);
+            var volume = Convert.ToDecimal(candle.Volume);
+            var delta = Convert.ToDecimal(candle.Delta);
+
+            if (bar == _lastProcessedMarketBar &&
+                marketUpdateTime == _lastProcessedMarketTime &&
+                close == _lastProcessedMarketClose &&
+                volume == _lastProcessedMarketVolume &&
+                delta == _lastProcessedMarketDelta)
+            {
+                return false;
+            }
+
+            _lastProcessedMarketBar = bar;
+            _lastProcessedMarketTime = marketUpdateTime;
+            _lastProcessedMarketClose = close;
+            _lastProcessedMarketVolume = volume;
+            _lastProcessedMarketDelta = delta;
+            return true;
         }
 
         private decimal NormalizeReplaySpeedMultiplier()

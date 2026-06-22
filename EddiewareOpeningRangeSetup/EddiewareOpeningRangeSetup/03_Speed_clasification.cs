@@ -14,22 +14,46 @@ namespace ATAS.Indicators
             public string TimingSource { get; set; } = "";
         }
 
-        public static decimal CalculateBreakoutSpeed(dynamic candle, decimal bodyBreakoutTicks, DateTime speedBarStartedAtUtc, decimal replaySpeedMultiplier = 1)
+        public static decimal CalculateBreakoutSpeed(
+            dynamic candle,
+            decimal bodyBreakoutTicks,
+            DateTime speedBarStartedAtUtc,
+            decimal replaySpeedMultiplier = 1,
+            DateTime? marketUpdateTime = null)
         {
-            return CalculateBreakoutSpeedState(candle, bodyBreakoutTicks, speedBarStartedAtUtc, replaySpeedMultiplier).TicksPerSecond;
+            return CalculateBreakoutSpeedState(
+                candle,
+                bodyBreakoutTicks,
+                speedBarStartedAtUtc,
+                replaySpeedMultiplier,
+                marketUpdateTime).TicksPerSecond;
         }
 
-        public static SpeedState CalculateBreakoutSpeedState(dynamic candle, decimal bodyBreakoutTicks, DateTime speedBarStartedAtUtc, decimal replaySpeedMultiplier = 1)
+        public static SpeedState CalculateBreakoutSpeedState(
+            dynamic candle,
+            decimal bodyBreakoutTicks,
+            DateTime speedBarStartedAtUtc,
+            decimal replaySpeedMultiplier = 1,
+            DateTime? marketUpdateTime = null)
         {
             if (bodyBreakoutTicks <= 0)
                 return new SpeedState();
 
-            string timingSource;
-            var currentTime = TryGetCandleUpdateTime(candle, out timingSource);
+            var timingSource = "";
+            var currentTime = marketUpdateTime.HasValue &&
+                marketUpdateTime.Value != DateTime.MinValue
+                    ? marketUpdateTime.Value
+                    : TryGetCandleUpdateTime(candle, out timingSource);
             var usedReplayFallback = false;
             double elapsedSeconds;
 
-            if (timingSource == "UtcNow")
+            if (marketUpdateTime.HasValue &&
+                marketUpdateTime.Value != DateTime.MinValue)
+            {
+                timingSource = "MarketTradeTime";
+                elapsedSeconds = (currentTime - candle.Time).TotalSeconds;
+            }
+            else if (timingSource == "UtcNow")
             {
                 usedReplayFallback = true;
                 timingSource = "UtcNow-ReplayAdjusted";

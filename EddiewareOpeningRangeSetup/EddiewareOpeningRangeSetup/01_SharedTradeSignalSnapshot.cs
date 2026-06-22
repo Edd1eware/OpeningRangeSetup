@@ -23,7 +23,15 @@ namespace ATAS.Indicators
                 RemoveOldSessions(sessionDate.Date);
 
                 if (Snapshots.TryGetValue(key, out var existing))
-                    return existing;
+                {
+                    // A Replay restarted on the same session. If market time
+                    // moved backwards, the previous run's snapshot must not
+                    // contaminate the new X1/X10 execution.
+                    if (signalTime < existing.SignalTime)
+                        Snapshots.Remove(key);
+                    else
+                        return existing;
+                }
 
                 if (signal == null || !signal.IsReady)
                     return null;

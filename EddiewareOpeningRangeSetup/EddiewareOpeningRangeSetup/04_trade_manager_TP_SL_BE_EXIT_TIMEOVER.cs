@@ -687,7 +687,7 @@ namespace ATAS.Indicators
             if (elapsedSeconds <= 0 || elapsedSeconds > 300)
                 return 1;
 
-            if (timingSource == "UtcNow" || elapsedSeconds < 1)
+            if (timingSource == "UtcNow")
                 return elapsedSeconds * (double)NormalizeReplaySpeedMultiplier(replaySpeedMultiplier);
 
             return elapsedSeconds;
@@ -702,7 +702,7 @@ namespace ATAS.Indicators
             if (adverseElapsedSeconds <= 0 || adverseElapsedSeconds > 300)
                 return fallbackElapsedSeconds;
 
-            if (timingSource == "UtcNow" || adverseElapsedSeconds < 1)
+            if (timingSource == "UtcNow")
                 return adverseElapsedSeconds * (double)NormalizeReplaySpeedMultiplier(replaySpeedMultiplier);
 
             return adverseElapsedSeconds;

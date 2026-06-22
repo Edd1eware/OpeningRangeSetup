@@ -57,6 +57,14 @@ namespace ATAS.Indicators
         private bool _cvdRiskBracketActive;
         private bool _tradeHitDrawn;
         private bool _timeOverDrawn;
+        private int _activeMarketUpdateBar = -1;
+        private DateTime _activeMarketUpdateTime = DateTime.MinValue;
+        private DateTime _activeMarketCandleTime = DateTime.MinValue;
+        private int _lastProcessedMarketBar = -1;
+        private DateTime _lastProcessedMarketTime = DateTime.MinValue;
+        private decimal _lastProcessedMarketClose;
+        private decimal _lastProcessedMarketVolume;
+        private decimal _lastProcessedMarketDelta;
 
         [DisplayName("Opening Time UTC")]
         public TimeSpan OpeningTimeUtc { get; set; } = new TimeSpan(13, 30, 0);
@@ -172,17 +180,51 @@ namespace ATAS.Indicators
             DrawAbovePrice = true;
         }
 
+        protected override void OnNewTrade(MarketDataArg trade)
+        {
+            base.OnNewTrade(trade);
+
+            var bar = CurrentBar - 1;
+            if (bar < 1)
+                return;
+
+            ProcessMarketUpdate(bar, trade.Price, trade.Time);
+        }
+
         protected override void OnCalculate(int bar, decimal value)
         {
             if (bar < 1)
                 return;
 
             var candle = GetCandle(bar);
+            ProcessMarketUpdate(bar, value, ResolveMarketUpdateTime(bar, candle));
+        }
+
+        private void ProcessMarketUpdate(int bar, decimal value, DateTime marketUpdateTime)
+        {
+            if (bar < 1)
+                return;
+
+            var candle = GetCandle(bar);
+
+            if (_lastProcessedMarketTime != DateTime.MinValue &&
+                marketUpdateTime < _lastProcessedMarketTime &&
+                candle.Time.Date == _currentDate)
+            {
+                ResetDay(candle.Time.Date);
+            }
+
+            if (!ShouldProcessMarketState(bar, candle, marketUpdateTime))
+                return;
+
+            _activeMarketUpdateBar = bar;
+            _activeMarketUpdateTime = marketUpdateTime;
+            _activeMarketCandleTime = candle.Time;
 
             if (candle.Time.Date != _currentDate)
                 ResetDay(candle.Time.Date);
 
-            UpdateSpeedClock(bar);
+            UpdateSpeedClock(bar, candle.Time);
 
             if (_tradeDrawn)
             {
@@ -217,8 +259,8 @@ namespace ATAS.Indicators
             if (_tradeDrawn || bar <= _orBar || !IsSignalWindow(candle))
                 return;
 
-            var score = CalculateScore(candle, bar);
-            var signalTime = TryGetCandleUpdateTime(candle);
+            var score = CalculateScore(candle, bar, marketUpdateTime);
+            var signalTime = marketUpdateTime;
             var sharedSnapshot = SharedTradeSignalSnapshot.CaptureOrGet(
                 candle.Time.Date,
                 _orLow,
@@ -243,13 +285,14 @@ namespace ATAS.Indicators
             _tradeDrawn = DrawTrade(sharedSnapshot.Bar, snapshotCandle, sharedSnapshot.Signal);
         }
 
-        private ScoreTradeSignal CalculateScore(dynamic candle, int bar)
+        private ScoreTradeSignal CalculateScore(dynamic candle, int bar, DateTime marketUpdateTime)
         {
             return _signalEngine.Calculate(bar, candle, new Func<int, dynamic>(GetCandle), new ScoreTradeSignalRequest
             {
                 OrLow = _orLow,
                 OrHigh = _orHigh,
-                CurrentTime = candle.Time,
+                CurrentTime = marketUpdateTime,
+                MarketUpdateTime = marketUpdateTime,
                 SessionDate = candle.Time.Date,
                 GetSessionTime = c => c.Time,
                 SignalStartTime = OpeningTimeUtc,
@@ -1135,7 +1178,7 @@ namespace ATAS.Indicators
 
             var updateElapsedSeconds = (currentTime - _tradeEntryTimeUtc).TotalSeconds;
             if (updateElapsedSeconds > 0 && updateElapsedSeconds <= 300)
-                return (decimal)Math.Max(1, updateElapsedSeconds * (double)TradeManagerTpSlBeExit.NormalizeReplaySpeedMultiplier(ReplaySpeedMultiplier));
+                return (decimal)Math.Max(0.001, updateElapsedSeconds);
 
             return (decimal)Math.Max(1, fallbackElapsedSeconds);
         }
@@ -1361,24 +1404,94 @@ namespace ATAS.Indicators
             return time.Hours == OpeningTimeUtc.Hours && time.Minutes == OpeningTimeUtc.Minutes;
         }
 
-        private void UpdateSpeedClock(int bar)
+        private void UpdateSpeedClock(int bar, DateTime barStartMarketTime)
         {
-            _signalEngine.UpdateSpeedClock(bar);
-        }
-
-        private decimal CalculateBreakoutSpeed(dynamic candle, decimal bodyBreakoutTicks)
-        {
-            return SpeedClasification.CalculateBreakoutSpeed(candle, bodyBreakoutTicks, DateTime.UtcNow, ReplaySpeedMultiplier);
+            _signalEngine.UpdateSpeedClock(bar, barStartMarketTime);
         }
 
         private DateTime TryGetCandleUpdateTime(dynamic candle)
         {
+            if (IsActiveMarketCandle(candle))
+                return _activeMarketUpdateTime;
+
             return SpeedClasification.TryGetCandleUpdateTime(candle);
         }
 
         private DateTime TryGetCandleUpdateTime(dynamic candle, out string timingSource)
         {
+            if (IsActiveMarketCandle(candle))
+            {
+                timingSource = "MarketTradeTime";
+                return _activeMarketUpdateTime;
+            }
+
             return SpeedClasification.TryGetCandleUpdateTime(candle, out timingSource);
+        }
+
+        private DateTime ResolveMarketUpdateTime(int bar, dynamic candle)
+        {
+            string timingSource;
+            var candleUpdateTime = SpeedClasification.TryGetCandleUpdateTime(candle, out timingSource);
+            if (timingSource != "UtcNow" && IsPlausibleMarketTime(candle.Time, candleUpdateTime))
+                return candleUpdateTime;
+
+            if (bar == CurrentBar - 1)
+            {
+                var marketTime = MarketTime;
+                if (IsPlausibleMarketTime(candle.Time, marketTime))
+                    return marketTime;
+            }
+
+            return candle.Time;
+        }
+
+        private bool IsActiveMarketCandle(dynamic candle)
+        {
+            if (_activeMarketUpdateBar < 0 ||
+                _activeMarketUpdateTime == DateTime.MinValue)
+            {
+                return false;
+            }
+
+            try
+            {
+                return candle.Time == _activeMarketCandleTime;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool IsPlausibleMarketTime(DateTime candleTime, DateTime marketTime)
+        {
+            if (marketTime == DateTime.MinValue || marketTime < candleTime)
+                return false;
+
+            return marketTime - candleTime <= TimeSpan.FromDays(1);
+        }
+
+        private bool ShouldProcessMarketState(int bar, dynamic candle, DateTime marketUpdateTime)
+        {
+            var close = Convert.ToDecimal(candle.Close);
+            var volume = Convert.ToDecimal(candle.Volume);
+            var delta = Convert.ToDecimal(candle.Delta);
+
+            if (bar == _lastProcessedMarketBar &&
+                marketUpdateTime == _lastProcessedMarketTime &&
+                close == _lastProcessedMarketClose &&
+                volume == _lastProcessedMarketVolume &&
+                delta == _lastProcessedMarketDelta)
+            {
+                return false;
+            }
+
+            _lastProcessedMarketBar = bar;
+            _lastProcessedMarketTime = marketUpdateTime;
+            _lastProcessedMarketClose = close;
+            _lastProcessedMarketVolume = volume;
+            _lastProcessedMarketDelta = delta;
+            return true;
         }
 
         private decimal NormalizeReplaySpeedMultiplier()

@@ -37,13 +37,13 @@ namespace ATAS.Indicators
             _judasReturnedToRange = false;
         }
 
-        public void UpdateSpeedClock(int bar)
+        public void UpdateSpeedClock(int bar, DateTime barStartMarketTime)
         {
             if (bar == _speedBar)
                 return;
 
             _speedBar = bar;
-            _speedBarStartedAtUtc = DateTime.UtcNow;
+            _speedBarStartedAtUtc = barStartMarketTime;
         }
 
         public ScoreTradeSignal Calculate(int bar, dynamic candle, Func<int, dynamic> getCandle, ScoreTradeSignalRequest request)
@@ -78,7 +78,8 @@ namespace ATAS.Indicators
                 candle,
                 bodyBreakoutTicks,
                 _speedBarStartedAtUtc,
-                request.ReplaySpeedMultiplier);
+                request.ReplaySpeedMultiplier,
+                request.MarketUpdateTime);
 
             var state = new ScoreTradeSignal
             {
@@ -597,6 +598,7 @@ namespace ATAS.Indicators
         public decimal OrLow { get; set; }
         public decimal OrHigh { get; set; }
         public DateTime CurrentTime { get; set; }
+        public DateTime MarketUpdateTime { get; set; }
         public DateTime SessionDate { get; set; }
         public Func<dynamic, DateTime> GetSessionTime { get; set; } = candle => candle.Time;
         public TimeSpan SignalStartTime { get; set; }
