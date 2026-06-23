@@ -49,8 +49,9 @@ namespace ATAS.Indicators
         public ScoreTradeSignal Calculate(int bar, dynamic candle, Func<int, dynamic> getCandle, ScoreTradeSignalRequest request)
         {
             var signalTime = request.CurrentTime;
-            var longBreakout = candle.Close > request.OrHigh;
-            var shortBreakout = candle.Close < request.OrLow;
+            var currentPrice = request.CurrentPrice ?? Convert.ToDecimal(candle.Close);
+            var longBreakout = currentPrice > request.OrHigh;
+            var shortBreakout = currentPrice < request.OrLow;
             var breakoutSide = longBreakout ? "BUY" : shortBreakout ? "SELL" : "";
             var orRangeTicks = RoundToTicks(request.OrHigh - request.OrLow, request.TickSize);
             var vwap = GetSessionVwap(bar, request.SessionDate, getCandle, request.GetSessionTime);
@@ -66,10 +67,10 @@ namespace ATAS.Indicators
             decimal bodyBreakoutTicks = 0;
 
             if (longBreakout)
-                bodyBreakoutTicks = RoundToTicks(candle.Close - Math.Max(candle.Open, request.OrHigh), request.TickSize);
+                bodyBreakoutTicks = RoundToTicks(currentPrice - Math.Max(candle.Open, request.OrHigh), request.TickSize);
 
             if (shortBreakout)
-                bodyBreakoutTicks = RoundToTicks(Math.Min(candle.Open, request.OrLow) - candle.Close, request.TickSize);
+                bodyBreakoutTicks = RoundToTicks(Math.Min(candle.Open, request.OrLow) - currentPrice, request.TickSize);
 
             if (bodyBreakoutTicks < 0)
                 bodyBreakoutTicks = 0;
@@ -85,7 +86,7 @@ namespace ATAS.Indicators
             {
                 IsBreakout = longBreakout || shortBreakout,
                 Side = breakoutSide,
-                EntryPrice = candle.Close,
+                EntryPrice = currentPrice,
                 EntryBarHighAtEntry = candle.High,
                 EntryBarLowAtEntry = candle.Low,
                 OrLow = request.OrLow,
@@ -111,8 +112,8 @@ namespace ATAS.Indicators
                 DeltaOk = Math.Abs(candle.Delta) >= request.MinAbsDelta,
                 TimeOk = IsSignalWindow(signalTime, request.SignalStartTime, request.SignalEndTime),
                 VwapOk =
-                    (longBreakout && candle.Close >= vwap) ||
-                    (shortBreakout && candle.Close <= vwap)
+                    (longBreakout && currentPrice >= vwap) ||
+                    (shortBreakout && currentPrice <= vwap)
             };
 
             state.SpeedLabel = SpeedClasification.GetSpeedLabel(
@@ -599,6 +600,7 @@ namespace ATAS.Indicators
         public decimal OrHigh { get; set; }
         public DateTime CurrentTime { get; set; }
         public DateTime MarketUpdateTime { get; set; }
+        public decimal? CurrentPrice { get; set; }
         public DateTime SessionDate { get; set; }
         public Func<dynamic, DateTime> GetSessionTime { get; set; } = candle => candle.Time;
         public TimeSpan SignalStartTime { get; set; }

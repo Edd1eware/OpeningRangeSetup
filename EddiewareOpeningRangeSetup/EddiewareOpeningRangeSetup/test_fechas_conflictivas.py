@@ -14,9 +14,12 @@ from pywinauto import Desktop
 EXPORT_FOLDER = Path(r"C:\Users\k_99_\Desktop\codding\data_footprint_generator")
 RESULTS_FOLDER = EXPORT_FOLDER / "trade_results_score"
 TIMELINE_FOLDER = RESULTS_FOLDER / "dynamic_management_timeline"
+SYNC_SIGNAL_FOLDER = RESULTS_FOLDER / "replay_sync_signals"
+SYNC_RESULT_FOLDER = RESULTS_FOLDER / "replay_sync_results"
 TARGET_FILE = EXPORT_FOLDER / "target_trade_result_date.txt"
 REPLAY_STARTED_FILE = EXPORT_FOLDER / "replay_trade_result_started_at.txt"
 OUTPUT_FOLDER = RESULTS_FOLDER / "visual_tests" / "test_fechas_conflictivas_runs"
+EXPECTED_EXPORTER_VERSION = "score-exporter-2026-06-23-v9-persisted-exit-sync"
 
 REPLAY_FROM_TIME = "09:30"
 REPLAY_TO_TIME = "09:41"
@@ -94,6 +97,11 @@ def parse_args():
         action="store_true",
         help="Pide ENTER antes de cada fecha. Por defecto las fechas avanzan automáticamente.",
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Ignora corridas ya guardadas y vuelve a correr todas las fechas.",
+    )
     return parser.parse_args()
 
 
@@ -105,12 +113,67 @@ def timeline_path(date_iso):
     return TIMELINE_FOLDER / f"dynamic_timeline_{date_iso}_NY.csv"
 
 
+def sync_signal_path(date_iso):
+    return SYNC_SIGNAL_FOLDER / f"score_trade_signal_snapshot_{date_iso}_NY.json"
+
+
+def sync_result_path(date_iso):
+    return SYNC_RESULT_FOLDER / f"score_trade_result_snapshot_{date_iso}_NY.json"
+
+
+def destination_result_path(date_iso, run_name):
+    return OUTPUT_FOLDER / run_name / result_path(date_iso).name
+
+
+def destination_timeline_path(date_iso, run_name):
+    return OUTPUT_FOLDER / run_name / timeline_path(date_iso).name
+
+
 def read_csv_row(path):
     try:
         with open(path, "r", encoding="utf-8-sig", newline="") as handle:
             return next(csv.DictReader(handle), None)
     except (OSError, PermissionError, csv.Error):
         return None
+
+
+def row_has_terminal_result(row):
+    if not row:
+        return False
+
+    label = str(row.get("Result_Label") or row.get("RESULT") or "").strip().upper()
+    if label in {"", "OPEN"}:
+        return False
+
+    if label in TERMINAL_RESULTS:
+        return True
+
+    value = str(row.get("result TP SL BE") or row.get("RESULT") or "").strip().upper()
+    if value in {"", "OPEN", "0", "+0", "-0", "0.0", "+0.0", "-0.0"}:
+        return False
+
+    try:
+        return float(value.replace("+", "")) != 0
+    except ValueError:
+        return False
+
+
+def is_saved_run_complete(date_iso, run_name):
+    row = read_csv_row(destination_result_path(date_iso, run_name))
+    if not row_has_terminal_result(row):
+        return False
+
+    version = str(row.get("Exporter_VERSION") or "").strip()
+    return version == EXPECTED_EXPORTER_VERSION
+
+
+def describe_saved_run(date_iso, run_name):
+    row = read_csv_row(destination_result_path(date_iso, run_name)) or {}
+    return (
+        f"Entry={row.get('Entry_price', '')} | "
+        f"Resultado={row.get('Result_Label', '')} | "
+        f"Version={row.get('Exporter_VERSION', '')}"
+    )
 
 
 def is_terminal_result(path, started_at):
@@ -123,23 +186,7 @@ def is_terminal_result(path, started_at):
     except OSError:
         return False
 
-    row = read_csv_row(path)
-    if not row:
-        return False
-
-    label = str(row.get("Result_Label") or row.get("RESULT") or "").strip().upper()
-    if label in TERMINAL_RESULTS:
-        return True
-
-    value = str(row.get("result TP SL BE") or row.get("RESULT") or "").strip().upper()
-    if value in {"", "OPEN"}:
-        return False
-
-    try:
-        float(value.replace("+", ""))
-        return True
-    except ValueError:
-        return False
+    return row_has_terminal_result(read_csv_row(path))
 
 
 def format_elapsed(seconds):
@@ -255,29 +302,43 @@ def control_value(control):
 
 
 def paste_text(control, value):
-    control.set_focus()
+    control.click_input()
+    time.sleep(0.15)
     control.type_keys("^a")
+    time.sleep(0.1)
     pyperclip.copy(value)
     control.type_keys("^v")
     control.type_keys("{TAB}")
+    time.sleep(0.25)
 
 
 def configure_replay_range(from_box, to_box, date_iso):
     date_replay = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%d/%m/%Y")
-    paste_text(from_box, f"{date_replay} {REPLAY_FROM_TIME} a. m.")
-    paste_text(to_box, f"{date_replay} {REPLAY_TO_TIME} a. m.")
-    time.sleep(0.5)
+    expected_from = f"{date_replay} {REPLAY_FROM_TIME} a. m."
+    expected_to = f"{date_replay} {REPLAY_TO_TIME} a. m."
+    actual_from = ""
+    actual_to = ""
 
-    actual_from = control_value(from_box)
-    actual_to = control_value(to_box)
-    if (
-        date_replay not in actual_from
-        or REPLAY_FROM_TIME not in actual_from
-        or date_replay not in actual_to
-        or REPLAY_TO_TIME not in actual_to
-    ):
+    for attempt in range(1, 4):
+        paste_text(from_box, expected_from)
+        paste_text(to_box, expected_to)
+        time.sleep(0.5)
+        actual_from = control_value(from_box)
+        actual_to = control_value(to_box)
+
+        from_ok = date_replay in actual_from and REPLAY_FROM_TIME in actual_from
+        to_ok = date_replay in actual_to and REPLAY_TO_TIME in actual_to
+        if from_ok and to_ok and actual_from != actual_to:
+            break
+
+        print(
+            f"ATAS no confirmó el rango (intento {attempt}/3). "
+            f"FROM={actual_from!r}, TO={actual_to!r}"
+        )
+        time.sleep(0.75)
+    else:
         raise RuntimeError(
-            "ATAS no aceptó el rango solicitado. "
+            "ATAS no aceptó el rango solicitado después de 3 intentos. "
             f"FROM={actual_from!r}, TO={actual_to!r}"
         )
 
@@ -285,28 +346,29 @@ def configure_replay_range(from_box, to_box, date_iso):
 
 
 def click_stop(stop_button=None):
-    candidates = [stop_button] if stop_button is not None else []
-    try:
-        _, _, _, _, refreshed_stop = get_replay_controls()
-        if refreshed_stop is not None:
-            candidates.insert(0, refreshed_stop)
-    except Exception:
-        pass
-
-    for button in candidates:
+    def try_click(button):
         if button is None:
-            continue
+            return False
         try:
             button.click_input()
-            time.sleep(0.5)
-            return
+            time.sleep(0.35)
+            return True
         except Exception:
             try:
                 button.click()
-                time.sleep(0.5)
-                return
+                time.sleep(0.35)
+                return True
             except Exception:
-                pass
+                return False
+
+    if try_click(stop_button):
+        return
+
+    try:
+        _, _, _, _, refreshed_stop = get_replay_controls()
+        try_click(refreshed_stop)
+    except Exception:
+        pass
 
 
 def wait_for_terminal_result(path, started_at, timeout_seconds, stop_button):
@@ -317,7 +379,6 @@ def wait_for_terminal_result(path, started_at, timeout_seconds, stop_button):
         if is_terminal_result(path, started_at):
             print("\rResultado terminal detectado." + " " * 60)
             time.sleep(0.4)
-            click_stop(stop_button)
             return True
 
         elapsed = time.time() - wait_started
@@ -376,12 +437,16 @@ def copy_with_retry(source, destination, attempts=10):
             time.sleep(0.2)
 
 
-def run_one_date(date_iso, run_name, timeout_seconds):
+def run_one_date(date_iso, run_name, timeout_seconds, force=False):
     source_result = result_path(date_iso)
     source_timeline = timeline_path(date_iso)
-    destination_folder = OUTPUT_FOLDER / run_name
-    destination_result = destination_folder / source_result.name
-    destination_timeline = destination_folder / source_timeline.name
+    destination_result = destination_result_path(date_iso, run_name)
+    destination_timeline = destination_timeline_path(date_iso, run_name)
+
+    if not force and is_saved_run_complete(date_iso, run_name):
+        print(f"Saltado: {run_name} {date_iso} ya guardado | {describe_saved_run(date_iso, run_name)}")
+        return True, "SKIPPED"
+
     destination_result.unlink(missing_ok=True)
     destination_timeline.unlink(missing_ok=True)
 
@@ -393,6 +458,9 @@ def run_one_date(date_iso, run_name, timeout_seconds):
         try:
             source_result.unlink(missing_ok=True)
             source_timeline.unlink(missing_ok=True)
+            if run_name.startswith("X1_"):
+                sync_signal_path(date_iso).unlink(missing_ok=True)
+                sync_result_path(date_iso).unlink(missing_ok=True)
             write_runtime_markers(date_iso)
 
             replay, from_box, to_box, start_button, stop_button = get_replay_controls()
@@ -424,6 +492,7 @@ def run_one_date(date_iso, run_name, timeout_seconds):
                 f"Entry={row.get('Entry_price', '')} | "
                 f"Resultado={row.get('Result_Label', '')}"
             )
+            click_stop(stop_button)
             return True, ""
         finally:
             click_stop()
@@ -545,6 +614,11 @@ def main():
         for index in range(1, x10_repetitions + 1)
     )
     print_plan(run_plan)
+    print(f"\nVersion esperada DLL/exporter: {EXPECTED_EXPORTER_VERSION}")
+    if args.force:
+        print("Modo: FORCE, se vuelven a correr fechas aunque ya tengan CSV guardado.")
+    else:
+        print("Modo: RESUME, se saltan fechas ya guardadas con CSV terminal válido.")
 
     if args.prepare_only:
         print("\nPREPARE-ONLY correcto. No se inició Replay.")
@@ -585,6 +659,7 @@ def main():
                             date_iso,
                             run_name,
                             timeout_seconds,
+                            force=args.force,
                         )
                     except KeyboardInterrupt:
                         raise

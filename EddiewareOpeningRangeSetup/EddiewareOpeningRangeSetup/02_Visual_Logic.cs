@@ -259,7 +259,7 @@ namespace ATAS.Indicators
             if (_tradeDrawn || bar <= _orBar || !IsSignalWindow(candle))
                 return;
 
-            var score = CalculateScore(candle, bar, marketUpdateTime);
+            var score = CalculateScore(candle, bar, marketUpdateTime, value);
             var signalTime = marketUpdateTime;
             var sharedSnapshot = SharedTradeSignalSnapshot.CaptureOrGet(
                 candle.Time.Date,
@@ -285,7 +285,11 @@ namespace ATAS.Indicators
             _tradeDrawn = DrawTrade(sharedSnapshot.Bar, snapshotCandle, sharedSnapshot.Signal);
         }
 
-        private ScoreTradeSignal CalculateScore(dynamic candle, int bar, DateTime marketUpdateTime)
+        private ScoreTradeSignal CalculateScore(
+            dynamic candle,
+            int bar,
+            DateTime marketUpdateTime,
+            decimal currentPrice)
         {
             return _signalEngine.Calculate(bar, candle, new Func<int, dynamic>(GetCandle), new ScoreTradeSignalRequest
             {
@@ -293,6 +297,7 @@ namespace ATAS.Indicators
                 OrHigh = _orHigh,
                 CurrentTime = marketUpdateTime,
                 MarketUpdateTime = marketUpdateTime,
+                CurrentPrice = currentPrice,
                 SessionDate = candle.Time.Date,
                 GetSessionTime = c => c.Time,
                 SignalStartTime = OpeningTimeUtc,
@@ -682,7 +687,7 @@ namespace ATAS.Indicators
 
             if (_tradeIsAPlusSpeed)
             {
-                TryDrawFirstTradeHit(bar, candle);
+                TryDrawFirstTradeHit(bar, livePrice);
                 return;
             }
 
@@ -744,7 +749,7 @@ namespace ATAS.Indicators
 
             var speedPanic = metrics.AdverseSpeed > PanicAdverseSpeedTicksPerSecond;
 
-            TryDrawFirstTradeHit(bar, candle);
+            TryDrawFirstTradeHit(bar, livePrice);
 
             if (_tradeHitDrawn)
                 return;
@@ -825,14 +830,13 @@ namespace ATAS.Indicators
                 16);
         }
 
-        private void TryDrawFirstTradeHit(int bar, dynamic candle)
+        private void TryDrawFirstTradeHit(int bar, decimal livePrice)
         {
             if (_tradeHitDrawn)
                 return;
 
-            decimal hitHigh;
-            decimal hitLow;
-            GetPostEntryHitRange(bar, candle, out hitHigh, out hitLow);
+            var hitHigh = livePrice;
+            var hitLow = livePrice;
 
             if (_tradeSide == "BUY")
             {
@@ -1557,6 +1561,14 @@ namespace ATAS.Indicators
             _cvdProfitLockBestMfeTicks = 0;
             _tradeHitDrawn = false;
             _timeOverDrawn = false;
+            _activeMarketUpdateBar = -1;
+            _activeMarketUpdateTime = DateTime.MinValue;
+            _activeMarketCandleTime = DateTime.MinValue;
+            _lastProcessedMarketBar = -1;
+            _lastProcessedMarketTime = DateTime.MinValue;
+            _lastProcessedMarketClose = 0;
+            _lastProcessedMarketVolume = 0;
+            _lastProcessedMarketDelta = 0;
         }
 
         private decimal RoundToTicks(decimal points)

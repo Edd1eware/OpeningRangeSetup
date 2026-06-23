@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text.Json;
 
 namespace ATAS.Indicators
 {
@@ -7,6 +9,10 @@ namespace ATAS.Indicators
     {
         private static readonly object Sync = new object();
         private static readonly Dictionary<SessionKey, Snapshot> Snapshots = new Dictionary<SessionKey, Snapshot>();
+        private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true
+        };
 
         public static Snapshot? CaptureOrGet(
             DateTime sessionDate,
@@ -16,11 +22,46 @@ namespace ATAS.Indicators
             DateTime signalTime,
             ScoreTradeSignal signal)
         {
+            return CaptureOrGet(
+                sessionDate,
+                orLow,
+                orHigh,
+                bar,
+                signalTime,
+                signal,
+                "",
+                "");
+        }
+
+        public static Snapshot? CaptureOrGet(
+            DateTime sessionDate,
+            decimal orLow,
+            decimal orHigh,
+            int bar,
+            DateTime signalTime,
+            ScoreTradeSignal signal,
+            string canonicalFilePath,
+            string exporterVersion)
+        {
             var key = new SessionKey(sessionDate.Date, orLow, orHigh);
 
             lock (Sync)
             {
                 RemoveOldSessions(sessionDate.Date);
+
+                var persisted = TryReadPersistedSnapshot(
+                    canonicalFilePath,
+                    exporterVersion,
+                    sessionDate.Date,
+                    orLow,
+                    orHigh);
+                if (persisted != null)
+                {
+                    Snapshots[key] = persisted;
+                    return signalTime >= persisted.SignalTime
+                        ? persisted
+                        : null;
+                }
 
                 if (Snapshots.TryGetValue(key, out var existing))
                 {
@@ -38,7 +79,93 @@ namespace ATAS.Indicators
 
                 var snapshot = new Snapshot(bar, signalTime, CloneSignal(signal));
                 Snapshots[key] = snapshot;
+                TryWritePersistedSnapshot(
+                    canonicalFilePath,
+                    exporterVersion,
+                    sessionDate.Date,
+                    orLow,
+                    orHigh,
+                    snapshot);
                 return snapshot;
+            }
+        }
+
+        private static Snapshot? TryReadPersistedSnapshot(
+            string canonicalFilePath,
+            string exporterVersion,
+            DateTime sessionDate,
+            decimal orLow,
+            decimal orHigh)
+        {
+            if (string.IsNullOrWhiteSpace(canonicalFilePath) ||
+                !File.Exists(canonicalFilePath))
+            {
+                return null;
+            }
+
+            try
+            {
+                var persisted = JsonSerializer.Deserialize<PersistedSnapshot>(
+                    File.ReadAllText(canonicalFilePath),
+                    JsonOptions);
+                if (persisted == null || persisted.Signal == null)
+                    return null;
+
+                if (!string.Equals(persisted.ExporterVersion, exporterVersion, StringComparison.Ordinal) ||
+                    persisted.SessionDate.Date != sessionDate.Date ||
+                    persisted.OrLow != orLow ||
+                    persisted.OrHigh != orHigh ||
+                    !persisted.Signal.IsReady)
+                {
+                    return null;
+                }
+
+                return new Snapshot(
+                    persisted.Bar,
+                    persisted.SignalTime,
+                    CloneSignal(persisted.Signal));
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static void TryWritePersistedSnapshot(
+            string canonicalFilePath,
+            string exporterVersion,
+            DateTime sessionDate,
+            decimal orLow,
+            decimal orHigh,
+            Snapshot snapshot)
+        {
+            if (string.IsNullOrWhiteSpace(canonicalFilePath))
+                return;
+
+            try
+            {
+                var directory = Path.GetDirectoryName(canonicalFilePath);
+                if (!string.IsNullOrWhiteSpace(directory) && !Directory.Exists(directory))
+                    Directory.CreateDirectory(directory);
+
+                var persisted = new PersistedSnapshot
+                {
+                    ExporterVersion = exporterVersion,
+                    SessionDate = sessionDate.Date,
+                    OrLow = orLow,
+                    OrHigh = orHigh,
+                    Bar = snapshot.Bar,
+                    SignalTime = snapshot.SignalTime,
+                    Signal = CloneSignal(snapshot.Signal)
+                };
+
+                File.WriteAllText(
+                    canonicalFilePath,
+                    JsonSerializer.Serialize(persisted, JsonOptions));
+            }
+            catch
+            {
+                // Best-effort sync helper. In-memory snapshot still works.
             }
         }
 
@@ -137,6 +264,17 @@ namespace ATAS.Indicators
             public int Bar { get; }
             public DateTime SignalTime { get; }
             public ScoreTradeSignal Signal { get; }
+        }
+
+        private sealed class PersistedSnapshot
+        {
+            public string ExporterVersion { get; set; } = "";
+            public DateTime SessionDate { get; set; }
+            public decimal OrLow { get; set; }
+            public decimal OrHigh { get; set; }
+            public int Bar { get; set; }
+            public DateTime SignalTime { get; set; }
+            public ScoreTradeSignal Signal { get; set; } = new ScoreTradeSignal();
         }
 
         private readonly struct SessionKey : IEquatable<SessionKey>
