@@ -36,8 +36,8 @@ namespace ATAS.Indicators
         private const int ExtendedTelemetryFieldCount = 27;
         private const decimal DynamicTimelineSampleIntervalSeconds = 0.25m;
         private const int DynamicTimelineFlushRowCount = 100;
-        private const string ExporterVersion = "score-exporter-2026-06-23-v9-persisted-exit-sync";
-        private const string DynamicTimelineVersion = "dynamic-timeline-2026-06-23-v9-persisted-exit-sync";
+        private const string ExporterVersion = "score-exporter-2026-06-23-v10-persisted-canonical-csv-sync";
+        private const string DynamicTimelineVersion = "dynamic-timeline-2026-06-23-v10-persisted-canonical-csv-sync";
         private static readonly JsonSerializerOptions ReplaySyncJsonOptions = new JsonSerializerOptions
         {
             WriteIndented = true
@@ -2182,7 +2182,7 @@ namespace ATAS.Indicators
                 $"EXIT_{_trade.Result}",
                 true);
             FlushDynamicTimelineBuffer();
-            WriteTradeFile(_currentNyDate);
+            WriteTradeFile(_currentNyDate, snapshot.CsvRow);
             return true;
         }
 
@@ -2251,7 +2251,8 @@ namespace ATAS.Indicators
                     ExitPrice = _trade.ExitPrice,
                     ExitTimeNy = _trade.ExitTimeNy.Value,
                     ExitTimeUtc = ConvertNewYorkTimeToUtc(_trade.ExitTimeNy.Value),
-                    TpAndSlHitSameUpdate = _trade.TpAndSlHitSameUpdate
+                    TpAndSlHitSameUpdate = _trade.TpAndSlHitSameUpdate,
+                    CsvRow = BuildTradeCsvRow()
                 };
 
                 File.WriteAllText(
@@ -2264,7 +2265,7 @@ namespace ATAS.Indicators
             }
         }
 
-        private void WriteTradeFile(DateTime nyDate)
+        private void WriteTradeFile(DateTime nyDate, string? csvRowOverride = null)
         {
             if (_trade == null)
                 return;
@@ -2277,10 +2278,31 @@ namespace ATAS.Indicators
                 $"score_trade_result_{nyDate:yyyy-MM-dd}_NY.csv"
             );
 
+            var csvRow = string.IsNullOrWhiteSpace(csvRowOverride)
+                ? BuildTradeCsvRow()
+                : csvRowOverride.TrimEnd('\r', '\n');
+
             File.WriteAllText(
                 filePath,
                 CsvHeader + Environment.NewLine +
-                string.Join(",",
+                csvRow + Environment.NewLine
+            );
+
+            if (_trade.Result != "OPEN")
+            {
+                TelegramTradeNotifier.QueueTerminalResult(
+                    _exportFolder,
+                    nyDate,
+                    BuildTelegramTradeMessage());
+            }
+        }
+
+        private string BuildTradeCsvRow()
+        {
+            if (_trade == null)
+                return "";
+
+            return string.Join(",",
                     ExporterVersion,
                     _trade.EntryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     _trade.EntryTimeNy.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
@@ -2357,16 +2379,7 @@ namespace ATAS.Indicators
                     _trade.ImbalanceCount.ToString(CultureInfo.InvariantCulture),
                     FormatBool(_trade.SpeedIgnoredByStructure),
                     BuildExtendedTelemetryCsvFields()
-                ) + Environment.NewLine
-            );
-
-            if (_trade.Result != "OPEN")
-            {
-                TelegramTradeNotifier.QueueTerminalResult(
-                    _exportFolder,
-                    nyDate,
-                    BuildTelegramTradeMessage());
-            }
+                );
         }
 
         private void WriteTimeOverFile(DateTime nyDate, DateTime nyTime)
@@ -3182,6 +3195,7 @@ namespace ATAS.Indicators
             public DateTime ExitTimeNy { get; set; }
             public DateTime ExitTimeUtc { get; set; }
             public bool TpAndSlHitSameUpdate { get; set; }
+            public string CsvRow { get; set; } = "";
         }
 
         private class TradeState

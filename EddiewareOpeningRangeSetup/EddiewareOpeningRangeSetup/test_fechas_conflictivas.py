@@ -19,7 +19,7 @@ SYNC_RESULT_FOLDER = RESULTS_FOLDER / "replay_sync_results"
 TARGET_FILE = EXPORT_FOLDER / "target_trade_result_date.txt"
 REPLAY_STARTED_FILE = EXPORT_FOLDER / "replay_trade_result_started_at.txt"
 OUTPUT_FOLDER = RESULTS_FOLDER / "visual_tests" / "test_fechas_conflictivas_runs"
-EXPECTED_EXPORTER_VERSION = "score-exporter-2026-06-23-v9-persisted-exit-sync"
+EXPECTED_EXPORTER_VERSION = "score-exporter-2026-06-23-v10-persisted-canonical-csv-sync"
 
 REPLAY_FROM_TIME = "09:30"
 REPLAY_TO_TIME = "09:41"
@@ -58,6 +58,7 @@ COMPARISON_FIELDS = [
     "result TP SL BE",
     "TP_And_SL_Hit_Same_Update",
 ]
+STRICT_COMPARE_FULL_CSV = True
 
 TERMINAL_RESULTS = {
     "TP",
@@ -504,6 +505,20 @@ def normalize(value):
     return str(value or "").strip()
 
 
+def comparison_fields_for(baseline, compared):
+    if STRICT_COMPARE_FULL_CSV and (baseline or compared):
+        fields = []
+        for row in (baseline, compared):
+            if not row:
+                continue
+            for field in row.keys():
+                if field not in fields:
+                    fields.append(field)
+        return fields
+
+    return COMPARISON_FIELDS
+
+
 def build_comparison_report(run_plan):
     OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
     report_path = OUTPUT_FOLDER / "test_fechas_conflictivas_comparacion.csv"
@@ -524,10 +539,12 @@ def build_comparison_report(run_plan):
 
             if baseline is None or compared is None:
                 differences = ["MISSING_CSV"]
+                comparison_fields = COMPARISON_FIELDS
             else:
+                comparison_fields = comparison_fields_for(baseline, compared)
                 differences = [
                     field
-                    for field in COMPARISON_FIELDS
+                    for field in comparison_fields
                     if normalize(baseline.get(field)) != normalize(compared.get(field))
                 ]
 
@@ -544,7 +561,7 @@ def build_comparison_report(run_plan):
                 "Estado": status,
                 "Campos_Diferentes": "|".join(differences),
             }
-            for field in COMPARISON_FIELDS:
+            for field in comparison_fields:
                 row[f"{field}_X1"] = (
                     normalize(baseline.get(field)) if baseline else ""
                 )
@@ -568,6 +585,7 @@ def build_comparison_report(run_plan):
     overall = "PASS" if failed == 0 and report_rows else "FAIL"
     summary_lines = [
         "TEST DE SINCRONICIDAD REPLAY X1/X10",
+        "Modo comparacion: CSV terminal completo",
         f"Estado general: {overall}",
         f"Comparaciones PASS: {passed}",
         f"Comparaciones FAIL: {failed}",
@@ -585,7 +603,7 @@ def build_comparison_report(run_plan):
         )
     summary_path.write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
 
-    print("\n" + "\n".join(summary_lines[:4]))
+    print("\n" + "\n".join(summary_lines[:5]))
     print(f"Reporte CSV: {report_path}")
     print(f"Resumen: {summary_path}")
     return overall == "PASS"
