@@ -247,20 +247,47 @@ def get_replay_controls():
 
 def control_value(control):
     try:
-        return control.get_value()
+        return str(control.get_value())
     except Exception:
-        return control.window_text()
+        try:
+            return str(control.window_text())
+        except Exception:
+            return ""
 
 
 def paste_text(control, value):
+    try:
+        control.set_focus()
+    except Exception:
+        pass
+
     control.click_input()
     time.sleep(0.15)
-    control.type_keys("^a")
-    time.sleep(0.1)
+
+    # ATAS DateEdit sometimes leaves focus inside a nested text box. Using both
+    # keyboard replacement and ValuePattern makes the date change deterministic.
+    for _ in range(2):
+        control.type_keys("^a", set_foreground=False)
+        time.sleep(0.05)
+
     pyperclip.copy(value)
-    control.type_keys("^v")
-    control.type_keys("{TAB}")
-    time.sleep(0.25)
+    time.sleep(0.05)
+    control.type_keys("^v", set_foreground=False)
+    time.sleep(0.1)
+
+    try:
+        control.iface_value.SetValue(value)
+        time.sleep(0.1)
+    except Exception:
+        pass
+
+    control.type_keys("{TAB}", set_foreground=False)
+    time.sleep(0.35)
+
+
+def refresh_replay_date_controls():
+    _, from_box, to_box, _, _ = get_replay_controls()
+    return from_box, to_box
 
 
 def configure_replay_range(
@@ -277,10 +304,17 @@ def configure_replay_range(
     actual_to = ""
 
     for attempt in range(1, 4):
+        if attempt > 1:
+            try:
+                from_box, to_box = refresh_replay_date_controls()
+            except Exception:
+                pass
+
         paste_text(from_box, expected_from)
+        actual_from = control_value(from_box)
+
         paste_text(to_box, expected_to)
         time.sleep(0.5)
-        actual_from = control_value(from_box)
         actual_to = control_value(to_box)
 
         from_ok = date_replay in actual_from and replay_from_time in actual_from
