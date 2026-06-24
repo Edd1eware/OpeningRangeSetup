@@ -1,4 +1,4 @@
-from visual_replay_test_common import discover_trade_rows, run_visual_dates, to_float
+from visual_replay_test_common_after_sync import discover_trade_rows, run_visual_dates, to_float
 
 
 def find_candidates():

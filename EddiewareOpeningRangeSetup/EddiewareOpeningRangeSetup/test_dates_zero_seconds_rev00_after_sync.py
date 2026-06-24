@@ -3,8 +3,8 @@ import sys
 import time
 from datetime import datetime
 
-import visual_replay_test_common as replay_common
-from visual_replay_test_common import (
+import visual_replay_test_common_after_sync as replay_common
+from visual_replay_test_common_after_sync import (
     discover_trade_rows,
     read_csv_rows,
     timeline_path,

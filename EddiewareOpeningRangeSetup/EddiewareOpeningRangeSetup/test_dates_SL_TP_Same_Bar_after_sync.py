@@ -1,4 +1,4 @@
-from visual_replay_test_common import (
+from visual_replay_test_common_after_sync import (
     discover_trade_rows,
     read_csv_rows,
     run_visual_dates,

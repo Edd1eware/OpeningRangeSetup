@@ -1,14 +1,17 @@
+import argparse
 from pywinauto import Desktop
 import csv
 from datetime import datetime, timedelta
 import os
 import time
+from pathlib import Path
 import pyperclip
 from zoneinfo import ZoneInfo
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
-from telegram_run_summary import send_run_summary
+import replay_sync_runner_common_after_sync as replay_sync
+from telegram_run_summary_after_sync import send_run_summary
 
 # =========================================================
 # CONFIG
@@ -75,7 +78,7 @@ HOLIDAY_RETRY_COUNT = 3
 HOLIDAY_NORMAL_WAIT_SECONDS = 2 * 60
 HOLIDAY_FINAL_WAIT_SECONDS = 3 * 60
 HOLIDAY_NO_DATA_LABEL = "HOLYDAY NO DATA"
-REQUIRED_TIMELINE_VERSION = "dynamic-timeline-2026-06-19-v3-orderflow-latency"
+REQUIRED_TIMELINE_VERSION = replay_sync.EXPECTED_TIMELINE_VERSION
 
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
 RESULTS_FOLDER = os.path.join(EXPORT_FOLDER, "trade_results_score")
@@ -814,144 +817,113 @@ def update_score_workbook():
 
 
 # =========================================================
-# LOOP PRINCIPAL
+# LOOP PRINCIPAL V10 X1/X10
 # =========================================================
 
-print(
-    f"\nINICIANDO REPLAY DST PARA SCORE TRADE RESULTS "
-    f"({len(DATES_DST)} sesiones)\n"
-    f"Fecha NY actual: {TODAY_NY:%d/%m/%Y} | "
-    f"Ultima fecha permitida: {LAST_REPLAY_DATE:%d/%m/%Y}\n"
-)
-failed_dates = []
 
-try:
-    clear_expected_results()
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description=(
+            "Corre el periodo DST de 1 mes usando el flujo v10 canónico: "
+            "X1 genera la fila oficial y X10 la sincroniza."
+        )
+    )
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="Compatibilidad con test_fechas_conflictivas.py; este runner ya usa modo quick por defecto.",
+    )
+    parser.add_argument(
+        "--prepare-only",
+        action="store_true",
+        help="Muestra plan y versiones sin iniciar Replay.",
+    )
+    parser.add_argument(
+        "--compare-only",
+        action="store_true",
+        help="Regenera el reporte con corridas guardadas.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Ignora corridas guardadas y vuelve a correr todo.",
+    )
+    parser.add_argument(
+        "--step",
+        action="store_true",
+        help="Pide ENTER antes de cada fecha.",
+    )
+    parser.add_argument(
+        "--x1-only",
+        action="store_true",
+        help="Solo corre la fase X1 canónica.",
+    )
+    parser.add_argument(
+        "--x10-only",
+        action="store_true",
+        help="Solo corre la fase X10; requiere snapshots v10 previos de X1.",
+    )
+    return parser.parse_args()
 
-    for date in DATES_DST:
-        if not replay_date_is_allowed(date):
-            print(
-                f"\nCORTE DE SEGURIDAD: {date} es hoy o una fecha futura en Nueva York. "
-                "La corrida termina sin configurar esa fecha en ATAS."
-            )
-            break
 
-        print("\n" + "=" * 70)
-        print(f"PROCESANDO {date}")
-        print("=" * 70)
+def main():
+    args = parse_args()
+    quick = True
+    run_plan = replay_sync.build_run_plan(
+        quick=quick,
+        x1_only=args.x1_only,
+        x10_only=args.x10_only,
+    )
+    date_iso_list = [replay_sync.date_iso_from_replay(date) for date in DATES_DST]
+    output_folder = os.path.join(
+        RESULTS_FOLDER,
+        "visual_tests",
+        "04_run_replay_score_trade_results_dst_1mes_runs",
+    )
 
-        result_path = expected_result_path(date)
-        timeline_path = expected_timeline_path(date)
+    print(
+        f"\nINICIANDO REPLAY DST 1 MES V10 X1/X10 "
+        f"({len(DATES_DST)} sesiones)\n"
+        f"Fecha NY actual: {TODAY_NY:%d/%m/%Y} | "
+        f"Ultima fecha permitida: {LAST_REPLAY_DATE:%d/%m/%Y}\n"
+        f"Version esperada: {replay_sync.EXPECTED_EXPORTER_VERSION}\n"
+        f"Resultados de validacion: {output_folder}\n"
+    )
+    print("Plan:")
+    for run_name, speed_label, _ in run_plan:
+        print(f"  - {run_name}: Replay {speed_label}")
 
-        try:
-            if RESUME_EXISTING_RESULTS and date_has_complete_artifacts(result_path, timeline_path):
-                print("Fecha ya tiene resultado y timeline completos; se conserva y se salta.")
-                print_result_file(result_path)
-                continue
+    if args.prepare_only:
+        print("\nPREPARE-ONLY correcto. No se inició Replay.")
+        return 0
 
-            if (
-                RESUME_EXISTING_RESULTS and
-                result_is_terminal(result_path) and
-                result_requires_timeline(result_path) and
-                not timeline_is_terminal(timeline_path)
-            ):
-                print("El resultado existente no tiene timeline terminal; se reproducira nuevamente.")
+    passed, failures = replay_sync.run_replay_period(
+        date_iso_list,
+        output_folder=Path(output_folder),
+        run_plan=run_plan,
+        report_prefix="dst_1mes_v10",
+        force=args.force,
+        step=args.step,
+        compare_only=args.compare_only,
+        replay_to_time=REPLAY_END_TIME,
+    )
 
-            date_completed = False
-
-            for attempt in range(1, HOLIDAY_RETRY_COUNT + 1):
-                wait_seconds = HOLIDAY_NORMAL_WAIT_SECONDS
-                if attempt == HOLIDAY_RETRY_COUNT:
-                    wait_seconds = HOLIDAY_FINAL_WAIT_SECONDS
-
-                print(f"Intento {attempt}/{HOLIDAY_RETRY_COUNT} para cargar datos de replay.")
-                write_target_date(date)
-                time.sleep(1)
-
-                from_value = f"{date} 09:30 a. m."
-                to_value = f"{date} {REPLAY_END_TIME} a. m."
-
-                replay, from_box, to_box, start_button, stop_button = get_controls()
-
-                paste_text(from_box, from_value)
-                paste_text(to_box, to_value)
-
-                print("Fechas configuradas:")
-                print(f"FROM: {from_value}")
-                print(f"TO:   {to_value}")
-
-                time.sleep(2)
-
-                replay, from_box, to_box, start_button, stop_button = get_controls()
-
-                if start_button is None:
-                    raise RuntimeError("No se encontro boton Start")
-
-                clear_previous_result(
-                    result_path,
-                    force=result_requires_timeline(result_path)
-                )
-                clear_previous_timeline(timeline_path)
-                write_replay_started_marker()
-
-                print("Iniciando replay...")
-                started_at = time.time()
-                start_button.click_input()
-
-                print("Esperando hasta detectar TP/SL/EXIT/BE/TIME_OVER...")
-                if wait_until_result(result_path, started_at, wait_seconds, stop_button):
-                    if (
-                        result_requires_timeline(result_path) and
-                        not timeline_is_terminal(timeline_path, started_at)
-                    ):
-                        print(
-                            "WARNING: resultado terminal detectado, pero el timeline no termino "
-                            "correctamente. Se reintentara la fecha."
-                        )
-                        backup_previous_result(result_path, "missing_timeline")
-                        backup_previous_timeline(timeline_path, "incomplete")
-                        time.sleep(5)
-                        continue
-
-                    date_completed = True
-                    break
-
-                print(f"No hubo resultado terminal en intento {attempt}.")
-                time.sleep(5)
-
-            if not date_completed:
-                print(f"No cargaron datos despues de {HOLIDAY_RETRY_COUNT} intentos; marcando {HOLIDAY_NO_DATA_LABEL}.")
-                backup_previous_result(result_path, "no_data")
-                write_holiday_no_data_result(result_path, date)
-
-            time.sleep(5)
-            print_result_file(result_path)
-            if result_requires_timeline(result_path):
-                if timeline_is_terminal(timeline_path):
-                    size_kb = round(os.path.getsize(timeline_path) / 1024, 2)
-                    print(f"TIMELINE OK: {timeline_path}")
-                    print(f"Tamano timeline: {size_kb} KB")
-                else:
-                    print(f"WARNING: timeline terminal ausente: {timeline_path}")
-        except Exception as exc:
-            failed_dates.append((date, str(exc)))
-            print(f"ERROR procesando {date}: {exc}")
-            try:
-                stop_replay()
-            except Exception as stop_exc:
-                print(f"WARNING: no pude detener replay despues del error: {stop_exc}")
-
-        print("Pausa antes del siguiente dia...")
-        time.sleep(10)
-
-finally:
     update_score_workbook()
 
-if failed_dates:
-    print("\nFECHAS CON ERROR DE SCRIPT/UI:")
-    for failed_date, error in failed_dates:
-        print(f"- {failed_date}: {error}")
+    failed_dates = [
+        (date_iso, f"{run_name}: {reason}")
+        for date_iso, run_name, reason in failures
+    ]
+    if failed_dates:
+        print("\nFECHAS CON ERROR DE SCRIPT/UI:")
+        for failed_date, error in failed_dates:
+            print(f"- {failed_date}: {error}")
 
-send_run_summary(RESULTS_FOLDER, DATES_DST, failed_dates, "DST 1 mes")
+    send_run_summary(RESULTS_FOLDER, DATES_DST, failed_dates, "DST 1 mes v10 X1/X10")
 
-print("\nTERMINO LA PRUEBA DST.\n")
+    print("\nTERMINO LA PRUEBA DST 1 MES V10.\n")
+    return 0 if passed and not failures else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
