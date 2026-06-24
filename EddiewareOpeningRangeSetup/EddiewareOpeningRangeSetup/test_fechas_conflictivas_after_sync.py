@@ -19,7 +19,7 @@ SYNC_RESULT_FOLDER = RESULTS_FOLDER / "replay_sync_results"
 TARGET_FILE = EXPORT_FOLDER / "target_trade_result_date.txt"
 REPLAY_STARTED_FILE = EXPORT_FOLDER / "replay_trade_result_started_at.txt"
 OUTPUT_FOLDER = RESULTS_FOLDER / "visual_tests" / "test_fechas_conflictivas_runs"
-EXPECTED_EXPORTER_VERSION = "score-exporter-2026-06-23-v10-persisted-canonical-csv-sync"
+EXPECTED_EXPORTER_VERSION = "score-exporter-2026-06-23-v11-canonical-sync-guards"
 
 REPLAY_FROM_TIME = "09:30"
 REPLAY_TO_TIME = "09:41"

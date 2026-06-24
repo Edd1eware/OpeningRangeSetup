@@ -869,14 +869,14 @@ def update_score_workbook():
 
 
 # =========================================================
-# LOOP PRINCIPAL V10 X1/X10
+# LOOP PRINCIPAL V11 X1/X10
 # =========================================================
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
         description=(
-            "Corre las temporadas DST 2025-2026 usando el flujo v10 canónico: "
+            "Corre las temporadas DST 2025-2026 usando el flujo v11 canónico: "
             "X1 genera la fila oficial y X10 la sincroniza."
         )
     )
@@ -913,7 +913,7 @@ def parse_args():
     parser.add_argument(
         "--x10-only",
         action="store_true",
-        help="Solo corre la fase X10; requiere snapshots v10 previos de X1.",
+        help="Solo corre la fase X10; requiere snapshots v11 previos de X1.",
     )
     return parser.parse_args()
 
@@ -934,7 +934,7 @@ def main():
     )
 
     print(
-        f"\nINICIANDO REPLAY DE TEMPORADAS DST 2025-2026 V10 X1/X10 "
+        f"\nINICIANDO REPLAY DE TEMPORADAS DST 2025-2026 V11 X1/X10 "
         f"({len(DATES_DST)} sesiones)\n"
         f"Fecha NY actual: {TODAY_NY:%d/%m/%Y} | "
         f"Ultima fecha permitida: {LAST_REPLAY_DATE:%d/%m/%Y}\n"
@@ -957,7 +957,7 @@ def main():
         date_iso_list,
         output_folder=Path(output_folder),
         run_plan=run_plan,
-        report_prefix="dst_2025_2026_v10",
+        report_prefix="dst_2025_2026_v11",
         force=args.force,
         step=args.step,
         compare_only=args.compare_only,
@@ -979,10 +979,10 @@ def main():
         RESULTS_FOLDER,
         DATES_DST,
         failed_dates,
-        "Temporadas DST completas 2025-2026 v10 X1/X10",
+        "Temporadas DST completas 2025-2026 v11 X1/X10",
     )
 
-    print("\nTERMINO LA PRUEBA DE TEMPORADAS DST COMPLETAS 2025-2026 V10.\n")
+    print("\nTERMINO LA PRUEBA DE TEMPORADAS DST COMPLETAS 2025-2026 V11.\n")
     return 0 if passed and not failures else 1
 
 

@@ -817,14 +817,14 @@ def update_score_workbook():
 
 
 # =========================================================
-# LOOP PRINCIPAL V10 X1/X10
+# LOOP PRINCIPAL V11 X1/X10
 # =========================================================
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
         description=(
-            "Corre el periodo DST de 1 mes usando el flujo v10 canónico: "
+            "Corre el periodo DST de 1 mes usando el flujo v11 canónico: "
             "X1 genera la fila oficial y X10 la sincroniza."
         )
     )
@@ -861,7 +861,7 @@ def parse_args():
     parser.add_argument(
         "--x10-only",
         action="store_true",
-        help="Solo corre la fase X10; requiere snapshots v10 previos de X1.",
+        help="Solo corre la fase X10; requiere snapshots v11 previos de X1.",
     )
     return parser.parse_args()
 
@@ -882,7 +882,7 @@ def main():
     )
 
     print(
-        f"\nINICIANDO REPLAY DST 1 MES V10 X1/X10 "
+        f"\nINICIANDO REPLAY DST 1 MES V11 X1/X10 "
         f"({len(DATES_DST)} sesiones)\n"
         f"Fecha NY actual: {TODAY_NY:%d/%m/%Y} | "
         f"Ultima fecha permitida: {LAST_REPLAY_DATE:%d/%m/%Y}\n"
@@ -901,7 +901,7 @@ def main():
         date_iso_list,
         output_folder=Path(output_folder),
         run_plan=run_plan,
-        report_prefix="dst_1mes_v10",
+        report_prefix="dst_1mes_v11",
         force=args.force,
         step=args.step,
         compare_only=args.compare_only,
@@ -919,9 +919,9 @@ def main():
         for failed_date, error in failed_dates:
             print(f"- {failed_date}: {error}")
 
-    send_run_summary(RESULTS_FOLDER, DATES_DST, failed_dates, "DST 1 mes v10 X1/X10")
+    send_run_summary(RESULTS_FOLDER, DATES_DST, failed_dates, "DST 1 mes v11 X1/X10")
 
-    print("\nTERMINO LA PRUEBA DST 1 MES V10.\n")
+    print("\nTERMINO LA PRUEBA DST 1 MES V11.\n")
     return 0 if passed and not failures else 1
 
 

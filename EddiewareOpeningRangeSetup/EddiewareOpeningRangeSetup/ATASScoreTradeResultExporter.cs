@@ -36,8 +36,8 @@ namespace ATAS.Indicators
         private const int ExtendedTelemetryFieldCount = 27;
         private const decimal DynamicTimelineSampleIntervalSeconds = 0.25m;
         private const int DynamicTimelineFlushRowCount = 100;
-        private const string ExporterVersion = "score-exporter-2026-06-23-v10-persisted-canonical-csv-sync";
-        private const string DynamicTimelineVersion = "dynamic-timeline-2026-06-23-v10-persisted-canonical-csv-sync";
+        private const string ExporterVersion = "score-exporter-2026-06-23-v11-canonical-sync-guards";
+        private const string DynamicTimelineVersion = "dynamic-timeline-2026-06-23-v11-canonical-sync-guards";
         private static readonly JsonSerializerOptions ReplaySyncJsonOptions = new JsonSerializerOptions
         {
             WriteIndented = true
@@ -477,8 +477,12 @@ namespace ATAS.Indicators
             if (bar < _trade.EntryBar)
                 return;
 
-            if (TryApplyPersistedTradeExit(update))
+            var persistedExit = TryGetMatchingPersistedTradeExit();
+            if (persistedExit != null &&
+                TryApplyPersistedTradeExit(update, persistedExit))
+            {
                 return;
+            }
 
             var manageTimingSource = update.Source;
             var manageTimeUtc = marketUpdateTime;
@@ -509,6 +513,13 @@ namespace ATAS.Indicators
                 manageTimingSource,
                 manageNyTime,
                 "UPDATE");
+
+            if (persistedExit != null && manageTimeUtc < persistedExit.ExitTimeUtc)
+            {
+                _lastManagePrice = marketPrice;
+                _lastManageTimeUtc = manageTimeUtc;
+                return;
+            }
 
             if (TryApplyCvdRiskBracket())
                 return;
@@ -2151,16 +2162,26 @@ namespace ATAS.Indicators
                 $"score_trade_result_snapshot_{nyDate:yyyy-MM-dd}_NY.json");
         }
 
-        private bool TryApplyPersistedTradeExit(MarketUpdate update)
+        private PersistedTradeExit? TryGetMatchingPersistedTradeExit()
         {
             if (_trade == null || _trade.Result != "OPEN")
-                return false;
+                return null;
 
             var snapshot = TryReadPersistedTradeExit(_trade.EntryDate);
             if (snapshot == null)
-                return false;
+                return null;
 
             if (!IsPersistedTradeExitMatch(snapshot))
+                return null;
+
+            return snapshot;
+        }
+
+        private bool TryApplyPersistedTradeExit(
+            MarketUpdate update,
+            PersistedTradeExit snapshot)
+        {
+            if (_trade == null || _trade.Result != "OPEN")
                 return false;
 
             if (update.MarketTimeUtc < snapshot.ExitTimeUtc)
@@ -2235,6 +2256,10 @@ namespace ATAS.Indicators
                 if (!Directory.Exists(_replaySyncResultsFolder))
                     Directory.CreateDirectory(_replaySyncResultsFolder);
 
+                var path = GetReplaySyncResultPath(nyDate);
+                if (File.Exists(path))
+                    return;
+
                 var snapshot = new PersistedTradeExit
                 {
                     ExporterVersion = ExporterVersion,
@@ -2256,7 +2281,7 @@ namespace ATAS.Indicators
                 };
 
                 File.WriteAllText(
-                    GetReplaySyncResultPath(nyDate),
+                    path,
                     JsonSerializer.Serialize(snapshot, ReplaySyncJsonOptions));
             }
             catch

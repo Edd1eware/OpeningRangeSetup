@@ -69,9 +69,20 @@ namespace ATAS.Indicators
                     // moved backwards, the previous run's snapshot must not
                     // contaminate the new X1/X10 execution.
                     if (signalTime < existing.SignalTime)
+                    {
                         Snapshots.Remove(key);
+                    }
                     else
+                    {
+                        TryWritePersistedSnapshot(
+                            canonicalFilePath,
+                            exporterVersion,
+                            sessionDate.Date,
+                            orLow,
+                            orHigh,
+                            existing);
                         return existing;
+                    }
                 }
 
                 if (signal == null || !signal.IsReady)

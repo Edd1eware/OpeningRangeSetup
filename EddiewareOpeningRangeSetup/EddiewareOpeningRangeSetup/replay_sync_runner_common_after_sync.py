@@ -17,8 +17,8 @@ SYNC_RESULT_FOLDER = RESULTS_FOLDER / "replay_sync_results"
 TARGET_FILE = EXPORT_FOLDER / "target_trade_result_date.txt"
 REPLAY_STARTED_FILE = EXPORT_FOLDER / "replay_trade_result_started_at.txt"
 
-EXPECTED_EXPORTER_VERSION = "score-exporter-2026-06-23-v10-persisted-canonical-csv-sync"
-EXPECTED_TIMELINE_VERSION = "dynamic-timeline-2026-06-23-v10-persisted-canonical-csv-sync"
+EXPECTED_EXPORTER_VERSION = "score-exporter-2026-06-23-v11-canonical-sync-guards"
+EXPECTED_TIMELINE_VERSION = "dynamic-timeline-2026-06-23-v11-canonical-sync-guards"
 
 TERMINAL_RESULTS = {
     "TP",
@@ -348,7 +348,7 @@ def wait_for_terminal_result(path, started_at, timeout_seconds, stop_button):
         if second != last_second:
             remaining = timeout_seconds - elapsed
             print(
-                "\rEsperando CSV terminal v10: "
+                "\rEsperando CSV terminal v11: "
                 f"{format_elapsed(elapsed)} / resta {format_elapsed(remaining)}",
                 end="",
                 flush=True,
@@ -648,7 +648,7 @@ def run_replay_period(
                 if speed_label != previous_speed:
                     input(
                         f"\nConfigura manualmente Replay en {speed_label}. "
-                        "Confirma que ATAS cargó la DLL v10 nueva y presiona ENTER..."
+                        "Confirma que ATAS cargó la DLL v11 nueva y presiona ENTER..."
                     )
                     previous_speed = speed_label
                 else:
