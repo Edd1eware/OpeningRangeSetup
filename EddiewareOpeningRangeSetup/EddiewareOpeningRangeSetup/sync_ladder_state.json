@@ -1,18 +1,17 @@
 {
-  "updated_at": "2026-06-23T23:27:40",
-  "status": "prepared",
+  "updated_at": "2026-06-23T23:29:22",
+  "status": "running",
   "state_file": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\sync_ladder_state.json",
   "primary_objective": "Objetivo principal: acercarnos a WR 87.2% y PF 9.77, sin matar la operativa o afectandola lo menos posible.",
   "context_folder": "C:\\Users\\k_99_\\Desktop\\Codex_cotexto",
   "stage": {
     "key": "01_conflictivas",
     "label": "Fechas conflictivas canonicas",
-    "run_id": "obj_test",
+    "run_id": "sync_v11_ladder_001",
     "start_date": "",
     "end_date": "",
     "date_count": 7,
-    "output_folder": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\visual_tests\\test_fechas_conflictivas_runs\\obj_test\\01_conflictivas",
+    "output_folder": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\visual_tests\\test_fechas_conflictivas_runs\\sync_v11_ladder_001\\01_conflictivas",
     "report_prefix": "test_fechas_conflictivas"
-  },
-  "stage_count": 2
+  }
 }

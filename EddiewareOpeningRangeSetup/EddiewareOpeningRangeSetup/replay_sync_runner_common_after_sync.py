@@ -260,49 +260,61 @@ def get_replay_speed_text(replay):
     return speed_values[-1] if speed_values else ""
 
 
-def set_replay_speed(speed_label):
+def set_replay_speed(speed_label, wait_seconds=90):
     target = REPLAY_SPEED_CLICK_RATIOS.get(speed_label.upper())
     if target is None:
         print(f"WARNING: velocidad Replay no soportada por automatización: {speed_label}")
         return False
 
     ratio, expected_text = target
-    try:
-        replay, _, _, _, _ = get_replay_controls()
-        sliders = replay.descendants(control_type="Slider")
-        if not sliders:
-            print("WARNING: no encontré el slider de velocidad del Replay.")
-            return False
+    started_at = time.time()
+    last_warning = ""
 
-        slider = sliders[0]
-        rect = slider.rectangle()
-        y = max(1, (rect.bottom - rect.top) // 2)
-        candidate_ratios = [
-            ratio,
-            max(0.0, ratio - 0.02),
-            min(1.0, ratio + 0.02),
-            max(0.0, ratio - 0.04),
-            min(1.0, ratio + 0.04),
-        ]
+    while time.time() - started_at <= wait_seconds:
+        try:
+            replay, _, _, _, _ = get_replay_controls()
+            sliders = replay.descendants(control_type="Slider")
+            if not sliders:
+                last_warning = "no encontré el slider de velocidad del Replay"
+                time.sleep(2)
+                continue
 
-        for candidate_ratio in candidate_ratios:
-            x = int((rect.right - rect.left) * candidate_ratio)
-            slider.click_input(coords=(x, y))
-            time.sleep(0.35)
+            slider = sliders[0]
+            rect = slider.rectangle()
+            y = max(1, (rect.bottom - rect.top) // 2)
+            candidate_ratios = [
+                ratio,
+                max(0.0, ratio - 0.02),
+                min(1.0, ratio + 0.02),
+                max(0.0, ratio - 0.04),
+                min(1.0, ratio + 0.04),
+            ]
+
+            for candidate_ratio in candidate_ratios:
+                x = int((rect.right - rect.left) * candidate_ratio)
+                slider.click_input(coords=(x, y))
+                time.sleep(0.35)
+                actual_text = get_replay_speed_text(replay)
+                if actual_text == expected_text:
+                    print(f"Replay configurado automáticamente en {actual_text}.")
+                    return True
+
             actual_text = get_replay_speed_text(replay)
-            if actual_text == expected_text:
-                print(f"Replay configurado automáticamente en {actual_text}.")
-                return True
+            last_warning = (
+                f"no pude confirmar Replay {expected_text}; "
+                f"ATAS reporta {actual_text or 'velocidad desconocida'}"
+            )
+        except Exception as exc:
+            last_warning = str(exc)
 
-        actual_text = get_replay_speed_text(replay)
         print(
-            f"WARNING: no pude confirmar Replay {expected_text}; "
-            f"ATAS reporta {actual_text or 'velocidad desconocida'}."
+            f"Esperando poder configurar Replay {expected_text}: {last_warning}",
+            flush=True,
         )
-        return False
-    except Exception as exc:
-        print(f"WARNING: no pude configurar Replay {expected_text}: {exc}")
-        return False
+        time.sleep(2)
+
+    print(f"WARNING: no pude configurar Replay {expected_text}: {last_warning}")
+    return False
 
 
 def control_value(control):
