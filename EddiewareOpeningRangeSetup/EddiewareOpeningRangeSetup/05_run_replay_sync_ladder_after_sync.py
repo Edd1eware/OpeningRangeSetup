@@ -139,6 +139,21 @@ def market_closed_dates(start_date, end_date):
     return closed
 
 
+def ny_dst_trading_window(year):
+    # ATAS Replay está configurado en UTC-4. Para evitar timeouts largos en
+    # invierno, la escalera valida solo sesiones NY dentro de DST.
+    dst_starts = nth_weekday(year, 3, 6, 2)
+    dst_ends = nth_weekday(year, 11, 6, 1)
+    first_trading_day = dst_starts + timedelta(days=1)
+    last_trading_day = dst_ends - timedelta(days=2)
+    return first_trading_day, last_trading_day
+
+
+def is_ny_dst_trading_day(value):
+    first_trading_day, last_trading_day = ny_dst_trading_window(value.year)
+    return first_trading_day <= value <= last_trading_day
+
+
 def add_months(value, months):
     month_index = value.month - 1 + months
     year = value.year + month_index // 12
@@ -151,7 +166,7 @@ def add_months(value, months):
     return date(year, month, min(value.day, last_day))
 
 
-def trading_date_isos(start_date, end_date):
+def trading_date_isos(start_date, end_date, dst_only=True):
     if start_date > end_date:
         return []
 
@@ -159,7 +174,11 @@ def trading_date_isos(start_date, end_date):
     dates = []
     current = start_date
     while current <= end_date:
-        if current.weekday() < 5 and current not in closed:
+        if (
+            current.weekday() < 5
+            and current not in closed
+            and (not dst_only or is_ny_dst_trading_day(current))
+        ):
             dates.append(current.isoformat())
         current += timedelta(days=1)
     return dates
