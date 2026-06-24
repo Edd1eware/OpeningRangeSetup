@@ -1,4 +1,5 @@
 import csv
+import re
 import shutil
 import tempfile
 import time
@@ -35,6 +36,10 @@ DEFAULT_REPLAY_TO_TIME = "09:50"
 POLL_SECONDS = 0.05
 X1_TIMEOUT_SECONDS = 20 * 60
 X10_TIMEOUT_SECONDS = 5 * 60
+REPLAY_SPEED_CLICK_RATIOS = {
+    "X1": (0.20, "1x"),
+    "X10": (0.40, "10x"),
+}
 
 
 def date_iso_from_replay(date_ddmmyyyy):
@@ -243,6 +248,61 @@ def get_replay_controls():
         raise RuntimeError("No encontré el botón Play de Replay.")
 
     return replay, from_box, to_box, start_button, stop_button
+
+
+def get_replay_speed_text(replay):
+    speed_values = []
+    for text in replay.descendants(control_type="Text"):
+        value = text.window_text().strip()
+        if re.fullmatch(r"\d+(?:\.\d+)?x", value):
+            speed_values.append(value)
+
+    return speed_values[-1] if speed_values else ""
+
+
+def set_replay_speed(speed_label):
+    target = REPLAY_SPEED_CLICK_RATIOS.get(speed_label.upper())
+    if target is None:
+        print(f"WARNING: velocidad Replay no soportada por automatización: {speed_label}")
+        return False
+
+    ratio, expected_text = target
+    try:
+        replay, _, _, _, _ = get_replay_controls()
+        sliders = replay.descendants(control_type="Slider")
+        if not sliders:
+            print("WARNING: no encontré el slider de velocidad del Replay.")
+            return False
+
+        slider = sliders[0]
+        rect = slider.rectangle()
+        y = max(1, (rect.bottom - rect.top) // 2)
+        candidate_ratios = [
+            ratio,
+            max(0.0, ratio - 0.02),
+            min(1.0, ratio + 0.02),
+            max(0.0, ratio - 0.04),
+            min(1.0, ratio + 0.04),
+        ]
+
+        for candidate_ratio in candidate_ratios:
+            x = int((rect.right - rect.left) * candidate_ratio)
+            slider.click_input(coords=(x, y))
+            time.sleep(0.35)
+            actual_text = get_replay_speed_text(replay)
+            if actual_text == expected_text:
+                print(f"Replay configurado automáticamente en {actual_text}.")
+                return True
+
+        actual_text = get_replay_speed_text(replay)
+        print(
+            f"WARNING: no pude confirmar Replay {expected_text}; "
+            f"ATAS reporta {actual_text or 'velocidad desconocida'}."
+        )
+        return False
+    except Exception as exc:
+        print(f"WARNING: no pude configurar Replay {expected_text}: {exc}")
+        return False
 
 
 def control_value(control):
@@ -680,10 +740,12 @@ def run_replay_period(
         try:
             for run_name, speed_label, timeout_seconds in run_plan:
                 if speed_label != previous_speed:
-                    input(
-                        f"\nConfigura manualmente Replay en {speed_label}. "
-                        "Confirma que ATAS cargó la DLL v11 nueva y presiona ENTER..."
-                    )
+                    print(f"\nConfigurando Replay en {speed_label}...")
+                    if not set_replay_speed(speed_label):
+                        input(
+                            f"Configura manualmente Replay en {speed_label}. "
+                            "Confirma que ATAS cargó la DLL v11 nueva y presiona ENTER..."
+                        )
                     previous_speed = speed_label
                 else:
                     print(f"\nComenzando repetición {run_name} en {speed_label}.")

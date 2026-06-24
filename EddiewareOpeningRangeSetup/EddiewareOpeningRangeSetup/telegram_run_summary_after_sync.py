@@ -95,6 +95,9 @@ def _send_message(token, chat_id, message):
 
 
 def _delete_messages(token, chat_id, message_ids):
+    if not message_ids:
+        return True, ""
+
     body = urlencode(
         {
             "chat_id": chat_id,
@@ -103,6 +106,33 @@ def _delete_messages(token, chat_id, message_ids):
     ).encode("utf-8")
     request = Request(
         f"https://api.telegram.org/bot{token}/deleteMessages",
+        data=body,
+        method="POST",
+    )
+
+    try:
+        with urlopen(request, timeout=15) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        try:
+            payload = json.loads(exc.read().decode("utf-8"))
+            description = payload.get("description", str(exc))
+        except Exception:
+            description = str(exc)
+        return False, description
+
+    return bool(payload.get("ok")), payload.get("description", "")
+
+
+def _delete_message(token, chat_id, message_id):
+    body = urlencode(
+        {
+            "chat_id": chat_id,
+            "message_id": message_id,
+        }
+    ).encode("utf-8")
+    request = Request(
+        f"https://api.telegram.org/bot{token}/deleteMessage",
         data=body,
         method="POST",
     )
@@ -158,13 +188,31 @@ def clear_telegram_before_run(results_folder):
         if ok:
             processed += len(batch)
         else:
-            failed += len(batch)
             failed_batches += 1
             print(
                 f"Telegram limpieza masiva: fallo el lote "
                 f"{start // TELEGRAM_DELETE_BATCH_SIZE + 1} "
-                f"({len(batch)} IDs): {description}"
+                f"({len(batch)} IDs): {description}. Probando uno por uno..."
             )
+
+            for message_id in batch:
+                try:
+                    single_ok, single_description = _delete_message(
+                        credentials[0],
+                        credentials[1],
+                        message_id,
+                    )
+                except Exception as exc:
+                    single_ok, single_description = False, str(exc)
+
+                if single_ok:
+                    processed += 1
+                else:
+                    failed += 1
+                    print(
+                        "Telegram limpieza individual: no se pudo borrar "
+                        f"ID {message_id}: {single_description}"
+                    )
 
     os.makedirs(results_folder, exist_ok=True)
     with open(message_ids_path, "w", encoding="utf-8"):
@@ -219,6 +267,15 @@ def send_run_summary(results_folder, dates, failed_dates=None, run_label="Replay
             f"Resultados: {len(results)}/{len(dates)} | Errores: {failed_count}",
         ]
     )
+    if failed_dates:
+        error_lines = [
+            f"- {date}: {reason}"
+            for date, reason in failed_dates[:10]
+        ]
+        remaining_errors = failed_count - len(error_lines)
+        message += "\n\nErrores:\n" + "\n".join(error_lines)
+        if remaining_errors > 0:
+            message += f"\n... y {remaining_errors} más."
 
     try:
         message_id = _send_message(credentials[0], credentials[1], message)
