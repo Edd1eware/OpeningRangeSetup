@@ -2187,6 +2187,13 @@ namespace ATAS.Indicators
             if (update.MarketTimeUtc < snapshot.ExitTimeUtc)
                 return false;
 
+            // Adopt X1's canonical bracket so in-memory state matches the canonical
+            // CSV row that is written below (snapshot.CsvRow). This keeps Telegram and
+            // any later read consistent with the persisted X1 result.
+            _trade.Sl = snapshot.Sl;
+            _trade.Tp = snapshot.Tp;
+            _trade.SlTicks = snapshot.SlTicks;
+            _trade.TpTicks = snapshot.TpTicks;
             _trade.Result = snapshot.Result;
             _trade.ExitPrice = snapshot.ExitPrice;
             _trade.ExitTimeNy = snapshot.ExitTimeNy;
@@ -2230,12 +2237,15 @@ namespace ATAS.Indicators
             if (_trade == null)
                 return false;
 
+            // Match on the entry identity only (date, bar, entry price, side, version).
+            // The live Sl/Tp must NOT be part of the match: X1's dynamic management
+            // (e.g. the CVD risk bracket) can move the bracket during the trade, so the
+            // persisted X1 bracket legitimately differs from X10's live bracket. Matching
+            // on Sl/Tp made X10 reject the canonical X1 exit and diverge (TpTicks 30 vs 60).
             return string.Equals(snapshot.ExporterVersion, ExporterVersion, StringComparison.Ordinal) &&
                 snapshot.EntryDate.Date == _trade.EntryDate.Date &&
                 snapshot.EntryBar == _trade.EntryBar &&
                 snapshot.Entry == _trade.Entry &&
-                snapshot.Sl == _trade.Sl &&
-                snapshot.Tp == _trade.Tp &&
                 string.Equals(snapshot.Side, _trade.Side, StringComparison.Ordinal) &&
                 !string.IsNullOrWhiteSpace(snapshot.Result) &&
                 snapshot.Result != "OPEN" &&

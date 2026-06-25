@@ -31,11 +31,34 @@ TERMINAL_RESULTS = {
     "HOLYDAY NO DATA",
 }
 
+# Campos que definen la operativa (lo que afecta WR/PF y los filtros de entrada).
+# La sincronia X1/X10 se valida SOLO sobre estos. La telemetria de gestion
+# dinamica (CVD, alarmas, trailing, MAE/MFE, velocidad, volumen) depende del
+# sample-rate del timeline y difiere entre velocidades sin cambiar el trade ni
+# su resultado, asi que no debe tumbar la sincronia.
+OPERATIVA_COMPARISON_FIELDS = [
+    "Side",
+    "Signal_Source",
+    "Entry_price",
+    "SL_price",
+    "TP_price",
+    "SL_ticks",
+    "TP_ticks",
+    "Result_Label",
+    "Exit_price",
+    "result TP SL BE",
+    "score total",
+]
+
 DEFAULT_REPLAY_FROM_TIME = "09:30"
 DEFAULT_REPLAY_TO_TIME = "09:50"
 POLL_SECONDS = 0.05
 X1_TIMEOUT_SECONDS = 20 * 60
 X10_TIMEOUT_SECONDS = 5 * 60
+# Auto-retry del arranque de Replay: 3 intentos de 50 s para confirmar que el
+# Replay realmente inició. Si tras los 3 no arranca, se salta a la siguiente fecha.
+REPLAY_START_RETRY_ATTEMPTS = 3
+REPLAY_START_DETECT_SECONDS = 50
 REPLAY_SPEED_CLICK_RATIOS = {
     "X1": (0.20, "1x"),
     "X10": (0.40, "10x"),
@@ -510,6 +533,101 @@ def restore_saved_run_to_global(output_folder, date_iso, run_name):
         copy_with_retry(saved_timeline, timeline_path(date_iso))
 
 
+def replay_is_playing(start_button, stop_button):
+    # ATAS deshabilita Play y habilita Stop mientras el Replay corre.
+    try:
+        if start_button is not None and not start_button.is_enabled():
+            return True
+    except Exception:
+        pass
+    try:
+        if stop_button is not None and stop_button.is_enabled():
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def replay_produced_output(source_result, source_timeline, started_at):
+    # El exporter escribe CSV/timeline en cuanto el Replay produce datos.
+    for path in (source_result, source_timeline):
+        try:
+            if path.exists() and path.stat().st_mtime >= started_at:
+                return True
+        except OSError:
+            pass
+    return False
+
+
+def start_replay_with_retries(
+    source_result,
+    source_timeline,
+    from_box,
+    to_box,
+    date_iso,
+    replay_from_time,
+    replay_to_time,
+    start_button,
+    stop_button,
+):
+    for attempt in range(1, REPLAY_START_RETRY_ATTEMPTS + 1):
+        if attempt > 1:
+            # Reinicio limpio: re-tomar controles y re-configurar el rango antes
+            # de volver a darle Play.
+            try:
+                from_box, to_box = refresh_replay_date_controls()
+                configure_replay_range(
+                    from_box,
+                    to_box,
+                    date_iso,
+                    replay_from_time=replay_from_time,
+                    replay_to_time=replay_to_time,
+                )
+                _, _, _, start_button, stop_button = get_replay_controls()
+            except Exception as exc:
+                print(f"No pude re-preparar Replay (intento {attempt}): {exc}")
+
+        started_at = time.time()
+        REPLAY_STARTED_FILE.write_text(str(started_at), encoding="utf-8")
+        try:
+            start_button.click_input()
+        except Exception as exc:
+            print(
+                f"No pude dar Play (intento {attempt}/{REPLAY_START_RETRY_ATTEMPTS}): {exc}"
+            )
+
+        detect_started = time.time()
+        last_second = -1
+        while time.time() - detect_started < REPLAY_START_DETECT_SECONDS:
+            if replay_is_playing(start_button, stop_button) or replay_produced_output(
+                source_result, source_timeline, started_at
+            ):
+                print(
+                    f"\rReplay iniciado (intento {attempt}/{REPLAY_START_RETRY_ATTEMPTS})."
+                    + " " * 30
+                )
+                return started_at
+
+            second = int(time.time() - detect_started)
+            if second != last_second:
+                print(
+                    f"\rDetectando inicio de Replay {attempt}/{REPLAY_START_RETRY_ATTEMPTS}: "
+                    f"{second:02d}/{REPLAY_START_DETECT_SECONDS}s",
+                    end="",
+                    flush=True,
+                )
+                last_second = second
+            time.sleep(POLL_SECONDS)
+
+        print(
+            f"\rReplay no inició en {REPLAY_START_DETECT_SECONDS}s "
+            f"(intento {attempt}/{REPLAY_START_RETRY_ATTEMPTS})." + " " * 20
+        )
+        click_stop(stop_button)
+
+    return None
+
+
 def run_one_date(
     date_iso,
     run_name,
@@ -567,10 +685,27 @@ def run_one_date(
             replay.set_focus()
             time.sleep(0.5)
 
-            started_at = time.time()
-            REPLAY_STARTED_FILE.write_text(str(started_at), encoding="utf-8")
             print(f"Iniciando {run_name} para {date_iso}...")
-            start_button.click_input()
+            started_at = start_replay_with_retries(
+                source_result,
+                source_timeline,
+                from_box,
+                to_box,
+                date_iso,
+                replay_from_time,
+                replay_to_time,
+                start_button,
+                stop_button,
+            )
+            if started_at is None:
+                print(
+                    f"Replay no arrancó tras {REPLAY_START_RETRY_ATTEMPTS} intentos; "
+                    f"salto {run_name} {date_iso}."
+                )
+                if keep_global_result:
+                    restore_file_state(saved_result)
+                    restore_file_state(saved_timeline)
+                return False, "REPLAY_NOT_STARTED"
 
             completed = wait_for_terminal_result(
                 source_result,
@@ -641,10 +776,17 @@ def build_comparison_report(output_folder, date_iso_list, run_plan, report_prefi
                 differences = ["MISSING_CSV"]
                 comparison_fields = []
             else:
+                # El reporte sigue volcando la fila completa para inspeccion,
+                # pero el PASS/FAIL se decide solo sobre la operativa.
                 comparison_fields = comparison_fields_for(baseline, compared)
+                operativa_fields = [
+                    field
+                    for field in OPERATIVA_COMPARISON_FIELDS
+                    if field in baseline or field in compared
+                ]
                 differences = [
                     field
-                    for field in comparison_fields
+                    for field in operativa_fields
                     if normalize(baseline.get(field)) != normalize(compared.get(field))
                 ]
 
@@ -681,7 +823,7 @@ def build_comparison_report(output_folder, date_iso_list, run_plan, report_prefi
     overall = "PASS" if failed == 0 and report_rows else "FAIL"
     summary_lines = [
         "TEST DE SINCRONICIDAD REPLAY X1/X10",
-        "Modo comparacion: CSV terminal completo",
+        "Modo comparacion: operativa (side/entry/SL/TP/exit/result/score)",
         f"Estado general: {overall}",
         f"Comparaciones PASS: {passed}",
         f"Comparaciones FAIL: {failed}",

@@ -243,59 +243,41 @@ def build_ladder_stages(until_date, run_id, include_one_month=False):
         )
         next_index += 1
 
-    six_month_start = add_months(last_replay_date, -6) + timedelta(days=1)
-    key = f"{next_index:02d}_current_6m_{six_month_start:%Y%m%d}_{last_replay_date:%Y%m%d}"
-    stages.append(
-        build_stage(
-            next_index,
-            key,
-            "Ventana actual 6 meses",
-            six_month_start,
-            last_replay_date,
-            trading_date_isos(six_month_start, last_replay_date),
-            ladder_run_root / key,
-            key,
-            run_id,
-        )
-    )
-    next_index += 1
+    # Bloques de ~6 meses hacia atras, SIEMPRE dentro de una sola temporada DST.
+    # Nunca cruzan el cambio de horario (invierno EST): ATAS Replay esta en UTC-4,
+    # asi que fuera de DST las sesiones NY de las 09:30 quedarian corridas 1 hora.
+    cursor_end = last_replay_date
+    while cursor_end >= until_date:
+        season_first, season_last = ny_dst_trading_window(cursor_end.year)
 
-    one_year_start = add_months(last_replay_date, -12) + timedelta(days=1)
-    key = f"{next_index:02d}_current_1y_{one_year_start:%Y%m%d}_{last_replay_date:%Y%m%d}"
-    stages.append(
-        build_stage(
-            next_index,
-            key,
-            "Ventana actual 1 ano",
-            one_year_start,
-            last_replay_date,
-            trading_date_isos(one_year_start, last_replay_date),
-            ladder_run_root / key,
-            key,
-            run_id,
-        )
-    )
-    next_index += 1
+        if cursor_end > season_last:
+            # Despues del fin de DST: bajar al ultimo dia DST de la temporada.
+            cursor_end = season_last
+            continue
 
-    block_end = one_year_start - timedelta(days=1)
-    while block_end >= until_date:
-        block_start = max(until_date, add_months(block_end, -6) + timedelta(days=1))
-        key = f"{next_index:02d}_back_6m_{block_start:%Y%m%d}_{block_end:%Y%m%d}"
+        if cursor_end < season_first:
+            # Invierno: saltar a la ultima sesion DST de la temporada anterior.
+            cursor_end = ny_dst_trading_window(cursor_end.year - 1)[1]
+            continue
+
+        season_floor = max(season_first, until_date)
+        block_start = max(season_floor, add_months(cursor_end, -6) + timedelta(days=1))
+        key = f"{next_index:02d}_dst_6m_{block_start:%Y%m%d}_{cursor_end:%Y%m%d}"
         stages.append(
             build_stage(
                 next_index,
                 key,
-                "Bloque historico 6 meses",
+                "Bloque DST 6 meses",
                 block_start,
-                block_end,
-                trading_date_isos(block_start, block_end),
+                cursor_end,
+                trading_date_isos(block_start, cursor_end),
                 ladder_run_root / key,
                 key,
                 run_id,
             )
         )
         next_index += 1
-        block_end = block_start - timedelta(days=1)
+        cursor_end = block_start - timedelta(days=1)
 
     return stages
 
