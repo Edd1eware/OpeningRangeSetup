@@ -229,6 +229,90 @@ def clear_telegram_before_run(results_folder):
     return failed == 0
 
 
+def _format_eta(seconds):
+    if seconds is None or seconds <= 0:
+        return "N/A"
+
+    seconds = int(seconds)
+    hours, remainder = divmod(seconds, 3600)
+    minutes, _ = divmod(remainder, 60)
+    if hours > 0:
+        return f"~{hours}h {minutes:02d}m"
+    if minutes > 0:
+        return f"~{minutes}m"
+    return "~<1m"
+
+
+def send_progress_update(
+    results_folder,
+    *,
+    stage_index,
+    stage_total,
+    stage_label,
+    stage_period="",
+    done,
+    total,
+    passed,
+    failed,
+    skipped,
+    eta_seconds=None,
+    avg_seconds=None,
+    remaining=0,
+    global_done=None,
+    global_target=None,
+    run_label="Replay",
+    final=False,
+):
+    """Manda un mensaje de progreso detallado: fase, avance, ETA y meta previa."""
+    credentials = _read_credentials(results_folder)
+    if credentials is None:
+        return False
+
+    pct = (done / total * 100) if total else 0
+    header = "Etapa terminada" if final else "Progreso"
+    lines = [
+        f"EW Opening Range | {header} ({run_label})",
+        f"Fase: ETAPA {stage_index:02d}/{stage_total:02d} - {stage_label}",
+    ]
+    if stage_period:
+        lines.append(f"Rango: {stage_period}")
+    lines.append(
+        f"Progreso: {done}/{total} ({pct:.0f}%) | "
+        f"PASS {passed} | FAIL {failed} | saltadas {skipped}"
+    )
+    if not final:
+        if avg_seconds:
+            lines.append(
+                f"ETA etapa: {_format_eta(eta_seconds)} "
+                f"(prom {avg_seconds:.0f} s/fecha x {remaining} fechas)"
+            )
+        else:
+            lines.append(f"ETA etapa: {_format_eta(eta_seconds)}")
+    if global_target:
+        missing = max(global_target - (global_done or 0), 0)
+        lines.append(
+            f"Meta previa: {global_done}/{global_target} sesiones "
+            f"(faltan {missing})"
+        )
+
+    message = "\n".join(lines)
+    try:
+        message_id = _send_message(credentials[0], credentials[1], message)
+        if message_id is None:
+            return False
+
+        with open(
+            os.path.join(results_folder, TELEGRAM_MESSAGE_IDS_FILE),
+            "a",
+            encoding="utf-8",
+        ) as file:
+            file.write(f"{message_id}\n")
+        return True
+    except Exception as exc:
+        print(f"WARNING: no pude enviar progreso Telegram: {exc}")
+        return False
+
+
 def send_run_summary(results_folder, dates, failed_dates=None, run_label="Replay"):
     credentials = _read_credentials(results_folder)
     if credentials is None:

@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 from openpyxl import Workbook
 
 import replay_sync_runner_common_after_sync as replay_sync
+import telegram_run_summary_after_sync as telegram
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -23,6 +24,9 @@ CONFLICT_OUTPUT_FOLDER = VISUAL_TESTS_FOLDER / "test_fechas_conflictivas_runs"
 LADDER_OUTPUT_ROOT = VISUAL_TESTS_FOLDER / "sync_ladder_runs"
 STATE_PATH = PROJECT_DIR / "sync_ladder_state.json"
 ARCHIVE_PREFIX = "SYNC_PASS"
+# Meta previa a la busqueda del edge: 500 sesiones recolectadas (con o sin trade).
+# Recien al llegar a 500 empieza la optimizacion de WR 87.2% / PF 9.77.
+SESSION_TARGET = 500
 PRIMARY_OBJECTIVE = (
     "Objetivo principal: acercarnos a WR 87.2% y PF 9.77, "
     "sin matar la operativa o afectandola lo menos posible."
@@ -282,6 +286,40 @@ def build_ladder_stages(until_date, run_id, include_one_month=False):
     return stages
 
 
+# Plan completo del ladder (las 9 etapas), seteado en main() antes de filtrar.
+# Es informativo: el ladder real lo re-deriva build_ladder_stages cada corrida.
+LADDER_PLAN_STAGES = []
+
+
+def stage_saved_count(stage):
+    """Cuenta CSVs X1 ya guardados de una etapa (para el plan en el .json)."""
+    x1_folder = Path(stage["output_folder"]) / "X1_R1"
+    if not x1_folder.exists():
+        return 0
+    return len(list(x1_folder.glob("score_trade_result_*_NY.csv")))
+
+
+def build_ladder_plan(stages):
+    plan = []
+    for stage in stages:
+        date_count = len(stage["dates"])
+        saved = stage_saved_count(stage)
+        plan.append(
+            {
+                "index": stage["index"],
+                "key": stage["key"],
+                "label": stage["label"],
+                "start_date": stage["start_date"],
+                "end_date": stage["end_date"],
+                "date_count": date_count,
+                "saved": saved,
+                "complete": date_count > 0 and saved >= date_count,
+                "output_folder": str(stage["output_folder"]),
+            }
+        )
+    return plan
+
+
 def write_state(status, stage=None, **extra):
     payload = {
         "updated_at": datetime.now().isoformat(timespec="seconds"),
@@ -289,7 +327,11 @@ def write_state(status, stage=None, **extra):
         "state_file": str(STATE_PATH),
         "primary_objective": PRIMARY_OBJECTIVE,
         "context_folder": str(CONTEXT_FOLDER),
+        "session_target": SESSION_TARGET,
     }
+    if LADDER_PLAN_STAGES:
+        payload["ladder_plan"] = LADDER_PLAN_STAGES
+        payload["stage_count_total"] = len(LADDER_PLAN_STAGES)
     if stage:
         payload["stage"] = {
             "key": stage["key"],
@@ -514,6 +556,10 @@ def main():
     run_id = sanitize_key(args.run_id or datetime.now().strftime("ladder_%Y%m%d_%H%M%S"))
     run_plan = replay_sync.build_run_plan(quick=not args.full_x10)
     stages = build_ladder_stages(until_date, run_id, include_one_month=args.include_one_month)
+    total_stage_count = len(stages)
+    # Registra el plan completo (todas las etapas) en el .json, no solo la actual.
+    global LADDER_PLAN_STAGES
+    LADDER_PLAN_STAGES = build_ladder_plan(stages)
     stages = filter_stages(
         stages,
         start_at=args.start_at,
@@ -526,6 +572,16 @@ def main():
         write_state("prepared", stages[0] if stages else None, stage_count=len(stages))
         print("\nPREPARE-ONLY correcto. No se inicio Replay.")
         return 0
+
+    # Limpieza masiva de mensajes Telegram de corridas anteriores (una vez por
+    # corrida real; en compare-only no se toca Telegram).
+    if not args.compare_only:
+        telegram.clear_telegram_before_run(replay_sync.RESULTS_FOLDER)
+
+    session_roots = [
+        LADDER_OUTPUT_ROOT / run_id,
+        CONFLICT_OUTPUT_FOLDER / run_id,
+    ]
 
     sleep_context = (
         WindowsSleepBlocker(keep_display_on=True)
@@ -547,6 +603,21 @@ def main():
             write_state("running", stage)
             stage["output_folder"].mkdir(parents=True, exist_ok=True)
 
+            stage_period = (
+                f"{stage['start_date']} -> {stage['end_date']}"
+                if stage["start_date"]
+                else "fechas fijas"
+            )
+            progress_meta = {
+                "stage_index": stage["index"],
+                "stage_total": total_stage_count,
+                "stage_label": stage["key"],
+                "stage_period": stage_period,
+                "global_target": SESSION_TARGET,
+                "session_roots": session_roots,
+                "run_label": "Ladder X1/X10",
+            }
+
             passed, failures = replay_sync.run_replay_period(
                 stage["dates"],
                 output_folder=stage["output_folder"],
@@ -556,6 +627,7 @@ def main():
                 step=args.step,
                 compare_only=args.compare_only,
                 replay_to_time=replay_sync.DEFAULT_REPLAY_TO_TIME,
+                progress_meta=progress_meta,
             )
 
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

@@ -9,6 +9,8 @@ from pathlib import Path
 import pyperclip
 from pywinauto import Desktop
 
+import telegram_run_summary_after_sync as telegram
+
 
 EXPORT_FOLDER = Path(r"C:\Users\k_99_\Desktop\codding\data_footprint_generator")
 RESULTS_FOLDER = EXPORT_FOLDER / "trade_results_score"
@@ -866,6 +868,58 @@ def build_run_plan(quick=True, x1_only=False, x10_only=False):
     return [("X1_R1", "X1", X1_TIMEOUT_SECONDS), *x10_runs]
 
 
+def count_distinct_sessions(session_roots):
+    """Cuenta sesiones distintas (fechas con CSV X1 guardado) para la meta de 500.
+
+    No importa si la sesion tuvo trade o no: TIME_OVER / sin senal igual cuenta.
+    """
+    if not session_roots:
+        return None
+
+    seen = set()
+    for root in session_roots:
+        root_path = Path(root)
+        if not root_path.exists():
+            continue
+        for csv_path in root_path.glob("*/X1_*/score_trade_result_*_NY.csv"):
+            match = re.search(r"(\d{4}-\d{2}-\d{2})", csv_path.name)
+            if match:
+                seen.add(match.group(1))
+    return len(seen)
+
+
+def _send_stage_progress(progress_meta, *, done, total, passed, failed,
+                         skipped, eta_seconds, avg_seconds, remaining,
+                         final=False):
+    """Envia un mensaje de progreso a Telegram usando el contexto de la etapa."""
+    if not progress_meta:
+        return
+
+    global_done = count_distinct_sessions(progress_meta.get("session_roots"))
+    try:
+        telegram.send_progress_update(
+            RESULTS_FOLDER,
+            stage_index=progress_meta.get("stage_index", 0),
+            stage_total=progress_meta.get("stage_total", 0),
+            stage_label=progress_meta.get("stage_label", ""),
+            stage_period=progress_meta.get("stage_period", ""),
+            done=done,
+            total=total,
+            passed=passed,
+            failed=failed,
+            skipped=skipped,
+            eta_seconds=eta_seconds,
+            avg_seconds=avg_seconds,
+            remaining=remaining,
+            global_done=global_done,
+            global_target=progress_meta.get("global_target"),
+            run_label=progress_meta.get("run_label", "Ladder"),
+            final=final,
+        )
+    except Exception as exc:
+        print(f"WARNING: progreso Telegram fallo: {exc}")
+
+
 def run_replay_period(
     date_iso_list,
     output_folder,
@@ -876,6 +930,8 @@ def run_replay_period(
     compare_only=False,
     replay_from_time=DEFAULT_REPLAY_FROM_TIME,
     replay_to_time=DEFAULT_REPLAY_TO_TIME,
+    progress_meta=None,
+    progress_every=10,
 ):
     output_folder.mkdir(parents=True, exist_ok=True)
 
@@ -904,14 +960,22 @@ def run_replay_period(
                 else:
                     print(f"\nComenzando repetición {run_name} en {speed_label}.")
 
+                total_dates = len(date_iso_list)
+                passed_count = 0
+                failed_count = 0
+                skipped_count = 0
+                real_durations = []
+                last_notify = 0
+
                 for index, date_iso in enumerate(date_iso_list, 1):
                     print(
-                        f"\n[{run_name} {index}/{len(date_iso_list)}] "
+                        f"\n[{run_name} {index}/{total_dates}] "
                         f"{date_iso}."
                     )
                     if step:
                         input("Presiona ENTER para iniciar...")
 
+                    started = time.time()
                     try:
                         ok, reason = run_one_date(
                             date_iso,
@@ -929,8 +993,56 @@ def run_replay_period(
                         ok, reason = False, str(exc)
                         print(f"ERROR: {date_iso} {run_name}: {exc}")
 
+                    elapsed = time.time() - started
+                    if reason == "SKIPPED":
+                        skipped_count += 1
+                    else:
+                        real_durations.append(elapsed)
+                        if ok:
+                            passed_count += 1
+                        else:
+                            failed_count += 1
+
                     if not ok:
                         failures.append((date_iso, run_name, reason))
+
+                    # ETA: promedio de fechas REALMENTE corridas (las saltadas son
+                    # instantaneas) extrapolado a las fechas reales que faltan.
+                    avg_seconds = (
+                        sum(real_durations) / len(real_durations)
+                        if real_durations
+                        else None
+                    )
+                    remaining = total_dates - index
+                    real_ratio = (
+                        len(real_durations) / index if index else 0
+                    )
+                    est_remaining_real = remaining * real_ratio
+                    eta_seconds = (
+                        avg_seconds * est_remaining_real if avg_seconds else None
+                    )
+
+                    is_real = reason != "SKIPPED"
+                    is_final = index == total_dates
+                    should_notify = (
+                        is_real
+                        or is_final
+                        or (index - last_notify >= progress_every)
+                    )
+                    if progress_meta and should_notify:
+                        last_notify = index
+                        _send_stage_progress(
+                            progress_meta,
+                            done=index,
+                            total=total_dates,
+                            passed=passed_count,
+                            failed=failed_count,
+                            skipped=skipped_count,
+                            eta_seconds=eta_seconds,
+                            avg_seconds=avg_seconds,
+                            remaining=int(round(est_remaining_real)),
+                            final=is_final,
+                        )
         finally:
             click_stop()
             restore_file_state(saved_target)

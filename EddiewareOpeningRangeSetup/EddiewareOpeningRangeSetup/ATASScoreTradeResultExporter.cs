@@ -32,6 +32,12 @@ namespace ATAS.Indicators
         private const decimal NormalScalpMaxTradeTicks = 120m;
         private const decimal DynamicAlarmMaePullbackTicks = 15m;
         private const decimal DynamicAlarmMaeSpeedTicksPerSecond = 10m;
+        // Piso minimo del intervalo (segundos) para velocidades instantaneas
+        // ticks/seg. Con timestamps de milisegundos reales, dos updates del mismo
+        // instante quedan a ~nanosegundos y la division explota (p.ej. 5e7 t/s).
+        // Flooring a 0.25s mata el ruido sub-milisegundo sin tocar movimientos
+        // reales rapidos (>=2.5 ticks en 0.25s siguen disparando la alarma).
+        private const double MinSpeedIntervalSeconds = 0.25d;
         private const int DynamicAlarmFieldCount = 37;
         private const int ExtendedTelemetryFieldCount = 27;
         private const decimal DynamicTimelineSampleIntervalSeconds = 0.25m;
@@ -725,6 +731,8 @@ namespace ATAS.Indicators
                 timingSource);
             if (elapsedSeconds <= 0 || elapsedSeconds > 300)
                 elapsedSeconds = 1;
+            // Floor sub-millisecond gaps so speed cannot explode to millions.
+            elapsedSeconds = Math.Max(elapsedSeconds, MinSpeedIntervalSeconds);
 
             var adverseTicks = _trade.Side == "BUY"
                 ? RoundToTicks(_lastManagePrice - currentPrice)
@@ -1687,6 +1695,11 @@ namespace ATAS.Indicators
             var elapsedSeconds = (double)normalizedElapsedSeconds;
             if (elapsedSeconds <= 0 || elapsedSeconds > 300)
                 elapsedSeconds = 1;
+            // Floor sub-millisecond gaps: with real-ms timestamps two same-instant
+            // updates are ~nanoseconds apart and MAE/MFE speed would blow up to
+            // millions of ticks/sec. Only the speed divisor is floored; the
+            // accumulated PathElapsedSeconds below keeps the raw normalized value.
+            elapsedSeconds = Math.Max(elapsedSeconds, MinSpeedIntervalSeconds);
 
             if (normalizedElapsedSeconds > 0 && normalizedElapsedSeconds <= 300)
             {
