@@ -1,17 +1,17 @@
 {
-  "updated_at": "2026-06-24T13:47:46",
+  "updated_at": "2026-06-26T09:21:48",
   "status": "running",
   "state_file": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\sync_ladder_state.json",
   "primary_objective": "Objetivo principal: acercarnos a WR 87.2% y PF 9.77, sin matar la operativa o afectandola lo menos posible.",
   "context_folder": "C:\\Users\\k_99_\\Desktop\\Codex_cotexto",
   "stage": {
-    "key": "03_dst_6m_20250501_20251031",
+    "key": "05_dst_6m_20240502_20241101",
     "label": "Bloque DST 6 meses",
     "run_id": "sync_v11_ladder_001_resume",
-    "start_date": "2025-05-01",
-    "end_date": "2025-10-31",
+    "start_date": "2024-05-02",
+    "end_date": "2024-11-01",
     "date_count": 128,
-    "output_folder": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\visual_tests\\sync_ladder_runs\\sync_v11_ladder_001_resume\\03_dst_6m_20250501_20251031",
-    "report_prefix": "03_dst_6m_20250501_20251031"
+    "output_folder": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\visual_tests\\sync_ladder_runs\\sync_v11_ladder_001_resume\\05_dst_6m_20240502_20241101",
+    "report_prefix": "05_dst_6m_20240502_20241101"
   }
 }
