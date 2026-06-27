@@ -257,11 +257,37 @@ def send_progress_update(
     run_label="Replay",
     final=False,
     start=False,
+    goal=False,
 ):
     """Manda un mensaje de progreso detallado: fase, avance, ETA y meta previa."""
     credentials = _read_credentials(results_folder)
     if credentials is None:
         return False
+
+    if goal:
+        message = "\n".join(
+            [
+                f"EW Opening Range | META ALCANZADA - Fase 1 ({run_label})",
+                f"Fase: ETAPA {stage_index:02d}/{stage_total:02d} - {stage_label}",
+                f"{global_done}/{global_target} sesiones sincronizadas X1==X10. "
+                "Replay detenido.",
+                "Fase 1 completa -> pasar a Fase 2 (definir estrategia).",
+            ]
+        )
+        try:
+            message_id = _send_message(credentials[0], credentials[1], message)
+            if message_id is None:
+                return False
+            with open(
+                os.path.join(results_folder, TELEGRAM_MESSAGE_IDS_FILE),
+                "a",
+                encoding="utf-8",
+            ) as file:
+                file.write(f"{message_id}\n")
+            return True
+        except Exception as exc:
+            print(f"WARNING: no pude enviar meta Telegram: {exc}")
+            return False
 
     pct = (done / total * 100) if total else 0
     if start:

@@ -676,7 +676,48 @@ def main():
                 timestamp,
             )
 
-            if passed and not failures:
+            real_divergences, gap_dates = classify_stage_outcome(stage, failures)
+
+            # Desync REAL de operativa -> SI detiene el ladder (es lo que importa).
+            if real_divergences:
+                write_state(
+                    "failed",
+                    stage,
+                    latest_summary=str(workbook_path),
+                    real_divergences=[
+                        {"date": date_iso, "fields": fields}
+                        for date_iso, fields in real_divergences
+                    ],
+                    gaps=gap_dates,
+                )
+                print("\nFALLO LA SINCRONICIDAD: divergencia REAL de operativa.")
+                for date_iso, fields in real_divergences:
+                    print(f"  {date_iso}: {fields}")
+                print(f"Estado para Codex: {STATE_PATH}")
+                print(f"Resumen Excel: {workbook_path}")
+                print(f"Carpeta de reportes: {stage['output_folder']}")
+                return 1
+
+            # Solo huecos re-corregibles (timeout/foco/missing) -> NO detiene;
+            # se aisla la(s) fecha(s), se loguea y el ladder sigue a la siguiente.
+            if gap_dates:
+                all_gaps.extend((stage["key"], date_iso) for date_iso in gap_dates)
+                write_state(
+                    "stage_pass_with_gaps",
+                    stage,
+                    latest_summary=str(workbook_path),
+                    gaps=gap_dates,
+                )
+                print(
+                    f"\nEtapa {stage['key']} OK con {len(gap_dates)} hueco(s) "
+                    f"re-corregible(s): {', '.join(gap_dates)}"
+                )
+                print(
+                    "Sin divergencia real de operativa. El ladder continua; "
+                    "los huecos se rellenan luego con un re-run sin --force."
+                )
+            else:
+                # Limpio total -> archiva el zip de PASS y avanza.
                 archive_path = archive_success(stage, workbook_path, timestamp)
                 write_state(
                     "stage_pass",
@@ -684,25 +725,71 @@ def main():
                     latest_summary=str(workbook_path),
                     latest_archive=str(archive_path),
                 )
-                continue
 
-            write_state(
-                "failed",
-                stage,
-                latest_summary=str(workbook_path),
-                failures=[
-                    {"date": date_iso, "run": run_name, "reason": reason}
-                    for date_iso, run_name, reason in failures
-                ],
-            )
-            print("\nFALLO LA SINCRONICIDAD O LA UI.")
-            print(f"Estado para Codex: {STATE_PATH}")
-            print(f"Resumen Excel: {workbook_path}")
-            print(f"Carpeta de reportes: {stage['output_folder']}")
-            return 1
+            # META: la etapa cerro con X1+X10+comparacion, asi que todo lo contado
+            # esta sincronizado. Si cruzamos 500, detenemos el Replay y avisamos.
+            global_done = replay_sync.count_distinct_sessions(session_roots)
+            if global_done is not None and global_done >= SESSION_TARGET:
+                telegram.send_progress_update(
+                    replay_sync.RESULTS_FOLDER,
+                    stage_index=stage["index"],
+                    stage_total=total_stage_count,
+                    stage_label=stage["key"],
+                    stage_period=stage_period,
+                    done=global_done,
+                    total=SESSION_TARGET,
+                    passed=0,
+                    failed=0,
+                    skipped=0,
+                    eta_seconds=None,
+                    avg_seconds=None,
+                    remaining=0,
+                    global_done=global_done,
+                    global_target=SESSION_TARGET,
+                    run_label="Ladder X1/X10",
+                    goal=True,
+                )
+                write_state(
+                    "goal_reached",
+                    stage,
+                    latest_summary=str(workbook_path),
+                    sessions=global_done,
+                    gaps=[
+                        {"stage": stage_key, "date": date_iso}
+                        for stage_key, date_iso in all_gaps
+                    ],
+                )
+                print(
+                    f"\nMETA ALCANZADA: {global_done}/{SESSION_TARGET} sesiones "
+                    "sincronizadas X1==X10. Replay detenido. Fase 1 completa."
+                )
+                if all_gaps:
+                    print(
+                        f"Huecos re-corregibles pendientes ({len(all_gaps)}): "
+                        + ", ".join(f"{s} {d}" for s, d in all_gaps)
+                    )
+                print("Siguiente: Fase 2 (definir estrategia).")
+                return 0
 
-    write_state("complete", stages[-1] if stages else None, stage_count=len(stages))
-    print("\nESCALERA COMPLETA: todas las etapas pasaron.")
+    write_state(
+        "complete",
+        stages[-1] if stages else None,
+        stage_count=len(stages),
+        gaps=[{"stage": stage_key, "date": date_iso} for stage_key, date_iso in all_gaps],
+    )
+    if all_gaps:
+        print(
+            f"\nESCALERA COMPLETA con {len(all_gaps)} hueco(s) re-corregible(s) "
+            "(timeout/foco/missing, sin desync real):"
+        )
+        for stage_key, date_iso in all_gaps:
+            print(f"  {stage_key}  {date_iso}")
+        print(
+            "\nRellenarlos: re-run SIN --force (salta lo bueno, re-corre solo los "
+            "huecos). Si una fecha vuelve a dar timeout, es hueco de datos real."
+        )
+    else:
+        print("\nESCALERA COMPLETA: todas las etapas pasaron limpio.")
     return 0
 
 
