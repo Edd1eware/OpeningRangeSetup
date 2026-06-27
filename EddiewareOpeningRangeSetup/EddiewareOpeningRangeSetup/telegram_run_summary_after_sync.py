@@ -189,30 +189,24 @@ def clear_telegram_before_run(results_folder):
             processed += len(batch)
         else:
             failed_batches += 1
-            print(
-                f"Telegram limpieza masiva: fallo el lote "
-                f"{start // TELEGRAM_DELETE_BATCH_SIZE + 1} "
-                f"({len(batch)} IDs): {description}. Probando uno por uno..."
-            )
 
+            # Reintenta uno por uno en silencio: los <48h se borran; los >48h no
+            # los puede borrar la Bot API en chat privado. No se imprime por
+            # mensaje; al final se reporta el total en una sola linea.
             for message_id in batch:
                 try:
-                    single_ok, single_description = _delete_message(
+                    single_ok, _ = _delete_message(
                         credentials[0],
                         credentials[1],
                         message_id,
                     )
-                except Exception as exc:
-                    single_ok, single_description = False, str(exc)
+                except Exception:
+                    single_ok = False
 
                 if single_ok:
                     processed += 1
                 else:
                     failed += 1
-                    print(
-                        "Telegram limpieza individual: no se pudo borrar "
-                        f"ID {message_id}: {single_description}"
-                    )
 
     os.makedirs(results_folder, exist_ok=True)
     with open(message_ids_path, "w", encoding="utf-8"):
@@ -220,11 +214,11 @@ def clear_telegram_before_run(results_folder):
     with open(sent_dates_path, "w", encoding="utf-8"):
         pass
 
+    # Una sola linea de resumen. Los no borrables (>48h en chat privado, limite
+    # de la Bot API) se cuentan en `failed` pero NO detienen la corrida.
     print(
-        f"Telegram limpieza masiva terminada: {processed} IDs procesados, "
-        f"{failed} IDs en {failed_batches} lotes fallidos. "
-        "Telegram omite mensajes inexistentes o no borrables. "
-        "Historial de la corrida reiniciado."
+        f"Telegram limpieza: {processed} borrados, {failed} no borrables "
+        "(>48h, limite Bot API). Historial reiniciado; la corrida continua."
     )
     return failed == 0
 
@@ -262,6 +256,7 @@ def send_progress_update(
     global_target=None,
     run_label="Replay",
     final=False,
+    start=False,
 ):
     """Manda un mensaje de progreso detallado: fase, avance, ETA y meta previa."""
     credentials = _read_credentials(results_folder)
@@ -269,7 +264,12 @@ def send_progress_update(
         return False
 
     pct = (done / total * 100) if total else 0
-    header = "Etapa terminada" if final else "Progreso"
+    if start:
+        header = "Etapa iniciada"
+    elif final:
+        header = "Etapa terminada"
+    else:
+        header = "Progreso"
     lines = [
         f"EW Opening Range | {header} ({run_label})",
         f"Fase: ETAPA {stage_index:02d}/{stage_total:02d} - {stage_label}",
@@ -280,7 +280,7 @@ def send_progress_update(
         f"Progreso: {done}/{total} ({pct:.0f}%) | "
         f"PASS {passed} | FAIL {failed} | saltadas {skipped}"
     )
-    if not final:
+    if not final and not start:
         if avg_seconds:
             lines.append(
                 f"ETA etapa: {_format_eta(eta_seconds)} "

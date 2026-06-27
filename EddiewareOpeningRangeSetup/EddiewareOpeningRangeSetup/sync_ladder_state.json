@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-06-26T17:45:22",
-  "status": "prepared",
+  "updated_at": "2026-06-27T06:50:39",
+  "status": "failed",
   "state_file": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\sync_ladder_state.json",
   "primary_objective": "Objetivo principal: acercarnos a WR 87.2% y PF 9.77, sin matar la operativa o afectandola lo menos posible.",
   "context_folder": "C:\\Users\\k_99_\\Desktop\\Codex_cotexto",
@@ -108,14 +108,26 @@
   ],
   "stage_count_total": 9,
   "stage": {
-    "key": "01_conflictivas",
-    "label": "Fechas conflictivas canonicas",
+    "key": "05_dst_6m_20240502_20241101",
+    "label": "Bloque DST 6 meses",
     "run_id": "sync_v11_ladder_001_resume",
-    "start_date": "",
-    "end_date": "",
-    "date_count": 7,
-    "output_folder": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\visual_tests\\test_fechas_conflictivas_runs\\sync_v11_ladder_001_resume\\01_conflictivas",
-    "report_prefix": "test_fechas_conflictivas"
+    "start_date": "2024-05-02",
+    "end_date": "2024-11-01",
+    "date_count": 128,
+    "output_folder": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\visual_tests\\sync_ladder_runs\\sync_v11_ladder_001_resume\\05_dst_6m_20240502_20241101",
+    "report_prefix": "05_dst_6m_20240502_20241101"
   },
-  "stage_count": 9
+  "latest_summary": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\visual_tests\\sync_ladder_runs\\sync_v11_ladder_001_resume\\05_dst_6m_20240502_20241101\\05_dst_6m_20240502_20241101_sync_v11_ladder_001_resume_20260627_065038_summary.xlsx",
+  "failures": [
+    {
+      "date": "2024-05-16",
+      "run": "X1_R1",
+      "reason": "TIMEOUT_OR_NO_CSV"
+    },
+    {
+      "date": "2024-05-16",
+      "run": "X10_R1",
+      "reason": "TIMEOUT_OR_NO_CSV"
+    }
+  ]
 }

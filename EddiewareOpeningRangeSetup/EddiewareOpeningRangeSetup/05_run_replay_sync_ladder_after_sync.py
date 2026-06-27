@@ -347,6 +347,35 @@ def write_state(status, stage=None, **extra):
     STATE_PATH.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
+def classify_stage_outcome(stage, failures):
+    """Separa el resultado de una etapa en dos categorías:
+
+    - real_divergences: desync VERDADERO de operativa (X1 != X10 en campos que
+      afectan WR/PF). Esto SÍ detiene el ladder: es lo que importa para confiar.
+    - gap_dates: huecos re-corregibles (timeout, replay no arrancó, foco perdido,
+      MISSING_CSV). NO detienen el ladder; se rellenan con un re-run sin --force.
+    """
+    gap_dates = set()
+    for date_iso, _run_name, _reason in failures:
+        if date_iso:
+            gap_dates.add(date_iso)
+
+    real_divergences = []
+    report_path = stage["output_folder"] / f"{stage['report_prefix']}_comparacion.csv"
+    if report_path.exists():
+        with open(report_path, "r", encoding="utf-8-sig", newline="") as handle:
+            for row in csv.DictReader(handle):
+                if row.get("Estado") != "FAIL":
+                    continue
+                diff = (row.get("Campos_Diferentes") or "").strip()
+                if diff in ("", "MISSING_CSV"):
+                    gap_dates.add(row.get("Fecha"))
+                else:
+                    real_divergences.append((row.get("Fecha"), diff))
+
+    return real_divergences, sorted(d for d in gap_dates if d)
+
+
 def read_csv_rows(path):
     if not path.exists():
         return []
@@ -588,6 +617,10 @@ def main():
         if not args.allow_sleep
         else None
     )
+
+    # Huecos re-corregibles acumulados (timeout/foco/missing) que NO detienen el
+    # ladder; se reportan al final para un re-run sin --force que los rellene.
+    all_gaps = []
 
     context = sleep_context if sleep_context is not None else nullcontext()
     with context as blocker:

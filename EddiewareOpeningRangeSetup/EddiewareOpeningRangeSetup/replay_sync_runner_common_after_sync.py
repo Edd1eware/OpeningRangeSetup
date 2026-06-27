@@ -890,7 +890,7 @@ def count_distinct_sessions(session_roots):
 
 def _send_stage_progress(progress_meta, *, done, total, passed, failed,
                          skipped, eta_seconds, avg_seconds, remaining,
-                         final=False):
+                         final=False, start=False):
     """Envia un mensaje de progreso a Telegram usando el contexto de la etapa."""
     if not progress_meta:
         return
@@ -915,6 +915,7 @@ def _send_stage_progress(progress_meta, *, done, total, passed, failed,
             global_target=progress_meta.get("global_target"),
             run_label=progress_meta.get("run_label", "Ladder"),
             final=final,
+            start=start,
         )
     except Exception as exc:
         print(f"WARNING: progreso Telegram fallo: {exc}")
@@ -948,6 +949,21 @@ def run_replay_period(
         saved_marker = save_file_state(REPLAY_STARTED_FILE, backup_folder / "marker")
 
         try:
+            # Ping de inicio de etapa: confirmacion inmediata en Telegram sin
+            # esperar a que cierre la primera fecha real.
+            _send_stage_progress(
+                progress_meta,
+                done=0,
+                total=len(date_iso_list),
+                passed=0,
+                failed=0,
+                skipped=0,
+                eta_seconds=None,
+                avg_seconds=None,
+                remaining=len(date_iso_list),
+                start=True,
+            )
+
             for run_name, speed_label, timeout_seconds in run_plan:
                 if speed_label != previous_speed:
                     print(f"\nConfigurando Replay en {speed_label}...")
