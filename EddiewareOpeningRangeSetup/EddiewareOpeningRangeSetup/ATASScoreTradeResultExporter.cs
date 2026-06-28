@@ -447,7 +447,10 @@ namespace ATAS.Indicators
                 Side = _trade.Side,
                 EntryPrice = _trade.Entry,
                 SlPrice = _trade.Sl,
-                IsAPlusSpeed = score.HasAPlusSpeed,
+                // La estrategia Núcleo Robusto opera el edge A+ por umbral de
+                // velocidad (mismo significado que la columna CSV APlus_Speed),
+                // no la confirmación estructural APlus_Speed_Setup_Confirmed.
+                IsAPlusSpeed = score.HasAPlusSpeedThreshold,
                 SpeedLabel = score.SpeedLabel,
                 OrRangeTicks = score.OrRangeTicks,
                 Bar = bar
