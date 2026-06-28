@@ -223,6 +223,55 @@ def clear_telegram_before_run(results_folder):
     return failed == 0
 
 
+def send_photo(results_folder, photo_path, caption=""):
+    """Manda una imagen (gráfico) a Telegram via sendPhoto (multipart)."""
+    credentials = _read_credentials(results_folder)
+    if credentials is None:
+        return False
+    token, chat_id = credentials
+    boundary = "----EWBoundaryK99OpeningRange"
+    with open(photo_path, "rb") as handle:
+        photo = handle.read()
+
+    def field(name, value):
+        return (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'
+        ).encode("utf-8")
+
+    body = field("chat_id", chat_id)
+    if caption:
+        body += field("caption", caption[:1024])
+    body += (
+        f"--{boundary}\r\n"
+        'Content-Disposition: form-data; name="photo"; filename="chart.png"\r\n'
+        "Content-Type: image/png\r\n\r\n"
+    ).encode("utf-8")
+    body += photo + f"\r\n--{boundary}--\r\n".encode("utf-8")
+
+    request = Request(
+        f"https://api.telegram.org/bot{token}/sendPhoto", data=body, method="POST"
+    )
+    request.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
+    try:
+        with urlopen(request, timeout=30) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        if not payload.get("ok"):
+            print(f"Telegram sendPhoto no ok: {payload.get('description')}")
+            return False
+        mid = payload.get("result", {}).get("message_id")
+        if mid:
+            with open(
+                os.path.join(results_folder, TELEGRAM_MESSAGE_IDS_FILE),
+                "a", encoding="utf-8",
+            ) as file:
+                file.write(f"{mid}\n")
+        return True
+    except Exception as exc:
+        print(f"WARNING: no pude enviar foto Telegram: {exc}")
+        return False
+
+
 def send_text(results_folder, message):
     """Manda un mensaje de texto libre a Telegram (alertas, avisos puntuales)."""
     credentials = _read_credentials(results_folder)
@@ -279,18 +328,21 @@ def send_progress_update(
     final=False,
     start=False,
     goal=False,
+    global_synced=None,
 ):
-    """Manda un mensaje de progreso detallado: fase, avance, ETA y meta previa."""
+    """Manda un mensaje de progreso. El avance que importa es el TOTAL hacia la
+    meta (sesiones sincronizadas X1==X10), no el parcial por etapa."""
     credentials = _read_credentials(results_folder)
     if credentials is None:
         return False
+
+    synced = global_synced if global_synced is not None else (global_done or 0)
 
     if goal:
         message = "\n".join(
             [
                 f"EW Opening Range | META ALCANZADA - Fase 1 ({run_label})",
-                f"Fase: ETAPA {stage_index:02d}/{stage_total:02d} - {stage_label}",
-                f"{global_done}/{global_target} sesiones sincronizadas X1==X10. "
+                f"{synced}/{global_target} sesiones sincronizadas X1==X10. "
                 "Replay detenido.",
                 "Fase 1 completa -> pasar a Fase 2 (definir estrategia).",
             ]
@@ -310,7 +362,6 @@ def send_progress_update(
             print(f"WARNING: no pude enviar meta Telegram: {exc}")
             return False
 
-    pct = (done / total * 100) if total else 0
     if start:
         header = "Etapa iniciada"
     elif final:
@@ -321,12 +372,15 @@ def send_progress_update(
         f"EW Opening Range | {header} ({run_label})",
         f"Fase: ETAPA {stage_index:02d}/{stage_total:02d} - {stage_label}",
     ]
-    if stage_period:
-        lines.append(f"Rango: {stage_period}")
-    lines.append(
-        f"Progreso: {done}/{total} ({pct:.0f}%) | "
-        f"PASS {passed} | FAIL {failed} | saltadas {skipped}"
-    )
+    # Progreso TOTAL hacia la meta (sincronizadas X1==X10), no parcial por etapa.
+    if global_target:
+        missing = max(global_target - synced, 0)
+        lines.append(
+            f"Progreso total: {synced}/{global_target} sincronizadas X1==X10 "
+            f"(faltan {missing})"
+        )
+    if global_done is not None:
+        lines.append(f"Recolectadas X1: {global_done}")
     if not final and not start:
         if avg_seconds:
             lines.append(
@@ -335,12 +389,6 @@ def send_progress_update(
             )
         else:
             lines.append(f"ETA etapa: {_format_eta(eta_seconds)}")
-    if global_target:
-        missing = max(global_target - (global_done or 0), 0)
-        lines.append(
-            f"Meta previa: {global_done}/{global_target} sesiones "
-            f"(faltan {missing})"
-        )
 
     message = "\n".join(lines)
     try:

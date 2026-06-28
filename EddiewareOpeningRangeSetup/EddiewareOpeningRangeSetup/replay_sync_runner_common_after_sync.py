@@ -1,6 +1,7 @@
 import csv
 import re
 import shutil
+import statistics
 import tempfile
 import time
 from datetime import datetime
@@ -61,6 +62,21 @@ X10_TIMEOUT_SECONDS = 5 * 60
 # Replay realmente inició. Si tras los 3 no arranca, se salta a la siguiente fecha.
 REPLAY_START_RETRY_ATTEMPTS = 3
 REPLAY_START_DETECT_SECONDS = 50
+# Si fallan esta cantidad de fechas REALES seguidas, se asume Replay atorado/foco
+# perdido y se avisa por Telegram para reiniciar.
+REPLAY_FAIL_ALERT_STREAK = 3
+# Defaults de duracion por velocidad para el ETA antes de tener mediciones.
+# X1 corre a tiempo real (lento); X10 a 10x. Se refinan con la mediana medida.
+SPEED_DEFAULT_SECONDS = {"X1": 360.0, "X10": 150.0}
+
+
+def estimate_speed_seconds(speed_label, durations_by_speed):
+    """Mediana de duracion real medida para una velocidad; fallback al default.
+    Mediana (no promedio) para que un TIME_OVER de 20 min no infle el ETA."""
+    values = durations_by_speed.get(speed_label, [])
+    if len(values) >= 2:
+        return statistics.median(values)
+    return SPEED_DEFAULT_SECONDS.get(speed_label, 300.0)
 REPLAY_SPEED_CLICK_RATIOS = {
     "X1": (0.20, "1x"),
     "X10": (0.40, "10x"),
@@ -888,6 +904,40 @@ def count_distinct_sessions(session_roots):
     return len(seen)
 
 
+def count_synced_sessions(session_roots):
+    """Cuenta sesiones REALMENTE sincronizadas: fechas con CSV X1 y X10 que
+    coinciden en la operativa. Es la métrica real de la meta (no solo X1)."""
+    if not session_roots:
+        return None
+
+    seen = set()
+    for root in session_roots:
+        root_path = Path(root)
+        if not root_path.exists():
+            continue
+        for x1_path in root_path.glob("*/X1_*/score_trade_result_*_NY.csv"):
+            match = re.search(r"(\d{4}-\d{2}-\d{2})", x1_path.name)
+            if not match:
+                continue
+            date_iso = match.group(1)
+            if date_iso in seen:
+                continue
+            x10_dir = x1_path.parent.parent / x1_path.parent.name.replace("X1", "X10", 1)
+            x10_path = x10_dir / x1_path.name
+            if not x10_path.exists():
+                continue
+            r1 = read_csv_row(x1_path)
+            r10 = read_csv_row(x10_path)
+            if not r1 or not r10:
+                continue
+            if all(
+                normalize(r1.get(field)) == normalize(r10.get(field))
+                for field in OPERATIVA_COMPARISON_FIELDS
+            ):
+                seen.add(date_iso)
+    return len(seen)
+
+
 def _send_stage_progress(progress_meta, *, done, total, passed, failed,
                          skipped, eta_seconds, avg_seconds, remaining,
                          final=False, start=False):
@@ -896,6 +946,7 @@ def _send_stage_progress(progress_meta, *, done, total, passed, failed,
         return
 
     global_done = count_distinct_sessions(progress_meta.get("session_roots"))
+    global_synced = count_synced_sessions(progress_meta.get("session_roots"))
     try:
         telegram.send_progress_update(
             RESULTS_FOLDER,
@@ -912,6 +963,7 @@ def _send_stage_progress(progress_meta, *, done, total, passed, failed,
             avg_seconds=avg_seconds,
             remaining=remaining,
             global_done=global_done,
+            global_synced=global_synced,
             global_target=progress_meta.get("global_target"),
             run_label=progress_meta.get("run_label", "Ladder"),
             final=final,
@@ -964,7 +1016,13 @@ def run_replay_period(
                 start=True,
             )
 
-            for run_name, speed_label, timeout_seconds in run_plan:
+            # Mediciones de duracion por velocidad (X1/X10), compartidas entre
+            # pasadas, para un ETA robusto de la ETAPA completa.
+            durations_by_speed = {}
+            consecutive_fail = 0
+            error_alert_sent = False
+
+            for pass_index, (run_name, speed_label, timeout_seconds) in enumerate(run_plan):
                 if speed_label != previous_speed:
                     print(f"\nConfigurando Replay en {speed_label}...")
                     if not set_replay_speed(speed_label):
@@ -1014,6 +1072,7 @@ def run_replay_period(
                         skipped_count += 1
                     else:
                         real_durations.append(elapsed)
+                        durations_by_speed.setdefault(speed_label, []).append(elapsed)
                         if ok:
                             passed_count += 1
                         else:
@@ -1021,22 +1080,51 @@ def run_replay_period(
 
                     if not ok:
                         failures.append((date_iso, run_name, reason))
+                        consecutive_fail += 1
+                    elif reason != "SKIPPED":
+                        consecutive_fail = 0
 
-                    # ETA: promedio de fechas REALMENTE corridas (las saltadas son
-                    # instantaneas) extrapolado a las fechas reales que faltan.
-                    avg_seconds = (
-                        sum(real_durations) / len(real_durations)
-                        if real_durations
-                        else None
-                    )
-                    remaining = total_dates - index
+                    # Alerta de error: si fallan varias fechas REALES seguidas
+                    # (foco perdido / Replay atorado), avisa por Telegram UNA vez
+                    # para que el usuario reinicie ATAS/Replay.
+                    if (progress_meta and consecutive_fail == REPLAY_FAIL_ALERT_STREAK
+                            and not error_alert_sent):
+                        error_alert_sent = True
+                        try:
+                            telegram.send_text(
+                                RESULTS_FOLDER,
+                                "EW Opening Range | ERROR EN REPLAY\n"
+                                f"{consecutive_fail} fechas seguidas fallaron "
+                                f"(ultima: {date_iso} -> {reason}).\n"
+                                "Probable foco perdido o Replay atorado. "
+                                "REINICIA el Replay/ATAS, trae la ventana al frente "
+                                "y relanza el runner (reanuda solo los huecos).",
+                            )
+                        except Exception:
+                            pass
+
+                    # ETA de la ETAPA COMPLETA (no solo de esta pasada):
+                    # 1) fechas reales que faltan en la pasada actual x mediana de
+                    #    esta velocidad; 2) + cada pasada pendiente (p.ej. el X10
+                    #    tras el X1) x su propia mediana. Mediana, no promedio, para
+                    #    que un TIME_OVER de 20 min no infle el numero.
                     real_ratio = (
                         len(real_durations) / index if index else 0
                     )
-                    est_remaining_real = remaining * real_ratio
-                    eta_seconds = (
-                        avg_seconds * est_remaining_real if avg_seconds else None
+                    remaining_current = (total_dates - index) * real_ratio
+                    cur_speed_seconds = estimate_speed_seconds(
+                        speed_label, durations_by_speed
                     )
+                    eta_seconds = remaining_current * cur_speed_seconds
+                    total_remaining_real = remaining_current
+                    for next_name, next_speed, _ in run_plan[pass_index + 1:]:
+                        pending_real = total_dates * real_ratio
+                        total_remaining_real += pending_real
+                        eta_seconds += pending_real * estimate_speed_seconds(
+                            next_speed, durations_by_speed
+                        )
+                    avg_seconds = cur_speed_seconds
+                    est_remaining_real = total_remaining_real
 
                     is_real = reason != "SKIPPED"
                     is_final = index == total_dates

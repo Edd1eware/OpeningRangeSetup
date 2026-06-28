@@ -792,17 +792,18 @@ def main():
                     latest_archive=str(archive_path),
                 )
 
-            # META: la etapa cerro con X1+X10+comparacion, asi que todo lo contado
-            # esta sincronizado. Si cruzamos 500, detenemos el Replay y avisamos.
+            # META: la etapa cerro con X1+X10+comparacion. Se cuenta lo REALMENTE
+            # sincronizado (X1==X10). Si cruzamos 500, detenemos y avisamos.
+            global_synced = replay_sync.count_synced_sessions(session_roots)
             global_done = replay_sync.count_distinct_sessions(session_roots)
-            if global_done is not None and global_done >= SESSION_TARGET:
+            if global_synced is not None and global_synced >= SESSION_TARGET:
                 telegram.send_progress_update(
                     replay_sync.RESULTS_FOLDER,
                     stage_index=stage["index"],
                     stage_total=total_stage_count,
                     stage_label=stage["key"],
                     stage_period=stage_period,
-                    done=global_done,
+                    done=global_synced,
                     total=SESSION_TARGET,
                     passed=0,
                     failed=0,
@@ -811,6 +812,7 @@ def main():
                     avg_seconds=None,
                     remaining=0,
                     global_done=global_done,
+                    global_synced=global_synced,
                     global_target=SESSION_TARGET,
                     run_label="Ladder X1/X10",
                     goal=True,
@@ -819,14 +821,15 @@ def main():
                     "goal_reached",
                     stage,
                     latest_summary=str(workbook_path),
-                    sessions=global_done,
+                    sessions=global_synced,
+                    sessions_x1=global_done,
                     gaps=[
                         {"stage": stage_key, "date": date_iso}
                         for stage_key, date_iso in all_gaps
                     ],
                 )
                 print(
-                    f"\nMETA ALCANZADA: {global_done}/{SESSION_TARGET} sesiones "
+                    f"\nMETA ALCANZADA: {global_synced}/{SESSION_TARGET} sesiones "
                     "sincronizadas X1==X10. Replay detenido. Fase 1 completa."
                 )
                 if all_gaps:

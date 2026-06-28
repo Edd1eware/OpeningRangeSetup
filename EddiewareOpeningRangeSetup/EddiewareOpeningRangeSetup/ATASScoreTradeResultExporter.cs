@@ -435,6 +435,20 @@ namespace ATAS.Indicators
             _lastManagePrice = score.EntryPrice;
             _lastManageTimeUtc = DateTime.MinValue;
             _tradeCreated = true;
+            // Side-channel para el Execution Manager (ChartStrategy). Aditivo:
+            // no altera la operativa ni los CSV. La estrategia coloca las ordenes.
+            ExecutionSignalBus.Publish(new ExecutionSignalBus.PendingEntry
+            {
+                SessionDate = nyTime.Date,
+                SignalTimeNy = nyTime,
+                Side = _trade.Side,
+                EntryPrice = _trade.Entry,
+                SlPrice = _trade.Sl,
+                IsAPlusSpeed = score.HasAPlusSpeed,
+                SpeedLabel = score.SpeedLabel,
+                OrRangeTicks = score.OrRangeTicks,
+                Bar = bar
+            });
             InitializeDynamicTimeline(
                 bar,
                 score.EntryPrice,
