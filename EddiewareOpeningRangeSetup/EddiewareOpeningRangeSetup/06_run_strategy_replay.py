@@ -25,7 +25,7 @@ import telegram_run_summary_after_sync as telegram
 LADDER_ROOT = (
     rs.RESULTS_FOLDER / "visual_tests" / "sync_ladder_runs" / "sync_v11_ladder_001_resume"
 )
-OUTPUT = rs.RESULTS_FOLDER / "visual_tests" / "strategy_replay_test"
+OUTPUT = rs.RESULTS_FOLDER / "visual_tests" / "strategy_tester_results"
 OPER = rs.OPERATIVA_COMPARISON_FIELDS
 
 

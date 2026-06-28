@@ -44,7 +44,21 @@ namespace ATAS.Indicators
         [Display(Name = "Solo A+ Speed", Order = 50)]
         public bool OnlyAPlusSpeed { get; set; } = true;
 
+        [Display(Name = "Entrada desde (HH:mm NY)", Order = 60)]
+        public string EntryFromNy { get; set; } = "09:30";
+
+        [Display(Name = "Entrada hasta (HH:mm NY)", Order = 61)]
+        public string EntryToNy { get; set; } = "09:40";
+
+        [Display(Name = "Cierre forzado (HH:mm NY)", Order = 62)]
+        public string HardCloseNy { get; set; } = "09:50";
+
         private decimal Tick => InstrumentInfo?.TickSize ?? 0.25m;
+
+        private static TimeSpan ParseNy(string value, TimeSpan fallback)
+        {
+            return TimeSpan.TryParse(value, out var ts) ? ts : fallback;
+        }
 
         private DateTime ToNy(DateTime t)
         {
@@ -75,9 +89,20 @@ namespace ATAS.Indicators
                 _peakFavorableTicks = 0;
             }
 
-            // En posicion -> gestionar trailing.
+            var tod = ny.TimeOfDay;
+            var entryFrom = ParseNy(EntryFromNy, new TimeSpan(9, 30, 0));
+            var entryTo = ParseNy(EntryToNy, new TimeSpan(9, 40, 0));
+            var hardClose = ParseNy(HardCloseNy, new TimeSpan(9, 50, 0));
+
+            // En posicion -> gestionar trailing. Cierre forzado al pasar el horario
+            // limite (margen para trades lentos), aunque no haya tocado SL/trailing.
             if (CurrentPosition != 0 && _openSide != "")
             {
+                if (tod >= hardClose)
+                {
+                    Flatten();
+                    return;
+                }
                 ManageTrailing((decimal)candle.Close);
                 return;
             }
@@ -95,6 +120,15 @@ namespace ATAS.Indicators
 
             if (_enteredToday)
                 return;
+
+            // Ventana de entrada: solo entra entre EntryFrom y EntryTo (NY).
+            if (tod < entryFrom)
+                return;                       // aun no abre la ventana; esperar
+            if (tod > entryTo)
+            {
+                ExecutionSignalBus.MarkConsumed(_currentNyDate);
+                return;                       // ventana cerrada; no entrar tarde
+            }
 
             var pending = ExecutionSignalBus.Peek(_currentNyDate);
             if (pending == null)
@@ -148,6 +182,31 @@ namespace ATAS.Indicators
             _enteredToday = true;
             _trailActive = false;
             _peakFavorableTicks = 0;
+        }
+
+        private void Flatten()
+        {
+            // Cierra la posicion a mercado y cancela el stop remanente.
+            var qty = Math.Abs(CurrentPosition);
+            if (qty > 0)
+            {
+                var exitDir = _openSide == "BUY" ? OrderDirections.Sell : OrderDirections.Buy;
+                var close = new Order
+                {
+                    Portfolio = Portfolio,
+                    Security = Security,
+                    Direction = exitDir,
+                    Type = OrderTypes.Market,
+                    QuantityToFill = qty,
+                    Comment = "EW_claude_hardclose"
+                };
+                OpenOrder(close);
+            }
+            if (_stopOrder != null && _stopOrder.State == OrderStates.Active)
+                CancelOrder(_stopOrder);
+            _stopOrder = null;
+            _openSide = "";
+            _trailActive = false;
         }
 
         private void ManageTrailing(decimal currentPrice)
