@@ -223,6 +223,27 @@ def clear_telegram_before_run(results_folder):
     return failed == 0
 
 
+def send_text(results_folder, message):
+    """Manda un mensaje de texto libre a Telegram (alertas, avisos puntuales)."""
+    credentials = _read_credentials(results_folder)
+    if credentials is None:
+        return False
+    try:
+        message_id = _send_message(credentials[0], credentials[1], message)
+        if message_id is None:
+            return False
+        with open(
+            os.path.join(results_folder, TELEGRAM_MESSAGE_IDS_FILE),
+            "a",
+            encoding="utf-8",
+        ) as file:
+            file.write(f"{message_id}\n")
+        return True
+    except Exception as exc:
+        print(f"WARNING: no pude enviar alerta Telegram: {exc}")
+        return False
+
+
 def _format_eta(seconds):
     if seconds is None or seconds <= 0:
         return "N/A"

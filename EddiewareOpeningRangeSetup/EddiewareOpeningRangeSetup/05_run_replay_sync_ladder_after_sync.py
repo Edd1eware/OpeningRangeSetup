@@ -376,6 +376,21 @@ def classify_stage_outcome(stage, failures):
     return real_divergences, sorted(d for d in gap_dates if d)
 
 
+def clean_divergent_date(stage, run_plan, date_iso):
+    """Borra los artefactos de una fecha (CSV X1/X10, timeline, snapshot, signal)
+    para forzar un re-pareo limpio X1->X10 en el reintento automatico de desync.
+    """
+    for run_name, _speed, _timeout in run_plan:
+        replay_sync.destination_result_path(
+            stage["output_folder"], date_iso, run_name
+        ).unlink(missing_ok=True)
+        replay_sync.destination_timeline_path(
+            stage["output_folder"], date_iso, run_name
+        ).unlink(missing_ok=True)
+    replay_sync.sync_result_path(date_iso).unlink(missing_ok=True)
+    replay_sync.sync_signal_path(date_iso).unlink(missing_ok=True)
+
+
 def read_csv_rows(path):
     if not path.exists():
         return []
@@ -551,6 +566,14 @@ def parse_args():
     parser.add_argument("--max-stages", type=int, help="Limita cantidad de etapas para pruebas.")
     parser.add_argument("--allow-sleep", action="store_true", help="No bloquea suspension de Windows.")
     parser.add_argument("--run-id", help="Identificador unico de la corrida. Por defecto usa timestamp.")
+    parser.add_argument(
+        "--desync-retries",
+        type=int,
+        default=3,
+        help="Reintentos automaticos por desync real (limpia y re-corre la fecha). "
+        "Si persiste tras estos, se detiene como bug genuino y avisa por Telegram. "
+        "0 = sin reintento.",
+    )
     return parser.parse_args()
 
 
@@ -651,52 +674,95 @@ def main():
                 "run_label": "Ladder X1/X10",
             }
 
-            passed, failures = replay_sync.run_replay_period(
-                stage["dates"],
-                output_folder=stage["output_folder"],
-                run_plan=run_plan,
-                report_prefix=stage["report_prefix"],
-                force=args.force,
-                step=args.step,
-                compare_only=args.compare_only,
-                replay_to_time=replay_sync.DEFAULT_REPLAY_TO_TIME,
-                progress_meta=progress_meta,
-            )
-
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            archive_path = PROJECT_DIR / (
-                f"{ARCHIVE_PREFIX}_{stage['run_id']}_{stage['key']}_{timestamp}.zip"
-            )
-            workbook_path = create_summary_workbook(
-                stage,
-                run_plan,
-                passed,
-                failures,
-                archive_path,
-                timestamp,
-            )
-
-            real_divergences, gap_dates = classify_stage_outcome(stage, failures)
-
-            # Desync REAL de operativa -> SI detiene el ladder (es lo que importa).
-            if real_divergences:
-                write_state(
-                    "failed",
-                    stage,
-                    latest_summary=str(workbook_path),
-                    real_divergences=[
-                        {"date": date_iso, "fields": fields}
-                        for date_iso, fields in real_divergences
-                    ],
-                    gaps=gap_dates,
+            # Reintento automatico ante desync REAL: un desync puede ser un glitch
+            # transitorio (re-correr limpio lo arregla) o un bug genuino (persiste).
+            # Se limpia la(s) fecha(s) divergente(s) y se re-corre hasta
+            # args.desync_retries veces; si persiste, recien ahi se detiene.
+            desync_attempt = 0
+            while True:
+                passed, failures = replay_sync.run_replay_period(
+                    stage["dates"],
+                    output_folder=stage["output_folder"],
+                    run_plan=run_plan,
+                    report_prefix=stage["report_prefix"],
+                    force=args.force,
+                    step=args.step,
+                    compare_only=args.compare_only,
+                    replay_to_time=replay_sync.DEFAULT_REPLAY_TO_TIME,
+                    progress_meta=progress_meta,
                 )
-                print("\nFALLO LA SINCRONICIDAD: divergencia REAL de operativa.")
-                for date_iso, fields in real_divergences:
-                    print(f"  {date_iso}: {fields}")
-                print(f"Estado para Codex: {STATE_PATH}")
-                print(f"Resumen Excel: {workbook_path}")
-                print(f"Carpeta de reportes: {stage['output_folder']}")
-                return 1
+
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                archive_path = PROJECT_DIR / (
+                    f"{ARCHIVE_PREFIX}_{stage['run_id']}_{stage['key']}_{timestamp}.zip"
+                )
+                workbook_path = create_summary_workbook(
+                    stage,
+                    run_plan,
+                    passed,
+                    failures,
+                    archive_path,
+                    timestamp,
+                )
+
+                real_divergences, gap_dates = classify_stage_outcome(stage, failures)
+
+                if not real_divergences:
+                    break
+
+                diverging = [date_iso for date_iso, _ in real_divergences]
+
+                # Persiste tras los reintentos -> bug GENUINO, detener + avisar.
+                if desync_attempt >= args.desync_retries:
+                    write_state(
+                        "failed",
+                        stage,
+                        latest_summary=str(workbook_path),
+                        real_divergences=[
+                            {"date": date_iso, "fields": fields}
+                            for date_iso, fields in real_divergences
+                        ],
+                        gaps=gap_dates,
+                        desync_retries_used=desync_attempt,
+                    )
+                    telegram.send_text(
+                        replay_sync.RESULTS_FOLDER,
+                        "\n".join(
+                            [
+                                "EW Opening Range | DESYNC PERSISTENTE - Fase 1",
+                                f"Fase: ETAPA {stage['index']:02d}/{total_stage_count:02d} - {stage['key']}",
+                                f"Divergencia REAL tras {desync_attempt} reintentos en: "
+                                + ", ".join(diverging),
+                                "Campos: "
+                                + " | ".join(
+                                    f"{date_iso}: {fields}"
+                                    for date_iso, fields in real_divergences
+                                ),
+                                "Ladder DETENIDO. Requiere arreglo manual del .cs.",
+                            ]
+                        ),
+                    )
+                    print(
+                        "\nFALLO LA SINCRONICIDAD: divergencia REAL PERSISTENTE "
+                        f"tras {desync_attempt} reintento(s) -> bug genuino."
+                    )
+                    for date_iso, fields in real_divergences:
+                        print(f"  {date_iso}: {fields}")
+                    print(f"Estado para Codex: {STATE_PATH}")
+                    print(f"Resumen Excel: {workbook_path}")
+                    print(f"Carpeta de reportes: {stage['output_folder']}")
+                    return 1
+
+                # Reintento: limpiar artefactos de las fechas divergentes para
+                # forzar un re-pareo X1/X10 desde cero (solo esas se re-corren).
+                desync_attempt += 1
+                print(
+                    f"\nDesync real en {', '.join(diverging)} -> reintento "
+                    f"{desync_attempt}/{args.desync_retries}: limpio y re-corro esas fechas."
+                )
+                for date_iso in diverging:
+                    clean_divergent_date(stage, run_plan, date_iso)
+                write_state("desync_retry", stage, diverging=diverging, attempt=desync_attempt)
 
             # Solo huecos re-corregibles (timeout/foco/missing) -> NO detiene;
             # se aisla la(s) fecha(s), se loguea y el ladder sigue a la siguiente.

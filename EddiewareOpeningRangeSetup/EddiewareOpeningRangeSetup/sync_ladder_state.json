@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-06-27T06:50:39",
-  "status": "failed",
+  "updated_at": "2026-06-27T20:47:01",
+  "status": "running",
   "state_file": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\sync_ladder_state.json",
   "primary_objective": "Objetivo principal: acercarnos a WR 87.2% y PF 9.77, sin matar la operativa o afectandola lo menos posible.",
   "context_folder": "C:\\Users\\k_99_\\Desktop\\Codex_cotexto",
@@ -19,14 +19,14 @@
     },
     {
       "index": 2,
-      "key": "02_dst_6m_20260309_20260625",
+      "key": "02_dst_6m_20260309_20260626",
       "label": "Bloque DST 6 meses",
       "start_date": "2026-03-09",
-      "end_date": "2026-06-25",
-      "date_count": 76,
+      "end_date": "2026-06-26",
+      "date_count": 77,
       "saved": 0,
       "complete": false,
-      "output_folder": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\visual_tests\\sync_ladder_runs\\sync_v11_ladder_001_resume\\02_dst_6m_20260309_20260625"
+      "output_folder": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\visual_tests\\sync_ladder_runs\\sync_v11_ladder_001_resume\\02_dst_6m_20260309_20260626"
     },
     {
       "index": 3,
@@ -57,7 +57,7 @@
       "start_date": "2024-05-02",
       "end_date": "2024-11-01",
       "date_count": 128,
-      "saved": 29,
+      "saved": 127,
       "complete": false,
       "output_folder": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\visual_tests\\sync_ladder_runs\\sync_v11_ladder_001_resume\\05_dst_6m_20240502_20241101"
     },
@@ -68,8 +68,8 @@
       "start_date": "2024-03-11",
       "end_date": "2024-05-01",
       "date_count": 37,
-      "saved": 0,
-      "complete": false,
+      "saved": 37,
+      "complete": true,
       "output_folder": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\visual_tests\\sync_ladder_runs\\sync_v11_ladder_001_resume\\06_dst_6m_20240311_20240501"
     },
     {
@@ -108,26 +108,13 @@
   ],
   "stage_count_total": 9,
   "stage": {
-    "key": "05_dst_6m_20240502_20241101",
+    "key": "06_dst_6m_20240311_20240501",
     "label": "Bloque DST 6 meses",
     "run_id": "sync_v11_ladder_001_resume",
-    "start_date": "2024-05-02",
-    "end_date": "2024-11-01",
-    "date_count": 128,
-    "output_folder": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\visual_tests\\sync_ladder_runs\\sync_v11_ladder_001_resume\\05_dst_6m_20240502_20241101",
-    "report_prefix": "05_dst_6m_20240502_20241101"
-  },
-  "latest_summary": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\visual_tests\\sync_ladder_runs\\sync_v11_ladder_001_resume\\05_dst_6m_20240502_20241101\\05_dst_6m_20240502_20241101_sync_v11_ladder_001_resume_20260627_065038_summary.xlsx",
-  "failures": [
-    {
-      "date": "2024-05-16",
-      "run": "X1_R1",
-      "reason": "TIMEOUT_OR_NO_CSV"
-    },
-    {
-      "date": "2024-05-16",
-      "run": "X10_R1",
-      "reason": "TIMEOUT_OR_NO_CSV"
-    }
-  ]
+    "start_date": "2024-03-11",
+    "end_date": "2024-05-01",
+    "date_count": 37,
+    "output_folder": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\visual_tests\\sync_ladder_runs\\sync_v11_ladder_001_resume\\06_dst_6m_20240311_20240501",
+    "report_prefix": "06_dst_6m_20240311_20240501"
+  }
 }
