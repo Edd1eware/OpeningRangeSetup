@@ -947,6 +947,21 @@ def _send_stage_progress(progress_meta, *, done, total, passed, failed,
 
     global_done = count_distinct_sessions(progress_meta.get("session_roots"))
     global_synced = count_synced_sessions(progress_meta.get("session_roots"))
+
+    # PnL real acumulado + contratos, leidos del log de la estrategia (si aplica).
+    pnl_usd = None
+    contracts = None
+    log_path = progress_meta.get("pnl_log_path")
+    if log_path and Path(log_path).exists():
+        try:
+            with open(log_path, encoding="utf-8-sig") as handle:
+                log_rows = list(csv.DictReader(handle))
+            if log_rows:
+                pnl_usd = sum(float(r.get("pnl_usd") or 0) for r in log_rows)
+                contracts = log_rows[-1].get("contratos")
+        except Exception:
+            pass
+
     try:
         telegram.send_progress_update(
             RESULTS_FOLDER,
@@ -968,6 +983,8 @@ def _send_stage_progress(progress_meta, *, done, total, passed, failed,
             run_label=progress_meta.get("run_label", "Ladder"),
             final=final,
             start=start,
+            pnl_usd=pnl_usd,
+            contracts=contracts,
         )
     except Exception as exc:
         print(f"WARNING: progreso Telegram fallo: {exc}")
@@ -1152,7 +1169,11 @@ def run_replay_period(
             restore_file_state(saved_target)
             restore_file_state(saved_marker)
 
-    comparable = any(name != "X1_R1" for name, _, _ in run_plan)
+    # Comparar X1 vs X10 SOLO si ambos estan en el run_plan. Para un run de solo
+    # X10 (test de estrategia) no hay X1 que comparar -> no generar reporte falso.
+    has_x1 = any(name.startswith("X1") for name, _, _ in run_plan)
+    has_other = any(not name.startswith("X1") for name, _, _ in run_plan)
+    comparable = has_x1 and has_other
     passed = True
     if comparable:
         passed = build_comparison_report(output_folder, date_iso_list, run_plan, report_prefix)

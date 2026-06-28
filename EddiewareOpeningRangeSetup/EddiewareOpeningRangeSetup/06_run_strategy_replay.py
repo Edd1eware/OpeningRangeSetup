@@ -81,6 +81,16 @@ def main():
     run_plan = [("X10_R1", "X10", rs.X10_TIMEOUT_SECONDS)]
     # progress_meta -> Telegram con ETA exacto por fecha (mediana de la X10 medida)
     # y alerta de error si fallan varias seguidas. Sin meta de 500 (no aplica).
+    trades_log = OUTPUT / "strategy_tester_trades.csv"
+    # Reset del log: force=True re-corre todas las fechas y la strategy APPENDEA,
+    # asi que se respalda/limpia el log para que el PnL no se duplique.
+    if trades_log.exists():
+        backup = trades_log.with_name(
+            f"strategy_tester_trades_prev_{int(trades_log.stat().st_mtime)}.csv"
+        )
+        trades_log.replace(backup)
+        print(f"Log previo respaldado: {backup.name}")
+
     progress_meta = {
         "stage_index": 1,
         "stage_total": 1,
@@ -89,6 +99,7 @@ def main():
         "global_target": None,
         "session_roots": None,
         "run_label": "Execution Manager",
+        "pnl_log_path": str(trades_log),   # PnL$ + contratos reales en Telegram
     }
 
     telegram.send_text(
@@ -120,10 +131,29 @@ def main():
         raise
 
     fail_n = len(failures)
+    # PnL real + contratos del log de la estrategia.
+    pnl_line = ""
+    if trades_log.exists():
+        try:
+            log_rows = list(csv.DictReader(open(trades_log, encoding="utf-8-sig")))
+            if log_rows:
+                total_pnl = sum(float(r.get("pnl_usd") or 0) for r in log_rows)
+                contracts = log_rows[-1].get("contratos")
+                wins = sum(1 for r in log_rows if float(r.get("pnl_usd") or 0) > 0)
+                losses = sum(1 for r in log_rows if float(r.get("pnl_usd") or 0) < 0)
+                wr = wins / (wins + losses) * 100 if (wins + losses) else 0
+                pnl_line = (
+                    f"Trades estrategia: {len(log_rows)} | {contracts} contratos | "
+                    f"WR {wr:.0f}% | PnL TOTAL ${total_pnl:,.0f}"
+                )
+        except Exception:
+            pass
     msg = [
         "EW Opening Range | Execution Manager - recorrido TERMINADO",
         f"Fechas: {len(dates)} | con problemas: {fail_n}",
     ]
+    if pnl_line:
+        msg.append(pnl_line)
     if fail_n:
         msg.append("Fechas con error (re-corre solo esas relanzando):")
         msg += [f"- {d} {run}: {reason}" for d, run, reason in failures[:10]]

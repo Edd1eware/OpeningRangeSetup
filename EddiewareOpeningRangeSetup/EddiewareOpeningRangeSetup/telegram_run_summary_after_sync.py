@@ -329,6 +329,8 @@ def send_progress_update(
     start=False,
     goal=False,
     global_synced=None,
+    pnl_usd=None,
+    contracts=None,
 ):
     """Manda un mensaje de progreso. El avance que importa es el TOTAL hacia la
     meta (sesiones sincronizadas X1==X10), no el parcial por etapa."""
@@ -381,6 +383,11 @@ def send_progress_update(
         )
     if global_done is not None:
         lines.append(f"Recolectadas X1: {global_done}")
+    if pnl_usd is not None:
+        line = f"PnL acumulado: ${pnl_usd:,.0f}"
+        if contracts:
+            line += f" | {contracts} contratos"
+        lines.append(line)
     if not final and not start:
         if avg_seconds:
             lines.append(

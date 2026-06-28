@@ -176,6 +176,9 @@ namespace ATAS.Indicators
         public int MinTimeOverRealtimeSeconds { get; set; } = 5;
         public bool RequireBodyOkForTrade { get; set; } = false;
         public bool RequireVwapOkForTrade { get; set; } = false;
+        // Para el PnL en $ del Telegram (NQ = $5/tick). Contratos = sizing Lucid.
+        public int TelegramContracts { get; set; } = 6;
+        public decimal TickValueUsd { get; set; } = 5m;
 
         public ATASScoreTradeResultExporter()
         {
@@ -2554,6 +2557,7 @@ namespace ATAS.Indicators
                 $"{_trade.Result} {_trade.Side} | {_trade.SignalSource} | S{_trade.Score}",
                 $"Entry {_trade.Entry:0.00} | SL {_trade.Sl:0.00} | TP {_trade.Tp:0.00}",
                 $"Resultado {FormatSignedTicks(TradeResultTicks())} ticks | MAE {_trade.MaeTicks:0} | MFE {_trade.MfeTicks:0}",
+                $"PnL ${TradeResultTicks() * TickValueUsd * TelegramContracts:+0;-0} | {TelegramContracts} contratos (NQ ${TickValueUsd:0}/tick)",
                 $"Pullback MAE {_trade.LargestMaePullbackTicks:0.##}t ({_trade.NumberOfPullbacksDuringTrade}) | Pullup MFE {_trade.LargestMfePullupTicks:0.##}t ({_trade.NumberOfPullUpsDuringTrade})",
                 $"Vel max MAE {_trade.MaxSpeedMaeDuringTrade:0.####} t/s | MFE {_trade.MaxSpeedMfeDuringTrade:0.####} t/s",
                 $"CVD E{_trade.CvdExcellentCount} N{_trade.CvdNormalCount} A{_trade.CvdWarningCount} R{_trade.CvdRiskReversalCount} | Excelente {FormatCvdExcellentPercent()} | Neg {_trade.CvdNegativeEpisodes} | {FormatTelegramCvdWorstState()}",

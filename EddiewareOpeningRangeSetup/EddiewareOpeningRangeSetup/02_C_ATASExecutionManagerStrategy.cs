@@ -26,7 +26,6 @@ namespace ATAS.Indicators
         private decimal _entryPrice;
         private decimal _peakFavorableTicks;
         private bool _trailActive;
-        private bool _autoStarted;
 
         // Logging realista por fills reales (OnNewMyTrade + ClosedPnL).
         private bool _tradeOpen;
@@ -38,8 +37,8 @@ namespace ATAS.Indicators
         private const string TraderLogDir =
             @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\visual_tests\strategy_tester_results";
 
-        [Display(Name = "Auto-start (demo/live, NO replay)", Order = 5)]
-        public bool AutoStart { get; set; } = false;
+        [Display(Name = "Auto-start (replay/demo/live)", Order = 5)]
+        public bool AutoStart { get; set; } = true;
 
         [Display(Name = "Contratos", Order = 10)]
         public int Contracts { get; set; } = 5;
@@ -80,11 +79,13 @@ namespace ATAS.Indicators
 
         protected override void OnCalculate(int bar, decimal value)
         {
-            // Auto-arranque (solo demo/live; en replay se deja en Started manual).
-            if (AutoStart && !_autoStarted &&
+            // Re-arranque automatico SIN latch. Parar/cambiar de fecha en el Replay
+            // deja la ChartStrategy en [Stopped]; sin esto la siguiente fecha no
+            // opera aunque se le de Play manual. Re-arranca en cada calculo si quedo
+            // detenida (no toca Error: ese requiere intervencion manual).
+            if (AutoStart &&
                 State != StrategyStates.Started && State != StrategyStates.Error)
             {
-                _autoStarted = true;
                 Start();
             }
 
