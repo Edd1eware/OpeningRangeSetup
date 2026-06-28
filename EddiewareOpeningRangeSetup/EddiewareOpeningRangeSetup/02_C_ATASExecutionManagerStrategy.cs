@@ -1,6 +1,8 @@
 using System;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
+using System.IO;
 using ATAS.DataFeedsCore;
 using ATAS.Strategies;
 using ATAS.Strategies.Chart;
@@ -25,6 +27,16 @@ namespace ATAS.Indicators
         private decimal _peakFavorableTicks;
         private bool _trailActive;
         private bool _autoStarted;
+
+        // Logging realista por fills reales (OnNewMyTrade + ClosedPnL).
+        private bool _tradeOpen;
+        private decimal _entryFillPrice;
+        private string _entryFillSide = "";
+        private DateTime _entryFillTimeNy;
+        private decimal _lastClosedPnl;
+
+        private const string TraderLogDir =
+            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\visual_tests\strategy_tester_results";
 
         [Display(Name = "Auto-start (demo/live, NO replay)", Order = 5)]
         public bool AutoStart { get; set; } = false;
@@ -251,6 +263,58 @@ namespace ATAS.Indicators
             };
             ModifyOrder(_stopOrder, modified);
             _stopOrder = modified;
+        }
+
+        // Captura los FILLS REALES (precio con slippage, comision). El PnL en $ se
+        // toma de ClosedPnL (ATAS lo calcula con el valor real del NQ: $5/tick).
+        protected override void OnNewMyTrade(MyTrade myTrade)
+        {
+            var comment = myTrade?.Order?.Comment ?? "";
+
+            if (!_tradeOpen && comment.Contains("entry"))
+            {
+                _tradeOpen = true;
+                _entryFillPrice = myTrade.Price;
+                _entryFillSide = myTrade.OrderDirection == OrderDirections.Buy ? "BUY" : "SELL";
+                _entryFillTimeNy = ToNy(myTrade.Time);
+                return;
+            }
+
+            // El fill que deja la posicion en 0 = salida -> registrar el trade.
+            if (_tradeOpen && CurrentPosition == 0)
+            {
+                var pnlUsd = ClosedPnL - _lastClosedPnl;   // PnL REALIZADO real ($)
+                _lastClosedPnl = ClosedPnL;
+                LogTrade(_entryFillTimeNy, _entryFillSide, _entryFillPrice, myTrade.Price, pnlUsd, comment);
+                _tradeOpen = false;
+            }
+        }
+
+        private void LogTrade(DateTime ny, string side, decimal entryFill, decimal exitFill, decimal pnlUsd, string exitComment)
+        {
+            try
+            {
+                Directory.CreateDirectory(TraderLogDir);
+                var path = Path.Combine(TraderLogDir, "strategy_tester_trades.csv");
+                if (!File.Exists(path))
+                {
+                    File.AppendAllText(path,
+                        "fecha,side,contratos,entry_fill,exit_fill,ticks,pnl_usd,exit_motivo\n");
+                }
+                var tickMove = side == "BUY"
+                    ? (exitFill - entryFill) / Tick
+                    : (entryFill - exitFill) / Tick;
+                var motivo = exitComment.Contains("hardclose") ? "HARD_CLOSE"
+                    : exitComment.Contains("trail") ? "TRAIL"
+                    : exitComment.Contains("SL") ? "SL" : "EXIT";
+                File.AppendAllText(path, string.Format(CultureInfo.InvariantCulture,
+                    "{0:yyyy-MM-dd},{1},{2},{3},{4},{5:0.##},{6:0.00},{7}\n",
+                    ny.Date, side, Contracts, entryFill, exitFill, tickMove, pnlUsd, motivo));
+            }
+            catch
+            {
+                // logging best-effort; no romper la estrategia.
+            }
         }
     }
 }
