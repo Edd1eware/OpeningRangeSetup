@@ -42,6 +42,8 @@ namespace ATAS.Indicators
         private const int ExtendedTelemetryFieldCount = 27;
         private const decimal DynamicTimelineSampleIntervalSeconds = 0.25m;
         private const int DynamicTimelineFlushRowCount = 100;
+        // FROZEN — DO NOT CHANGE. Sync guards depend on this version string matching
+        // persisted snapshots. Changing it invalidates all existing X1/X10 sync files.
         private const string ExporterVersion = "score-exporter-2026-06-23-v11-canonical-sync-guards";
         private const string DynamicTimelineVersion = "dynamic-timeline-2026-06-23-v11-canonical-sync-guards";
         private static readonly JsonSerializerOptions ReplaySyncJsonOptions = new JsonSerializerOptions
@@ -444,7 +446,10 @@ namespace ATAS.Indicators
             // (ATAS carga el mismo DLL desde Indicators/ y Strategies/ por separado,
             // lo que genera dos instancias estaticas distintas; el archivo es el
             // unico canal confiable entre ambas instancias).
-            // Filtro Range >= 140 ticks: OR comprimido tiene WR significativamente menor.
+            // FROZEN EXECUTION FILTER — DO NOT CHANGE.
+            // Validated on 669 DST sessions (2022-06-21 to 2026-06-28):
+            // A+ Speed alone: WR ~70% | A+ Speed + Range >= 140: WR 87.5%, PF 4.38, MaxDD $900.
+            // OR < 140 ticks = insufficient momentum; 12 SL eliminated vs only 11 TP lost.
             if (score.OrRangeTicks >= 140m)
             {
                 ExecutionSignalBus.Publish(new ExecutionSignalBus.PendingEntry

@@ -143,10 +143,12 @@ def main():
 
     ENDURANCE_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Fechas que ya tienen resultado en disco (Exporter escribe en RESULTS_BASE)
+    # Fechas que ya tienen resultado en disco (Exporter escribe en RESULTS_BASE).
+    # Minimo 80 bytes: descarta archivos vacios/corruptos por crash durante escritura.
     done = {
         f.stem.replace("score_trade_result_", "").replace("_NY", "")
         for f in RESULTS_BASE.glob("score_trade_result_*_NY.csv")
+        if f.stat().st_size >= 80
     }
 
     pending = [d for d in all_dates if d not in done]
