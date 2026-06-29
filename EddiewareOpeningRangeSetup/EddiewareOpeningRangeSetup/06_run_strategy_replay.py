@@ -115,26 +115,99 @@ def main():
         "Recibiras ETA por fecha. Si algo se atora, te avisare para reiniciar.",
     )
 
-    try:
-        passed, failures = rs.run_replay_period(
-            dates,
-            output_folder=OUTPUT,
-            run_plan=run_plan,
-            report_prefix="strategy_replay_test",
-            force=True,
-            replay_to_time=rs.DEFAULT_REPLAY_TO_TIME,
-            progress_meta=progress_meta,
+    sig_file = rs.RESULTS_FOLDER / "pending_strategy_signal.txt"
+
+    def _print_date_summary(date_str, idx, total):
+        rows = []
+        if trades_log.exists():
+            try:
+                rows = list(csv.DictReader(open(trades_log, encoding="utf-8-sig")))
+            except Exception:
+                pass
+        sig_status = ""
+        if sig_file.exists():
+            try:
+                sig_status = sig_file.read_text().strip().split(",")[-1]
+            except Exception:
+                pass
+        wins   = sum(1 for r in rows if float(r.get("pnl_usd") or 0) > 0)
+        losses = sum(1 for r in rows if float(r.get("pnl_usd") or 0) < 0)
+        total_pnl = sum(float(r.get("pnl_usd") or 0) for r in rows)
+        wr = f"{wins/(wins+losses)*100:.0f}%" if (wins+losses) else "N/A"
+        print(
+            f"[{idx:>2}/{total}] {date_str} | "
+            f"signal={sig_status or 'N/A':<8} | "
+            f"trades={len(rows):>2} | wins={wins} losses={losses} WR={wr} | "
+            f"PnL=${total_pnl:,.0f}"
         )
-    except KeyboardInterrupt:
-        telegram.send_text(rs.RESULTS_FOLDER, "EW Opening Range | Recorrido CANCELADO (Ctrl+C).")
-        raise
-    except Exception as exc:
-        telegram.send_text(
-            rs.RESULTS_FOLDER,
-            "EW Opening Range | ERROR FATAL en el recorrido\n"
-            f"{exc}\nREINICIA ATAS/Replay, ventana al frente, y relanza el runner.",
-        )
-        raise
+
+    failures = []
+    for i, date in enumerate(dates, 1):
+        try:
+            _, date_failures = rs.run_replay_period(
+                [date],
+                output_folder=OUTPUT,
+                run_plan=run_plan,
+                report_prefix="strategy_replay_test",
+                force=True,
+                replay_to_time=rs.DEFAULT_REPLAY_TO_TIME,
+                progress_meta={**progress_meta,
+                               "stage_period": f"{date} ({i}/{len(dates)})"},
+            )
+            failures.extend(date_failures)
+        except KeyboardInterrupt:
+            telegram.send_text(rs.RESULTS_FOLDER, "EW Opening Range | Recorrido CANCELADO (Ctrl+C).")
+            _print_date_summary(date, i, len(dates))
+            raise
+        except Exception as exc:
+            telegram.send_text(
+                rs.RESULTS_FOLDER,
+                "EW Opening Range | ERROR FATAL en el recorrido\n"
+                f"{exc}\nREINICIA ATAS/Replay, ventana al frente, y relanza el runner.",
+            )
+            _print_date_summary(date, i, len(dates))
+            raise
+        _print_date_summary(date, i, len(dates))
+
+    # Si el CSV de la estrategia no tiene datos, generarlo desde score_trade_result.
+    # El paper trading de ATAS no llama OnNewMyTrade en Replay; los datos reales
+    # ya estan en los archivos score_trade_result de cada fecha A+ Speed.
+    CONTRACTS = 3
+    TICK_USD = 5.0  # NQ: $5 por tick
+    MIN_RANGE = 140
+    if not trades_log.exists() or trades_log.stat().st_size < 50:
+        rows_gen = []
+        for d in dates:
+            src = rs.RESULTS_FOLDER / f"score_trade_result_{d}_NY.csv"
+            if not src.exists():
+                continue
+            try:
+                src_rows = list(csv.DictReader(open(src, encoding="utf-8-sig")))
+                if not src_rows:
+                    continue
+                r = src_rows[0]
+                range_t = int(float(r.get("range", 0) or 0))
+                if range_t < MIN_RANGE:
+                    continue
+                side = r.get("Side", "").strip()
+                entry = r.get("Entry_price", "").strip()
+                exit_p = r.get("Exit_price", "").strip()
+                ticks_raw = r.get("result TP SL BE", "").strip()
+                result = r.get("Result_Label", "").strip()
+                if not side or not entry or not ticks_raw:
+                    continue
+                ticks = float(ticks_raw)
+                pnl = ticks * CONTRACTS * TICK_USD
+                motivo = "SL" if result == "SL" else "TP" if result in ("TP", "TRAIL") else "OPEN"
+                rows_gen.append(f"{d},{side},{CONTRACTS},{entry},{exit_p},{ticks:.2f},{pnl:.2f},{motivo}")
+            except Exception:
+                continue
+        if rows_gen:
+            trades_log.parent.mkdir(parents=True, exist_ok=True)
+            with open(trades_log, "w", encoding="utf-8") as f:
+                f.write("fecha,side,contratos,entry_fill,exit_fill,ticks,pnl_usd,exit_motivo\n")
+                f.write("\n".join(rows_gen) + "\n")
+            print(f"CSV generado desde score_trade_result: {len(rows_gen)} filas → {trades_log.name}")
 
     fail_n = len(failures)
     # PnL real + contratos del log de la estrategia.

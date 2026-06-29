@@ -444,27 +444,31 @@ namespace ATAS.Indicators
             // (ATAS carga el mismo DLL desde Indicators/ y Strategies/ por separado,
             // lo que genera dos instancias estaticas distintas; el archivo es el
             // unico canal confiable entre ambas instancias).
-            ExecutionSignalBus.Publish(new ExecutionSignalBus.PendingEntry
+            // Filtro Range >= 140 ticks: OR comprimido tiene WR significativamente menor.
+            if (score.OrRangeTicks >= 140m)
             {
-                SessionDate = nyTime.Date,
-                SignalTimeNy = nyTime,
-                Side = _trade.Side,
-                EntryPrice = _trade.Entry,
-                SlPrice = _trade.Sl,
-                IsAPlusSpeed = score.HasAPlusSpeed,
-                SpeedLabel = score.SpeedLabel,
-                OrRangeTicks = score.OrRangeTicks,
-                Bar = bar
-            });
-            StrategySignalFile.Write(new StrategySignalFile.SignalData
-            {
-                SessionDate = nyTime.Date,
-                Side = _trade.Side,
-                EntryPrice = _trade.Entry,
-                SlPrice = _trade.Sl,
-                IsAPlusSpeed = score.HasAPlusSpeed,
-                Bar = bar
-            });
+                ExecutionSignalBus.Publish(new ExecutionSignalBus.PendingEntry
+                {
+                    SessionDate = nyTime.Date,
+                    SignalTimeNy = nyTime,
+                    Side = _trade.Side,
+                    EntryPrice = _trade.Entry,
+                    SlPrice = _trade.Sl,
+                    IsAPlusSpeed = score.HasAPlusSpeedThreshold,
+                    SpeedLabel = score.SpeedLabel,
+                    OrRangeTicks = score.OrRangeTicks,
+                    Bar = bar
+                });
+                StrategySignalFile.Write(new StrategySignalFile.SignalData
+                {
+                    SessionDate = nyTime.Date,
+                    Side = _trade.Side,
+                    EntryPrice = _trade.Entry,
+                    SlPrice = _trade.Sl,
+                    IsAPlusSpeed = score.HasAPlusSpeedThreshold,
+                    Bar = bar
+                });
+            }
             InitializeDynamicTimeline(
                 bar,
                 score.EntryPrice,

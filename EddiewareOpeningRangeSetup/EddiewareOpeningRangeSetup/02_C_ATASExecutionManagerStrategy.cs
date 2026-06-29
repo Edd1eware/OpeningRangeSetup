@@ -27,12 +27,12 @@ namespace ATAS.Indicators
         private decimal _peakFavorableTicks;
         private bool _trailActive;
 
-        // Logging realista por fills reales (OnNewMyTrade + ClosedPnL).
+        // Trade logging via OnCalculate position monitoring (OnNewMyTrade unreliable in Replay).
         private bool _tradeOpen;
         private decimal _entryFillPrice;
         private string _entryFillSide = "";
         private DateTime _entryFillTimeNy;
-        private decimal _lastClosedPnl;
+        private int _prevPosition;
 
         private const string TraderLogDir =
             @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\visual_tests\strategy_tester_results";
@@ -41,7 +41,7 @@ namespace ATAS.Indicators
         public bool AutoStart { get; set; } = true;
 
         [Display(Name = "Contratos", Order = 10)]
-        public int Contracts { get; set; } = 5;
+        public int Contracts { get; set; } = 3;
 
         [Display(Name = "SL ticks", Order = 20)]
         public decimal SlTicks { get; set; } = 50;
@@ -106,6 +106,20 @@ namespace ATAS.Indicators
             var entryFrom = ParseNy(EntryFromNy, new TimeSpan(9, 30, 0));
             var entryTo = ParseNy(EntryToNy, new TimeSpan(9, 40, 0));
             var hardClose = ParseNy(HardCloseNy, new TimeSpan(9, 50, 0));
+
+            // Detecta cierre de posicion en OnCalculate (OnNewMyTrade no dispara en Replay).
+            int curPos = (int)CurrentPosition;
+            if (_tradeOpen && _prevPosition != 0 && curPos == 0)
+            {
+                var exitPrice = (decimal)candle.Close;
+                var tickMove = _entryFillSide == "BUY"
+                    ? (exitPrice - _entryFillPrice) / Tick
+                    : (_entryFillPrice - exitPrice) / Tick;
+                var pnlUsd = tickMove * Contracts * 5m;
+                LogTrade(_entryFillTimeNy, _entryFillSide, _entryFillPrice, exitPrice, pnlUsd, "CLOSE");
+                _tradeOpen = false;
+            }
+            _prevPosition = curPos;
 
             // En posicion -> gestionar trailing. Cierre forzado al pasar el horario
             // limite (margen para trades lentos), aunque no haya tocado SL/trailing.
@@ -183,6 +197,17 @@ namespace ATAS.Indicators
             var entryDir = isBuy ? OrderDirections.Buy : OrderDirections.Sell;
             var exitDir = isBuy ? OrderDirections.Sell : OrderDirections.Buy;
 
+            // Set all state before OpenOrder (OnNewMyTrade unreliable in Replay).
+            _openSide = e.Side;
+            _entryPrice = e.EntryPrice;
+            _enteredToday = true;
+            _trailActive = false;
+            _peakFavorableTicks = 0;
+            _tradeOpen = true;
+            _entryFillPrice = e.EntryPrice;
+            _entryFillSide = e.Side;
+            _entryFillTimeNy = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, _nyZone);
+
             var entry = new Order
             {
                 Portfolio = Portfolio,
@@ -194,7 +219,6 @@ namespace ATAS.Indicators
             };
             OpenOrder(entry);
 
-            _entryPrice = e.EntryPrice;
             var slPrice = isBuy
                 ? e.EntryPrice - SlTicks * Tick
                 : e.EntryPrice + SlTicks * Tick;
@@ -212,10 +236,6 @@ namespace ATAS.Indicators
             OpenOrder(stop);
 
             _stopOrder = stop;
-            _openSide = e.Side;
-            _enteredToday = true;
-            _trailActive = false;
-            _peakFavorableTicks = 0;
         }
 
         private void Flatten()
@@ -287,29 +307,13 @@ namespace ATAS.Indicators
             _stopOrder = modified;
         }
 
-        // Captura los FILLS REALES (precio con slippage, comision). El PnL en $ se
-        // toma de ClosedPnL (ATAS lo calcula con el valor real del NQ: $5/tick).
+        // Override entry fill price with real fill if ATAS fires this (not reliable in Replay).
         protected override void OnNewMyTrade(MyTrade myTrade)
         {
-            var comment = myTrade?.Order?.Comment ?? "";
-
-            if (!_tradeOpen && comment.Contains("entry"))
-            {
-                _tradeOpen = true;
-                _entryFillPrice = myTrade.Price;
-                _entryFillSide = myTrade.OrderDirection == OrderDirections.Buy ? "BUY" : "SELL";
-                _entryFillTimeNy = ToNy(myTrade.Time);
-                return;
-            }
-
-            // El fill que deja la posicion en 0 = salida -> registrar el trade.
-            if (_tradeOpen && CurrentPosition == 0)
-            {
-                var pnlUsd = ClosedPnL - _lastClosedPnl;   // PnL REALIZADO real ($)
-                _lastClosedPnl = ClosedPnL;
-                LogTrade(_entryFillTimeNy, _entryFillSide, _entryFillPrice, myTrade.Price, pnlUsd, comment);
-                _tradeOpen = false;
-            }
+            if (_openSide == "" || !_tradeOpen) return;
+            var fillDir = myTrade.OrderDirection == OrderDirections.Buy ? "BUY" : "SELL";
+            if (fillDir == _openSide)
+                _entryFillPrice = myTrade.Price; // refine with actual fill
         }
 
         private void LogTrade(DateTime ny, string side, decimal entryFill, decimal exitFill, decimal pnlUsd, string exitComment)
