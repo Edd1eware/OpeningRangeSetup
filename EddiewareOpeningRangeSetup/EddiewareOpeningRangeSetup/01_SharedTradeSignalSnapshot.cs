@@ -65,11 +65,17 @@ namespace ATAS.Indicators
 
                 if (Snapshots.TryGetValue(key, out var existing))
                 {
-                    // A Replay restarted on the same session. If market time
-                    // moved backwards, the previous run's snapshot must not
-                    // contaminate the new X1/X10 execution.
                     if (signalTime < existing.SignalTime)
                     {
+                        // Callers sin canonicalFilePath (Visual, otros indicadores)
+                        // usan candle.Time como signalTime en recalculo historico, que
+                        // puede ser anterior al tick real de la senal. No borrar —
+                        // el snapshot sigue siendo valido para dibujar.
+                        // Solo el Exporter (con canonicalFilePath) puede eliminar si el
+                        // Replay reinicio realmente (tiempo retrocedio entre sesiones).
+                        if (string.IsNullOrEmpty(canonicalFilePath))
+                            return existing;
+
                         Snapshots.Remove(key);
                     }
                     else

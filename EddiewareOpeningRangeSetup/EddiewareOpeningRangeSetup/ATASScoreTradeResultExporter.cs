@@ -440,6 +440,10 @@ namespace ATAS.Indicators
             _tradeCreated = true;
             // Side-channel para el Execution Manager (ChartStrategy). Aditivo:
             // no altera la operativa ni los CSV. La estrategia coloca las ordenes.
+            // Usa archivo en disco para cruzar el limite de doble carga del DLL
+            // (ATAS carga el mismo DLL desde Indicators/ y Strategies/ por separado,
+            // lo que genera dos instancias estaticas distintas; el archivo es el
+            // unico canal confiable entre ambas instancias).
             ExecutionSignalBus.Publish(new ExecutionSignalBus.PendingEntry
             {
                 SessionDate = nyTime.Date,
@@ -447,12 +451,18 @@ namespace ATAS.Indicators
                 Side = _trade.Side,
                 EntryPrice = _trade.Entry,
                 SlPrice = _trade.Sl,
-                // La estrategia Núcleo Robusto opera el edge A+ por umbral de
-                // velocidad (mismo significado que la columna CSV APlus_Speed),
-                // no la confirmación estructural APlus_Speed_Setup_Confirmed.
-                IsAPlusSpeed = score.HasAPlusSpeedThreshold,
+                IsAPlusSpeed = score.HasAPlusSpeed,
                 SpeedLabel = score.SpeedLabel,
                 OrRangeTicks = score.OrRangeTicks,
+                Bar = bar
+            });
+            StrategySignalFile.Write(new StrategySignalFile.SignalData
+            {
+                SessionDate = nyTime.Date,
+                Side = _trade.Side,
+                EntryPrice = _trade.Entry,
+                SlPrice = _trade.Sl,
+                IsAPlusSpeed = score.HasAPlusSpeed,
                 Bar = bar
             });
             InitializeDynamicTimeline(
@@ -2560,7 +2570,7 @@ namespace ATAS.Indicators
                 $"{_trade.Result} {_trade.Side} | {_trade.SignalSource} | S{_trade.Score}",
                 $"Entry {_trade.Entry:0.00} | SL {_trade.Sl:0.00} | TP {_trade.Tp:0.00}",
                 $"Resultado {FormatSignedTicks(TradeResultTicks())} ticks | MAE {_trade.MaeTicks:0} | MFE {_trade.MfeTicks:0}",
-                $"PnL ${TradeResultTicks() * TickValueUsd * TelegramContracts:+0;-0} | {TelegramContracts} contratos (NQ ${TickValueUsd:0}/tick)",
+                $"PnL {TradeResultTicks() * TickValueUsd * TelegramContracts:+$0;-$0} | {TelegramContracts} contratos (NQ ${TickValueUsd:0}/tick)",
                 $"Pullback MAE {_trade.LargestMaePullbackTicks:0.##}t ({_trade.NumberOfPullbacksDuringTrade}) | Pullup MFE {_trade.LargestMfePullupTicks:0.##}t ({_trade.NumberOfPullUpsDuringTrade})",
                 $"Vel max MAE {_trade.MaxSpeedMaeDuringTrade:0.####} t/s | MFE {_trade.MaxSpeedMfeDuringTrade:0.####} t/s",
                 $"CVD E{_trade.CvdExcellentCount} N{_trade.CvdNormalCount} A{_trade.CvdWarningCount} R{_trade.CvdRiskReversalCount} | Excelente {FormatCvdExcellentPercent()} | Neg {_trade.CvdNegativeEpisodes} | {FormatTelegramCvdWorstState()}",

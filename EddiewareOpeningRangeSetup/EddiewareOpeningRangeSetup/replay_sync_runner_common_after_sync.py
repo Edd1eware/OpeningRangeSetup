@@ -1101,29 +1101,6 @@ def run_replay_period(
                     elif reason != "SKIPPED":
                         consecutive_fail = 0
 
-                    # Hook opcional para consumidores especializados (p.ej. el
-                    # runner del Execution Manager). Se ejecuta solo cuando una
-                    # fecha real termino y su CSV fue guardado. Un fallo del hook
-                    # nunca debe detener ni alterar el Replay.
-                    on_date_complete = (
-                        progress_meta.get("on_date_complete")
-                        if progress_meta else None
-                    )
-                    if ok and reason != "SKIPPED" and callable(on_date_complete):
-                        try:
-                            on_date_complete(
-                                date_iso=date_iso,
-                                run_name=run_name,
-                                result_path=destination_result_path(
-                                    output_folder, date_iso, run_name
-                                ),
-                            )
-                        except Exception as exc:
-                            print(
-                                "WARNING: callback de fecha terminada fallo "
-                                f"({date_iso} {run_name}): {exc}"
-                            )
-
                     # Alerta de error: si fallan varias fechas REALES seguidas
                     # (foco perdido / Replay atorado), avisa por Telegram UNA vez
                     # para que el usuario reinicie ATAS/Replay.
