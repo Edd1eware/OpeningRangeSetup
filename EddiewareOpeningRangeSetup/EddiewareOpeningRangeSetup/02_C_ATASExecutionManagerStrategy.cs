@@ -122,6 +122,23 @@ namespace ATAS.Indicators
         [Display(Name = "Solo A+ Speed", Order = 50)]
         public bool OnlyAPlusSpeed { get; set; } = true;
 
+        [Display(Name = "Usar snapshot canonico de senal", Order = 51,
+            Description = "true = entra usando el snapshot canonico pre-generado por el sync ladder (replay_sync_signals\\*.json), inmune al race del exporter (que en Replay publica la senal al cierre de sesion). false = solo canal live (file/bus).")]
+        public bool UseCanonicalSignal { get; set; } = true;
+
+        // Hard gate de rango OR (edge ANGOSTO). Decision de modelo del usuario
+        // (2026-06-30): el edge es A+ Speed + OR ESTRECHO (<=125t), derivado del
+        // analisis Lucid (va_width<=125). REEMPLAZA el filtro previo OR>=140 (ancho).
+        // El canal live ya viene filtrado por el exporter; este gate cubre la fuente
+        // canonica, que lee el snapshot crudo sin filtrar por rango.
+        [Display(Name = "OR rango min (ticks)", Order = 52,
+            Description = "Hard gate inferior. La senal se descarta si OrRangeTicks < este valor.")]
+        public decimal MinOrRangeTicks { get; set; } = 40;
+
+        [Display(Name = "OR rango max (ticks)", Order = 53,
+            Description = "Hard gate superior (edge angosto). La senal se descarta si OrRangeTicks > este valor. Default 125 = analisis Lucid va_width<=125.")]
+        public decimal MaxOrRangeTicks { get; set; } = 125;
+
         [Display(Name = "Entrada desde (HH:mm NY)", Order = 60)]
         public string EntryFromNy { get; set; } = "09:30";
 
@@ -505,13 +522,47 @@ namespace ATAS.Indicators
 
             if (tod < entryFrom) return;
 
-            // Read the signal on EVERY bar from entryFrom onward. The exporter writes
-            // the file on the breakout bar; chart calc order, a one-bar confirmation
-            // lag, or a momentarily stale replay-target can surface it a bar after the
-            // Strategy's first look. Cutting the session on the entry-window clock
-            // stranded that signal as PENDING and mislabeled real A+ days as NO_SIGNAL
-            // (the 2024-08-05 bug). Never cut before the exporter's signal window is
-            // fully closed.
+            // PRIMARY source: canonical pre-existing signal snapshot from the sync
+            // ladder (replay_sync_signals\*.json). It already holds the causal breakout
+            // signal (bar/time/price) and exists BEFORE this run, so it is immune to the
+            // in-session race where the exporter only writes pending_strategy_signal.txt
+            // at session close (~09:50) in Replay -> too late, the 2024-08-05 NO_SIGNAL bug.
+            if (UseCanonicalSignal)
+            {
+                var canon = CanonicalSignalReader.Read(_currentNyDate);
+                if (canon != null && canon.Side != "")
+                {
+                    // Enter at the breakout, not at session open: wait until the replay
+                    // clock reaches the signal's minute, then send the market entry.
+                    if (canon.SignalTimeUtc != DateTime.MinValue)
+                    {
+                        var su = canon.SignalTimeUtc;
+                        var signalMinuteUtc = new DateTime(su.Year, su.Month, su.Day,
+                            su.Hour, su.Minute, 0, DateTimeKind.Utc);
+                        if (candleTime < signalMinuteUtc)
+                            return;
+                    }
+                    // Hard gate de rango OR (edge angosto <=125). El snapshot canonico
+                    // trae el OR crudo sin filtrar; descartar aqui las senales de rango
+                    // fuera de [Min,Max]. (08-05 con OR=325 -> SKIPPED_RANGE bajo <=125.)
+                    if (canon.OrRangeTicks < MinOrRangeTicks || canon.OrRangeTicks > MaxOrRangeTicks)
+                    {
+                        StrategySignalFile.MarkConsumed(_currentNyDate);
+                        ExecutionSignalBus.MarkConsumed(_currentNyDate);
+                        _enteredToday = true;
+                        WriteSessionStatus("SKIPPED_RANGE");
+                        return;
+                    }
+                    TryEnterFromSignal(canon.Side, canon.EntryPrice, canon.SlPrice,
+                        canon.IsAPlusSpeed, canon.Bar);
+                    return;
+                }
+            }
+
+            // FALLBACK: legacy live channel (exporter file + in-memory bus). Read every
+            // bar; only declare NO_SIGNAL once the exporter's signal window is certainly
+            // closed (noSignalCut > exporter MaxSignalTime ~09:41) and still below
+            // HardCloseNy so the terminal status is emitted before Replay stops.
             var fileSig = StrategySignalFile.Read(_currentNyDate);
             var busSig  = ExecutionSignalBus.Peek(_currentNyDate);
 
@@ -523,10 +574,6 @@ namespace ATAS.Indicators
 
             if (side == "")
             {
-                // No signal yet. Keep waiting until the exporter's signal window has
-                // certainly closed (noSignalCut > exporter MaxSignalTime ~09:41), and
-                // only then declare NO_SIGNAL. noSignalCut stays below HardCloseNy so
-                // the terminal status is always emitted before Replay stops.
                 if (tod >= noSignalCut)
                 {
                     StrategySignalFile.MarkConsumed(_currentNyDate);
@@ -536,6 +583,14 @@ namespace ATAS.Indicators
                 }
                 return;
             }
+
+            TryEnterFromSignal(side, entry, sl, isAPlus, barSignal);
+        }
+
+        // Shared entry pipeline for both signal sources (canonical snapshot + live
+        // file/bus): A+ gate -> regime filter -> Risk Governor -> market entry.
+        private void TryEnterFromSignal(string side, decimal entry, decimal sl, bool isAPlus, int barSignal)
+        {
             if (OnlyAPlusSpeed && !isAPlus)
             {
                 StrategySignalFile.MarkConsumed(_currentNyDate);

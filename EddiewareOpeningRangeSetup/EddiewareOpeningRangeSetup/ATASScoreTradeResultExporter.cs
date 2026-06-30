@@ -161,6 +161,13 @@ namespace ATAS.Indicators
         public int MinScore { get; set; } = 5;
         public decimal MinOrRangeTicks { get; set; } = 40;
         public decimal MaxOrRangeTicks { get; set; } = 350;
+        // Gate de publicacion de senal al canal live (independiente del engine Min/Max
+        // de arriba, que solo escala el motor de score). Configurable para correr el A/B
+        // edge ANGOSTO (40..125) vs edge ANCHO (>=140) sobre las 500 sesiones SIN
+        // recompilar. Edge angosto: Min=40, Max=125. Edge ancho: Min=140, Max=100000.
+        // El edge angosto NO esta comprobado aun (ver A/B plan). Default = angosto.
+        public decimal SignalGateMinOrRangeTicks { get; set; } = 40;
+        public decimal SignalGateMaxOrRangeTicks { get; set; } = 125;
         public decimal MinBodyBreakoutTicks { get; set; } = 10;
         public decimal MinVolume { get; set; } = 800;
         public decimal MinAbsDelta { get; set; } = 25;
@@ -451,11 +458,17 @@ namespace ATAS.Indicators
             // (ATAS carga el mismo DLL desde Indicators/ y Strategies/ por separado,
             // lo que genera dos instancias estaticas distintas; el archivo es el
             // unico canal confiable entre ambas instancias).
-            // FROZEN EXECUTION FILTER — DO NOT CHANGE.
-            // Validated on 669 DST sessions (2022-06-21 to 2026-06-28):
-            // A+ Speed alone: WR ~70% | A+ Speed + Range >= 140: WR 87.5%, PF 4.38, MaxDD $900.
-            // OR < 140 ticks = insufficient momentum; 12 SL eliminated vs only 11 TP lost.
-            if (score.OrRangeTicks >= 140m)
+            // EXECUTION FILTER — edge ANGOSTO (user model decision 2026-06-30).
+            // El edge es A+ Speed + OR ESTRECHO: 40 <= OrRange <= 125 ticks (analisis
+            // Lucid va_width<=125). REEMPLAZA el filtro previo OR>=140 (rango ancho,
+            // WR 87.5% en 669 sesiones) que es MUTUAMENTE EXCLUYENTE con este.
+            // Riesgo asumido por el usuario: ver Cambio_EdgeHardGate_MaxOrRange125_*.md
+            // y Arquitectura_Modelo_ORB (alertas va_width vs orRange, look-ahead).
+            // OJO: fechas de rango ancho (p.ej. 2024-08-05, OR=325) YA NO disparan.
+            // Gate configurable (props SignalGateMin/MaxOrRangeTicks) para el A/B
+            // angosto<=125 vs ancho>=140 sin recompilar.
+            if (score.OrRangeTicks >= SignalGateMinOrRangeTicks &&
+                score.OrRangeTicks <= SignalGateMaxOrRangeTicks)
             {
                 ExecutionSignalBus.Publish(new ExecutionSignalBus.PendingEntry
                 {

@@ -310,13 +310,40 @@ def send_text(results_folder, message):
         return False
 
 
+def _get_bot_name(token):
+    """Returns the current visible bot name via getMy Name, or None on failure."""
+    try:
+        request = Request(
+            f"https://api.telegram.org/bot{token}/getMyName",
+            method="GET",
+        )
+        with urlopen(request, timeout=15) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        if payload.get("ok"):
+            return (payload.get("result") or {}).get("name", "")
+    except Exception:
+        pass
+    return None
+
+
 def set_bot_name(results_folder, name="EW ORB NQ"):
-    """Actualiza el nombre visible del bot (elimina el legado 'Absorption Alert')."""
+    """Actualiza el nombre visible del bot (elimina el legado 'Absorption Alert').
+
+    setMyName esta fuertemente rate-limited por Telegram (429 con retry_after de
+    horas). Se evita la llamada si el nombre ya coincide -> elimina ~99% de los 429.
+    """
     credentials = _read_credentials(results_folder)
     if credentials is None:
         return False
     token, _ = credentials
-    body = urlencode({"name": name[:64]}).encode("utf-8")
+    desired = name[:64]
+
+    # Skip the rate-limited write if the name is already correct.
+    current = _get_bot_name(token)
+    if current is not None and current == desired:
+        return True
+
+    body = urlencode({"name": desired}).encode("utf-8")
     request = Request(
         f"https://api.telegram.org/bot{token}/setMyName",
         data=body,
@@ -329,6 +356,22 @@ def set_bot_name(results_folder, name="EW ORB NQ"):
             print(f"Telegram setMyName no ok: {payload.get('description')}")
             return False
         return True
+    except HTTPError as exc:
+        if exc.code == 429:
+            retry_after = ""
+            try:
+                detail = json.loads(exc.read().decode("utf-8"))
+                retry_after = (detail.get("parameters") or {}).get("retry_after", "")
+            except Exception:
+                pass
+            print(
+                "WARNING: setMyName rate-limited (HTTP 429"
+                + (f", retry_after={retry_after}s" if retry_after != "" else "")
+                + "); nombre sin cambiar, la corrida continua."
+            )
+        else:
+            print(f"WARNING: no pude renombrar bot Telegram: HTTP Error {exc.code}")
+        return False
     except Exception as exc:
         print(f"WARNING: no pude renombrar bot Telegram: {exc}")
         return False
