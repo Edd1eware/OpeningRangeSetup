@@ -152,6 +152,8 @@ namespace ATAS.Indicators
         private decimal _lastProcessedMarketVolume;
         private decimal _lastProcessedMarketDelta;
         private string _lastProcessedMarketSource = "";
+        private const decimal InitialBalance = 150_000m;
+        private decimal _runningPnl;
 
         public int MinScore { get; set; } = 5;
         public decimal MinOrRangeTicks { get; set; } = 40;
@@ -2377,10 +2379,11 @@ namespace ATAS.Indicators
 
             if (_trade.Result != "OPEN")
             {
+                _runningPnl += TradeResultTicks() * TickValueUsd * TelegramContracts;
                 TelegramTradeNotifier.QueueTerminalResult(
                     _exportFolder,
                     nyDate,
-                    BuildTelegramTradeMessage());
+                    BuildTelegramTradeMessage(InitialBalance + _runningPnl));
             }
         }
 
@@ -2568,7 +2571,7 @@ namespace ATAS.Indicators
                 $"EW ORB NQ | {nyDate:yyyy-MM-dd}\nTIME OVER");
         }
 
-        private string BuildTelegramTradeMessage()
+        private string BuildTelegramTradeMessage(decimal balance)
         {
             if (_trade == null)
                 return "";
@@ -2581,7 +2584,7 @@ namespace ATAS.Indicators
                 Environment.NewLine,
                 $"EW ORB NQ | {_trade.EntryDate:yyyy-MM-dd}",
                 $"{_trade.Result} {_trade.Side} | {_trade.EntryTimeNy:HH:mm:ss} NY ({utcLabel})",
-                $"PnL: {pnl:+$0;-$0} | {TelegramContracts}c",
+                $"Balance: {balance:$#,##0} | PnL: {pnl:+$0;-$0} | {TelegramContracts}c",
                 $"Duración: {FormatTradeDuration()}");
         }
 

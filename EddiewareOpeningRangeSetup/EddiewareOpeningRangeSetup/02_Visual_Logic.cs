@@ -630,8 +630,7 @@ namespace ATAS.Indicators
             _tradeIsAPlusSpeed = plan.IsAPlusSpeed;
             _tradeIsNormalSpeed = plan.IsNormalSpeed;
 
-            if (_tradeIsNormalSpeed)
-                DrawInitialNormalScalpBracket(bar, plan);
+            DrawInitialNormalScalpBracket(bar, plan);
 
             if (!_tradeIsAPlusSpeed)
                 DrawLiveExitSpeed(bar, candle, 0);
