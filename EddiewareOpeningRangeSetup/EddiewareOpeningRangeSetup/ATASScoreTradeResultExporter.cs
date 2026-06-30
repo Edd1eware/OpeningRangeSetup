@@ -153,7 +153,7 @@ namespace ATAS.Indicators
         private decimal _lastProcessedMarketDelta;
         private string _lastProcessedMarketSource = "";
         private const decimal InitialBalance = 150_000m;
-        private decimal _runningPnl;
+        private static decimal _runningPnl;
 
         public int MinScore { get; set; } = 5;
         public decimal MinOrRangeTicks { get; set; } = 40;
