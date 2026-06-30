@@ -11,22 +11,34 @@ Requisitos antes de correr:
 Uso:
   python 06_run_strategy_replay.py              # solo las fechas A+ Speed (39, donde opera)
   python 06_run_strategy_replay.py --all        # todas las sesiones sincronizadas
+  python 06_run_strategy_replay.py --databento-all  # mismas fechas del runner 04, Strategy real
   python 06_run_strategy_replay.py --dates 2026-05-15 2026-06-23
 """
 
 import argparse
+import atexit
 import csv
+import datetime as dt
+import os
 import re
+import time
+from datetime import date, timedelta
 from pathlib import Path
 
 import replay_sync_runner_common_after_sync as rs
 import telegram_run_summary_after_sync as telegram
+import time_zones_atas
 
 LADDER_ROOT = (
     rs.RESULTS_FOLDER / "visual_tests" / "sync_ladder_runs" / "sync_v11_ladder_001_resume"
 )
 OUTPUT = rs.RESULTS_FOLDER / "visual_tests" / "strategy_tester_results"
 OPER = rs.OPERATIVA_COMPARISON_FIELDS
+SESSION_STATUS = OUTPUT / "strategy_session_status.txt"
+EXECUTION_TELEGRAM_FLAG = rs.RESULTS_FOLDER / "execution_manager_telegram_mode.flag"
+DATABENTO_RAW_DIR = Path(
+    r"C:\Users\k_99_\Desktop\codding\OpeningRangeSetup\Nautilus_OR\Nautilus_OR\data\raw_dbn"
+)
 
 
 def _row(path):
@@ -57,15 +69,212 @@ def synced_dates(aplus_only):
     return sorted(set(out))
 
 
+def _market_closed(year):
+    def _nth(yr, mo, wd, n):
+        d = date(yr, mo, 1)
+        d += timedelta((wd - d.weekday()) % 7)
+        return d + timedelta(weeks=n - 1)
+
+    def _last(yr, mo, wd):
+        import calendar
+        d = date(yr, mo, calendar.monthrange(yr, mo)[1])
+        return d - timedelta((d.weekday() - wd) % 7)
+
+    def _observed(d):
+        if d.weekday() == 5:
+            return d - timedelta(days=1)
+        if d.weekday() == 6:
+            return d + timedelta(days=1)
+        return d
+
+    a = year % 19
+    b, c = divmod(year, 100)
+    d, e = divmod(b, 4)
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i, k = divmod(c, 4)
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month = (h + l - 7 * m + 114) // 31
+    day = ((h + l - 7 * m + 114) % 31) + 1
+    good_friday = date(year, month, day) - timedelta(days=2)
+
+    return {
+        _observed(date(year, 1, 1)),
+        _nth(year, 1, 0, 3),
+        _nth(year, 2, 0, 3),
+        good_friday,
+        _last(year, 5, 0),
+        _observed(date(year, 6, 19)),
+        _observed(date(year, 7, 4)),
+        _nth(year, 9, 0, 1),
+        _nth(year, 11, 3, 4),
+        _observed(date(year, 12, 25)),
+        date(2025, 1, 9),
+    }
+
+
+def databento_dates():
+    """Same eligible DataBento sessions used by runner 04, for real Strategy validation."""
+    if not DATABENTO_RAW_DIR.exists():
+        raise FileNotFoundError(f"raw_dbn no encontrado: {DATABENTO_RAW_DIR}")
+
+    closed = {}
+    out = []
+    for folder in sorted(DATABENTO_RAW_DIR.iterdir()):
+        if not folder.is_dir():
+            continue
+        try:
+            session = date.fromisoformat(folder.name)
+        except ValueError:
+            continue
+        if session.weekday() >= 5:
+            continue
+        closed.setdefault(session.year, _market_closed(session.year))
+        if session in closed[session.year]:
+            continue
+        out.append(folder.name)
+    return out
+
+
+def _wait_for_strategy_terminal(date_iso, started_at, timeout_seconds, _stop_button):
+    """Wait for the real ExecutionManager, not merely the exporter CSV."""
+    terminal = {
+        "COMPLETE",
+        "NO_SIGNAL",
+        "SKIPPED_NOT_APLUS",
+        "SKIPPED_REGIME",
+        "SKIPPED_GOVERNOR",
+    }
+    deadline = started_at + timeout_seconds
+    while time.time() < deadline:
+        try:
+            if SESSION_STATUS.exists() and SESSION_STATUS.stat().st_mtime >= started_at:
+                parts = SESSION_STATUS.read_text(encoding="utf-8-sig").strip().split(",")
+                if len(parts) >= 2 and parts[0] == date_iso and parts[1] in terminal:
+                    print(f"ExecutionManager terminal: {date_iso} -> {parts[1]}")
+                    return True, ""
+        except OSError:
+            pass
+        time.sleep(0.25)
+    return False, "STRATEGY_TERMINAL_TIMEOUT"
+
+
+def _enable_execution_manager_telegram_mode():
+    """Suppress exporter TP/SL Telegram while this Strategy runner is alive."""
+    EXECUTION_TELEGRAM_FLAG.write_text(str(os.getpid()), encoding="ascii")
+
+    def cleanup():
+        try:
+            if EXECUTION_TELEGRAM_FLAG.exists():
+                current = EXECUTION_TELEGRAM_FLAG.read_text(encoding="ascii").strip()
+                if current == str(os.getpid()):
+                    EXECUTION_TELEGRAM_FLAG.unlink()
+        except OSError:
+            pass
+
+    atexit.register(cleanup)
+    return cleanup
+
+
+def _load_strategy_rows(trades_log):
+    if not trades_log.exists():
+        return []
+    try:
+        with open(trades_log, encoding="utf-8-sig", newline="") as handle:
+            return list(csv.DictReader(handle))
+    except (OSError, csv.Error):
+        return []
+
+
+def _operation_pnls(rows):
+    """Aggregate split legs into one operation per session for WR/trade counts."""
+    out = {}
+    for row in rows:
+        session = row.get("fecha") or ""
+        if not session:
+            continue
+        try:
+            pnl = float(row.get("pnl_usd") or 0)
+        except (TypeError, ValueError):
+            pnl = 0.0
+        out[session] = out.get(session, 0.0) + pnl
+    return out
+
+
+def _send_strategy_trade_message(date_iso, rows_before, trades_log):
+    rows = _load_strategy_rows(trades_log)
+    new_rows = [r for r in rows[rows_before:] if (r.get("fecha") or "") == date_iso]
+    if not new_rows:
+        try:
+            status_parts = SESSION_STATUS.read_text(encoding="utf-8-sig").strip().split(",")
+        except OSError:
+            status_parts = []
+        if len(status_parts) >= 2 and status_parts[1] in {"SKIPPED_REGIME", "SKIPPED_GOVERNOR"}:
+            reason = "Régimen pausado" if status_parts[1] == "SKIPPED_REGIME" else "Risk Governor"
+            telegram.send_text(
+                rs.RESULTS_FOLDER,
+                f"EW ORB NQ | ExecutionManager\n{date_iso}\nSIN TRADE | {reason}",
+            )
+        return
+
+    def number(row, key):
+        try:
+            return float(row.get(key) or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    def money(value):
+        return f"+${value:,.0f}" if value >= 0 else f"-${abs(value):,.0f}"
+
+    operation_pnl = sum(number(r, "pnl_usd") for r in new_rows)
+    cumulative_pnl = sum(number(r, "pnl_usd") for r in rows)
+    balance = telegram.INITIAL_BALANCE + cumulative_pnl
+    side = new_rows[0].get("side") or ""
+    total_contracts = sum(int(number(r, "contratos")) for r in new_rows)
+
+    lines = [
+        "EW ORB NQ | ExecutionManager",
+        date_iso,
+        f"{side} | {total_contracts} contratos",
+    ]
+    for row in new_rows:
+        reason = (row.get("exit_motivo") or "CLOSE").upper()
+        label = {
+            "TP_SPLIT": "TP fijo",
+            "RUNNER_CLOSE": "Runner",
+            "CLOSE": "SL/Cierre",
+        }.get(reason, reason.replace("_", " ").title())
+        contracts = int(number(row, "contratos"))
+        ticks = number(row, "ticks")
+        pnl = number(row, "pnl_usd")
+        lines.append(
+            f"{label}: {contracts}c | {ticks:+.0f}t | {money(pnl)}"
+        )
+    lines.extend([
+        f"PnL operación: {money(operation_pnl)}",
+        f"Balance: ${balance:,.0f}",
+    ])
+    telegram.send_text(rs.RESULTS_FOLDER, "\n".join(lines))
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--all", action="store_true", help="Todas las sesiones (no solo A+ Speed).")
+    parser.add_argument(
+        "--databento-all",
+        action="store_true",
+        help="Todas las fechas DataBento del runner 04, pero validando el ExecutionManager real.",
+    )
     parser.add_argument("--dates", nargs="*", help="Fechas especificas YYYY-MM-DD.")
     parser.add_argument("--prepare-only", action="store_true", help="Muestra las fechas sin correr.")
     args = parser.parse_args()
 
     if args.dates:
         dates = sorted(set(args.dates))
+    elif args.databento_all:
+        dates = databento_dates()
     else:
         dates = synced_dates(aplus_only=not args.all)
 
@@ -91,28 +300,15 @@ def main():
         trades_log.replace(backup)
         print(f"Log previo respaldado: {backup.name}")
 
-    # Resetear fechas enviadas por Telegram para que el indicador re-envie por cada trade.
-    sent_dates_file = rs.RESULTS_FOLDER / "telegram_sent_dates.txt"
-    if sent_dates_file.exists():
-        sent_dates_file.unlink()
-        print("telegram_sent_dates.txt reseteado (indicador C# re-enviara Telegram por trade).")
-
-    progress_meta = {
-        "stage_index": 1,
-        "stage_total": 1,
-        "stage_label": "Strategy A+Speed replay",
-        "stage_period": f"{dates[0]} -> {dates[-1]}" if dates else "",
-        "global_target": None,
-        "session_roots": None,
-        "run_label": "Execution Manager",
-        "pnl_log_path": str(trades_log),   # PnL$ + contratos reales en Telegram
-    }
+    cleanup_telegram_mode = _enable_execution_manager_telegram_mode()
+    telegram.set_bot_name(rs.RESULTS_FOLDER, "EW ORB NQ")
+    telegram.clear_telegram_before_run(rs.RESULTS_FOLDER)
 
     telegram.send_text(
         rs.RESULTS_FOLDER,
-        "EW Opening Range | Execution Manager - inicio del recorrido\n"
+        "EW ORB NQ | ExecutionManager iniciado\n"
         f"{len(dates)} fechas en Replay X10 con la estrategia activa.\n"
-        "Recibiras ETA por fecha. Si algo se atora, te avisare para reiniciar.",
+        "Telegram mostrará solo operaciones reales 3+2.",
     )
 
     sig_file = rs.RESULTS_FOLDER / "pending_strategy_signal.txt"
@@ -130,20 +326,32 @@ def main():
                 sig_status = sig_file.read_text().strip().split(",")[-1]
             except Exception:
                 pass
-        wins   = sum(1 for r in rows if float(r.get("pnl_usd") or 0) > 0)
-        losses = sum(1 for r in rows if float(r.get("pnl_usd") or 0) < 0)
+        operations = _operation_pnls(rows)
+        wins   = sum(1 for pnl in operations.values() if pnl > 0)
+        losses = sum(1 for pnl in operations.values() if pnl < 0)
         total_pnl = sum(float(r.get("pnl_usd") or 0) for r in rows)
         wr = f"{wins/(wins+losses)*100:.0f}%" if (wins+losses) else "N/A"
         print(
             f"[{idx:>2}/{total}] {date_str} | "
             f"signal={sig_status or 'N/A':<8} | "
-            f"trades={len(rows):>2} | wins={wins} losses={losses} WR={wr} | "
+            f"trades={len(operations):>2} | wins={wins} losses={losses} WR={wr} | "
             f"PnL=${total_pnl:,.0f}"
         )
 
     failures = []
+    last_tz = None
     for i, date in enumerate(dates, 1):
         try:
+            rows_before = len(_load_strategy_rows(trades_log))
+            session = dt.date.fromisoformat(date)
+            tz_offset = time_zones_atas.get_utc_offset(session)
+            if tz_offset != last_tz:
+                print(f"Configurando CME en UTC{tz_offset} antes de {date}...")
+                time_zones_atas.ensure_atas_timezone(tz_offset)
+                last_tz = tz_offset
+
+            SESSION_STATUS.unlink(missing_ok=True)
+
             _, date_failures = rs.run_replay_period(
                 [date],
                 output_folder=OUTPUT,
@@ -151,63 +359,46 @@ def main():
                 report_prefix="strategy_replay_test",
                 force=True,
                 replay_to_time=rs.DEFAULT_REPLAY_TO_TIME,
-                progress_meta={**progress_meta,
-                               "stage_period": f"{date} ({i}/{len(dates)})"},
+                post_result_waiter=_wait_for_strategy_terminal,
+                progress_meta=None,
             )
             failures.extend(date_failures)
         except KeyboardInterrupt:
-            telegram.send_text(rs.RESULTS_FOLDER, "EW Opening Range | Recorrido CANCELADO (Ctrl+C).")
+            telegram.send_text(rs.RESULTS_FOLDER, "EW ORB NQ | Recorrido cancelado (Ctrl+C).")
             _print_date_summary(date, i, len(dates))
             raise
         except Exception as exc:
             telegram.send_text(
                 rs.RESULTS_FOLDER,
-                "EW Opening Range | ERROR FATAL en el recorrido\n"
+                "EW ORB NQ | ERROR FATAL\n"
                 f"{exc}\nREINICIA ATAS/Replay, ventana al frente, y relanza el runner.",
             )
             _print_date_summary(date, i, len(dates))
             raise
+        _send_strategy_trade_message(date, rows_before, trades_log)
         _print_date_summary(date, i, len(dates))
 
-    # Si el CSV de la estrategia no tiene datos, generarlo desde score_trade_result.
-    # El paper trading de ATAS no llama OnNewMyTrade en Replay; los datos reales
-    # ya estan en los archivos score_trade_result de cada fecha A+ Speed.
-    CONTRACTS = 3
-    TICK_USD = 5.0  # NQ: $5 por tick
-    MIN_RANGE = 140
+        if i % 25 == 0 and i < len(dates):
+            current_rows = _load_strategy_rows(trades_log)
+            cumulative = sum(float(r.get("pnl_usd") or 0) for r in current_rows)
+            telegram.send_text(
+                rs.RESULTS_FOLDER,
+                "EW ORB NQ | ExecutionManager\n"
+                f"Progreso: {i}/{len(dates)} fechas\n"
+                f"Balance: ${telegram.INITIAL_BALANCE + cumulative:,.0f}",
+            )
+
+    # Never synthesize Strategy trades from the exporter. That would validate the
+    # fixed TP/SL pipeline instead of the ExecutionManager we are testing.
     if not trades_log.exists() or trades_log.stat().st_size < 50:
-        rows_gen = []
-        for d in dates:
-            src = rs.RESULTS_FOLDER / f"score_trade_result_{d}_NY.csv"
-            if not src.exists():
-                continue
-            try:
-                src_rows = list(csv.DictReader(open(src, encoding="utf-8-sig")))
-                if not src_rows:
-                    continue
-                r = src_rows[0]
-                range_t = int(float(r.get("range", 0) or 0))
-                if range_t < MIN_RANGE:
-                    continue
-                side = r.get("Side", "").strip()
-                entry = r.get("Entry_price", "").strip()
-                exit_p = r.get("Exit_price", "").strip()
-                ticks_raw = r.get("result TP SL BE", "").strip()
-                result = r.get("Result_Label", "").strip()
-                if not side or not entry or not ticks_raw:
-                    continue
-                ticks = float(ticks_raw)
-                pnl = ticks * CONTRACTS * TICK_USD
-                motivo = "SL" if result == "SL" else "TP" if result in ("TP", "TRAIL") else "OPEN"
-                rows_gen.append(f"{d},{side},{CONTRACTS},{entry},{exit_p},{ticks:.2f},{pnl:.2f},{motivo}")
-            except Exception:
-                continue
-        if rows_gen:
-            trades_log.parent.mkdir(parents=True, exist_ok=True)
-            with open(trades_log, "w", encoding="utf-8") as f:
-                f.write("fecha,side,contratos,entry_fill,exit_fill,ticks,pnl_usd,exit_motivo\n")
-                f.write("\n".join(rows_gen) + "\n")
-            print(f"CSV generado desde score_trade_result: {len(rows_gen)} filas → {trades_log.name}")
+        msg = (
+            "ERROR: ExecutionManager no produjo strategy_tester_trades.csv. "
+            "No se usarán resultados del exporter como sustituto. Verifica que la "
+            "Strategy esté agregada al chart, Started y con la DLL actual."
+        )
+        print(f"\n{msg}")
+        telegram.send_text(rs.RESULTS_FOLDER, f"EW Opening Range | {msg}")
+        return 2
 
     fail_n = len(failures)
     # PnL real + contratos del log de la estrategia.
@@ -217,18 +408,23 @@ def main():
             log_rows = list(csv.DictReader(open(trades_log, encoding="utf-8-sig")))
             if log_rows:
                 total_pnl = sum(float(r.get("pnl_usd") or 0) for r in log_rows)
-                contracts = log_rows[-1].get("contratos")
-                wins = sum(1 for r in log_rows if float(r.get("pnl_usd") or 0) > 0)
-                losses = sum(1 for r in log_rows if float(r.get("pnl_usd") or 0) < 0)
+                operations = _operation_pnls(log_rows)
+                last_date = log_rows[-1].get("fecha") or ""
+                contracts = sum(
+                    int(float(r.get("contratos") or 0))
+                    for r in log_rows if (r.get("fecha") or "") == last_date
+                )
+                wins = sum(1 for pnl in operations.values() if pnl > 0)
+                losses = sum(1 for pnl in operations.values() if pnl < 0)
                 wr = wins / (wins + losses) * 100 if (wins + losses) else 0
                 pnl_line = (
-                    f"Trades estrategia: {len(log_rows)} | {contracts} contratos | "
+                    f"Trades estrategia: {len(operations)} | {contracts} contratos | "
                     f"WR {wr:.0f}% | PnL TOTAL ${total_pnl:,.0f}"
                 )
         except Exception:
             pass
     msg = [
-        "EW Opening Range | Execution Manager - recorrido TERMINADO",
+        "EW ORB NQ | ExecutionManager terminado",
         f"Fechas: {len(dates)} | con problemas: {fail_n}",
     ]
     if pnl_line:
@@ -241,6 +437,7 @@ def main():
         msg.append("Si muchas fallaron juntas: reinicia el Replay/ATAS.")
     msg.append("Revisa el P&L / trades de la estrategia en ATAS.")
     telegram.send_text(rs.RESULTS_FOLDER, "\n".join(msg))
+    cleanup_telegram_mode()
 
     print("\nRecorrido terminado. Revisa el P&L / trades de la estrategia en ATAS.")
     return 0

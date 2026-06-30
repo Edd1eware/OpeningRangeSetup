@@ -153,7 +153,10 @@ namespace ATAS.Indicators
         private decimal _lastProcessedMarketDelta;
         private string _lastProcessedMarketSource = "";
         private const decimal InitialBalance = 150_000m;
-        private static decimal _runningPnl;
+        private static readonly string _runningPnlFilePath = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "ATAS", "eddieware_running_pnl.txt");
+        private static decimal _runningPnl = LoadRunningPnl();
 
         public int MinScore { get; set; } = 5;
         public decimal MinOrRangeTicks { get; set; } = 40;
@@ -2377,9 +2380,10 @@ namespace ATAS.Indicators
                 csvRow + Environment.NewLine
             );
 
-            if (_trade.Result != "OPEN")
+            if (_trade.Result != "OPEN" && !IsExecutionManagerTelegramMode())
             {
                 _runningPnl += TradeResultTicks() * TickValueUsd * TelegramContracts;
+                SaveRunningPnl(_runningPnl);
                 TelegramTradeNotifier.QueueTerminalResult(
                     _exportFolder,
                     nyDate,
@@ -2565,10 +2569,65 @@ namespace ATAS.Indicators
                 ) + Environment.NewLine
             );
 
-            TelegramTradeNotifier.QueueTerminalResult(
-                _exportFolder,
-                nyDate,
-                $"EW ORB NQ | {nyDate:yyyy-MM-dd}\nTIME OVER");
+            if (!IsExecutionManagerTelegramMode())
+            {
+                TelegramTradeNotifier.QueueTerminalResult(
+                    _exportFolder,
+                    nyDate,
+                    $"EW ORB NQ | {nyDate:yyyy-MM-dd}\nTIME OVER");
+            }
+        }
+
+        private bool IsExecutionManagerTelegramMode()
+        {
+            var flagPath = Path.Combine(_exportFolder, "execution_manager_telegram_mode.flag");
+            try
+            {
+                if (!File.Exists(flagPath))
+                    return false;
+
+                var raw = File.ReadAllText(flagPath).Trim();
+                if (int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var pid))
+                {
+                    try
+                    {
+                        var process = System.Diagnostics.Process.GetProcessById(pid);
+                        if (!process.HasExited)
+                            return true;
+                    }
+                    catch { }
+                }
+
+                // Stale flag from a crashed Python runner: remove it so normal
+                // exporter notifications resume automatically.
+                File.Delete(flagPath);
+            }
+            catch { }
+            return false;
+        }
+
+        private static decimal LoadRunningPnl()
+        {
+            try
+            {
+                if (System.IO.File.Exists(_runningPnlFilePath))
+                    return decimal.Parse(
+                        System.IO.File.ReadAllText(_runningPnlFilePath).Trim(),
+                        System.Globalization.CultureInfo.InvariantCulture);
+            }
+            catch { }
+            return 0m;
+        }
+
+        private static void SaveRunningPnl(decimal value)
+        {
+            try
+            {
+                System.IO.File.WriteAllText(
+                    _runningPnlFilePath,
+                    value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
+            catch { }
         }
 
         private string BuildTelegramTradeMessage(decimal balance)
@@ -2578,13 +2637,14 @@ namespace ATAS.Indicators
 
             var offset = _nyZone.GetUtcOffset(_trade.EntryDate);
             var utcLabel = (int)offset.TotalHours == -4 ? "UTC-4 (EDT)" : "UTC-5 (EST)";
-            var pnl = TradeResultTicks() * TickValueUsd * TelegramContracts;
+            var resultTicks = TradeResultTicks();
+            var pnl = resultTicks * TickValueUsd * TelegramContracts;
 
             return string.Join(
                 Environment.NewLine,
                 $"EW ORB NQ | {_trade.EntryDate:yyyy-MM-dd}",
                 $"{_trade.Result} {_trade.Side} | {_trade.EntryTimeNy:HH:mm:ss} NY ({utcLabel})",
-                $"Balance: {balance:$#,##0} | PnL: {pnl:+$0;-$0} | CONTRATOS: {TelegramContracts}",
+                $"Balance: {balance:$#,##0} | PnL: {pnl:+$0;-$0} | CONTRATOS: {TelegramContracts} | TICKS: {resultTicks:+0;-0}t",
                 $"Duración: {FormatTradeDuration()}");
         }
 

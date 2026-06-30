@@ -14,6 +14,11 @@ TELEGRAM_SENT_DATES_FILE = "telegram_sent_dates.txt"
 TELEGRAM_DELETE_BATCH_SIZE = 100
 INITIAL_BALANCE = 150_000.0
 
+# Must match _runningPnlFilePath in ATASScoreTradeResultExporter.cs
+RUNNING_PNL_FILE = os.path.join(
+    os.environ.get("APPDATA", ""), "ATAS", "eddieware_running_pnl.txt"
+)
+
 
 def _parse_result_ticks(value):
     if value in (None, "", "OPEN", "NO_TRADE", "TIME_OVER", "HOLYDAY NO DATA"):
@@ -218,6 +223,14 @@ def clear_telegram_before_run(results_folder):
     with open(sent_dates_path, "w", encoding="utf-8"):
         pass
 
+    # Reset running PnL file so C# indicator starts accumulating from $0 again
+    try:
+        if os.path.exists(RUNNING_PNL_FILE):
+            os.remove(RUNNING_PNL_FILE)
+            print("Running PnL file reset.")
+    except Exception as exc:
+        print(f"WARNING: no pude borrar running PnL file: {exc}")
+
     # Una sola linea de resumen. Los no borrables (>48h en chat privado, limite
     # de la Bot API) se cuentan en `failed` pero NO detienen la corrida.
     print(
@@ -294,6 +307,30 @@ def send_text(results_folder, message):
         return True
     except Exception as exc:
         print(f"WARNING: no pude enviar alerta Telegram: {exc}")
+        return False
+
+
+def set_bot_name(results_folder, name="EW ORB NQ"):
+    """Actualiza el nombre visible del bot (elimina el legado 'Absorption Alert')."""
+    credentials = _read_credentials(results_folder)
+    if credentials is None:
+        return False
+    token, _ = credentials
+    body = urlencode({"name": name[:64]}).encode("utf-8")
+    request = Request(
+        f"https://api.telegram.org/bot{token}/setMyName",
+        data=body,
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=15) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        if not payload.get("ok"):
+            print(f"Telegram setMyName no ok: {payload.get('description')}")
+            return False
+        return True
+    except Exception as exc:
+        print(f"WARNING: no pude renombrar bot Telegram: {exc}")
         return False
 
 
