@@ -2584,7 +2584,7 @@ namespace ATAS.Indicators
                 Environment.NewLine,
                 $"EW ORB NQ | {_trade.EntryDate:yyyy-MM-dd}",
                 $"{_trade.Result} {_trade.Side} | {_trade.EntryTimeNy:HH:mm:ss} NY ({utcLabel})",
-                $"Balance: {balance:$#,##0} | PnL: {pnl:+$0;-$0} | {TelegramContracts}c",
+                $"Balance: {balance:$#,##0} | PnL: {pnl:+$0;-$0} | CONTRATOS: {TelegramContracts}",
                 $"Duración: {FormatTradeDuration()}");
         }
 
