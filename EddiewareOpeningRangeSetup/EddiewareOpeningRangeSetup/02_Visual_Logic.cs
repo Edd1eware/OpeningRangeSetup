@@ -174,6 +174,9 @@ namespace ATAS.Indicators
         [DisplayName("A+ Structure Label Offset Ticks")]
         public decimal APlusStructureLabelOffsetTicks { get; set; } = 25m;
 
+        [DisplayName("Block Macro Events (FOMC/CPI/NFP/JH)")]
+        public bool BlockMacroEvents { get; set; } = true;
+
         public EddiewareOpeningRangeVisual()
         {
             Name = "02_Visual_Logic";
@@ -223,6 +226,9 @@ namespace ATAS.Indicators
 
             if (candle.Time.Date != _currentDate)
                 ResetDay(candle.Time.Date);
+
+            if (BlockMacroEvents && MacroEventFilter.IsBlockedDate(_currentDate))
+                return;
 
             UpdateSpeedClock(bar, candle.Time);
 
