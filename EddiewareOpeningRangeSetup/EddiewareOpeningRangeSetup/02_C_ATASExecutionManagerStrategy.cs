@@ -131,6 +131,10 @@ namespace ATAS.Indicators
         [Display(Name = "Cierre forzado (HH:mm NY)", Order = 62)]
         public string HardCloseNy { get; set; } = "09:50";
 
+        [Display(Name = "Decision NO_SIGNAL despues de (HH:mm NY)", Order = 63,
+            Description = "El Strategy solo declara NO_SIGNAL pasada esta hora. Debe ser MAYOR que la ventana de senal del exporter (~09:41) y MENOR que el cierre, para no cortar antes de que el exporter publique la senal.")]
+        public string NoSignalDecisionNy { get; set; } = "09:43";
+
         // ── Risk Governor ──────────────────────────────────────────────────────
 
         [Display(Name = "Risk Governor activado", Order = 100,
@@ -414,8 +418,8 @@ namespace ATAS.Indicators
 
             var tod = ny.TimeOfDay;
             var entryFrom = ParseNy(EntryFromNy, new TimeSpan(9, 30, 0));
-            var entryTo   = ParseNy(EntryToNy,   new TimeSpan(9, 40, 0));
             var hardClose = ParseNy(HardCloseNy,  new TimeSpan(9, 50, 0));
+            var noSignalCut = ParseNy(NoSignalDecisionNy, new TimeSpan(9, 43, 0));
             var currentPrice = (decimal)candle.Close;
 
             // Shadow queue: track setup outcome (always, even when paused).
@@ -500,15 +504,14 @@ namespace ATAS.Indicators
             if (_enteredToday) return;
 
             if (tod < entryFrom) return;
-            if (tod > entryTo)
-            {
-                StrategySignalFile.MarkConsumed(_currentNyDate);
-                ExecutionSignalBus.MarkConsumed(_currentNyDate);
-                _enteredToday = true;
-                WriteSessionStatus("NO_SIGNAL");
-                return;
-            }
 
+            // Read the signal on EVERY bar from entryFrom onward. The exporter writes
+            // the file on the breakout bar; chart calc order, a one-bar confirmation
+            // lag, or a momentarily stale replay-target can surface it a bar after the
+            // Strategy's first look. Cutting the session on the entry-window clock
+            // stranded that signal as PENDING and mislabeled real A+ days as NO_SIGNAL
+            // (the 2024-08-05 bug). Never cut before the exporter's signal window is
+            // fully closed.
             var fileSig = StrategySignalFile.Read(_currentNyDate);
             var busSig  = ExecutionSignalBus.Peek(_currentNyDate);
 
@@ -518,7 +521,21 @@ namespace ATAS.Indicators
             var isAPlus   = fileSig?.IsAPlusSpeed ?? busSig?.IsAPlusSpeed ?? false;
             var barSignal = fileSig?.Bar          ?? busSig?.Bar          ?? -1;
 
-            if (side == "") return;
+            if (side == "")
+            {
+                // No signal yet. Keep waiting until the exporter's signal window has
+                // certainly closed (noSignalCut > exporter MaxSignalTime ~09:41), and
+                // only then declare NO_SIGNAL. noSignalCut stays below HardCloseNy so
+                // the terminal status is always emitted before Replay stops.
+                if (tod >= noSignalCut)
+                {
+                    StrategySignalFile.MarkConsumed(_currentNyDate);
+                    ExecutionSignalBus.MarkConsumed(_currentNyDate);
+                    _enteredToday = true;
+                    WriteSessionStatus("NO_SIGNAL");
+                }
+                return;
+            }
             if (OnlyAPlusSpeed && !isAPlus)
             {
                 StrategySignalFile.MarkConsumed(_currentNyDate);

@@ -387,6 +387,11 @@ def main():
                 last_tz = tz_offset
 
             SESSION_STATUS.unlink(missing_ok=True)
+            # Clear any leftover signal from a previous date. The exporter writes a
+            # fresh PENDING during this run; a stale PENDING from an earlier session
+            # would otherwise linger on disk (e.g. an unconsumed neighbor date) and
+            # confuse the handshake / per-date summary.
+            sig_file.unlink(missing_ok=True)
 
             _, date_failures = rs.run_replay_period(
                 [date],
