@@ -228,11 +228,13 @@ def _send_strategy_trade_message(date_iso, rows_before, trades_log, eta_line="")
         except OSError:
             status_parts = []
         if len(status_parts) >= 2 and status_parts[1] in {
+            "NO_SIGNAL",
             "SKIPPED_NOT_APLUS",
             "SKIPPED_REGIME",
             "SKIPPED_GOVERNOR",
         }:
             reason = {
+                "NO_SIGNAL": "Sin señal válida",
                 "SKIPPED_NOT_APLUS": "No A+ Speed",
                 "SKIPPED_REGIME": "Régimen pausado",
                 "SKIPPED_GOVERNOR": "Risk Governor",
@@ -338,7 +340,7 @@ def main():
         rs.RESULTS_FOLDER,
         "EW ORB NQ | ExecutionManager iniciado\n"
         f"{len(dates)} fechas en Replay X10 con la estrategia activa.\n"
-        "Telegram mostrará operaciones reales 3+2 y skips de los filtros.\n"
+        "Telegram mostrará operaciones reales 3+2, NO_SIGNAL y skips de los filtros.\n"
         "El tiempo restante real se calculará después de la primera fecha.",
     )
 
