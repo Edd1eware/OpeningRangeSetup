@@ -14,8 +14,10 @@ from openpyxl.utils import get_column_letter
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
 RESULTS_FOLDER = os.path.join(EXPORT_FOLDER, "trade_results_score")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+EDGE_NAUTILUS_DIR = os.path.join(RESULTS_FOLDER, "visual_tests", "orb_nq_databento_edge_nautilus")
+os.makedirs(EDGE_NAUTILUS_DIR, exist_ok=True)
 SCORE_WORKBOOK_NAME = "Score_indicator_results_from_root_folder"
-SCORE_WORKBOOK = os.path.join(BASE_DIR, f"{SCORE_WORKBOOK_NAME}.xlsx")
+SCORE_WORKBOOK = os.path.join(EDGE_NAUTILUS_DIR, f"{SCORE_WORKBOOK_NAME}.xlsx")
 FORMAT_TEMPLATE_WORKBOOK = os.path.join(BASE_DIR, "Score_indicator_results_updated_fallback.xlsx")
 RESULT_FILE_RE = re.compile(r"^score_trade_result_(\d{4})-(\d{2})-(\d{2})_NY\.csv$", re.IGNORECASE)
 
@@ -48,7 +50,7 @@ def discover_result_files():
 
 def get_new_workbook_copy_path():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return os.path.join(BASE_DIR, f"{SCORE_WORKBOOK_NAME}_{timestamp}.xlsx")
+    return os.path.join(EDGE_NAUTILUS_DIR, f"{SCORE_WORKBOOK_NAME}_{timestamp}.xlsx")
 
 
 def load_score_workbook_template():

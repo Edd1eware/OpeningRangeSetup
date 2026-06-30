@@ -2565,7 +2565,7 @@ namespace ATAS.Indicators
             TelegramTradeNotifier.QueueTerminalResult(
                 _exportFolder,
                 nyDate,
-                $"EW Opening Range | {nyDate:yyyy-MM-dd}\nTIME OVER | Sin trade");
+                $"EW ORB NQ | {nyDate:yyyy-MM-dd}\nTIME OVER");
         }
 
         private string BuildTelegramTradeMessage()
@@ -2573,20 +2573,16 @@ namespace ATAS.Indicators
             if (_trade == null)
                 return "";
 
+            var offset = _nyZone.GetUtcOffset(_trade.EntryDate);
+            var utcLabel = (int)offset.TotalHours == -4 ? "UTC-4 (EDT)" : "UTC-5 (EST)";
+            var pnl = TradeResultTicks() * TickValueUsd * TelegramContracts;
+
             return string.Join(
                 Environment.NewLine,
-                $"EW Opening Range | {_trade.EntryDate:yyyy-MM-dd}",
-                $"{_trade.Result} {_trade.Side} | {_trade.SignalSource} | S{_trade.Score}",
-                $"Entry {_trade.Entry:0.00} | SL {_trade.Sl:0.00} | TP {_trade.Tp:0.00}",
-                $"Resultado {FormatSignedTicks(TradeResultTicks())} ticks | MAE {_trade.MaeTicks:0} | MFE {_trade.MfeTicks:0}",
-                $"PnL {TradeResultTicks() * TickValueUsd * TelegramContracts:+$0;-$0} | {TelegramContracts} contratos (NQ ${TickValueUsd:0}/tick)",
-                $"Pullback MAE {_trade.LargestMaePullbackTicks:0.##}t ({_trade.NumberOfPullbacksDuringTrade}) | Pullup MFE {_trade.LargestMfePullupTicks:0.##}t ({_trade.NumberOfPullUpsDuringTrade})",
-                $"Vel max MAE {_trade.MaxSpeedMaeDuringTrade:0.####} t/s | MFE {_trade.MaxSpeedMfeDuringTrade:0.####} t/s",
-                $"CVD E{_trade.CvdExcellentCount} N{_trade.CvdNormalCount} A{_trade.CvdWarningCount} R{_trade.CvdRiskReversalCount} | Excelente {FormatCvdExcellentPercent()} | Neg {_trade.CvdNegativeEpisodes} | {FormatTelegramCvdWorstState()}",
-                $"Alarma dinamica {FormatBool(_trade.DynamicAlarmTriggered)} | PnL al disparo {FormatDynamicAlarmOpenPnl()}",
-                $"Criterio simultaneo: CVD no Excelente + (PB MAE actual >=15t o Vel MAE actual >=10t/s) | Motivo {FormatDynamicAlarmReason()}",
-                $"Entrada NY {_trade.EntryTimeNy:HH:mm:ss} | Salida NY {FormatExitTimeNy()}",
-                $"Duracion {FormatTradeDuration()} | {FormatTradeDurationMilliseconds()}");
+                $"EW ORB NQ | {_trade.EntryDate:yyyy-MM-dd}",
+                $"{_trade.Result} {_trade.Side} | {_trade.EntryTimeNy:HH:mm:ss} NY ({utcLabel})",
+                $"PnL: {pnl:+$0;-$0} | {TelegramContracts}c",
+                $"Duración: {FormatTradeDuration()}");
         }
 
         private void TrackRejectedScore(int bar, DateTime nyTime, ScoreTradeSignal score)

@@ -26,8 +26,10 @@ RES = rs.RESULTS_FOLDER
 TESTER = RES / "visual_tests" / "strategy_tester_results"
 TRADES_CSV = TESTER / "strategy_tester_trades.csv"
 LADDER_ROOT = RES / "visual_tests" / "sync_ladder_runs" / "sync_v11_ladder_001_resume"
-PNG = str(TESTER / "lucid_resultado.png")
-XLSX = str(TESTER / "EW_Strategy_Lucid_Resultado.xlsx")
+EDGE_NAUTILUS = RES / "visual_tests" / "orb_nq_databento_edge_nautilus"
+EDGE_NAUTILUS.mkdir(parents=True, exist_ok=True)
+PNG = str(EDGE_NAUTILUS / "lucid_resultado.png")
+XLSX = str(EDGE_NAUTILUS / "EW_Strategy_Lucid_Resultado.xlsx")
 
 TICK_USD = 5.0          # NQ
 TARGET = 6000.0

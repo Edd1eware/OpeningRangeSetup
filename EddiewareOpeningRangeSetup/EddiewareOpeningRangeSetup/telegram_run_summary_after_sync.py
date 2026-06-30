@@ -430,6 +430,18 @@ def _load_pnl_rows(pnl_log_path):
         return []
 
 
+def get_current_equity(pnl_log_path):
+    """Lee el último challenge_equity del CSV. Retorna float o None."""
+    rows = _load_pnl_rows(pnl_log_path)
+    if not rows:
+        return None
+    last = rows[-1]
+    try:
+        return float(last.get("challenge_equity") or last.get("equity") or "")
+    except (ValueError, TypeError):
+        return None
+
+
 def build_equity_chart(pnl_log_path, target=9000.0, output_path=None):
     """Genera PNG de equity curve. Retorna path o None si matplotlib no disponible."""
     try:
