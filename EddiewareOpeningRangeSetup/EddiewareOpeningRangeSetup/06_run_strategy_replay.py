@@ -203,7 +203,23 @@ def _operation_pnls(rows):
     return out
 
 
-def _send_strategy_trade_message(date_iso, rows_before, trades_log):
+def _format_remaining_hhmm(seconds):
+    """Real wall-clock time remaining, rounded up to the next minute."""
+    total_minutes = max(0, int((seconds + 59) // 60))
+    hours, minutes = divmod(total_minutes, 60)
+    return f"{hours:02d}:{minutes:02d}"
+
+
+def _eta_line(started_monotonic, processed, total):
+    """ETA based on actual wall-clock time consumed by this run."""
+    if processed <= 0:
+        return f"Progreso: 0/{total} | tiempo restante calculando..."
+    elapsed = max(0.0, time.monotonic() - started_monotonic)
+    remaining = (elapsed / processed) * max(0, total - processed)
+    return f"Progreso: {processed}/{total} | tiempo restante {_format_remaining_hhmm(remaining)}"
+
+
+def _send_strategy_trade_message(date_iso, rows_before, trades_log, eta_line=""):
     rows = _load_strategy_rows(trades_log)
     new_rows = [r for r in rows[rows_before:] if (r.get("fecha") or "") == date_iso]
     if not new_rows:
@@ -224,9 +240,11 @@ def _send_strategy_trade_message(date_iso, rows_before, trades_log):
             telegram.send_text(
                 rs.RESULTS_FOLDER,
                 f"EW ORB NQ | ExecutionManager\n{date_iso}\n"
-                f"{status_parts[1]} | {reason}",
+                f"{status_parts[1]} | {reason}"
+                + (f"\n{eta_line}" if eta_line else ""),
             )
-        return
+            return True
+        return False
 
     def number(row, key):
         try:
@@ -265,7 +283,10 @@ def _send_strategy_trade_message(date_iso, rows_before, trades_log):
         f"PnL operación: {money(operation_pnl)}",
         f"Balance: ${balance:,.0f}",
     ])
+    if eta_line:
+        lines.append(eta_line)
     telegram.send_text(rs.RESULTS_FOLDER, "\n".join(lines))
+    return True
 
 
 def main():
@@ -317,12 +338,13 @@ def main():
         rs.RESULTS_FOLDER,
         "EW ORB NQ | ExecutionManager iniciado\n"
         f"{len(dates)} fechas en Replay X10 con la estrategia activa.\n"
-        "Telegram mostrará solo operaciones reales 3+2.",
+        "Telegram mostrará operaciones reales 3+2 y skips de los filtros.\n"
+        "El tiempo restante real se calculará después de la primera fecha.",
     )
 
     sig_file = rs.RESULTS_FOLDER / "pending_strategy_signal.txt"
 
-    def _print_date_summary(date_str, idx, total):
+    def _print_date_summary(date_str, idx, total, eta_line=""):
         rows = []
         if trades_log.exists():
             try:
@@ -346,9 +368,12 @@ def main():
             f"trades={len(operations):>2} | wins={wins} losses={losses} WR={wr} | "
             f"PnL=${total_pnl:,.0f}"
         )
+        if eta_line:
+            print(f"           {eta_line}")
 
     failures = []
     last_tz = None
+    run_started_monotonic = time.monotonic()
     for i, date in enumerate(dates, 1):
         try:
             rows_before = len(_load_strategy_rows(trades_log))
@@ -374,7 +399,7 @@ def main():
             failures.extend(date_failures)
         except KeyboardInterrupt:
             telegram.send_text(rs.RESULTS_FOLDER, "EW ORB NQ | Recorrido cancelado (Ctrl+C).")
-            _print_date_summary(date, i, len(dates))
+            _print_date_summary(date, i, len(dates), _eta_line(run_started_monotonic, i - 1, len(dates)))
             raise
         except Exception as exc:
             telegram.send_text(
@@ -382,18 +407,19 @@ def main():
                 "EW ORB NQ | ERROR FATAL\n"
                 f"{exc}\nREINICIA ATAS/Replay, ventana al frente, y relanza el runner.",
             )
-            _print_date_summary(date, i, len(dates))
+            _print_date_summary(date, i, len(dates), _eta_line(run_started_monotonic, i - 1, len(dates)))
             raise
-        _send_strategy_trade_message(date, rows_before, trades_log)
-        _print_date_summary(date, i, len(dates))
+        eta_line = _eta_line(run_started_monotonic, i, len(dates))
+        sent_result = _send_strategy_trade_message(date, rows_before, trades_log, eta_line)
+        _print_date_summary(date, i, len(dates), eta_line)
 
-        if i % 25 == 0 and i < len(dates):
+        if not sent_result and (i == 1 or i % 10 == 0) and i < len(dates):
             current_rows = _load_strategy_rows(trades_log)
             cumulative = sum(float(r.get("pnl_usd") or 0) for r in current_rows)
             telegram.send_text(
                 rs.RESULTS_FOLDER,
                 "EW ORB NQ | ExecutionManager\n"
-                f"Progreso: {i}/{len(dates)} fechas\n"
+                f"{eta_line}\n"
                 f"Balance: ${telegram.INITIAL_BALANCE + cumulative:,.0f}",
             )
 
