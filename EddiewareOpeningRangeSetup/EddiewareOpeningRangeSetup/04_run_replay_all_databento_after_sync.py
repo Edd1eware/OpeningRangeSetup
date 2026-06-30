@@ -453,7 +453,6 @@ def main():
                     RESULTS_BASE, PNL_LOG, target=CHALLENGE_TARGET,
                     caption=f"Fase 1 X1+X10 completada — {len(validation_dates)} fechas",
                 )
-            telegram.clear_telegram_before_run(RESULTS_BASE)
             if stopped or args.x1x10_only:
                 _report_end(failures_all, X1X10_DIR)
                 return 1 if stopped else (0 if passed_all else 1)
@@ -461,6 +460,8 @@ def main():
         # --- FASE 2: X10 solo ---
         if bulk_dates and not args.x1x10_only:
             X10_ONLY_DIR.mkdir(parents=True, exist_ok=True)
+            if not args.compare_only:
+                telegram.clear_telegram_before_run(RESULTS_BASE)
             print(f"\n=== FASE 2: {len(bulk_dates)} fechas X10 only ===")
             passed, failures, stopped, total_processed = _run_batched(
                 bulk_dates, X10_ONLY_DIR, run_plan_x10, args,

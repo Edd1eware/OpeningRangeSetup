@@ -12,6 +12,7 @@ from urllib.request import Request, urlopen
 TELEGRAM_MESSAGE_IDS_FILE = "telegram_message_ids.txt"
 TELEGRAM_SENT_DATES_FILE = "telegram_sent_dates.txt"
 TELEGRAM_DELETE_BATCH_SIZE = 100
+INITIAL_BALANCE = 150_000.0
 
 
 def _parse_result_ticks(value):
@@ -431,13 +432,14 @@ def _load_pnl_rows(pnl_log_path):
 
 
 def get_current_equity(pnl_log_path):
-    """Lee el último challenge_equity del CSV. Retorna float o None."""
+    """Lee el último challenge_equity del CSV. Retorna balance absoluto (INITIAL_BALANCE + PnL) o None."""
     rows = _load_pnl_rows(pnl_log_path)
     if not rows:
         return None
     last = rows[-1]
     try:
-        return float(last.get("challenge_equity") or last.get("equity") or "")
+        raw = float(last.get("challenge_equity") or last.get("equity") or "")
+        return INITIAL_BALANCE + raw
     except (ValueError, TypeError):
         return None
 
@@ -460,7 +462,7 @@ def build_equity_chart(pnl_log_path, target=9000.0, output_path=None):
     for r in rows:
         raw = r.get("challenge_equity") or r.get("equity") or ""
         try:
-            equities.append(float(raw))
+            equities.append(float(raw) + INITIAL_BALANCE)
             dates_lbl.append(r.get("date", "")[:10])
         except (ValueError, TypeError):
             pass
@@ -468,14 +470,17 @@ def build_equity_chart(pnl_log_path, target=9000.0, output_path=None):
     if not equities:
         return None
 
+    target_abs = INITIAL_BALANCE + target
+    dd_floor = INITIAL_BALANCE - 4500
+
     xs = list(range(len(equities)))
     fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(xs, equities, color="#00BFFF", linewidth=1.5, label="Equity")
-    ax.axhline(y=0, color="#555", linewidth=0.8, linestyle="--")
-    ax.axhline(y=target, color="#00FF88", linewidth=1.0, linestyle="--", label=f"Target ${target:,.0f}")
-    ax.axhline(y=-4500, color="#FF4444", linewidth=1.0, linestyle="--", label="MaxDD -$4,500")
-    ax.fill_between(xs, equities, 0, where=[e >= 0 for e in equities], alpha=0.15, color="#00BFFF")
-    ax.fill_between(xs, equities, 0, where=[e < 0 for e in equities], alpha=0.15, color="#FF4444")
+    ax.plot(xs, equities, color="#00BFFF", linewidth=1.5, label="Balance")
+    ax.axhline(y=INITIAL_BALANCE, color="#555", linewidth=0.8, linestyle="--")
+    ax.axhline(y=target_abs, color="#00FF88", linewidth=1.0, linestyle="--", label=f"Target ${target_abs:,.0f}")
+    ax.axhline(y=dd_floor, color="#FF4444", linewidth=1.0, linestyle="--", label=f"MaxDD ${dd_floor:,.0f}")
+    ax.fill_between(xs, equities, INITIAL_BALANCE, where=[e >= INITIAL_BALANCE for e in equities], alpha=0.15, color="#00BFFF")
+    ax.fill_between(xs, equities, INITIAL_BALANCE, where=[e < INITIAL_BALANCE for e in equities], alpha=0.15, color="#FF4444")
 
     if len(dates_lbl) >= 2:
         tick_step = max(1, len(xs) // 8)
@@ -484,13 +489,14 @@ def build_equity_chart(pnl_log_path, target=9000.0, output_path=None):
         ax.set_xticklabels([dates_lbl[i] for i in tick_xs], rotation=30, ha="right", fontsize=7)
 
     last_eq = equities[-1]
+    gain = last_eq - INITIAL_BALANCE
     peak = max(equities)
     dd = max(0.0, peak - last_eq)
     ax.set_title(
-        f"Equity Curve — ${last_eq:+,.0f} | DD ${dd:,.0f} | {len(equities)} trades",
+        f"Balance: ${last_eq:,.0f} | Ganancia: ${gain:+,.0f} | DD ${dd:,.0f} | {len(equities)} trades",
         fontsize=10,
     )
-    ax.set_ylabel("PnL ($)")
+    ax.set_ylabel("Balance ($)")
     ax.legend(fontsize=8)
     ax.set_facecolor("#111111")
     fig.patch.set_facecolor("#1a1a1a")
@@ -528,14 +534,15 @@ def send_equity_chart(results_folder, pnl_log_path, target=9000.0, caption=""):
 
 
 def send_challenge_passed(results_folder, equity, target=9000.0, account_label="$150k"):
-    """Envia aviso de cuenta pasada. Idempotente via flag file."""
+    """Envia aviso de cuenta pasada. equity = balance absoluto (INITIAL_BALANCE + PnL). Idempotente via flag file."""
     flag = Path(results_folder) / "telegram_challenge_passed.flag"
     if flag.exists():
         return True
 
+    gain = equity - INITIAL_BALANCE
     msg = "\n".join([
         f"EW Opening Range | CHALLENGE PASADO ({account_label})",
-        f"Equity: ${equity:,.0f}  (Target: ${target:,.0f})",
+        f"Balance: ${equity:,.0f}  (Ganancia: +${gain:,.0f}  Target: +${target:,.0f})",
         "Ya pasaste la cuenta! Retira / siguiente challenge.",
     ])
     ok = send_text(results_folder, msg)
@@ -545,17 +552,18 @@ def send_challenge_passed(results_folder, equity, target=9000.0, account_label="
 
 
 def check_and_notify_challenge(results_folder, pnl_log_path, target=9000.0, account_label="$150k"):
-    """Lee equity del CSV; si >= target envia aviso + equity chart."""
+    """Lee equity del CSV; si PnL >= target envia aviso + equity chart."""
     rows = _load_pnl_rows(pnl_log_path)
     if not rows:
         return
     last = rows[-1]
     try:
-        equity = float(last.get("challenge_equity") or last.get("equity") or "0")
+        raw_pnl = float(last.get("challenge_equity") or last.get("equity") or "0")
     except (ValueError, TypeError):
         return
-    if equity >= target:
-        send_challenge_passed(results_folder, equity, target, account_label)
+    if raw_pnl >= target:
+        balance = INITIAL_BALANCE + raw_pnl
+        send_challenge_passed(results_folder, balance, target, account_label)
         send_equity_chart(
             results_folder,
             pnl_log_path,

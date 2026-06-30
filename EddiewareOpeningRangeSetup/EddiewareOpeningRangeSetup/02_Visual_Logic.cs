@@ -553,7 +553,22 @@ namespace ATAS.Indicators
             });
 
             if (!plan.IsValid)
-                return false;
+            {
+                const decimal fallbackTicks = 60m;
+                var fallbackEntry = score.EntryPrice;
+                plan = new TradeManagerTpSlBeExit.TradePlan
+                {
+                    Entry = fallbackEntry,
+                    Sl = executionSide == "BUY" ? fallbackEntry - fallbackTicks * tickSize : fallbackEntry + fallbackTicks * tickSize,
+                    Tp = executionSide == "BUY" ? fallbackEntry + fallbackTicks * tickSize : fallbackEntry - fallbackTicks * tickSize,
+                    SlTicks = fallbackTicks,
+                    TpTicks = fallbackTicks,
+                    IsAPlusSpeed = false,
+                    IsNormalSpeed = true,
+                    IsValid = true,
+                    Contracts = 1
+                };
+            }
             var entry = plan.Entry;
             var sl = plan.Sl;
             var tp = plan.Tp;
