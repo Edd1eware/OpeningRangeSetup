@@ -231,6 +231,7 @@ namespace ATAS.Indicators
 
             state.IsReady =
                 isEntryOutsideOpeningRange &&
+                state.RangeOk &&
                 (
                 isAPlusAbsorptionReady ||
                 isValueAcceptanceReady ||

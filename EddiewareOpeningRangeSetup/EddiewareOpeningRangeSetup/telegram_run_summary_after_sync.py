@@ -1,6 +1,9 @@
 import csv
+import io
 import json
 import os
+import tempfile
+from pathlib import Path
 from urllib.parse import urlencode
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -413,6 +416,140 @@ def send_progress_update(
     except Exception as exc:
         print(f"WARNING: no pude enviar progreso Telegram: {exc}")
         return False
+
+
+def _load_pnl_rows(pnl_log_path):
+    """Lee rows del CSV de trades. Retorna lista de dicts."""
+    try:
+        p = Path(pnl_log_path)
+        if not p.exists():
+            return []
+        with open(p, "r", encoding="utf-8-sig", newline="") as fh:
+            return list(csv.DictReader(fh))
+    except Exception:
+        return []
+
+
+def build_equity_chart(pnl_log_path, target=9000.0, output_path=None):
+    """Genera PNG de equity curve. Retorna path o None si matplotlib no disponible."""
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        return None
+
+    rows = _load_pnl_rows(pnl_log_path)
+    if not rows:
+        return None
+
+    equities = []
+    dates_lbl = []
+    for r in rows:
+        raw = r.get("challenge_equity") or r.get("equity") or ""
+        try:
+            equities.append(float(raw))
+            dates_lbl.append(r.get("date", "")[:10])
+        except (ValueError, TypeError):
+            pass
+
+    if not equities:
+        return None
+
+    xs = list(range(len(equities)))
+    fig, ax = plt.subplots(figsize=(10, 4))
+    ax.plot(xs, equities, color="#00BFFF", linewidth=1.5, label="Equity")
+    ax.axhline(y=0, color="#555", linewidth=0.8, linestyle="--")
+    ax.axhline(y=target, color="#00FF88", linewidth=1.0, linestyle="--", label=f"Target ${target:,.0f}")
+    ax.axhline(y=-4500, color="#FF4444", linewidth=1.0, linestyle="--", label="MaxDD -$4,500")
+    ax.fill_between(xs, equities, 0, where=[e >= 0 for e in equities], alpha=0.15, color="#00BFFF")
+    ax.fill_between(xs, equities, 0, where=[e < 0 for e in equities], alpha=0.15, color="#FF4444")
+
+    if len(dates_lbl) >= 2:
+        tick_step = max(1, len(xs) // 8)
+        tick_xs = xs[::tick_step]
+        ax.set_xticks(tick_xs)
+        ax.set_xticklabels([dates_lbl[i] for i in tick_xs], rotation=30, ha="right", fontsize=7)
+
+    last_eq = equities[-1]
+    peak = max(equities)
+    dd = max(0.0, peak - last_eq)
+    ax.set_title(
+        f"Equity Curve — ${last_eq:+,.0f} | DD ${dd:,.0f} | {len(equities)} trades",
+        fontsize=10,
+    )
+    ax.set_ylabel("PnL ($)")
+    ax.legend(fontsize=8)
+    ax.set_facecolor("#111111")
+    fig.patch.set_facecolor("#1a1a1a")
+    ax.tick_params(colors="#cccccc")
+    ax.yaxis.label.set_color("#cccccc")
+    ax.title.set_color("#ffffff")
+    for spine in ax.spines.values():
+        spine.set_edgecolor("#444444")
+    plt.tight_layout()
+
+    if output_path is None:
+        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        output_path = tmp.name
+        tmp.close()
+
+    fig.savefig(output_path, dpi=120, facecolor=fig.get_facecolor())
+    plt.close(fig)
+    return output_path
+
+
+def send_equity_chart(results_folder, pnl_log_path, target=9000.0, caption=""):
+    """Genera y envia equity curve chart a Telegram."""
+    chart_path = build_equity_chart(pnl_log_path, target=target)
+    if chart_path is None:
+        print("Telegram chart: sin datos o matplotlib no instalado.")
+        return False
+    try:
+        ok = send_photo(results_folder, chart_path, caption=caption)
+    finally:
+        try:
+            os.unlink(chart_path)
+        except OSError:
+            pass
+    return ok
+
+
+def send_challenge_passed(results_folder, equity, target=9000.0, account_label="$150k"):
+    """Envia aviso de cuenta pasada. Idempotente via flag file."""
+    flag = Path(results_folder) / "telegram_challenge_passed.flag"
+    if flag.exists():
+        return True
+
+    msg = "\n".join([
+        f"EW Opening Range | CHALLENGE PASADO ({account_label})",
+        f"Equity: ${equity:,.0f}  (Target: ${target:,.0f})",
+        "Ya pasaste la cuenta! Retira / siguiente challenge.",
+    ])
+    ok = send_text(results_folder, msg)
+    if ok:
+        flag.touch()
+    return ok
+
+
+def check_and_notify_challenge(results_folder, pnl_log_path, target=9000.0, account_label="$150k"):
+    """Lee equity del CSV; si >= target envia aviso + equity chart."""
+    rows = _load_pnl_rows(pnl_log_path)
+    if not rows:
+        return
+    last = rows[-1]
+    try:
+        equity = float(last.get("challenge_equity") or last.get("equity") or "0")
+    except (ValueError, TypeError):
+        return
+    if equity >= target:
+        send_challenge_passed(results_folder, equity, target, account_label)
+        send_equity_chart(
+            results_folder,
+            pnl_log_path,
+            target=target,
+            caption=f"Equity curve al pasar la cuenta — {len(rows)} trades",
+        )
 
 
 def send_run_summary(results_folder, dates, failed_dates=None, run_label="Replay"):

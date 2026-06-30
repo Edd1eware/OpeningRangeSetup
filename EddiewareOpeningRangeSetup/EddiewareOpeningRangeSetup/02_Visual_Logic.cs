@@ -82,7 +82,7 @@ namespace ATAS.Indicators
         public decimal MinOrRangeTicks { get; set; } = 40;
 
         [DisplayName("Max OR Range Ticks")]
-        public decimal MaxOrRangeTicks { get; set; } = 350;
+        public decimal MaxOrRangeTicks { get; set; } = 125;
 
         [DisplayName("Min Body Breakout Ticks")]
         public decimal MinBodyBreakoutTicks { get; set; } = 10;

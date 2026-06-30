@@ -23,37 +23,18 @@ namespace ATAS.Indicators
             new DateTime(2027,10, 27), new DateTime(2027,12,  8),
         };
 
-        // CPI release days — bls.gov schedule (08:30 ET)
-        // Update each December for the following year.
-        private static readonly HashSet<DateTime> CpiDates = new()
-        {
-            // 2025
-            new DateTime(2025, 1,15), new DateTime(2025, 2,12), new DateTime(2025, 3,12),
-            new DateTime(2025, 4,10), new DateTime(2025, 5,13), new DateTime(2025, 6,11),
-            new DateTime(2025, 7,15), new DateTime(2025, 8,12), new DateTime(2025, 9,11),
-            new DateTime(2025,10,14), new DateTime(2025,11,12), new DateTime(2025,12,10),
-            // 2026
-            new DateTime(2026, 1,14), new DateTime(2026, 2,11), new DateTime(2026, 3,11),
-            new DateTime(2026, 4, 9), new DateTime(2026, 5,13), new DateTime(2026, 6,10),
-            new DateTime(2026, 7,14), new DateTime(2026, 8,12), new DateTime(2026, 9,10),
-            new DateTime(2026,10,14), new DateTime(2026,11,11), new DateTime(2026,12, 9),
-            // 2027 — update in Dec 2026
-            new DateTime(2027, 1,13), new DateTime(2027, 2,10), new DateTime(2027, 3,10),
-            new DateTime(2027, 4, 9), new DateTime(2027, 5,12), new DateTime(2027, 6, 9),
-            new DateTime(2027, 7,14), new DateTime(2027, 8,11), new DateTime(2027, 9, 9),
-            new DateTime(2027,10,13), new DateTime(2027,11,10), new DateTime(2027,12, 8),
-        };
+        // CPI and NFP removed: Codex analysis showed they eliminate net-winning trades
+        // without adding protection. Rolling WR filter + Risk Governor cover those regimes.
+        // Only FOMC + Jackson Hole remain as calendar blockers.
 
         /// <summary>
         /// Returns true if <paramref name="date"/> is a high-impact macro event day:
-        /// FOMC, CPI, NFP (first Friday of month), or Jackson Hole week (last Mon-Fri of August).
+        /// FOMC or Jackson Hole week (last Mon-Fri of August).
         /// </summary>
         public static bool IsBlockedDate(DateTime date)
         {
             var d = date.Date;
             return FomcDates.Contains(d)
-                || CpiDates.Contains(d)
-                || IsNfpDay(d)
                 || IsJacksonHoleWeek(d);
         }
 
@@ -61,21 +42,9 @@ namespace ATAS.Indicators
         public static string BlockedReason(DateTime date)
         {
             var d = date.Date;
-            if (FomcDates.Contains(d))          return "FOMC";
-            if (CpiDates.Contains(d))           return "CPI";
-            if (IsNfpDay(d))                    return "NFP";
-            if (IsJacksonHoleWeek(d))           return "JACKSON HOLE";
+            if (FomcDates.Contains(d))   return "FOMC";
+            if (IsJacksonHoleWeek(d))    return "JACKSON HOLE";
             return "";
-        }
-
-        // NFP = first Friday of each calendar month.
-        private static bool IsNfpDay(DateTime date)
-        {
-            if (date.DayOfWeek != DayOfWeek.Friday)
-                return false;
-
-            // Is it the first Friday? day <= 7
-            return date.Day <= 7;
         }
 
         // Jackson Hole = last full Mon-Fri week of August.
