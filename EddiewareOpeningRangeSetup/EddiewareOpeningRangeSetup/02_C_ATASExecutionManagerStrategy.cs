@@ -69,10 +69,16 @@ namespace ATAS.Indicators
 
         private const string TraderLogDir =
             @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\visual_tests\strategy_tester_results";
+        private const string ReplayTargetDateFile =
+            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\target_trade_result_date.txt";
+        private const string ExecutionRunnerFlagFile =
+            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\execution_manager_telegram_mode.flag";
 
         private string ChallengeStateFile => Path.Combine(TraderLogDir, "challenge_equity.txt");
         private string RegimeStateFile    => Path.Combine(TraderLogDir, "regime_state.txt");
         private string SessionStatusFile  => Path.Combine(TraderLogDir, "strategy_session_status.txt");
+        private DateTime _targetFileWriteUtc = DateTime.MinValue;
+        private DateTime? _cachedReplayTargetDate;
 
         // ── Properties ────────────────────────────────────────────────────────
 
@@ -192,6 +198,44 @@ namespace ATAS.Indicators
         {
             var utc = t.Kind == DateTimeKind.Utc ? t : DateTime.SpecifyKind(t, DateTimeKind.Utc);
             return TimeZoneInfo.ConvertTimeFromUtc(utc, _nyZone);
+        }
+
+        private DateTime? GetActiveReplayTargetDate()
+        {
+            try
+            {
+                if (!File.Exists(ExecutionRunnerFlagFile))
+                    return null;
+
+                var rawPid = File.ReadAllText(ExecutionRunnerFlagFile).Trim();
+                if (!int.TryParse(rawPid, NumberStyles.Integer, CultureInfo.InvariantCulture, out var pid))
+                    return null;
+                try
+                {
+                    if (System.Diagnostics.Process.GetProcessById(pid).HasExited)
+                        return null;
+                }
+                catch { return null; }
+
+                if (!File.Exists(ReplayTargetDateFile))
+                    return null;
+                var writeUtc = File.GetLastWriteTimeUtc(ReplayTargetDateFile);
+                if (writeUtc != _targetFileWriteUtc)
+                {
+                    _targetFileWriteUtc = writeUtc;
+                    var raw = File.ReadAllText(ReplayTargetDateFile).Trim();
+                    _cachedReplayTargetDate = DateTime.TryParseExact(
+                        raw,
+                        "yyyy-MM-dd",
+                        CultureInfo.InvariantCulture,
+                        DateTimeStyles.None,
+                        out var parsed)
+                        ? parsed.Date
+                        : null;
+                }
+                return _cachedReplayTargetDate;
+            }
+            catch { return null; }
         }
 
         // ── Risk Governor: state persistence ──────────────────────────────────
@@ -329,11 +373,21 @@ namespace ATAS.Indicators
             EnsureRegimeStateLoaded();
 
             var candle = GetCandle(bar);
-            var ny = ToNy((DateTime)candle.Time);
+            var candleTime = (DateTime)candle.Time;
+            var replayTargetDate = GetActiveReplayTargetDate();
 
-            if (ny.Date != _currentNyDate)
+            // ATAS recalculates historical bars when a Replay date is loaded.
+            // Ignore bars from surrounding sessions; otherwise they can mark the
+            // target day NO_SIGNAL before its 09:30 candle even starts.
+            if (replayTargetDate.HasValue && candleTime.Date != replayTargetDate.Value)
+                return;
+
+            var ny = ToNy(candleTime);
+            var canonicalSessionDate = replayTargetDate ?? ny.Date;
+
+            if (canonicalSessionDate != _currentNyDate)
             {
-                _currentNyDate = ny.Date;
+                _currentNyDate = canonicalSessionDate;
                 _enteredToday = false;
                 _entryOrder = null;
                 _stopOrder = null;

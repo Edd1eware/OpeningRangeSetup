@@ -211,11 +211,20 @@ def _send_strategy_trade_message(date_iso, rows_before, trades_log):
             status_parts = SESSION_STATUS.read_text(encoding="utf-8-sig").strip().split(",")
         except OSError:
             status_parts = []
-        if len(status_parts) >= 2 and status_parts[1] in {"SKIPPED_REGIME", "SKIPPED_GOVERNOR"}:
-            reason = "Régimen pausado" if status_parts[1] == "SKIPPED_REGIME" else "Risk Governor"
+        if len(status_parts) >= 2 and status_parts[1] in {
+            "SKIPPED_NOT_APLUS",
+            "SKIPPED_REGIME",
+            "SKIPPED_GOVERNOR",
+        }:
+            reason = {
+                "SKIPPED_NOT_APLUS": "No A+ Speed",
+                "SKIPPED_REGIME": "Régimen pausado",
+                "SKIPPED_GOVERNOR": "Risk Governor",
+            }[status_parts[1]]
             telegram.send_text(
                 rs.RESULTS_FOLDER,
-                f"EW ORB NQ | ExecutionManager\n{date_iso}\nSIN TRADE | {reason}",
+                f"EW ORB NQ | ExecutionManager\n{date_iso}\n"
+                f"{status_parts[1]} | {reason}",
             )
         return
 
