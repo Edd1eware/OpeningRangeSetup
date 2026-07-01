@@ -1,20 +1,19 @@
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using ATAS.DataFeedsCore;
 using ATAS.Strategies;
 using ATAS.Strategies.Chart;
 
 namespace ATAS.Indicators
 {
-    // Execution Manager - Nucleo Robusto + Runner Split (Fase 4).
-    // Split: TpContracts salen a TP fijo; el resto corre con trailing 30t post-TP.
-    // Si EnableRunnerSplit=false: comportamiento original (trail activa al +N ticks).
+    // Execution Manager - Nucleo Robusto (Fase 4). Coloca las ordenes reales.
+    // Consume la senal A+ Speed publicada por el exporter (ExecutionSignalBus),
+    // entra a mercado, pone SL fijo y aplica TRAILING (activa al +N ticks, sale a
+    // pico - M ticks). Probar PRIMERO en Replay; en live coloca ordenes reales.
     [DisplayName("EW Opening Range Execution Manager (claude_version)")]
     public class EddiewareOpeningRangeSetup_claude_version : ChartStrategy
     {
@@ -23,29 +22,13 @@ namespace ATAS.Indicators
 
         private DateTime _currentNyDate = DateTime.MinValue;
         private bool _enteredToday;
-        private Order? _entryOrder;
         private Order? _stopOrder;
-        private Order? _tpLimitOrder;
-        private Order? _tpStopOrder;
         private string _openSide = "";
         private decimal _entryPrice;
         private decimal _peakFavorableTicks;
         private bool _trailActive;
-        private bool _bracketsPlaced;
-        private bool _bracketPlacementInProgress;
-        private bool _flattenInProgress;
-        private bool _cleanupInProgress;
 
-        // Runner split state
-        private bool _tpFilled;
-        private decimal _runnerPeakTicks;
-        private int _tpContractsActual;
-        private int _runnerContractsActual;
-        private decimal _entryFillVolume;
-        private decimal _entryFillNotional;
-        private decimal _tpFillVolume;
-
-        // Trade logging
+        // Trade logging via OnCalculate position monitoring (OnNewMyTrade unreliable in Replay).
         private bool _tradeOpen;
         private decimal _entryFillPrice;
         private string _entryFillSide = "";
@@ -53,12 +36,13 @@ namespace ATAS.Indicators
         private int _prevPosition;
         private int _activeContracts;
 
-        // Risk Governor
+        // Risk Governor: tracks challenge equity across ATAS restarts via file.
         private decimal _challengeEquity;
         private decimal _challengePeakEquity;
         private bool _stateLoaded;
 
-        // Rolling WR regime filter
+        // Rolling WR regime filter: shadow queue updated for every valid setup signal.
+        // Shadow outcome uses label thresholds TP=60t SL=30t, not the actual strategy SL.
         private readonly Queue<bool> _shadowQueue = new();
         private bool _regimePaused;
         private bool _setupActive;
@@ -69,75 +53,29 @@ namespace ATAS.Indicators
 
         private const string TraderLogDir =
             @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\visual_tests\strategy_tester_results";
-        private const string ReplayTargetDateFile =
-            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\target_trade_result_date.txt";
-        private const string ExecutionRunnerFlagFile =
-            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\execution_manager_telegram_mode.flag";
 
         private string ChallengeStateFile => Path.Combine(TraderLogDir, "challenge_equity.txt");
         private string RegimeStateFile    => Path.Combine(TraderLogDir, "regime_state.txt");
-        private string SessionStatusFile  => Path.Combine(TraderLogDir, "strategy_session_status.txt");
-        private DateTime _targetFileWriteUtc = DateTime.MinValue;
-        private DateTime? _cachedReplayTargetDate;
 
         // ── Properties ────────────────────────────────────────────────────────
 
         [Display(Name = "Auto-start (replay/demo/live)", Order = 5)]
         public bool AutoStart { get; set; } = true;
 
-        [Display(Name = "Contratos total", Order = 10)]
-        public int Contracts { get; set; } = 5;
+        [Display(Name = "Contratos", Order = 10)]
+        public int Contracts { get; set; } = 3;
 
         [Display(Name = "SL ticks", Order = 20)]
-        public decimal SlTicks { get; set; } = 30m;
+        public decimal SlTicks { get; set; } = 50;
 
-        // ── Runner Split (Lucid plan: 3 TP fijo + 2 trail 30t post-TP) ───────
+        [Display(Name = "Trailing activa (+ticks)", Order = 30)]
+        public decimal TrailActivateTicks { get; set; } = 20;
 
-        [Display(Name = "Runner split activo", Order = 25,
-            GroupName = "Runner Split",
-            Description = "true = TpContracts salen a TP fijo; resto corre con trail RunnerTrailTicks post-TP")]
-        public bool EnableRunnerSplit { get; set; } = true;
-
-        [Display(Name = "Contratos TP fijo", Order = 26,
-            GroupName = "Runner Split")]
-        public int TpContracts { get; set; } = 3;
-
-        [Display(Name = "TP ticks (fijo)", Order = 27,
-            GroupName = "Runner Split")]
-        public decimal TpTicks { get; set; } = 60m;
-
-        [Display(Name = "Runner trail ticks (post-TP)", Order = 28,
-            GroupName = "Runner Split",
-            Description = "Stop del runner = pico_post_TP - RunnerTrailTicks")]
-        public decimal RunnerTrailTicks { get; set; } = 30m;
-
-        // ── Trail original (solo si EnableRunnerSplit=false) ──────────────────
-
-        [Display(Name = "Trailing activa (+ticks) [sin split]", Order = 30)]
-        public decimal TrailActivateTicks { get; set; } = 20m;
-
-        [Display(Name = "Trailing distancia (ticks) [sin split]", Order = 40)]
-        public decimal TrailTicks { get; set; } = 10m;
+        [Display(Name = "Trailing distancia (ticks)", Order = 40)]
+        public decimal TrailTicks { get; set; } = 10;
 
         [Display(Name = "Solo A+ Speed", Order = 50)]
         public bool OnlyAPlusSpeed { get; set; } = true;
-
-        [Display(Name = "Usar snapshot canonico de senal", Order = 51,
-            Description = "true = entra usando el snapshot canonico pre-generado por el sync ladder (replay_sync_signals\\*.json), inmune al race del exporter (que en Replay publica la senal al cierre de sesion). false = solo canal live (file/bus).")]
-        public bool UseCanonicalSignal { get; set; } = true;
-
-        // Hard gate de rango OR (edge ANGOSTO). Decision de modelo del usuario
-        // (2026-06-30): el edge es A+ Speed + OR ESTRECHO (<=125t), derivado del
-        // analisis Lucid (va_width<=125). REEMPLAZA el filtro previo OR>=140 (ancho).
-        // El canal live ya viene filtrado por el exporter; este gate cubre la fuente
-        // canonica, que lee el snapshot crudo sin filtrar por rango.
-        [Display(Name = "OR rango min (ticks)", Order = 52,
-            Description = "Hard gate inferior. La senal se descarta si OrRangeTicks < este valor.")]
-        public decimal MinOrRangeTicks { get; set; } = 40;
-
-        [Display(Name = "OR rango max (ticks)", Order = 53,
-            Description = "Hard gate superior (edge angosto). La senal se descarta si OrRangeTicks > este valor. Default 125 = analisis Lucid va_width<=125.")]
-        public decimal MaxOrRangeTicks { get; set; } = 125;
 
         [Display(Name = "Entrada desde (HH:mm NY)", Order = 60)]
         public string EntryFromNy { get; set; } = "09:30";
@@ -148,11 +86,10 @@ namespace ATAS.Indicators
         [Display(Name = "Cierre forzado (HH:mm NY)", Order = 62)]
         public string HardCloseNy { get; set; } = "09:50";
 
-        [Display(Name = "Decision NO_SIGNAL despues de (HH:mm NY)", Order = 63,
-            Description = "El Strategy solo declara NO_SIGNAL pasada esta hora. Debe ser MAYOR que la ventana de senal del exporter (~09:41) y MENOR que el cierre, para no cortar antes de que el exporter publique la senal.")]
-        public string NoSignalDecisionNy { get; set; } = "09:43";
-
-        // ── Risk Governor ──────────────────────────────────────────────────────
+        // ── Risk Governor (Lucid $150k) ────────────────────────────────────
+        // Before each entry: contracts = clamp(floor((MaxDD - Reserve - DD) / LossPerContract), 0, Contracts)
+        // When result = 0: skip the trade and freeze. State persists across restarts via challenge_equity.txt.
+        // Formula (Codex, 2026-06-29): headroom = MaxDD - Reserve - current_DD; nc = floor((headroom-0.01) / loss1c)
 
         [Display(Name = "Risk Governor activado", Order = 100,
             GroupName = "Risk Governor")]
@@ -167,14 +104,19 @@ namespace ATAS.Indicators
         public decimal GovernorReserve { get; set; } = 300m;
 
         [Display(Name = "Perdida max por contrato ($) [0=auto]", Order = 103,
-            GroupName = "Risk Governor")]
+            GroupName = "Risk Governor",
+            Description = "0 = calcular automaticamente: (SlTicks+1)*$5 + $9 comision")]
         public decimal GovernorLossPerContract { get; set; } = 0m;
 
         [Display(Name = "Resetear equity del challenge", Order = 104,
-            GroupName = "Risk Governor")]
+            GroupName = "Risk Governor",
+            Description = "Activa para borrar el estado guardado y empezar challenge nuevo. Desactiva despues.")]
         public bool ResetChallengeState { get; set; } = false;
 
-        // ── Rolling WR Filter ──────────────────────────────────────────────────
+        // ── Rolling WR Regime Filter (Codex 2026-06-29, N=11, hysteresis 1/3) ─
+        // Shadow queue updated for EVERY valid setup signal, even when paused.
+        // Outcome uses label thresholds: TP=60t, SL=30t, timeout=09:50.
+        // State persists across ATAS restarts via regime_state.txt.
 
         [Display(Name = "Rolling WR Filter activado", Order = 200,
             GroupName = "Rolling WR Filter")]
@@ -192,6 +134,7 @@ namespace ATAS.Indicators
             GroupName = "Rolling WR Filter")]
         public int RollingWrResumeAt { get; set; } = 3;
 
+        // Shadow TP/SL thresholds (label thresholds, not strategy SL).
         [Display(Name = "Shadow TP ticks", Order = 204,
             GroupName = "Rolling WR Filter")]
         public decimal ShadowTpTicks { get; set; } = 60m;
@@ -200,20 +143,20 @@ namespace ATAS.Indicators
             GroupName = "Rolling WR Filter")]
         public decimal ShadowSlTicks { get; set; } = 30m;
 
-        // ── Internals ──────────────────────────────────────────────────────────
+        // ── Internals ──────────────────────────────────────────────────────
 
         private decimal Tick => InstrumentInfo?.TickSize ?? 0.25m;
 
+        // Loss per 1 contract: uses GovernorLossPerContract if set, else derives from SlTicks.
         private decimal EffectiveLossPerContract =>
             GovernorLossPerContract > 0
                 ? GovernorLossPerContract
                 : (SlTicks + 1m) * 5m + 9m;
 
-        private bool HasRunnerSplit =>
-            EnableRunnerSplit && _tpContractsActual > 0 && _runnerContractsActual > 0;
-
-        private static TimeSpan ParseNy(string value, TimeSpan fallback) =>
-            TimeSpan.TryParse(value, out var ts) ? ts : fallback;
+        private static TimeSpan ParseNy(string value, TimeSpan fallback)
+        {
+            return TimeSpan.TryParse(value, out var ts) ? ts : fallback;
+        }
 
         private DateTime ToNy(DateTime t)
         {
@@ -221,54 +164,19 @@ namespace ATAS.Indicators
             return TimeZoneInfo.ConvertTimeFromUtc(utc, _nyZone);
         }
 
-        private DateTime? GetActiveReplayTargetDate()
-        {
-            try
-            {
-                if (!File.Exists(ExecutionRunnerFlagFile))
-                    return null;
-
-                var rawPid = File.ReadAllText(ExecutionRunnerFlagFile).Trim();
-                if (!int.TryParse(rawPid, NumberStyles.Integer, CultureInfo.InvariantCulture, out var pid))
-                    return null;
-                try
-                {
-                    if (System.Diagnostics.Process.GetProcessById(pid).HasExited)
-                        return null;
-                }
-                catch { return null; }
-
-                if (!File.Exists(ReplayTargetDateFile))
-                    return null;
-                var writeUtc = File.GetLastWriteTimeUtc(ReplayTargetDateFile);
-                if (writeUtc != _targetFileWriteUtc)
-                {
-                    _targetFileWriteUtc = writeUtc;
-                    var raw = File.ReadAllText(ReplayTargetDateFile).Trim();
-                    _cachedReplayTargetDate = DateTime.TryParseExact(
-                        raw,
-                        "yyyy-MM-dd",
-                        CultureInfo.InvariantCulture,
-                        DateTimeStyles.None,
-                        out var parsed)
-                        ? parsed.Date
-                        : null;
-                }
-                return _cachedReplayTargetDate;
-            }
-            catch { return null; }
-        }
-
-        // ── Risk Governor: state persistence ──────────────────────────────────
+        // ── Risk Governor: state persistence ──────────────────────────────
 
         private void EnsureStateLoaded()
         {
             if (_stateLoaded) return;
             _stateLoaded = true;
+
             if (ResetChallengeState)
             {
-                _challengeEquity = 0m; _challengePeakEquity = 0m;
-                SaveChallengeState(); return;
+                _challengeEquity = 0m;
+                _challengePeakEquity = 0m;
+                SaveChallengeState();
+                return;
             }
             LoadChallengeState();
         }
@@ -282,7 +190,10 @@ namespace ATAS.Indicators
                 if (lines.Length >= 2
                     && decimal.TryParse(lines[0], NumberStyles.Any, CultureInfo.InvariantCulture, out var eq)
                     && decimal.TryParse(lines[1], NumberStyles.Any, CultureInfo.InvariantCulture, out var pk))
-                { _challengeEquity = eq; _challengePeakEquity = pk; }
+                {
+                    _challengeEquity = eq;
+                    _challengePeakEquity = pk;
+                }
             }
             catch { }
         }
@@ -304,7 +215,8 @@ namespace ATAS.Indicators
         private void UpdateChallengeEquity(decimal pnlUsd)
         {
             _challengeEquity += pnlUsd;
-            if (_challengeEquity > _challengePeakEquity) _challengePeakEquity = _challengeEquity;
+            if (_challengeEquity > _challengePeakEquity)
+                _challengePeakEquity = _challengeEquity;
             SaveChallengeState();
         }
 
@@ -317,7 +229,7 @@ namespace ATAS.Indicators
             return Math.Clamp(nc, 0, Contracts);
         }
 
-        // ── Rolling WR: state persistence ─────────────────────────────────────
+        // ── Rolling WR Regime Filter: state persistence ────────────────────
 
         private void EnsureRegimeStateLoaded()
         {
@@ -364,263 +276,191 @@ namespace ATAS.Indicators
             catch { }
         }
 
+        // Must be called BEFORE each potential trade. Updates pause/resume state.
         private bool RegimeAllowsTrade()
         {
             if (!UseRollingWrFilter) return true;
-            if (_shadowQueue.Count < RollingWrLookback) return true;
+            if (_shadowQueue.Count < RollingWrLookback) return true; // warm-up period
+
             var wins = _shadowQueue.Count(x => x);
-            if (!_regimePaused && wins <= RollingWrPauseAt) _regimePaused = true;
-            else if (_regimePaused && wins >= RollingWrResumeAt) _regimePaused = false;
+            if (!_regimePaused && wins <= RollingWrPauseAt)
+                _regimePaused = true;
+            else if (_regimePaused && wins >= RollingWrResumeAt)
+                _regimePaused = false;
+
             return !_regimePaused;
         }
 
+        // Called once per setup completion: adds outcome and persists state.
         private void RecordShadowOutcome(bool hitTp)
         {
             if (!UseRollingWrFilter) return;
             _shadowQueue.Enqueue(hitTp);
-            while (_shadowQueue.Count > RollingWrLookback) _shadowQueue.Dequeue();
+            while (_shadowQueue.Count > RollingWrLookback)
+                _shadowQueue.Dequeue();
             SaveRegimeState();
         }
 
-        // ── Main cycle ─────────────────────────────────────────────────────────
+        // ── Main cycle ────────────────────────────────────────────────────
 
         protected override void OnCalculate(int bar, decimal value)
         {
+            // Re-arranque automatico SIN latch. Parar/cambiar de fecha en el Replay
+            // deja la ChartStrategy en [Stopped]; sin esto la siguiente fecha no
+            // opera aunque se le de Play manual. Re-arranca en cada calculo si quedo
+            // detenida (no toca Error: ese requiere intervencion manual).
             if (AutoStart &&
                 State != StrategyStates.Started && State != StrategyStates.Error)
+            {
                 Start();
+            }
 
             EnsureStateLoaded();
             EnsureRegimeStateLoaded();
 
             var candle = GetCandle(bar);
-            var candleTime = (DateTime)candle.Time;
-            var replayTargetDate = GetActiveReplayTargetDate();
+            var ny = ToNy((DateTime)candle.Time);
 
-            // ATAS recalculates historical bars when a Replay date is loaded.
-            // Ignore bars from surrounding sessions; otherwise they can mark the
-            // target day NO_SIGNAL before its 09:30 candle even starts.
-            if (replayTargetDate.HasValue && candleTime.Date != replayTargetDate.Value)
-                return;
-
-            var ny = ToNy(candleTime);
-            var canonicalSessionDate = replayTargetDate ?? ny.Date;
-
-            if (canonicalSessionDate != _currentNyDate)
+            if (ny.Date != _currentNyDate)
             {
-                _currentNyDate = canonicalSessionDate;
+                _currentNyDate = ny.Date;
                 _enteredToday = false;
-                _entryOrder = null;
                 _stopOrder = null;
-                _tpLimitOrder = null;
-                _tpStopOrder = null;
                 _openSide = "";
                 _trailActive = false;
                 _peakFavorableTicks = 0;
                 _setupActive = false;
                 _setupSide = "";
                 _setupOutcomeRecorded = false;
-                _tpFilled = false;
-                _runnerPeakTicks = 0;
-                _tpContractsActual = 0;
-                _runnerContractsActual = 0;
-                _entryFillVolume = 0;
-                _entryFillNotional = 0;
-                _tpFillVolume = 0;
-                _bracketsPlaced = false;
-                _bracketPlacementInProgress = false;
-                _flattenInProgress = false;
-                _cleanupInProgress = false;
             }
 
             var tod = ny.TimeOfDay;
             var entryFrom = ParseNy(EntryFromNy, new TimeSpan(9, 30, 0));
-            var hardClose = ParseNy(HardCloseNy,  new TimeSpan(9, 50, 0));
-            var noSignalCut = ParseNy(NoSignalDecisionNy, new TimeSpan(9, 43, 0));
+            var entryTo = ParseNy(EntryToNy, new TimeSpan(9, 40, 0));
+            var hardClose = ParseNy(HardCloseNy, new TimeSpan(9, 50, 0));
             var currentPrice = (decimal)candle.Close;
 
-            // Shadow queue: track setup outcome (always, even when paused).
+            // Per-bar: track setup outcome for shadow queue (label TP=60t, SL=30t).
+            // Runs for both real trades and paused-day shadow monitoring.
             if (_setupActive && !_setupOutcomeRecorded)
             {
                 var isBuySetup = _setupSide == "BUY";
                 var move = isBuySetup
                     ? (currentPrice - _setupEntry) / Tick
                     : (_setupEntry - currentPrice) / Tick;
+
                 bool done = false, outcome = false;
-                if (move >= ShadowTpTicks)       { outcome = true; done = true; }
-                else if (move <= -ShadowSlTicks)  { done = true; }
-                else if (tod >= hardClose)         { done = true; }
-                if (done) { _setupOutcomeRecorded = true; _setupActive = false; RecordShadowOutcome(outcome); }
+                if (move >= ShadowTpTicks)  { outcome = true; done = true; }
+                else if (move <= -ShadowSlTicks) { done = true; }
+                else if (tod >= hardClose)   { done = true; }
+
+                if (done)
+                {
+                    _setupOutcomeRecorded = true;
+                    _setupActive = false;
+                    RecordShadowOutcome(outcome);
+                }
             }
 
-            // Position monitoring: detect closes.
+            // Detecta cierre de posicion en OnCalculate (OnNewMyTrade no dispara en Replay).
             int curPos = (int)CurrentPosition;
-            int curAbs = Math.Abs(curPos);
-            int prevAbs = Math.Abs(_prevPosition);
-
-            // The market entry is sent without exits. Build protection only after
-            // ATAS confirms the real fill/average price. OnNewMyTrade normally does
-            // this immediately; this is the Replay fallback.
-            if (_tradeOpen && !_bracketsPlaced && !_bracketPlacementInProgress
-                && curAbs >= _activeContracts)
-            {
-                if (_entryFillPrice <= 0)
-                    _entryFillPrice = AveragePrice > 0 ? AveragePrice : currentPrice;
-                TryPlaceInitialProtection();
-            }
-
-            // Detect TP fill (split mode): position drops from full to runner size.
-            // Use absolute position so BUY (+5 -> +2) and SELL (-5 -> -2) work.
-            // OnNewMyTrade is the primary path; this condition is the Replay fallback.
-            if (_tradeOpen && HasRunnerSplit && !_tpFilled
-                && _tpContractsActual > 0 && _runnerContractsActual > 0
-                && _tpLimitOrder != null
-                && _tpLimitOrder.State == OrderStates.Done
-                && !_tpLimitOrder.Canceled
-                && prevAbs > _runnerContractsActual
-                && curAbs == _runnerContractsActual)
-            {
-                ActivateRunnerAfterTp(
-                    _entryFillSide == "BUY"
-                        ? _entryFillPrice + TpTicks * Tick
-                        : _entryFillPrice - TpTicks * Tick);
-            }
-
-            // Detect full close (position → 0).
             if (_tradeOpen && _prevPosition != 0 && curPos == 0)
             {
                 var exitPrice = currentPrice;
-                int closedContracts = _tpFilled ? _runnerContractsActual : _activeContracts;
                 var tickMove = _entryFillSide == "BUY"
                     ? (exitPrice - _entryFillPrice) / Tick
                     : (_entryFillPrice - exitPrice) / Tick;
-                var pnlUsd = tickMove * closedContracts * 5m;
+                var pnlUsd = tickMove * _activeContracts * 5m;
                 UpdateChallengeEquity(pnlUsd);
-                var motivo = _tpFilled ? "RUNNER_CLOSE" : "CLOSE";
-                LogTrade(_entryFillTimeNy, _entryFillSide, _entryFillPrice, exitPrice, pnlUsd, motivo, closedContracts);
+                LogTrade(_entryFillTimeNy, _entryFillSide, _entryFillPrice, exitPrice, pnlUsd, "CLOSE");
                 _tradeOpen = false;
-                WriteSessionStatus("COMPLETE");
             }
             _prevPosition = curPos;
 
-            // In position: manage trailing or hard close.
+            // En posicion -> gestionar trailing. Cierre forzado al pasar el horario
+            // limite (margen para trades lentos), aunque no haya tocado SL/trailing.
             if (CurrentPosition != 0 && _openSide != "")
             {
-                if (tod >= hardClose) { Flatten(); return; }
+                if (tod >= hardClose)
+                {
+                    Flatten();
+                    return;
+                }
                 ManageTrailing(currentPrice);
                 return;
             }
 
-            // Position just closed: clean up.
+            // Posicion cerrada tras haber entrado -> limpiar el stop remanente.
             if (CurrentPosition == 0 && _openSide != "")
             {
-                CleanupAfterClose();
+                if (_stopOrder != null && _stopOrder.State == OrderStates.Active)
+                    CancelOrder(_stopOrder);
+                _stopOrder = null;
+                _openSide = "";
+                _trailActive = false;
                 return;
             }
 
-            if (_enteredToday) return;
+            if (_enteredToday)
+                return;
 
-            if (tod < entryFrom) return;
-
-            // PRIMARY source: canonical pre-existing signal snapshot from the sync
-            // ladder (replay_sync_signals\*.json). It already holds the causal breakout
-            // signal (bar/time/price) and exists BEFORE this run, so it is immune to the
-            // in-session race where the exporter only writes pending_strategy_signal.txt
-            // at session close (~09:50) in Replay -> too late, the 2024-08-05 NO_SIGNAL bug.
-            if (UseCanonicalSignal)
+            // Ventana de entrada: solo entra entre EntryFrom y EntryTo (NY).
+            if (tod < entryFrom)
+                return;                       // aun no abre la ventana; esperar
+            if (tod > entryTo)
             {
-                var canon = CanonicalSignalReader.Read(_currentNyDate);
-                if (canon != null && canon.Side != "")
-                {
-                    // Enter at the breakout, not at session open: wait until the replay
-                    // clock reaches the signal's minute, then send the market entry.
-                    if (canon.SignalTimeUtc != DateTime.MinValue)
-                    {
-                        var su = canon.SignalTimeUtc;
-                        var signalMinuteUtc = new DateTime(su.Year, su.Month, su.Day,
-                            su.Hour, su.Minute, 0, DateTimeKind.Utc);
-                        if (candleTime < signalMinuteUtc)
-                            return;
-                    }
-                    // Hard gate de rango OR (edge angosto <=125). El snapshot canonico
-                    // trae el OR crudo sin filtrar; descartar aqui las senales de rango
-                    // fuera de [Min,Max]. (08-05 con OR=325 -> SKIPPED_RANGE bajo <=125.)
-                    if (canon.OrRangeTicks < MinOrRangeTicks || canon.OrRangeTicks > MaxOrRangeTicks)
-                    {
-                        StrategySignalFile.MarkConsumed(_currentNyDate);
-                        ExecutionSignalBus.MarkConsumed(_currentNyDate);
-                        _enteredToday = true;
-                        WriteSessionStatus("SKIPPED_RANGE");
-                        return;
-                    }
-                    TryEnterFromSignal(canon.Side, canon.EntryPrice, canon.SlPrice,
-                        canon.IsAPlusSpeed, canon.Bar);
-                    return;
-                }
+                StrategySignalFile.MarkConsumed(_currentNyDate);
+                ExecutionSignalBus.MarkConsumed(_currentNyDate);
+                return;                       // ventana cerrada; no entrar tarde
             }
 
-            // FALLBACK: legacy live channel (exporter file + in-memory bus). Read every
-            // bar; only declare NO_SIGNAL once the exporter's signal window is certainly
-            // closed (noSignalCut > exporter MaxSignalTime ~09:41) and still below
-            // HardCloseNy so the terminal status is emitted before Replay stops.
+            // Lee senal del archivo (canal cross-DLL confiable).
             var fileSig = StrategySignalFile.Read(_currentNyDate);
             var busSig  = ExecutionSignalBus.Peek(_currentNyDate);
 
-            var side      = fileSig?.Side       ?? busSig?.Side       ?? "";
-            var entry     = fileSig?.EntryPrice  ?? busSig?.EntryPrice  ?? 0m;
-            var sl        = fileSig?.SlPrice      ?? busSig?.SlPrice      ?? 0m;
-            var isAPlus   = fileSig?.IsAPlusSpeed ?? busSig?.IsAPlusSpeed ?? false;
-            var barSignal = fileSig?.Bar          ?? busSig?.Bar          ?? -1;
+            var side       = fileSig?.Side       ?? busSig?.Side       ?? "";
+            var entry      = fileSig?.EntryPrice  ?? busSig?.EntryPrice  ?? 0m;
+            var sl         = fileSig?.SlPrice      ?? busSig?.SlPrice      ?? 0m;
+            var isAPlus    = fileSig?.IsAPlusSpeed ?? busSig?.IsAPlusSpeed ?? false;
+            var barSignal  = fileSig?.Bar          ?? busSig?.Bar          ?? -1;
 
             if (side == "")
-            {
-                if (tod >= noSignalCut)
-                {
-                    StrategySignalFile.MarkConsumed(_currentNyDate);
-                    ExecutionSignalBus.MarkConsumed(_currentNyDate);
-                    _enteredToday = true;
-                    WriteSessionStatus("NO_SIGNAL");
-                }
                 return;
-            }
-
-            TryEnterFromSignal(side, entry, sl, isAPlus, barSignal);
-        }
-
-        // Shared entry pipeline for both signal sources (canonical snapshot + live
-        // file/bus): A+ gate -> regime filter -> Risk Governor -> market entry.
-        private void TryEnterFromSignal(string side, decimal entry, decimal sl, bool isAPlus, int barSignal)
-        {
             if (OnlyAPlusSpeed && !isAPlus)
             {
                 StrategySignalFile.MarkConsumed(_currentNyDate);
                 ExecutionSignalBus.MarkConsumed(_currentNyDate);
-                _enteredToday = true;
-                WriteSessionStatus("SKIPPED_NOT_APLUS");
                 return;
             }
 
-            _setupActive = true; _setupSide = side; _setupEntry = entry; _setupOutcomeRecorded = false;
+            // Activate setup outcome tracking for this signal (shadow queue always updated).
+            _setupActive = true;
+            _setupSide = side;
+            _setupEntry = entry;
+            _setupOutcomeRecorded = false;
 
+            // Rolling WR regime filter: pause if recent WR is too low.
             if (!RegimeAllowsTrade())
             {
-                LogRegimePause(_currentNyDate, _shadowQueue.Count(x => x));
+                var wins = _shadowQueue.Count(x => x);
+                LogRegimePause(_currentNyDate, wins);
                 StrategySignalFile.MarkConsumed(_currentNyDate);
                 ExecutionSignalBus.MarkConsumed(_currentNyDate);
                 _enteredToday = true;
-                WriteSessionStatus("SKIPPED_REGIME");
-                return;
+                return; // shadow monitoring continues via _setupActive above
             }
 
+            // Risk Governor: calculate allowed contracts before entering.
+            // If 0 contracts allowed, skip and freeze today's session.
             var allowedContracts = AllowedContracts();
             if (allowedContracts == 0)
             {
-                LogGovernorSkip(_currentNyDate, Math.Max(0m, _challengePeakEquity - _challengeEquity));
+                var dd = Math.Max(0m, _challengePeakEquity - _challengeEquity);
+                LogGovernorSkip(_currentNyDate, dd);
                 StrategySignalFile.MarkConsumed(_currentNyDate);
                 ExecutionSignalBus.MarkConsumed(_currentNyDate);
                 _enteredToday = true;
-                WriteSessionStatus("SKIPPED_GOVERNOR");
-                return;
+                return; // shadow monitoring continues via _setupActive above
             }
 
             var synthetic = new ExecutionSignalBus.PendingEntry
@@ -639,410 +479,160 @@ namespace ATAS.Indicators
 
         private void EnterTrade(ExecutionSignalBus.PendingEntry e, int contracts)
         {
-            var isBuy   = e.Side == "BUY";
-            var entryDir = isBuy ? OrderDirections.Buy  : OrderDirections.Sell;
+            var isBuy = e.Side == "BUY";
+            var entryDir = isBuy ? OrderDirections.Buy : OrderDirections.Sell;
+            var exitDir = isBuy ? OrderDirections.Sell : OrderDirections.Buy;
 
             _activeContracts = contracts;
-            _openSide        = e.Side;
-            _entryPrice      = e.EntryPrice;
-            _enteredToday    = true;
-            _trailActive     = false;
+
+            // Set all state before OpenOrder (OnNewMyTrade unreliable in Replay).
+            _openSide = e.Side;
+            _entryPrice = e.EntryPrice;
+            _enteredToday = true;
+            _trailActive = false;
             _peakFavorableTicks = 0;
-            _tradeOpen       = true;
-            _entryFillPrice  = 0;
-            _entryFillSide   = e.Side;
-            _entryFillTimeNy = DateTime.MinValue;
-            _tpFilled        = false;
-            _runnerPeakTicks = 0;
-            _entryFillVolume = 0;
-            _entryFillNotional = 0;
-            _tpFillVolume = 0;
-            _bracketsPlaced = false;
-            _bracketPlacementInProgress = false;
-            _flattenInProgress = false;
-            _entryOrder = null;
-            _stopOrder = null;
-            _tpLimitOrder = null;
-            _tpStopOrder = null;
+            _tradeOpen = true;
+            _entryFillPrice = e.EntryPrice;
+            _entryFillSide = e.Side;
+            _entryFillTimeNy = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, _nyZone);
 
-            // Clamp the split to the contracts allowed by the Governor. If it
-            // allows <= TpContracts, every contract gets the fixed TP/SL and
-            // there is no runner; we never fall back to the old pre-TP trail.
-            if (EnableRunnerSplit && TpContracts > 0)
+            var entryOrder = new Order
             {
-                _tpContractsActual     = Math.Min(TpContracts, contracts);
-                _runnerContractsActual = Math.Max(0, contracts - _tpContractsActual);
-            }
-            else
-            {
-                _tpContractsActual     = 0;
-                _runnerContractsActual = 0;
-            }
-
-            // Send ONLY the market entry now. Protective orders are created
-            // after the real fill so TP/SL are not anchored to the signal price.
-            _entryOrder = new Order
-            {
-                Portfolio      = Portfolio,
-                Security       = Security,
-                Direction      = entryDir,
-                Type           = OrderTypes.Market,
+                Portfolio = Portfolio,
+                Security = Security,
+                Direction = entryDir,
+                Type = OrderTypes.Market,
                 QuantityToFill = contracts,
-                Comment        = $"EW_entry_{contracts}c"
+                Comment = $"EW_claude_entry_{contracts}c"
             };
-            OpenOrder(_entryOrder);
+            OpenOrder(entryOrder);
+
+            var slPrice = isBuy
+                ? e.EntryPrice - SlTicks * Tick
+                : e.EntryPrice + SlTicks * Tick;
+
+            var stop = new Order
+            {
+                Portfolio = Portfolio,
+                Security = Security,
+                Direction = exitDir,
+                Type = OrderTypes.Stop,
+                TriggerPrice = slPrice,
+                QuantityToFill = contracts,
+                Comment = "EW_claude_SL"
+            };
+            OpenOrder(stop);
+
+            _stopOrder = stop;
         }
 
-        private void TryPlaceInitialProtection()
+        private void Flatten()
         {
-            if (!_tradeOpen || _bracketsPlaced || _bracketPlacementInProgress)
-                return;
-            if (_entryFillPrice <= 0 || _activeContracts <= 0 || _openSide == "")
-                return;
-
-            _bracketPlacementInProgress = true;
-            try
+            // Cierra la posicion a mercado y cancela el stop remanente.
+            var qty = Math.Abs(CurrentPosition);
+            if (qty > 0)
             {
-                _entryPrice = _entryFillPrice;
-                var isBuy = _openSide == "BUY";
-                var exitDir = isBuy ? OrderDirections.Sell : OrderDirections.Buy;
-                var slPrice = isBuy
-                    ? _entryFillPrice - SlTicks * Tick
-                    : _entryFillPrice + SlTicks * Tick;
-
-                if (_tpContractsActual > 0)
+                var exitDir = _openSide == "BUY" ? OrderDirections.Sell : OrderDirections.Buy;
+                var close = new Order
                 {
-                    var tpPrice = isBuy
-                        ? _entryFillPrice + TpTicks * Tick
-                        : _entryFillPrice - TpTicks * Tick;
-                    var ocoGroup = $"EW_FIXED_{_currentNyDate:yyyyMMdd}_{Guid.NewGuid():N}";
-
-                    // Fixed portion: independent OCO pair. Its stop never covers
-                    // the runner contracts, so a delayed cancellation cannot
-                    // reverse the remaining position after TP.
-                    _tpStopOrder = new Order
-                    {
-                        Portfolio      = Portfolio,
-                        Security       = Security,
-                        Direction      = exitDir,
-                        Type           = OrderTypes.Stop,
-                        TriggerPrice   = slPrice,
-                        QuantityToFill = _tpContractsActual,
-                        OCOGroup       = ocoGroup,
-                        Comment        = "EW_TP_leg_SL"
-                    };
-                    OpenOrder(_tpStopOrder);
-
-                    _tpLimitOrder = new Order
-                    {
-                        Portfolio      = Portfolio,
-                        Security       = Security,
-                        Direction      = exitDir,
-                        Type           = OrderTypes.Limit,
-                        Price          = tpPrice,
-                        QuantityToFill = _tpContractsActual,
-                        OCOGroup       = ocoGroup,
-                        Comment        = $"EW_TP_{_tpContractsActual}c"
-                    };
-                    OpenOrder(_tpLimitOrder);
-                }
-
-                var stopContracts = EnableRunnerSplit
-                    ? _runnerContractsActual
-                    : _activeContracts;
-                if (stopContracts > 0)
-                {
-                    // Runner/non-split protection is separate from the fixed OCO.
-                    _stopOrder = new Order
-                    {
-                        Portfolio      = Portfolio,
-                        Security       = Security,
-                        Direction      = exitDir,
-                        Type           = OrderTypes.Stop,
-                        TriggerPrice   = slPrice,
-                        QuantityToFill = stopContracts,
-                        Comment        = _runnerContractsActual > 0 ? "EW_runner_initial_SL" : "EW_SL"
-                    };
-                    OpenOrder(_stopOrder);
-                }
-
-                _bracketsPlaced = true;
+                    Portfolio = Portfolio,
+                    Security = Security,
+                    Direction = exitDir,
+                    Type = OrderTypes.Market,
+                    QuantityToFill = qty,
+                    Comment = "EW_claude_hardclose"
+                };
+                OpenOrder(close);
             }
-            finally
-            {
-                _bracketPlacementInProgress = false;
-            }
-        }
-
-        private void ActivateRunnerAfterTp(decimal tpFillPrice)
-        {
-            if (_tpFilled || !HasRunnerSplit)
-                return;
-
-            _tpFilled = true;
-            _runnerPeakTicks = Math.Max(
-                TpTicks,
-                _entryFillSide == "BUY"
-                    ? (tpFillPrice - _entryFillPrice) / Tick
-                    : (_entryFillPrice - tpFillPrice) / Tick);
-
-            var tpTickMove = _entryFillSide == "BUY"
-                ? (tpFillPrice - _entryFillPrice) / Tick
-                : (_entryFillPrice - tpFillPrice) / Tick;
-            var tpPnl = _tpContractsActual * tpTickMove * 5m;
-            UpdateChallengeEquity(tpPnl);
-            LogTrade(_entryFillTimeNy, _entryFillSide, _entryFillPrice,
-                tpFillPrice, tpPnl, "TP_SPLIT", _tpContractsActual);
-
-            // The runner stop has protected only runner quantity since entry.
-            // Move that same order from -SL to peak-RunnerTrail; no cancel/open
-            // transition and therefore no over-sized stop race.
-            if (_stopOrder?.State != OrderStates.Active)
-                return;
-
-            var isBuy = _openSide == "BUY";
-            var newStop = isBuy
-                ? _entryFillPrice + (_runnerPeakTicks - RunnerTrailTicks) * Tick
-                : _entryFillPrice - (_runnerPeakTicks - RunnerTrailTicks) * Tick;
-            var modified = new Order
-            {
-                Portfolio      = Portfolio,
-                Security       = Security,
-                Direction      = _stopOrder.Direction,
-                Type           = OrderTypes.Stop,
-                TriggerPrice   = newStop,
-                QuantityToFill = _runnerContractsActual,
-                Comment        = "EW_runner_trail"
-            };
-            ModifyOrder(_stopOrder, modified);
-            _stopOrder = modified;
+            if (_stopOrder != null && _stopOrder.State == OrderStates.Active)
+                CancelOrder(_stopOrder);
+            _stopOrder = null;
+            _openSide = "";
+            _trailActive = false;
         }
 
         private void ManageTrailing(decimal currentPrice)
         {
-            if (_stopOrder == null || _entryPrice == 0) return;
+            if (_stopOrder == null || _entryPrice == 0)
+                return;
 
             var isBuy = _openSide == "BUY";
             var favorableTicks = isBuy
                 ? (currentPrice - _entryPrice) / Tick
                 : (_entryPrice - currentPrice) / Tick;
 
-            // In split/fixed-TP mode the initial SL must remain at -SlTicks until
-            // the fixed TP fills. Never apply the legacy +20/-10 trail pre-TP.
-            if (EnableRunnerSplit && !_tpFilled)
+            if (favorableTicks > _peakFavorableTicks)
+                _peakFavorableTicks = favorableTicks;
+
+            if (!_trailActive && _peakFavorableTicks >= TrailActivateTicks)
+                _trailActive = true;
+
+            if (!_trailActive)
                 return;
 
-            // Runner split mode: trail from peak post-TP (immediate, no activation threshold).
-            if (_tpFilled)
-            {
-                if (favorableTicks > _runnerPeakTicks) _runnerPeakTicks = favorableTicks;
-
-                var newStop = isBuy
-                    ? _entryPrice + (_runnerPeakTicks - RunnerTrailTicks) * Tick
-                    : _entryPrice - (_runnerPeakTicks - RunnerTrailTicks) * Tick;
-
-                var improves = isBuy
-                    ? newStop > _stopOrder.TriggerPrice
-                    : newStop < _stopOrder.TriggerPrice;
-                if (!improves) return;
-
-                var modified = new Order
-                {
-                    Portfolio      = Portfolio,
-                    Security       = Security,
-                    Direction      = _stopOrder.Direction,
-                    Type           = OrderTypes.Stop,
-                    TriggerPrice   = newStop,
-                    QuantityToFill = _runnerContractsActual,
-                    Comment        = "EW_runner_trail"
-                };
-                ModifyOrder(_stopOrder, modified);
-                _stopOrder = modified;
-                return;
-            }
-
-            // Original trail mode (no split or split not yet triggered).
-            if (favorableTicks > _peakFavorableTicks) _peakFavorableTicks = favorableTicks;
-            if (!_trailActive && _peakFavorableTicks >= TrailActivateTicks) _trailActive = true;
-            if (!_trailActive) return;
-
+            // Nuevo stop = pico - TrailTicks (solo se mueve a favor).
             var newStopPrice = isBuy
                 ? _entryPrice + (_peakFavorableTicks - TrailTicks) * Tick
                 : _entryPrice - (_peakFavorableTicks - TrailTicks) * Tick;
 
-            var imp = isBuy
+            var improves = isBuy
                 ? newStopPrice > _stopOrder.TriggerPrice
                 : newStopPrice < _stopOrder.TriggerPrice;
-            if (!imp) return;
+            if (!improves)
+                return;
 
-            var mod = new Order
+            var modified = new Order
             {
-                Portfolio      = Portfolio,
-                Security       = Security,
-                Direction      = _stopOrder.Direction,
-                Type           = OrderTypes.Stop,
-                TriggerPrice   = newStopPrice,
+                Portfolio = Portfolio,
+                Security = Security,
+                Direction = _stopOrder.Direction,
+                Type = OrderTypes.Stop,
+                TriggerPrice = newStopPrice,
                 QuantityToFill = _activeContracts,
-                Comment        = "EW_trail"
+                Comment = "EW_claude_trail"
             };
-            ModifyOrder(_stopOrder, mod);
-            _stopOrder = mod;
+            ModifyOrder(_stopOrder, modified);
+            _stopOrder = modified;
         }
 
-        private async void Flatten()
-        {
-            if (_flattenInProgress)
-                return;
-            _flattenInProgress = true;
-            try
-            {
-                // ATAS order operations are asynchronous. Confirm every protective
-                // cancellation before sending the market close so an old stop cannot
-                // fill afterwards and reverse the account position.
-                await CancelIfActiveAsync(_tpLimitOrder);
-                await CancelIfActiveAsync(_tpStopOrder);
-                await CancelIfActiveAsync(_stopOrder);
-
-                var qty = Math.Abs(CurrentPosition);
-                if (qty > 0)
-                {
-                    var exitDir = _openSide == "BUY" ? OrderDirections.Sell : OrderDirections.Buy;
-                    await OpenOrderAsync(new Order
-                    {
-                        Portfolio      = Portfolio,
-                        Security       = Security,
-                        Direction      = exitDir,
-                        Type           = OrderTypes.Market,
-                        QuantityToFill = qty,
-                        Comment        = "EW_hardclose"
-                    });
-                }
-
-                _stopOrder = null;
-                _tpLimitOrder = null;
-                _tpStopOrder = null;
-            }
-            finally
-            {
-                _flattenInProgress = false;
-            }
-        }
-
-        private async Task CancelIfActiveAsync(Order? order)
-        {
-            if (order?.State != OrderStates.Active)
-                return;
-            try
-            {
-                await CancelOrderAsync(order);
-            }
-            catch
-            {
-                // OCO may have canceled the peer between the state check and call.
-                if (order.State == OrderStates.Active)
-                    throw;
-            }
-        }
-
-        private async void CleanupAfterClose()
-        {
-            if (_cleanupInProgress)
-                return;
-            _cleanupInProgress = true;
-            try
-            {
-                await CancelIfActiveAsync(_tpLimitOrder);
-                await CancelIfActiveAsync(_tpStopOrder);
-                await CancelIfActiveAsync(_stopOrder);
-                _entryOrder = null;
-                _stopOrder = null;
-                _tpLimitOrder = null;
-                _tpStopOrder = null;
-                _openSide = "";
-                _trailActive = false;
-            }
-            finally
-            {
-                _cleanupInProgress = false;
-            }
-        }
-
+        // Override entry fill price with real fill if ATAS fires this (not reliable in Replay).
         protected override void OnNewMyTrade(MyTrade myTrade)
         {
             if (_openSide == "" || !_tradeOpen) return;
-
-            var comment = myTrade.Order?.Comment ?? "";
-            if (comment.StartsWith("EW_entry_", StringComparison.Ordinal))
-            {
-                _entryFillNotional += myTrade.Price * myTrade.Volume;
-                _entryFillVolume += myTrade.Volume;
-                if (_entryFillVolume > 0)
-                    _entryFillPrice = _entryFillNotional / _entryFillVolume;
-                _entryFillTimeNy = ToNy(myTrade.Time);
-
-                if (_entryFillVolume >= _activeContracts)
-                    TryPlaceInitialProtection();
-                return;
-            }
-
-            if (comment.StartsWith("EW_TP_", StringComparison.Ordinal)
-                && !comment.StartsWith("EW_TP_leg_SL", StringComparison.Ordinal))
-            {
-                _tpFillVolume += myTrade.Volume;
-                if (_tpFillVolume >= _tpContractsActual)
-                    ActivateRunnerAfterTp(myTrade.Price);
-            }
+            var fillDir = myTrade.OrderDirection == OrderDirections.Buy ? "BUY" : "SELL";
+            if (fillDir == _openSide)
+                _entryFillPrice = myTrade.Price; // refine with actual fill
         }
 
-        protected override void OnCurrentPositionChanged()
-        {
-            base.OnCurrentPositionChanged();
-            if (!_tradeOpen || _bracketsPlaced || Math.Abs(CurrentPosition) < _activeContracts)
-                return;
-
-            if (_entryFillPrice <= 0 && AveragePrice > 0)
-                _entryFillPrice = AveragePrice;
-            if (_entryFillTimeNy == DateTime.MinValue)
-                _entryFillTimeNy = ToNy(UtcTime);
-            TryPlaceInitialProtection();
-        }
-
-        private void LogTrade(DateTime ny, string side, decimal entryFill, decimal exitFill,
-            decimal pnlUsd, string exitComment, int contracts)
+        private void LogTrade(DateTime ny, string side, decimal entryFill, decimal exitFill, decimal pnlUsd, string exitComment)
         {
             try
             {
                 Directory.CreateDirectory(TraderLogDir);
                 var path = Path.Combine(TraderLogDir, "strategy_tester_trades.csv");
                 if (!File.Exists(path))
+                {
                     File.AppendAllText(path,
-                        "fecha,side,contratos,entry_fill,exit_fill,ticks,pnl_usd,exit_motivo," +
-                        "challenge_equity,challenge_dd,regime_paused,queue_wins,queue_size\n");
-
+                        "fecha,side,contratos,entry_fill,exit_fill,ticks,pnl_usd,exit_motivo,challenge_equity,challenge_dd,regime_paused,queue_wins,queue_size\n");
+                }
                 var tickMove = side == "BUY"
                     ? (exitFill - entryFill) / Tick
                     : (entryFill - exitFill) / Tick;
-                var dd   = Math.Max(0m, _challengePeakEquity - _challengeEquity);
+                var motivo = exitComment.Contains("hardclose") ? "HARD_CLOSE"
+                    : exitComment.Contains("trail") ? "TRAIL"
+                    : exitComment.Contains("SL") ? "SL" : "EXIT";
+                var dd = Math.Max(0m, _challengePeakEquity - _challengeEquity);
                 var wins = _shadowQueue.Count(x => x);
                 File.AppendAllText(path, string.Format(CultureInfo.InvariantCulture,
                     "{0:yyyy-MM-dd},{1},{2},{3},{4},{5:0.##},{6:0.00},{7},{8:0.00},{9:0.00},{10},{11},{12}\n",
-                    ny.Date, side, contracts, entryFill, exitFill,
-                    tickMove, pnlUsd, exitComment, _challengeEquity, dd,
+                    ny.Date, side, _activeContracts, entryFill, exitFill,
+                    tickMove, pnlUsd, motivo, _challengeEquity, dd,
                     _regimePaused, wins, _shadowQueue.Count));
             }
-            catch { }
-        }
-
-        private void WriteSessionStatus(string status)
-        {
-            try
+            catch
             {
-                Directory.CreateDirectory(TraderLogDir);
-                File.WriteAllText(
-                    SessionStatusFile,
-                    $"{_currentNyDate:yyyy-MM-dd},{status},{DateTime.UtcNow:O}");
+                // logging best-effort; no romper la estrategia.
             }
-            catch { }
         }
 
         private void LogGovernorSkip(DateTime nyDate, decimal currentDD)

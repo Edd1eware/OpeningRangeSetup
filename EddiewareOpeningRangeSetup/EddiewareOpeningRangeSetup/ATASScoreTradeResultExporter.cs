@@ -152,22 +152,10 @@ namespace ATAS.Indicators
         private decimal _lastProcessedMarketVolume;
         private decimal _lastProcessedMarketDelta;
         private string _lastProcessedMarketSource = "";
-        private const decimal InitialBalance = 150_000m;
-        private static readonly string _runningPnlFilePath = System.IO.Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "ATAS", "eddieware_running_pnl.txt");
-        private static decimal _runningPnl = LoadRunningPnl();
 
         public int MinScore { get; set; } = 5;
         public decimal MinOrRangeTicks { get; set; } = 40;
         public decimal MaxOrRangeTicks { get; set; } = 350;
-        // Gate de publicacion de senal al canal live (independiente del engine Min/Max
-        // de arriba, que solo escala el motor de score). Configurable para correr el A/B
-        // edge ANGOSTO (40..125) vs edge ANCHO (>=140) sobre las 500 sesiones SIN
-        // recompilar. Edge angosto: Min=40, Max=125. Edge ancho: Min=140, Max=100000.
-        // El edge angosto NO esta comprobado aun (ver A/B plan). Default = angosto.
-        public decimal SignalGateMinOrRangeTicks { get; set; } = 40;
-        public decimal SignalGateMaxOrRangeTicks { get; set; } = 125;
         public decimal MinBodyBreakoutTicks { get; set; } = 10;
         public decimal MinVolume { get; set; } = 800;
         public decimal MinAbsDelta { get; set; } = 25;
@@ -458,17 +446,11 @@ namespace ATAS.Indicators
             // (ATAS carga el mismo DLL desde Indicators/ y Strategies/ por separado,
             // lo que genera dos instancias estaticas distintas; el archivo es el
             // unico canal confiable entre ambas instancias).
-            // EXECUTION FILTER — edge ANGOSTO (user model decision 2026-06-30).
-            // El edge es A+ Speed + OR ESTRECHO: 40 <= OrRange <= 125 ticks (analisis
-            // Lucid va_width<=125). REEMPLAZA el filtro previo OR>=140 (rango ancho,
-            // WR 87.5% en 669 sesiones) que es MUTUAMENTE EXCLUYENTE con este.
-            // Riesgo asumido por el usuario: ver Cambio_EdgeHardGate_MaxOrRange125_*.md
-            // y Arquitectura_Modelo_ORB (alertas va_width vs orRange, look-ahead).
-            // OJO: fechas de rango ancho (p.ej. 2024-08-05, OR=325) YA NO disparan.
-            // Gate configurable (props SignalGateMin/MaxOrRangeTicks) para el A/B
-            // angosto<=125 vs ancho>=140 sin recompilar.
-            if (score.OrRangeTicks >= SignalGateMinOrRangeTicks &&
-                score.OrRangeTicks <= SignalGateMaxOrRangeTicks)
+            // FROZEN EXECUTION FILTER — DO NOT CHANGE.
+            // Validated on 669 DST sessions (2022-06-21 to 2026-06-28):
+            // A+ Speed alone: WR ~70% | A+ Speed + Range >= 140: WR 87.5%, PF 4.38, MaxDD $900.
+            // OR < 140 ticks = insufficient momentum; 12 SL eliminated vs only 11 TP lost.
+            if (score.OrRangeTicks >= 140m)
             {
                 ExecutionSignalBus.Publish(new ExecutionSignalBus.PendingEntry
                 {
@@ -2393,14 +2375,12 @@ namespace ATAS.Indicators
                 csvRow + Environment.NewLine
             );
 
-            if (_trade.Result != "OPEN" && !IsExecutionManagerTelegramMode())
+            if (_trade.Result != "OPEN")
             {
-                _runningPnl += TradeResultTicks() * TickValueUsd * TelegramContracts;
-                SaveRunningPnl(_runningPnl);
                 TelegramTradeNotifier.QueueTerminalResult(
                     _exportFolder,
                     nyDate,
-                    BuildTelegramTradeMessage(InitialBalance + _runningPnl));
+                    BuildTelegramTradeMessage());
             }
         }
 
@@ -2582,82 +2562,26 @@ namespace ATAS.Indicators
                 ) + Environment.NewLine
             );
 
-            if (!IsExecutionManagerTelegramMode())
-            {
-                TelegramTradeNotifier.QueueTerminalResult(
-                    _exportFolder,
-                    nyDate,
-                    $"EW ORB NQ | {nyDate:yyyy-MM-dd}\nTIME OVER");
-            }
+            TelegramTradeNotifier.QueueTerminalResult(
+                _exportFolder,
+                nyDate,
+                $"EW ORB NQ | {nyDate:yyyy-MM-dd}\nTIME OVER");
         }
 
-        private bool IsExecutionManagerTelegramMode()
-        {
-            var flagPath = Path.Combine(_exportFolder, "execution_manager_telegram_mode.flag");
-            try
-            {
-                if (!File.Exists(flagPath))
-                    return false;
-
-                var raw = File.ReadAllText(flagPath).Trim();
-                if (int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var pid))
-                {
-                    try
-                    {
-                        var process = System.Diagnostics.Process.GetProcessById(pid);
-                        if (!process.HasExited)
-                            return true;
-                    }
-                    catch { }
-                }
-
-                // Stale flag from a crashed Python runner: remove it so normal
-                // exporter notifications resume automatically.
-                File.Delete(flagPath);
-            }
-            catch { }
-            return false;
-        }
-
-        private static decimal LoadRunningPnl()
-        {
-            try
-            {
-                if (System.IO.File.Exists(_runningPnlFilePath))
-                    return decimal.Parse(
-                        System.IO.File.ReadAllText(_runningPnlFilePath).Trim(),
-                        System.Globalization.CultureInfo.InvariantCulture);
-            }
-            catch { }
-            return 0m;
-        }
-
-        private static void SaveRunningPnl(decimal value)
-        {
-            try
-            {
-                System.IO.File.WriteAllText(
-                    _runningPnlFilePath,
-                    value.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            }
-            catch { }
-        }
-
-        private string BuildTelegramTradeMessage(decimal balance)
+        private string BuildTelegramTradeMessage()
         {
             if (_trade == null)
                 return "";
 
             var offset = _nyZone.GetUtcOffset(_trade.EntryDate);
             var utcLabel = (int)offset.TotalHours == -4 ? "UTC-4 (EDT)" : "UTC-5 (EST)";
-            var resultTicks = TradeResultTicks();
-            var pnl = resultTicks * TickValueUsd * TelegramContracts;
+            var pnl = TradeResultTicks() * TickValueUsd * TelegramContracts;
 
             return string.Join(
                 Environment.NewLine,
                 $"EW ORB NQ | {_trade.EntryDate:yyyy-MM-dd}",
                 $"{_trade.Result} {_trade.Side} | {_trade.EntryTimeNy:HH:mm:ss} NY ({utcLabel})",
-                $"Balance: {balance:$#,##0} | PnL: {pnl:+$0;-$0} | CONTRATOS: {TelegramContracts} | TICKS: {resultTicks:+0;-0}t",
+                $"PnL: {pnl:+$0;-$0} | {TelegramContracts}c",
                 $"Duración: {FormatTradeDuration()}");
         }
 

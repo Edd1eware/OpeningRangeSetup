@@ -12,12 +12,6 @@ from urllib.request import Request, urlopen
 TELEGRAM_MESSAGE_IDS_FILE = "telegram_message_ids.txt"
 TELEGRAM_SENT_DATES_FILE = "telegram_sent_dates.txt"
 TELEGRAM_DELETE_BATCH_SIZE = 100
-INITIAL_BALANCE = 150_000.0
-
-# Must match _runningPnlFilePath in ATASScoreTradeResultExporter.cs
-RUNNING_PNL_FILE = os.path.join(
-    os.environ.get("APPDATA", ""), "ATAS", "eddieware_running_pnl.txt"
-)
 
 
 def _parse_result_ticks(value):
@@ -223,14 +217,6 @@ def clear_telegram_before_run(results_folder):
     with open(sent_dates_path, "w", encoding="utf-8"):
         pass
 
-    # Reset running PnL file so C# indicator starts accumulating from $0 again
-    try:
-        if os.path.exists(RUNNING_PNL_FILE):
-            os.remove(RUNNING_PNL_FILE)
-            print("Running PnL file reset.")
-    except Exception as exc:
-        print(f"WARNING: no pude borrar running PnL file: {exc}")
-
     # Una sola linea de resumen. Los no borrables (>48h en chat privado, limite
     # de la Bot API) se cuentan en `failed` pero NO detienen la corrida.
     print(
@@ -307,73 +293,6 @@ def send_text(results_folder, message):
         return True
     except Exception as exc:
         print(f"WARNING: no pude enviar alerta Telegram: {exc}")
-        return False
-
-
-def _get_bot_name(token):
-    """Returns the current visible bot name via getMy Name, or None on failure."""
-    try:
-        request = Request(
-            f"https://api.telegram.org/bot{token}/getMyName",
-            method="GET",
-        )
-        with urlopen(request, timeout=15) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-        if payload.get("ok"):
-            return (payload.get("result") or {}).get("name", "")
-    except Exception:
-        pass
-    return None
-
-
-def set_bot_name(results_folder, name="EW ORB NQ"):
-    """Actualiza el nombre visible del bot (elimina el legado 'Absorption Alert').
-
-    setMyName esta fuertemente rate-limited por Telegram (429 con retry_after de
-    horas). Se evita la llamada si el nombre ya coincide -> elimina ~99% de los 429.
-    """
-    credentials = _read_credentials(results_folder)
-    if credentials is None:
-        return False
-    token, _ = credentials
-    desired = name[:64]
-
-    # Skip the rate-limited write if the name is already correct.
-    current = _get_bot_name(token)
-    if current is not None and current == desired:
-        return True
-
-    body = urlencode({"name": desired}).encode("utf-8")
-    request = Request(
-        f"https://api.telegram.org/bot{token}/setMyName",
-        data=body,
-        method="POST",
-    )
-    try:
-        with urlopen(request, timeout=15) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-        if not payload.get("ok"):
-            print(f"Telegram setMyName no ok: {payload.get('description')}")
-            return False
-        return True
-    except HTTPError as exc:
-        if exc.code == 429:
-            retry_after = ""
-            try:
-                detail = json.loads(exc.read().decode("utf-8"))
-                retry_after = (detail.get("parameters") or {}).get("retry_after", "")
-            except Exception:
-                pass
-            print(
-                "WARNING: setMyName rate-limited (HTTP 429"
-                + (f", retry_after={retry_after}s" if retry_after != "" else "")
-                + "); nombre sin cambiar, la corrida continua."
-            )
-        else:
-            print(f"WARNING: no pude renombrar bot Telegram: HTTP Error {exc.code}")
-        return False
-    except Exception as exc:
-        print(f"WARNING: no pude renombrar bot Telegram: {exc}")
         return False
 
 
@@ -512,14 +431,13 @@ def _load_pnl_rows(pnl_log_path):
 
 
 def get_current_equity(pnl_log_path):
-    """Lee el último challenge_equity del CSV. Retorna balance absoluto (INITIAL_BALANCE + PnL) o None."""
+    """Lee el último challenge_equity del CSV. Retorna float o None."""
     rows = _load_pnl_rows(pnl_log_path)
     if not rows:
         return None
     last = rows[-1]
     try:
-        raw = float(last.get("challenge_equity") or last.get("equity") or "")
-        return INITIAL_BALANCE + raw
+        return float(last.get("challenge_equity") or last.get("equity") or "")
     except (ValueError, TypeError):
         return None
 
@@ -542,7 +460,7 @@ def build_equity_chart(pnl_log_path, target=9000.0, output_path=None):
     for r in rows:
         raw = r.get("challenge_equity") or r.get("equity") or ""
         try:
-            equities.append(float(raw) + INITIAL_BALANCE)
+            equities.append(float(raw))
             dates_lbl.append(r.get("date", "")[:10])
         except (ValueError, TypeError):
             pass
@@ -550,17 +468,14 @@ def build_equity_chart(pnl_log_path, target=9000.0, output_path=None):
     if not equities:
         return None
 
-    target_abs = INITIAL_BALANCE + target
-    dd_floor = INITIAL_BALANCE - 4500
-
     xs = list(range(len(equities)))
     fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(xs, equities, color="#00BFFF", linewidth=1.5, label="Balance")
-    ax.axhline(y=INITIAL_BALANCE, color="#555", linewidth=0.8, linestyle="--")
-    ax.axhline(y=target_abs, color="#00FF88", linewidth=1.0, linestyle="--", label=f"Target ${target_abs:,.0f}")
-    ax.axhline(y=dd_floor, color="#FF4444", linewidth=1.0, linestyle="--", label=f"MaxDD ${dd_floor:,.0f}")
-    ax.fill_between(xs, equities, INITIAL_BALANCE, where=[e >= INITIAL_BALANCE for e in equities], alpha=0.15, color="#00BFFF")
-    ax.fill_between(xs, equities, INITIAL_BALANCE, where=[e < INITIAL_BALANCE for e in equities], alpha=0.15, color="#FF4444")
+    ax.plot(xs, equities, color="#00BFFF", linewidth=1.5, label="Equity")
+    ax.axhline(y=0, color="#555", linewidth=0.8, linestyle="--")
+    ax.axhline(y=target, color="#00FF88", linewidth=1.0, linestyle="--", label=f"Target ${target:,.0f}")
+    ax.axhline(y=-4500, color="#FF4444", linewidth=1.0, linestyle="--", label="MaxDD -$4,500")
+    ax.fill_between(xs, equities, 0, where=[e >= 0 for e in equities], alpha=0.15, color="#00BFFF")
+    ax.fill_between(xs, equities, 0, where=[e < 0 for e in equities], alpha=0.15, color="#FF4444")
 
     if len(dates_lbl) >= 2:
         tick_step = max(1, len(xs) // 8)
@@ -569,14 +484,13 @@ def build_equity_chart(pnl_log_path, target=9000.0, output_path=None):
         ax.set_xticklabels([dates_lbl[i] for i in tick_xs], rotation=30, ha="right", fontsize=7)
 
     last_eq = equities[-1]
-    gain = last_eq - INITIAL_BALANCE
     peak = max(equities)
     dd = max(0.0, peak - last_eq)
     ax.set_title(
-        f"Balance: ${last_eq:,.0f} | Ganancia: ${gain:+,.0f} | DD ${dd:,.0f} | {len(equities)} trades",
+        f"Equity Curve — ${last_eq:+,.0f} | DD ${dd:,.0f} | {len(equities)} trades",
         fontsize=10,
     )
-    ax.set_ylabel("Balance ($)")
+    ax.set_ylabel("PnL ($)")
     ax.legend(fontsize=8)
     ax.set_facecolor("#111111")
     fig.patch.set_facecolor("#1a1a1a")
@@ -614,15 +528,14 @@ def send_equity_chart(results_folder, pnl_log_path, target=9000.0, caption=""):
 
 
 def send_challenge_passed(results_folder, equity, target=9000.0, account_label="$150k"):
-    """Envia aviso de cuenta pasada. equity = balance absoluto (INITIAL_BALANCE + PnL). Idempotente via flag file."""
+    """Envia aviso de cuenta pasada. Idempotente via flag file."""
     flag = Path(results_folder) / "telegram_challenge_passed.flag"
     if flag.exists():
         return True
 
-    gain = equity - INITIAL_BALANCE
     msg = "\n".join([
         f"EW Opening Range | CHALLENGE PASADO ({account_label})",
-        f"Balance: ${equity:,.0f}  (Ganancia: +${gain:,.0f}  Target: +${target:,.0f})",
+        f"Equity: ${equity:,.0f}  (Target: ${target:,.0f})",
         "Ya pasaste la cuenta! Retira / siguiente challenge.",
     ])
     ok = send_text(results_folder, msg)
@@ -632,18 +545,17 @@ def send_challenge_passed(results_folder, equity, target=9000.0, account_label="
 
 
 def check_and_notify_challenge(results_folder, pnl_log_path, target=9000.0, account_label="$150k"):
-    """Lee equity del CSV; si PnL >= target envia aviso + equity chart."""
+    """Lee equity del CSV; si >= target envia aviso + equity chart."""
     rows = _load_pnl_rows(pnl_log_path)
     if not rows:
         return
     last = rows[-1]
     try:
-        raw_pnl = float(last.get("challenge_equity") or last.get("equity") or "0")
+        equity = float(last.get("challenge_equity") or last.get("equity") or "0")
     except (ValueError, TypeError):
         return
-    if raw_pnl >= target:
-        balance = INITIAL_BALANCE + raw_pnl
-        send_challenge_passed(results_folder, balance, target, account_label)
+    if equity >= target:
+        send_challenge_passed(results_folder, equity, target, account_label)
         send_equity_chart(
             results_folder,
             pnl_log_path,

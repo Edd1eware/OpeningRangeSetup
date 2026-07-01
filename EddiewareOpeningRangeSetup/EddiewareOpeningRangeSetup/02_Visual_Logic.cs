@@ -553,22 +553,7 @@ namespace ATAS.Indicators
             });
 
             if (!plan.IsValid)
-            {
-                const decimal fallbackTicks = 60m;
-                var fallbackEntry = score.EntryPrice;
-                plan = new TradeManagerTpSlBeExit.TradePlan
-                {
-                    Entry = fallbackEntry,
-                    Sl = executionSide == "BUY" ? fallbackEntry - fallbackTicks * tickSize : fallbackEntry + fallbackTicks * tickSize,
-                    Tp = executionSide == "BUY" ? fallbackEntry + fallbackTicks * tickSize : fallbackEntry - fallbackTicks * tickSize,
-                    SlTicks = fallbackTicks,
-                    TpTicks = fallbackTicks,
-                    IsAPlusSpeed = false,
-                    IsNormalSpeed = true,
-                    IsValid = true,
-                    Contracts = 1
-                };
-            }
+                return false;
             var entry = plan.Entry;
             var sl = plan.Sl;
             var tp = plan.Tp;
@@ -630,7 +615,8 @@ namespace ATAS.Indicators
             _tradeIsAPlusSpeed = plan.IsAPlusSpeed;
             _tradeIsNormalSpeed = plan.IsNormalSpeed;
 
-            DrawInitialNormalScalpBracket(bar, plan);
+            if (_tradeIsNormalSpeed)
+                DrawInitialNormalScalpBracket(bar, plan);
 
             if (!_tradeIsAPlusSpeed)
                 DrawLiveExitSpeed(bar, candle, 0);

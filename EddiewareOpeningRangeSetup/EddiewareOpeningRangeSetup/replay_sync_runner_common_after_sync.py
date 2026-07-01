@@ -655,7 +655,6 @@ def run_one_date(
     replay_from_time=DEFAULT_REPLAY_FROM_TIME,
     replay_to_time=DEFAULT_REPLAY_TO_TIME,
     keep_global_result=True,
-    post_result_waiter=None,
 ):
     source_result = result_path(date_iso)
     source_timeline = timeline_path(date_iso)
@@ -737,22 +736,6 @@ def run_one_date(
                     restore_file_state(saved_result)
                     restore_file_state(saved_timeline)
                 return False, "TIMEOUT_OR_NO_CSV"
-
-            # Some consumers (ExecutionManager runner) continue managing a live
-            # position after the exporter has already written its terminal CSV.
-            # Let them confirm their own terminal state before Replay is stopped.
-            if post_result_waiter is not None:
-                waiter_ok, waiter_reason = post_result_waiter(
-                    date_iso,
-                    started_at,
-                    timeout_seconds,
-                    stop_button,
-                )
-                if not waiter_ok:
-                    if keep_global_result:
-                        restore_file_state(saved_result)
-                        restore_file_state(saved_timeline)
-                    return False, waiter_reason or "POST_RESULT_NOT_COMPLETE"
 
             copy_with_retry(source_result, destination_result)
             if source_timeline.exists():
@@ -1019,7 +1002,6 @@ def run_replay_period(
     replay_to_time=DEFAULT_REPLAY_TO_TIME,
     progress_meta=None,
     progress_every=10,
-    post_result_waiter=None,
 ):
     output_folder.mkdir(parents=True, exist_ok=True)
 
@@ -1095,7 +1077,6 @@ def run_replay_period(
                             replay_from_time=replay_from_time,
                             replay_to_time=replay_to_time,
                             keep_global_result=True,
-                            post_result_waiter=post_result_waiter,
                         )
                     except KeyboardInterrupt:
                         raise
