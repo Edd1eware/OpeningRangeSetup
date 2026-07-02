@@ -1,4 +1,4 @@
-"""Search causal ORB feature combinations with exact MBO labels.
+"""Search book-inspired causal ORB/MBO features with exact MBO labels.
 
 The search has two deliberately different views:
 
@@ -40,7 +40,7 @@ LABELS = Path(
     r"C:\Users\k_99_\Documents\Indicador ATAS"
     r"\outputs\edge_validation_20260630\tick_labels_486.csv"
 )
-OUT_DIR = BASE / "outputs" / "feature_combo_search_20260701"
+OUT_DIR = BASE / "outputs" / "newbooks_feature_combo_search_20260701"
 
 TARGET_WR = 0.80
 TARGET_PF = 4.0
@@ -79,10 +79,12 @@ def load_matrix() -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
     con = duckdb.connect(str(DB_PATH), read_only=True)
     bf = con.execute("SELECT * FROM breakout_features ORDER BY session_date").fetchdf()
     of = con.execute("SELECT * FROM orderflow_features ORDER BY session_date").fetchdf()
+    book = con.execute("SELECT * FROM book_profile_features ORDER BY session_date").fetchdf()
     con.close()
 
     bf["date"] = pd.to_datetime(bf.pop("session_date"))
     of["date"] = pd.to_datetime(of.pop("session_date"))
+    book["date"] = pd.to_datetime(book.pop("session_date"))
     with FULL_MBO.open("rb") as handle:
         old = pd.DataFrame(pickle.load(handle))
     old["date"] = pd.to_datetime(old["date"])
@@ -94,6 +96,7 @@ def load_matrix() -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
 
     base = (
         bf.merge(of, on="date", suffixes=("_bf", "_of"), validate="one_to_one")
+        .merge(book, on="date", validate="one_to_one")
         .merge(old, on="date", validate="one_to_one")
         .merge(labels[["date", "y_fade_tick", "y_cont_tick"]], on="date", validate="one_to_one")
         .sort_values("date")
@@ -122,43 +125,6 @@ def load_matrix() -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
         "strongest_iceberg_order_id", "strongest_iceberg_price",
         # Controls/transport artifacts are not trading signals.
         "bad_ts_records", "bad_book_records", "aggregated_book_records", "mbo_records",
-        # Added after the 01/07/2026 search.  Keep this historical script on
-        # its frozen 95-feature universe so the published result reproduces.
-        "aggr_imbalance_acceleration", "buy_impact_ticks_per_1000",
-        "delta_price_alignment", "directional_efficiency",
-        "edge_break_aggr_imbalance", "edge_break_trade_volume",
-        "edge_break_volume_share", "edge_close_distance_ticks",
-        "edge_excursion_ticks", "edge_rejection_ticks",
-        "extreme_buy_aggr_volume", "extreme_sell_aggr_volume",
-        "first_quarter_aggr_imbalance", "first_quarter_net_ticks",
-        "last_quarter_aggr_imbalance", "last_quarter_net_ticks",
-        "max_buy_run_count", "max_buy_run_volume", "max_sell_run_count",
-        "max_sell_run_volume", "open_auction_score", "open_cross_count",
-        "open_drive_flow_alignment", "open_drive_price_alignment",
-        "open_drive_score", "open_rejection_reverse_ticks",
-        "sell_impact_ticks_per_1000", "signed_impact_ticks_per_1000",
-        "trade_sign_entropy", "trade_sign_flip_rate", "trade_sign_persistence",
-        "trapped_aggressor_imbalance", "trapped_buy_aggr_volume",
-        "trapped_sell_aggr_volume",
-        # Added from the second (Bookmap/HFT/Forthmann) library audit.
-        "book_add_ask_qty", "book_add_bid_qty", "book_cancel_add_ratio",
-        "book_cancel_ask_qty", "book_cancel_bid_qty", "book_flip_count",
-        "book_message_rate_per_s", "breakout_exhaustion_ratio",
-        "breakout_extreme_aggr_volume", "breakout_inner_aggr_volume",
-        "edge_book_add_ask_qty", "edge_book_add_bid_qty",
-        "edge_book_cancel_ask_qty", "edge_book_cancel_bid_qty",
-        "edge_liquidity_breakout_alignment", "edge_liquidity_imbalance",
-        "last_quarter_volume_ratio", "liquidity_breakout_alignment",
-        "liquidity_impulse", "liquidity_impulse_imbalance",
-        "max_book_messages_per_100ms", "max_trades_per_100ms",
-        "spoof_like_count", "spoof_like_qty", "spoof_like_bid_qty",
-        "spoof_like_ask_qty", "spoof_like_imbalance",
-        "spoof_like_breakout_alignment", "sweep_breakout_alignment",
-        "sweep_buy_volume", "sweep_count", "sweep_imbalance",
-        "sweep_sell_volume", "sweep_volume", "trade_rate_per_s",
-        "trade_sign_ema_128", "trade_sign_ema_128_alignment",
-        "trade_sign_ema_32", "trade_sign_ema_32_alignment",
-        "trade_sign_ema_8", "trade_sign_ema_8_alignment", "vpin_20",
     }
     for column in of.columns:
         if column in {"date"} | of_exclude:
@@ -169,6 +135,15 @@ def load_matrix() -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
     side = base["strongest_iceberg_side"].fillna("").astype(str)
     features["of_strongest_iceberg_bid"] = side.eq("B").astype(float)
     features["of_strongest_iceberg_ask"] = side.eq("A").astype(float)
+
+    # Prior-session Market Profile and locked-OR auction context.  Every
+    # previous-session reference is built with SQL LAG in book_profile_features.
+    for column in book.columns:
+        if column == "date":
+            continue
+        source = base[column]
+        if pd.api.types.is_numeric_dtype(source):
+            features[f"book_{column}"] = pd.to_numeric(source, errors="coerce")
 
     # Older 09:30-09:31 MBO features add a distinct pre-breakout window. The
     # historical aggressor sign was inverted, so expose the corrected sign.

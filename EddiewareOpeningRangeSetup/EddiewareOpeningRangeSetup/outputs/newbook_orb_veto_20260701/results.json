@@ -1,0 +1,84 @@
+{
+  "definition": {
+    "CONT": "current router CONT and sweep_breakout_alignment > 0",
+    "FADE": "current router FADE and breakout_exhaustion_ratio < 1"
+  },
+  "router_all": {
+    "n": 80,
+    "wins": 59,
+    "losses": 21,
+    "wr": 0.7375,
+    "pf_gross": 2.8095238095238093,
+    "pf_after_2t": 2.4583333333333335
+  },
+  "selected_all": {
+    "n": 60,
+    "wins": 46,
+    "losses": 14,
+    "wr": 0.7666666666666667,
+    "pf_gross": 3.2857142857142856,
+    "pf_after_2t": 2.875
+  },
+  "selected_train_first_340_sessions": {
+    "n": 43,
+    "wins": 33,
+    "losses": 10,
+    "wr": 0.7674418604651163,
+    "pf_gross": 3.3,
+    "pf_after_2t": 2.8875
+  },
+  "selected_holdout_last_146_sessions": {
+    "n": 17,
+    "wins": 13,
+    "losses": 4,
+    "wr": 0.7647058823529411,
+    "pf_gross": 3.25,
+    "pf_after_2t": 2.84375
+  },
+  "weekly": {
+    "weeks": 101,
+    "trades_per_week": 0.594059405940594,
+    "active_weeks": 49,
+    "zero_weeks": 52,
+    "median": 0.0,
+    "max": 3
+  },
+  "branches": [
+    {
+      "branch": "big_trades_fade",
+      "n": 10,
+      "wins": 9,
+      "losses": 1,
+      "wr": 0.9,
+      "pf_gross": 9.0,
+      "pf_after_2t": 7.875
+    },
+    {
+      "branch": "medium_cont",
+      "n": 13,
+      "wins": 11,
+      "losses": 2,
+      "wr": 0.8461538461538461,
+      "pf_gross": 5.5,
+      "pf_after_2t": 4.8125
+    },
+    {
+      "branch": "narrow_cont",
+      "n": 13,
+      "wins": 9,
+      "losses": 4,
+      "wr": 0.6923076923076923,
+      "pf_gross": 2.25,
+      "pf_after_2t": 1.96875
+    },
+    {
+      "branch": "narrow_fade",
+      "n": 24,
+      "wins": 17,
+      "losses": 7,
+      "wr": 0.7083333333333334,
+      "pf_gross": 2.4285714285714284,
+      "pf_after_2t": 2.125
+    }
+  ]
+}
