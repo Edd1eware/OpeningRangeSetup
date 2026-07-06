@@ -39,6 +39,8 @@ namespace ATAS.Indicators
         private string _lastBarNy = "";
         private readonly List<SlideSnap> _slideSnaps = new();
         private readonly HashSet<int> _slidBars = new();
+        // TEMP data-availability probe (pre-open / overnight bars + footprint levels).
+        private int _preBars, _preLvl, _onBars, _onLvl, _pdBars, _pdLvl;
 
         // ── Parameters ──────────────────────────────────────────────────
         // 1 = alineado con el exporter (OR = candle de apertura 09:30, 1 min). Con 5
@@ -96,6 +98,7 @@ namespace ATAS.Indicators
             _lastBarNy = "";
             _slideSnaps.Clear();
             _slidBars.Clear();
+            _preBars = _preLvl = _onBars = _onLvl = _pdBars = _pdLvl = 0;
         }
 
         protected override void OnCalculate(int bar, decimal value)
@@ -141,6 +144,18 @@ namespace ATAS.Indicators
             }
 
             var tod = ny.TimeOfDay;
+
+            // TEMP probe: does the featsweep replay actually load pre-open / overnight /
+            // prev-RTH bars, and do they carry footprint price levels? Counts land in the
+            // status file. Remove once the profile-architecture data source is confirmed.
+            {
+                int lvls = 0;
+                try { foreach (var _l in candle.GetAllPriceLevels()) lvls++; } catch { }
+                if (tod >= new TimeSpan(8, 30, 0) && tod < _rthStart) { _preBars++; if (lvls > 0) _preLvl++; }
+                else if (tod >= new TimeSpan(18, 0, 0) || tod < new TimeSpan(8, 30, 0)) { _onBars++; if (lvls > 0) _onLvl++; }
+                else if (tod >= _rthStart && tod < _rthEnd) { _pdBars++; if (lvls > 0) _pdLvl++; }
+            }
+
             if (tod < _rthStart || tod >= _rthEnd)
             {
                 if (tod >= _rthEnd) FinalizePending();
@@ -264,7 +279,10 @@ namespace ATAS.Indicators
                     $"pending_active={(_pending != null ? 1 : 0)}\n" +
                     $"wrote_features_row={(_wroteRow ? 1 : 0)}\n" +
                     $"finalize_ny={FinalizeNy}\n" +
-                    $"gate_by_target={(GateByTargetDate ? 1 : 0)}\n");
+                    $"gate_by_target={(GateByTargetDate ? 1 : 0)}\n" +
+                    $"probe_preopen_bars={_preBars} with_levels={_preLvl}\n" +
+                    $"probe_overnight_bars={_onBars} with_levels={_onLvl}\n" +
+                    $"probe_rth_bars={_pdBars} with_levels={_pdLvl}\n");
             }
             catch { }
         }
