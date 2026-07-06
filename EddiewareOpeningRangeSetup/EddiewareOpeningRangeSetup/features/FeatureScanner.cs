@@ -97,10 +97,16 @@ namespace ATAS.Indicators
         {
             if (bar < 1) return;
             var closed = bar - 1;
-            if (closed <= _lastProcessed) return;
-            for (var b = _lastProcessed + 1; b <= closed; b++)
-                ProcessBar(b);
-            _lastProcessed = closed;
+            if (closed > _lastProcessed)
+            {
+                for (var b = _lastProcessed + 1; b <= closed; b++)
+                    ProcessBar(b);
+                _lastProcessed = closed;
+            }
+            // Detect the breakout on the CURRENT forming bar too, so instant-TP days
+            // (breakout + TP within the first bar after OR, e.g. 09:31:08) get captured
+            // before the replay stops and that bar never closes.
+            LiveBreakoutCheck(bar);
         }
 
         private void ProcessBar(int b)
@@ -154,7 +160,7 @@ namespace ATAS.Indicators
                 else if (bd.Close < _ctx.OrLow) dir = "down";
                 if (dir != null)
                 {
-                    StartEvent(dir, bd, b);
+                    StartEvent(dir, bd, b, _sessionBars, _sessionBars.Count - 1);
                     _eventDone = true;
                 }
             }
@@ -254,9 +260,44 @@ namespace ATAS.Indicators
             catch { }
         }
 
-        private void StartEvent(string dir, BarData bd, int b)
+        // Detect the breakout on the forming bar (intrabar). Needed for instant-TP
+        // days where the breakout bar never closes before the replay stops.
+        private void LiveBreakoutCheck(int bar)
         {
-            var row = BuildFeatureRow(dir);
+            if (_eventDone) return;
+
+            dynamic candle = GetCandle(bar);
+            DateTime utc = candle.Time;
+            var ny = ToNy(utc);
+            if (ny.Date != _curDate) return;
+
+            var tod = ny.TimeOfDay;
+            if (tod < _rthStart || tod >= _rthEnd) return;
+
+            var orEnd = _rthStart + TimeSpan.FromMinutes(OrMinutes);
+            if (tod < orEnd) return;                    // still inside OR window
+            if (!_ctx.OrLocked && _ctx.OrBars > 0)      // time-lock OR mid-bar
+                _ctx.OrLocked = true;
+            if (!_ctx.OrLocked) return;
+            if (tod > ParseNy(LastBreakoutNy, new TimeSpan(15, 0, 0))) return;
+
+            var bd = BuildBar(bar, candle, ny);
+            string? dir = null;
+            if (bd.Close > _ctx.OrHigh) dir = "up";
+            else if (bd.Close < _ctx.OrLow) dir = "down";
+            if (dir == null) return;
+
+            // Feature context = closed session bars + this forming bar as the last one.
+            var live = new List<BarData>(_sessionBars) { bd };
+            StartEvent(dir, bd, bar, live, live.Count - 1);
+            _eventDone = true;
+            if (GateByTargetDate) EmitPendingRow();
+            WriteStatus();
+        }
+
+        private void StartEvent(string dir, BarData bd, int b, IReadOnlyList<BarData> session, int i)
+        {
+            var row = BuildFeatureRow(dir, session, i);
             _pending = new PendingEvent
             {
                 Dir = dir,
@@ -267,12 +308,12 @@ namespace ATAS.Indicators
             };
         }
 
-        private FeatureRow BuildFeatureRow(string dir)
+        private FeatureRow BuildFeatureRow(string dir, IReadOnlyList<BarData> session, int i)
         {
             var ctx = new FeatureCtx
             {
-                Session = _sessionBars,
-                I = _sessionBars.Count - 1,
+                Session = session,
+                I = i,
                 Ctx = _ctx,
                 Tick = Tick,
                 BreakDir = dir
