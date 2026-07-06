@@ -181,6 +181,8 @@ namespace ATAS.Indicators
         // Para el PnL en $ del Telegram (NQ = $5/tick). Contratos = sizing Lucid.
         public int TelegramContracts { get; set; } = 6;
         public decimal TickValueUsd { get; set; } = 5m;
+        // Balance corrido en Telegram: arranca en esta cuenta y suma/resta cada PnL.
+        public decimal TelegramStartingBalance { get; set; } = 150000m;
 
         public ATASScoreTradeResultExporter()
         {
@@ -2562,10 +2564,11 @@ namespace ATAS.Indicators
                 ) + Environment.NewLine
             );
 
+            var timeOverBalance = UpdateAndGetTelegramBalance(nyDate.Date, 0m);
             TelegramTradeNotifier.QueueTerminalResult(
                 _exportFolder,
                 nyDate,
-                $"EW ORB NQ | {nyDate:yyyy-MM-dd}\nTIME OVER");
+                $"EW ORB NQ | {nyDate:yyyy-MM-dd}\nTIME OVER\nBalance: {timeOverBalance:$#,##0}");
         }
 
         private string BuildTelegramTradeMessage()
@@ -2576,13 +2579,52 @@ namespace ATAS.Indicators
             var offset = _nyZone.GetUtcOffset(_trade.EntryDate);
             var utcLabel = (int)offset.TotalHours == -4 ? "UTC-4 (EDT)" : "UTC-5 (EST)";
             var pnl = TradeResultTicks() * TickValueUsd * TelegramContracts;
+            var balance = UpdateAndGetTelegramBalance(_trade.EntryDate.Date, pnl);
 
             return string.Join(
                 Environment.NewLine,
                 $"EW ORB NQ | {_trade.EntryDate:yyyy-MM-dd}",
                 $"{_trade.Result} {_trade.Side} | {_trade.EntryTimeNy:HH:mm:ss} NY ({utcLabel})",
                 $"PnL: {pnl:+$0;-$0} | {TelegramContracts}c",
+                $"Balance: {balance:$#,##0}",
                 $"Duración: {FormatTradeDuration()}");
+        }
+
+        // Balance corrido persistido por fecha (idempotente: X1/X10/re-runs de la
+        // misma fecha sobrescriben su entrada, no doble-cuentan). Balance =
+        // TelegramStartingBalance + suma de PnL de todas las fechas registradas.
+        private string TelegramBalanceFile =>
+            System.IO.Path.Combine(_exportFolder, "telegram_balance.json");
+
+        private decimal UpdateAndGetTelegramBalance(DateTime nyDate, decimal pnl)
+        {
+            var key = nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            try
+            {
+                var map = new Dictionary<string, decimal>();
+                if (File.Exists(TelegramBalanceFile))
+                {
+                    var json = File.ReadAllText(TelegramBalanceFile);
+                    if (!string.IsNullOrWhiteSpace(json))
+                        map = JsonSerializer.Deserialize<Dictionary<string, decimal>>(json)
+                              ?? new Dictionary<string, decimal>();
+                }
+
+                map[key] = pnl;   // overwrite => idempotente por fecha
+
+                if (!Directory.Exists(_exportFolder))
+                    Directory.CreateDirectory(_exportFolder);
+                File.WriteAllText(TelegramBalanceFile, JsonSerializer.Serialize(map));
+
+                decimal sum = 0m;
+                foreach (var v in map.Values) sum += v;
+                return TelegramStartingBalance + sum;
+            }
+            catch
+            {
+                // Si falla la persistencia, al menos refleja este trade.
+                return TelegramStartingBalance + pnl;
+            }
         }
 
         private void TrackRejectedScore(int bar, DateTime nyTime, ScoreTradeSignal score)

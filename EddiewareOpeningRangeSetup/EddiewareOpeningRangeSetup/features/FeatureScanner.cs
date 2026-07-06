@@ -33,10 +33,15 @@ namespace ATAS.Indicators
         private bool _eventDone;
         private PendingEvent? _pending;
         private bool _headerWritten;
+        private int _barsSeen;
+        private bool _wroteRow;
+        private string _lastBarNy = "";
 
         // ── Parameters ──────────────────────────────────────────────────
+        // 1 = alineado con el exporter (OR = candle de apertura 09:30, 1 min). Con 5
+        // el OR no bloqueaba hasta 09:35 y los TP rapidos (09:31-09:33) se perdian.
         [Display(Name = "OR minutos", Order = 1)]
-        public int OrMinutes { get; set; } = 5;
+        public int OrMinutes { get; set; } = 1;
 
         [Display(Name = "Move objetivo (ticks)", Order = 2)]
         public decimal MoveTargetTicks { get; set; } = 60m;
@@ -57,6 +62,10 @@ namespace ATAS.Indicators
         [Display(Name = "Gate por target-date (harness)", Order = 7,
             Description = "Escribe solo la fecha de target_trade_result_date.txt (mismo gate que el exporter). Off = acumula todas las fechas en un archivo.")]
         public bool GateByTargetDate { get; set; } = true;
+
+        [Display(Name = "Finalizar/escribir a (HH:mm NY)", Order = 8,
+            Description = "El replay corta ~09:50, antes de RTH end (16:00). Sin esto la fila nunca se escribe. Debe caer dentro de la ventana del replay.")]
+        public string FinalizeNy { get; set; } = "09:48";
 
         private readonly string _targetDateFile =
             @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\target_trade_result_date.txt";
@@ -79,6 +88,9 @@ namespace ATAS.Indicators
             _eventDone = false;
             _pending = null;
             _headerWritten = false;
+            _barsSeen = 0;
+            _wroteRow = false;
+            _lastBarNy = "";
         }
 
         protected override void OnCalculate(int bar, decimal value)
@@ -107,6 +119,9 @@ namespace ATAS.Indicators
                 _curDate = date;
                 _eventDone = false;
                 _pending = null;
+                _barsSeen = 0;
+                _wroteRow = false;
+                _lastBarNy = "";
             }
 
             var tod = ny.TimeOfDay;
@@ -118,6 +133,8 @@ namespace ATAS.Indicators
 
             var bd = BuildBar(b, candle, ny);
             _sessionBars.Add(bd);
+            _barsSeen++;
+            _lastBarNy = ny.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
 
             var orEnd = _rthStart + TimeSpan.FromMinutes(OrMinutes);
             var inOr = tod < orEnd;
@@ -141,6 +158,100 @@ namespace ATAS.Indicators
                     _eventDone = true;
                 }
             }
+
+            // The replay stops as soon as the exporter writes a terminal result
+            // (TP ~09:33, TIME_OVER ~09:40) — before 09:48 and long before RTH end.
+            // So write the pending event row INCREMENTALLY every bar (gated overwrite):
+            // whatever bar the replay stops on, the sidecar CSV already reflects it.
+            if (_pending != null && GateByTargetDate)
+                EmitPendingRow();
+
+            // Fallback for full-day / non-gated use: one-shot finalize near window end.
+            if (_pending != null && tod >= ParseNy(FinalizeNy, new TimeSpan(9, 48, 0)))
+                FinalizePending();
+
+            WriteStatus();
+        }
+
+        // Build the label suffix from the CURRENT forward-tracking state and write
+        // the per-date sidecar (gated overwrite). Does NOT null _pending nor mutate
+        // the base row, so it can run every bar; the last write before the replay
+        // stops is the one that survives.
+        private void EmitPendingRow()
+        {
+            var e = _pending;
+            if (e == null) return;
+
+            var label60 = e.Mfe >= (double)MoveTargetTicks;
+            var whale = label60 && e.Whale;
+            var barsTo60 = e.Reached60
+                ? e.BarsTo60.ToString(CultureInfo.InvariantCulture)
+                : "";
+
+            var header = e.Row.Header() +
+                ",mfe_ticks,mae_ticks,bars_to_60,first_60_before_20adv," +
+                "label_move60,label_whale,whale_orderflow";
+            var line = e.Row.Line() + "," +
+                e.Mfe.ToString("0.###############", CultureInfo.InvariantCulture) + "," +
+                e.Mae.ToString("0.###############", CultureInfo.InvariantCulture) + "," +
+                barsTo60 + "," +
+                (e.First60BeforeAdverse ? "1" : "0") + "," +
+                (label60 ? "1" : "0") + "," +
+                (whale ? "1" : "0") + "," +
+                (e.Whale ? "1" : "0");
+
+            WriteRawRow(_curDate, header, line);
+        }
+
+        // Gated per-date overwrite from raw header/line strings (used by EmitPendingRow).
+        private void WriteRawRow(DateTime nyDate, string header, string line)
+        {
+            try
+            {
+                if (GateByTargetDate)
+                {
+                    var target = ReadTargetDate();
+                    if (target != null && target.Value.Date != nyDate.Date)
+                        return;
+                }
+                if (!Directory.Exists(OutputFolder))
+                    Directory.CreateDirectory(OutputFolder);
+                var path = Path.Combine(OutputFolder,
+                    $"features_scan_{nyDate:yyyy-MM-dd}_NY.csv");
+                File.WriteAllText(path,
+                    header + Environment.NewLine + line + Environment.NewLine);
+                _wroteRow = true;
+            }
+            catch
+            {
+                // research sidecar must never interrupt anything on the chart.
+            }
+        }
+
+        // Heartbeat de diagnostico: prueba que el indicador ESTA cargado y corriendo
+        // en el chart. Si este archivo no aparece tras el replay, el Feature Scanner
+        // NO esta en el chart (o ATAS no recargo el DLL). Ungated a proposito.
+        private void WriteStatus()
+        {
+            try
+            {
+                if (!Directory.Exists(OutputFolder))
+                    Directory.CreateDirectory(OutputFolder);
+                var path = Path.Combine(OutputFolder,
+                    $"featscan_status_{_curDate:yyyy-MM-dd}.txt");
+                File.WriteAllText(path,
+                    $"bars_seen={_barsSeen}\n" +
+                    $"last_bar_ny={_lastBarNy}\n" +
+                    $"or_locked={(_ctx.OrLocked ? 1 : 0)}\n" +
+                    $"or_high={_ctx.OrHigh}\n" +
+                    $"or_low={_ctx.OrLow}\n" +
+                    $"event_detected={(_eventDone ? 1 : 0)}\n" +
+                    $"pending_active={(_pending != null ? 1 : 0)}\n" +
+                    $"wrote_features_row={(_wroteRow ? 1 : 0)}\n" +
+                    $"finalize_ny={FinalizeNy}\n" +
+                    $"gate_by_target={(GateByTargetDate ? 1 : 0)}\n");
+            }
+            catch { }
         }
 
         private void StartEvent(string dir, BarData bd, int b)
@@ -272,6 +383,7 @@ namespace ATAS.Indicators
                         $"features_scan_{nyDate:yyyy-MM-dd}_NY.csv");
                     File.WriteAllText(path,
                         row.Header() + Environment.NewLine + row.Line() + Environment.NewLine);
+                    _wroteRow = true;
                 }
                 else
                 {
@@ -282,6 +394,7 @@ namespace ATAS.Indicators
                         _headerWritten = true;
                     }
                     File.AppendAllText(path, row.Line() + Environment.NewLine);
+                    _wroteRow = true;
                 }
             }
             catch
