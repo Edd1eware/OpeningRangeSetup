@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.IO;
+using System.Text;
 using ATAS.Indicators.Atrapados;
 
 namespace ATAS.Indicators
@@ -36,6 +37,8 @@ namespace ATAS.Indicators
         private int _barsSeen;
         private bool _wroteRow;
         private string _lastBarNy = "";
+        private readonly List<SlideSnap> _slideSnaps = new();
+        private readonly HashSet<int> _slidBars = new();
 
         // ── Parameters ──────────────────────────────────────────────────
         // 1 = alineado con el exporter (OR = candle de apertura 09:30, 1 min). Con 5
@@ -91,6 +94,8 @@ namespace ATAS.Indicators
             _barsSeen = 0;
             _wroteRow = false;
             _lastBarNy = "";
+            _slideSnaps.Clear();
+            _slidBars.Clear();
         }
 
         protected override void OnCalculate(int bar, decimal value)
@@ -128,6 +133,11 @@ namespace ATAS.Indicators
                 _barsSeen = 0;
                 _wroteRow = false;
                 _lastBarNy = "";
+                _slideSnaps.Clear();
+                _slidBars.Clear();
+                // #1: drop any sidecar left by a PRIOR run for this date, so a no-trade
+                // day cannot keep a stale traded row (and slide starts clean).
+                CleanDateSidecars(date);
             }
 
             var tod = ny.TimeOfDay;
@@ -152,18 +162,17 @@ namespace ATAS.Indicators
             if (_pending != null && b > _pending.EventBar)
                 UpdateTrackers(bd);
 
-            // detect first breakout after OR locks
-            if (_ctx.OrLocked && !_eventDone && tod <= ParseNy(LastBreakoutNy, new TimeSpan(15, 0, 0)))
-            {
-                string? dir = null;
-                if (bd.Close > _ctx.OrHigh) dir = "up";
-                else if (bd.Close < _ctx.OrLow) dir = "down";
-                if (dir != null)
-                {
-                    StartEvent(dir, bd, b, _sessionBars, _sessionBars.Count - 1);
-                    _eventDone = true;
-                }
-            }
+            // TRADED capture: align to the exporter's REAL entry (side + price) via the
+            // in-memory ExecutionSignalBus, instead of the scanner's own first OR cross.
+            // The naive cross could be the OPPOSITE side of the traded setup (e.g. 06-26:
+            // scanner up @09:31 vs exporter SELL @09:33) -> X and y described different
+            // events. Bus-driven guarantees the feature row matches the traded outcome.
+            TryBusEntry(bd, b, _sessionBars, _sessionBars.Count - 1);
+
+            // SLIDE capture: causal snapshot on every post-OR bar (ALL days, traded or
+            // not), forward-tracked in both directions. This is the "state before the
+            // move" dataset -> separate sidecar so it never mixes with the traded label.
+            SlideStep(bd);
 
             // The replay stops as soon as the exporter writes a terminal result
             // (TP ~09:33, TIME_OVER ~09:40) — before 09:48 and long before RTH end.
@@ -260,8 +269,9 @@ namespace ATAS.Indicators
             catch { }
         }
 
-        // Detect the breakout on the forming bar (intrabar). Needed for instant-TP
-        // days where the breakout bar never closes before the replay stops.
+        // Detect the exporter's entry on the forming bar (intrabar). Needed for instant-TP
+        // days where the entry bar never closes before the replay stops. Reads the same
+        // ExecutionSignalBus, so an intrabar exporter entry is captured within a tick.
         private void LiveBreakoutCheck(int bar)
         {
             if (_eventDone) return;
@@ -279,36 +289,58 @@ namespace ATAS.Indicators
             if (!_ctx.OrLocked && _ctx.OrBars > 0)      // time-lock OR mid-bar
                 _ctx.OrLocked = true;
             if (!_ctx.OrLocked) return;
-            if (tod > ParseNy(LastBreakoutNy, new TimeSpan(15, 0, 0))) return;
 
             var bd = BuildBar(bar, candle, ny);
-            string? dir = null;
-            if (bd.Close > _ctx.OrHigh) dir = "up";
-            else if (bd.Close < _ctx.OrLow) dir = "down";
-            if (dir == null) return;
-
             // Feature context = closed session bars + this forming bar as the last one.
             var live = new List<BarData>(_sessionBars) { bd };
-            StartEvent(dir, bd, bar, live, live.Count - 1);
+            TryBusEntry(bd, bar, live, live.Count - 1);
+        }
+
+        // Capture the TRADED row when (and only when) the exporter has published an entry
+        // for this session on the ExecutionSignalBus. Side/EntryPrice come from the
+        // exporter, so X (features) and y (its outcome) describe the SAME trade. Peek
+        // only (never MarkConsumed) so the live Execution Manager still consumes it.
+        private void TryBusEntry(BarData bd, int b, IReadOnlyList<BarData> session, int i)
+        {
+            if (_eventDone) return;
+            var pe = ExecutionSignalBus.Peek(_curDate);
+            if (pe == null) return;
+            string? dir = pe.Side == "BUY" ? "up" : pe.Side == "SELL" ? "down" : null;
+            if (dir == null) return;
+
+            StartEvent(dir, bd, b, session, i, (double)pe.EntryPrice);
             _eventDone = true;
             if (GateByTargetDate) EmitPendingRow();
+
+            // #2: instant-entry fallback. On instant-TP days the entry bar never closes
+            // before the replay stops, so no closed slide snapshot exists. If the slide
+            // set is still empty, capture ONE from the (forming) entry bar so those days
+            // are not absent from the slide dataset. Guarded to _slideSnaps.Count==0 so
+            // normal days (which already have closed snapshots) are untouched.
+            if (_slideSnaps.Count == 0)
+                AddSlideSnapshot(bd, session, i, b);
+
             WriteStatus();
         }
 
-        private void StartEvent(string dir, BarData bd, int b, IReadOnlyList<BarData> session, int i)
+        // entryPrice = the REAL entry (exporter's for traded rows, bar Close for slide),
+        // so forward MFE/MAE and entry_price are measured from the same anchor as y.
+        private void StartEvent(string dir, BarData bd, int b, IReadOnlyList<BarData> session,
+            int i, double entryPrice)
         {
-            var row = BuildFeatureRow(dir, session, i);
+            var row = BuildFeatureRow(dir, "traded", session, i, entryPrice);
             _pending = new PendingEvent
             {
                 Dir = dir,
-                Entry = bd.Close,
+                Entry = entryPrice,
                 EventBar = b,
                 Row = row,
                 Whale = WhaleAtEvent(dir, bd)
             };
         }
 
-        private FeatureRow BuildFeatureRow(string dir, IReadOnlyList<BarData> session, int i)
+        private FeatureRow BuildFeatureRow(string dir, string captureType,
+            IReadOnlyList<BarData> session, int i, double entryPrice)
         {
             var ctx = new FeatureCtx
             {
@@ -321,7 +353,8 @@ namespace ATAS.Indicators
             var row = new FeatureRow();
             row.AddText("fecha", _curDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
             row.AddText("break_dir", dir);
-            row.Add("entry_price", ctx.Bar.Close);
+            row.AddText("capture_type", captureType);
+            row.Add("entry_price", entryPrice);
             row.Add("or_high", _ctx.OrHigh);
             row.Add("or_low", _ctx.OrLow);
             row.Add("break_bar_sec", ctx.Bar.SecondsFromOpen);
@@ -512,6 +545,139 @@ namespace ATAS.Indicators
 
         private static TimeSpan ParseNy(string value, TimeSpan fallback)
             => TimeSpan.TryParse(value, out var ts) ? ts : fallback;
+
+        // SLIDE dataset: at every post-OR bar snapshot causal features (X_t, using only
+        // bars up to t), then let each subsequent bar extend the forward excursion of all
+        // buffered snapshots (y_t = did price run >=40/60t up or down after t). One pass,
+        // no look-ahead, all days. Rewritten incrementally so a replay stop is safe.
+        private void SlideStep(BarData bd)
+        {
+            if (!InSlideWindow(bd.TimeNy.TimeOfDay) || !_ctx.OrLocked) return;
+            ExtendSlide(bd);                                        // 1) forward-track existing
+            AddSlideSnapshot(bd, _sessionBars, _sessionBars.Count - 1, bd.Bar);  // 2) new snapshot
+        }
+
+        private bool InSlideWindow(TimeSpan tod)
+        {
+            var orEnd = _rthStart + TimeSpan.FromMinutes(OrMinutes);
+            return tod >= orEnd && tod < _rthEnd;
+        }
+
+        // Extend the forward excursion of every buffered snapshot with a LATER bar. Snaps
+        // are only extended by bars strictly after their own (Bar < bd.Bar), so a snapshot
+        // never counts its own bar as forward movement (safe even if it was added intrabar).
+        private void ExtendSlide(BarData bd)
+        {
+            foreach (var s in _slideSnaps)
+            {
+                if (s.Bar >= bd.Bar) continue;
+                var up = (bd.High - s.Anchor) / Tick;
+                var dn = (s.Anchor - bd.Low) / Tick;
+                if (up > s.MfeUp) s.MfeUp = up;
+                if (dn > s.MfeDn) s.MfeDn = dn;
+                s.Bars++;
+                if (!s.Hit40Up && s.MfeUp >= 40) { s.Hit40Up = true; if (s.FirstHit40 == 0) s.FirstHit40 = 1; }
+                if (!s.Hit40Dn && s.MfeDn >= 40) { s.Hit40Dn = true; if (s.FirstHit40 == 0) s.FirstHit40 = -1; }
+                if (!s.Hit60Up && s.MfeUp >= 60) s.Hit60Up = true;
+                if (!s.Hit60Dn && s.MfeDn >= 60) s.Hit60Dn = true;
+            }
+        }
+
+        // Causal snapshot anchored at this bar's Close, deduped by bar index (a bar added
+        // intrabar as an instant-entry fallback is not re-added when it later closes). dir
+        // = OR side price sits on now (causal); forward labels are computed both ways.
+        private void AddSlideSnapshot(BarData bd, IReadOnlyList<BarData> session, int i, int barIdx)
+        {
+            if (!_slidBars.Add(barIdx)) return;
+            var mid = (_ctx.OrHigh + _ctx.OrLow) / 2.0;
+            var dir = bd.Close >= _ctx.OrHigh ? "up"
+                : bd.Close <= _ctx.OrLow ? "down"
+                : (bd.Close >= mid ? "up" : "down");
+            var row = BuildFeatureRow(dir, "slide", session, i, bd.Close);
+            _slideSnaps.Add(new SlideSnap { Row = row, Anchor = bd.Close, Bar = barIdx });
+            WriteSlideRows();
+        }
+
+        private void WriteSlideRows()
+        {
+            try
+            {
+                if (_slideSnaps.Count == 0) return;
+                if (GateByTargetDate)
+                {
+                    var target = ReadTargetDate();
+                    if (target != null && target.Value.Date != _curDate.Date) return;
+                }
+                if (!Directory.Exists(OutputFolder))
+                    Directory.CreateDirectory(OutputFolder);
+
+                var sb = new StringBuilder();
+                sb.Append(_slideSnaps[0].Row.Header())
+                  .Append(",fwd_mfe_up,fwd_mfe_dn,fwd_bars,hit40_up,hit40_dn,hit60_up,hit60_dn,first_hit40")
+                  .Append('\n');
+                foreach (var s in _slideSnaps)
+                {
+                    sb.Append(s.Row.Line()).Append(',')
+                      .Append(Fmt(s.MfeUp)).Append(',')
+                      .Append(Fmt(s.MfeDn)).Append(',')
+                      .Append(s.Bars.ToString(CultureInfo.InvariantCulture)).Append(',')
+                      .Append(s.Hit40Up ? '1' : '0').Append(',')
+                      .Append(s.Hit40Dn ? '1' : '0').Append(',')
+                      .Append(s.Hit60Up ? '1' : '0').Append(',')
+                      .Append(s.Hit60Dn ? '1' : '0').Append(',')
+                      .Append(s.FirstHit40.ToString(CultureInfo.InvariantCulture)).Append('\n');
+                }
+                var path = Path.Combine(OutputFolder,
+                    $"features_slide_{_curDate:yyyy-MM-dd}_NY.csv");
+                File.WriteAllText(path, sb.ToString());
+            }
+            catch
+            {
+                // research sidecar must never interrupt anything on the chart.
+            }
+        }
+
+        // Delete this date's per-date sidecars before (re)processing it, so a no-trade day
+        // cannot inherit a stale traded row from an earlier run. Only touches the gated
+        // target date; the accumulate-all mode (non-gated) uses a single file and is skipped.
+        private void CleanDateSidecars(DateTime nyDate)
+        {
+            try
+            {
+                if (!GateByTargetDate) return;
+                var target = ReadTargetDate();
+                if (target != null && target.Value.Date != nyDate.Date) return;
+                foreach (var pre in new[] { "features_scan_", "features_slide_" })
+                {
+                    var p = Path.Combine(OutputFolder, $"{pre}{nyDate:yyyy-MM-dd}_NY.csv");
+                    if (File.Exists(p)) File.Delete(p);
+                }
+            }
+            catch
+            {
+                // research sidecar must never interrupt anything on the chart.
+            }
+        }
+
+        private static string Fmt(double v) =>
+            double.IsNaN(v) || double.IsInfinity(v)
+                ? ""
+                : v.ToString("0.###############", CultureInfo.InvariantCulture);
+
+        private sealed class SlideSnap
+        {
+            public FeatureRow Row = null!;
+            public int Bar;              // bar index this snapshot was taken on (dedup key)
+            public double Anchor;        // Close at snapshot (forward-excursion origin)
+            public double MfeUp;
+            public double MfeDn;
+            public int Bars;
+            public bool Hit40Up;
+            public bool Hit40Dn;
+            public bool Hit60Up;
+            public bool Hit60Dn;
+            public int FirstHit40;       // 0 none, 1 up first, -1 down first
+        }
 
         private sealed class PendingEvent
         {
