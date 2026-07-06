@@ -20,6 +20,9 @@
     <Reference Include="ATAS.DataFeedsCore">
       <HintPath>C:\Program Files (x86)\ATAS Platform\ATAS.DataFeedsCore.dll</HintPath>
     </Reference>
+    <Reference Include="OFT.Rendering">
+      <HintPath>C:\Program Files (x86)\ATAS Platform\OFT.Rendering.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <Target Name="CopyIndicatorToAtas" AfterTargets="Build">

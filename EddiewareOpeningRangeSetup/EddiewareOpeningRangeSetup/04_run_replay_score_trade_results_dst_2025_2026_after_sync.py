@@ -236,6 +236,86 @@ def print_result_file(path):
         print(f.read().strip())
 
 
+def expected_feature_scan_path(date_ddmmyyyy):
+    # Sidecar written by the "Feature Scanner" indicator (research sweep).
+    # Same folder + one-date gate as the score CSV, joinable by `fecha`.
+    dd, mm, yyyy = date_ddmmyyyy.split("/")
+
+    return os.path.join(
+        RESULTS_FOLDER,
+        f"features_scan_{yyyy}-{mm}-{dd}_NY.csv"
+    )
+
+
+def print_feature_scans():
+    # Print the NEW features produced by the Feature Scanner for every replayed
+    # date. Header once, then one data line per date (each sidecar holds 1 row).
+    print("\n=== FEATURES NUEVAS (Feature Scanner sidecar) ===")
+    header_printed = False
+    found = 0
+
+    for date in DATES_DST:
+        path = expected_feature_scan_path(date)
+
+        if not os.path.exists(path):
+            continue
+
+        with open(path, "r", encoding="utf-8-sig") as f:
+            lines = f.read().strip().splitlines()
+
+        if not lines:
+            continue
+
+        if not header_printed:
+            print(f"Columnas ({len(lines[0].split(','))}): {lines[0]}")
+            header_printed = True
+
+        for data_line in lines[1:]:
+            print(data_line)
+
+        found += 1
+
+    if found == 0:
+        print(
+            "No se encontraron archivos features_scan_*.csv. "
+            "Confirma que el indicador 'Feature Scanner' este agregado al chart "
+            "durante el replay (gate por target_trade_result_date.txt)."
+        )
+    else:
+        print(f"Total fechas con features: {found}")
+
+
+def print_excel_sizes_by_year():
+    # Total size of the score workbooks in BASE_DIR, grouped by the year token in
+    # the filename (e.g. "2025_2026", "2024", "1mes"). Console only.
+    import glob
+    import re
+
+    print("\n=== PESO DE EXCELS (workbooks de score) ===")
+    files = sorted(glob.glob(os.path.join(BASE_DIR, "Score_indicator_results_updated*.xlsx")))
+
+    if not files:
+        print(f"No hay workbooks Score_indicator_results_updated*.xlsx en {BASE_DIR}")
+        return
+
+    by_year = {}
+    for path in files:
+        name = os.path.basename(path)
+        match = re.search(r"(\d{4}(?:_\d{4})?|1mes)", name)
+        year = match.group(1) if match else "sin_ano"
+        size = os.path.getsize(path)
+        by_year[year] = by_year.get(year, 0) + size
+        print(f"  {name:<58s} {size / 1024:8.1f} KB")
+
+    print("  " + "-" * 78)
+    total = 0
+    for year in sorted(by_year):
+        size = by_year[year]
+        total += size
+        print(f"  Ano {year:<12s} total: {size / 1024:9.1f} KB  ({size / 1048576:.2f} MB)")
+    print(f"  {'TOTAL':<17s}      {total / 1024:9.1f} KB  ({total / 1048576:.2f} MB)")
+
+
 def backup_previous_result(path, reason):
     if not os.path.exists(path):
         return
@@ -693,6 +773,10 @@ def get_or_create_headers(ws):
         if csv_header not in headers:
             headers.append(csv_header)
 
+    for feature_header in get_feature_scan_headers_for_dates():
+        if feature_header not in headers:
+            headers.append(feature_header)
+
     for header in ("ExitTime_NY", "Trade_Duration"):
         if header in headers:
             headers.remove(header)
@@ -748,6 +832,47 @@ def get_csv_headers_for_dates():
     return headers
 
 
+def get_feature_scan_headers_for_dates():
+    # Column names from the Feature Scanner sidecars, appended after the score
+    # columns. Shared keys (fecha, or_low, or_high...) are filtered by the caller.
+    headers = []
+
+    for date in DATES_DST:
+        path = expected_feature_scan_path(date)
+
+        if not os.path.exists(path):
+            continue
+
+        try:
+            with open(path, "r", encoding="utf-8-sig", newline="") as f:
+                reader = csv.DictReader(f)
+                if not reader.fieldnames:
+                    continue
+
+                for field in reader.fieldnames:
+                    if field and field not in EXCLUDED_EXCEL_HEADERS and field not in headers:
+                        headers.append(field)
+        except OSError:
+            continue
+
+    return headers
+
+
+def read_feature_scan(path):
+    # First (only) data row of a Feature Scanner sidecar as a dict, or {}.
+    if not os.path.exists(path):
+        return {}
+
+    try:
+        with open(path, "r", encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            row = next(reader, None)
+    except (OSError, PermissionError):
+        return {}
+
+    return row or {}
+
+
 def update_score_workbook():
     os.makedirs(os.path.dirname(SCORE_WORKBOOK), exist_ok=True)
 
@@ -776,6 +901,13 @@ def update_score_workbook():
 
     for row_offset, date in enumerate(DATES_DST, start=first_row):
         result = read_trade_result(expected_result_path(date), date)
+
+        # Merge the new Feature Scanner columns. setdefault => score CSV wins on
+        # shared keys (fecha, or_low, or_high...); feature-only columns are added.
+        feature_row = read_feature_scan(expected_feature_scan_path(date))
+        for key, value in feature_row.items():
+            result.setdefault(key, value)
+
         missing_result_file = result.get("result TP SL BE") in ("NO_CSV", "EMPTY_CSV")
 
         for col, header in enumerate(headers, start=1):
@@ -915,11 +1047,29 @@ def parse_args():
         action="store_true",
         help="Solo corre la fase X10; requiere snapshots v11 previos de X1.",
     )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        metavar="N",
+        help="Recorta a las ultimas N fechas (prueba rapida). 0 = todas. Una semana = 5.",
+    )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
+
+    global DATES_DST
+    if args.limit and args.limit > 0:
+        DATES_DST = DATES_DST[-args.limit:]
+        print(
+            f"LIMITADO a las ultimas {len(DATES_DST)} fechas para prueba rapida: "
+            f"{DATES_DST[0]} -> {DATES_DST[-1]}"
+        )
+
+    print_excel_sizes_by_year()
+
     quick = True
     run_plan = replay_sync.build_run_plan(
         quick=quick,
@@ -965,6 +1115,8 @@ def main():
     )
 
     update_score_workbook()
+
+    print_feature_scans()
 
     failed_dates = [
         (date_iso, f"{run_name}: {reason}")
