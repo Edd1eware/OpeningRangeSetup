@@ -83,7 +83,66 @@ probe_rth_bars=<n> with_levels=<n>
 
 ---
 
+## 5b. BUILD A ejecutado (DLL 16:34) — Volume Profile en C#
+
+Construido **sin esperar el probe** (degrada a NaN/legacy si pre-open/ON no cargan; PD sí carga).
+
+- `features/VolumeProfile.cs`: POC, VA greedy 70% (expande desde POC al lado más rico),
+  High/Low/Range, HVN/LVN = extremos locales de histograma suavizado 3-bins. Fuente footprint
+  `BarData.Levels`, fallback close×vol. `CopyFrom` para congelar el builder live.
+- Scanner: 5 perfiles live + 5 frozen. `AccumulateProfiles` (ventanas NY), `FreezeAnalysisProfiles`
+  a las 09:30 (ON reset post-freeze; PD freeze en cambio de fecha; pre reset en cambio de fecha).
+- `AddProfileFeatures` en `BuildFeatureRow` (traded + slide): `distance_to_{PREOPEN_15m|PREOPEN_30m|
+  PREOPEN_60m|ON|PD}_{POC|VAH|VAL|HVN|LVN}_ticks`, `position_vs_*_value_area`,
+  `profile_confluence_count` (POC/VAH/VAL ≤8t), `breakout_inside/outside_PREOPEN_value_area` (30m).
+- Dibujo: `TrendLine` azul-magenta `Color.FromArgb(170,40,235)` (POC w3, VA w2, HVN/LVN w1),
+  `TrendLines.Clear()` por fecha. Desde el **Feature Scanner** (NO se tocó 02_Visual_Logic ni el exec).
+- Congelado a 09:30 = **sin lookahead** (breakout es 09:31+, perfiles ya fijos).
+
+Pendiente validar en 1 sanity: profiles poblados (o NaN si data ausente), líneas en el chart,
+columnas nuevas en el CSV, mismos valores de perfil en traded y slide de la misma fecha (= congelado).
+
+## 6b. BUILD B ejecutado (DLL 16:37) — DOM overlay NARANJA (indicador aparte)
+
+Nuevo indicador **`features/DomLevels.cs`** → DisplayName **"DOM Levels (orange)"**. Agregarlo
+al chart aparte (no mezcla con el Feature Scanner).
+
+- Libro live: `MarketDepthChanged(MarketDataArg)` acumula `price→size` (bids/asks); `Volume<=0`
+  borra el nivel. `_lastNy` = última hora de depth.
+- `OnRender`: línea **naranja** horizontal por nivel + label del **nº de contratos**;
+  `RedrawChart()` en cada cambio → refresca al cambiar el tamaño.
+- Gate horario configurable (default **09:30–09:50 NY**), solo dibuja dentro de la ventana.
+- Params: `StartNy`, `EndNy`, `MinContracts` (filtro ruido), `ShowLabels`.
+- **Live-only:** el replay NO reconstruye el libro → NO se ve en el featsweep, solo operando en
+  vivo. (Coherente con `mbo_frozen_day4` / `atas_mbo_api_available`.)
+- Overlay visual puro: NO genera features, NO toca exporter/scanner/exec/sync.
+- Compila 0 errores (API render OFT.Rendering válida: RenderContext/RenderPen/RenderFont/
+  Container.Region/GetYByPrice/SubscribeToDrawingEvents).
+
 ## 6. Estado
 
-- Probe desplegado (DLL 16:18). **Pendiente: correr sanity + leer probe_* → decidir C# vs Python.**
-- Diseño fijado. Build NO iniciado (espera confirmación de datos).
+- Probe desplegado (DLL **16:18**). Diseño fijado. Build NO iniciado (espera datos).
+- **Probe AÚN NO corrido:** los `featscan_status_*.txt` en disco NO tienen los campos
+  `probe_*` → el DLL 16:18 no está cargado todavía. Falta **reiniciar ATAS** y correr el sanity.
+
+### Cómo verificar el probe (acción pendiente)
+```powershell
+cd "C:\Users\k_99_\Desktop\codding\OpeningRangeSetup\EddiewareOpeningRangeSetup\EddiewareOpeningRangeSetup"
+python -u 04_run_replay_featsweep_after_sync.py --limit 5 --force
+```
+Luego revisar cualquier `featscan_status_{fecha}.txt` — deben aparecer:
+```
+probe_preopen_bars=<n> with_levels=<n>
+probe_overnight_bars=<n> with_levels=<n>
+probe_rth_bars=<n> with_levels=<n>
+```
+Decisión según §4. Si no aparecen los campos `probe_*` → ATAS no recargó el DLL 16:18
+(reiniciar ATAS antes de correr).
+
+### Decisiones de diseño (ya fijadas, no re-preguntar)
+| Punto | Elegido |
+|---|---|
+| Fuente perfil | Footprint Levels (VP real), fallback close |
+| HVN/LVN | Extremos locales de histograma suavizado (~3 bins) |
+| Salida HVN/LVN | Más cercano + `profile_confluence_count` |
+| ON Globex start | 18:00 ET |

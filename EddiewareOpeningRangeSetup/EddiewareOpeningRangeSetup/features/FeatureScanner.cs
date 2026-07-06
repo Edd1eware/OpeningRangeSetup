@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Text;
 using ATAS.Indicators.Atrapados;
+using ATAS.Indicators.Drawing;
 
 namespace ATAS.Indicators
 {
@@ -41,6 +43,17 @@ namespace ATAS.Indicators
         private readonly HashSet<int> _slidBars = new();
         // TEMP data-availability probe (pre-open / overnight bars + footprint levels).
         private int _preBars, _preLvl, _onBars, _onLvl, _pdBars, _pdLvl;
+
+        // ── Frozen volume profiles (analysis window, frozen at 09:29:59) ──
+        // Live builders accumulate their window; frozen slots hold the snapshot read during
+        // the execution window. Names match the feature prefixes.
+        private readonly VolumeProfile _pre15Live = new(), _pre30Live = new(), _pre60Live = new(),
+            _onLive = new(), _pdLive = new();
+        private readonly VolumeProfile _pre15 = new(), _pre30 = new(), _pre60 = new(),
+            _on = new(), _pd = new();
+        private bool _profilesFrozen;
+        // blue-magenta reaction levels drawn on the chart (execution window).
+        private static readonly Color ProfileColor = Color.FromArgb(170, 40, 235);
 
         // ── Parameters ──────────────────────────────────────────────────
         // 1 = alineado con el exporter (OR = candle de apertura 09:30, 1 min). Con 5
@@ -99,6 +112,10 @@ namespace ATAS.Indicators
             _slideSnaps.Clear();
             _slidBars.Clear();
             _preBars = _preLvl = _onBars = _onLvl = _pdBars = _pdLvl = 0;
+            _profilesFrozen = false;
+            foreach (var vp in new[] { _pre15Live, _pre30Live, _pre60Live, _onLive, _pdLive,
+                _pre15, _pre30, _pre60, _on, _pd })
+                vp.Reset(0.25);
         }
 
         protected override void OnCalculate(int bar, decimal value)
@@ -128,6 +145,11 @@ namespace ATAS.Indicators
             {
                 FinalizePending();
                 _ctx.FinalizePrevSession(_sessionBars, Tick);
+                // PD (prev day) volume profile: freeze the just-finished RTH into _pd, then
+                // reset the live PD builder for the new day. ON is NOT reset here (it spans
+                // the evening→morning boundary and is reset only at its 09:30 freeze).
+                _pdLive.Freeze(); _pd.CopyFrom(_pdLive); _pdLive.Reset(Tick);
+                _pre15Live.Reset(Tick); _pre30Live.Reset(Tick); _pre60Live.Reset(Tick);
                 _sessionBars.Clear();
                 _ctx.ResetForNewSession(date, Tick);
                 _curDate = date;
@@ -138,6 +160,8 @@ namespace ATAS.Indicators
                 _lastBarNy = "";
                 _slideSnaps.Clear();
                 _slidBars.Clear();
+                _profilesFrozen = false;
+                TrendLines.Clear();     // drop the previous date's reaction levels
                 // #1: drop any sidecar left by a PRIOR run for this date, so a no-trade
                 // day cannot keep a stale traded row (and slide starts clean).
                 CleanDateSidecars(date);
@@ -156,13 +180,21 @@ namespace ATAS.Indicators
                 else if (tod >= _rthStart && tod < _rthEnd) { _pdBars++; if (lvls > 0) _pdLvl++; }
             }
 
+            // Build the bar for ALL times (needed by the analysis-window profiles, which
+            // read pre-open / overnight / prev-RTH bars, not just RTH).
+            var bd = BuildBar(b, candle, ny);
+            AccumulateProfiles(bd, tod);
+            // Freeze the analysis profiles at the RTH open (09:29:59 boundary): from here on
+            // PREOPEN/ON/PD are read-only reference levels, never recomputed.
+            if (!_profilesFrozen && tod >= _rthStart)
+                FreezeAnalysisProfiles();
+
             if (tod < _rthStart || tod >= _rthEnd)
             {
                 if (tod >= _rthEnd) FinalizePending();
                 return;
             }
 
-            var bd = BuildBar(b, candle, ny);
             _sessionBars.Add(bd);
             _barsSeen++;
             _lastBarNy = ny.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
@@ -400,7 +432,123 @@ namespace ATAS.Indicators
             _ctx.VolumeSeries.EmitLags(row, "volcore");
             _ctx.DeltaSeries.EmitStats(row, "deltacore");
             _ctx.DeltaSeries.EmitLags(row, "deltacore");
+
+            // Frozen volume-profile reference levels (PREOPEN/ON/PD), no lookahead.
+            AddProfileFeatures(row, ctx.Bar.Close, Tick);
             return row;
+        }
+
+        // ── Volume-profile architecture (analysis window → frozen → execution features) ──
+
+        private void AccumulateProfiles(BarData bd, TimeSpan tod)
+        {
+            // ON (overnight): CME NQ session, 18:00 ET prev evening through 09:29:59 next day.
+            if (tod >= new TimeSpan(18, 0, 0) || tod < _rthStart) _onLive.Add(bd);
+            // PREOPEN windows.
+            if (tod >= new TimeSpan(8, 30, 0) && tod < _rthStart) _pre60Live.Add(bd);
+            if (tod >= new TimeSpan(9, 0, 0) && tod < _rthStart) _pre30Live.Add(bd);
+            if (tod >= new TimeSpan(9, 15, 0) && tod < _rthStart) _pre15Live.Add(bd);
+            // PD: this session's RTH accumulates for the NEXT day's Previous-Day profile.
+            if (tod >= _rthStart && tod < _rthEnd) _pdLive.Add(bd);
+        }
+
+        private void FreezeAnalysisProfiles()
+        {
+            _pre15Live.Freeze(); _pre15.CopyFrom(_pre15Live);
+            _pre30Live.Freeze(); _pre30.CopyFrom(_pre30Live);
+            _pre60Live.Freeze(); _pre60.CopyFrom(_pre60Live);
+            _onLive.Freeze(); _on.CopyFrom(_onLive);
+            _onLive.Reset(Tick);            // start fresh for the next overnight
+            _profilesFrozen = true;
+            DrawProfileLevels();
+        }
+
+        // ~40 distance features + value-area position + confluence, from the FROZEN profiles.
+        private void AddProfileFeatures(FeatureRow row, double p, double tick)
+        {
+            AddProfileDist(row, "PREOPEN_15m", _pre15, p, tick);
+            AddProfileDist(row, "PREOPEN_30m", _pre30, p, tick);
+            AddProfileDist(row, "PREOPEN_60m", _pre60, p, tick);
+            AddProfileDist(row, "ON", _on, p, tick);
+            AddProfileDist(row, "PD", _pd, p, tick);
+
+            // profile_confluence_count: POC/VAH/VAL of all profiles within 8 ticks of price.
+            const double confTicks = 8;
+            int conf = 0;
+            foreach (var vp in new[] { _pre15, _pre30, _pre60, _on, _pd })
+            {
+                if (!vp.HasData) continue;
+                foreach (var lvl in new[] { vp.Poc, vp.Vah, vp.Val })
+                    if (!double.IsNaN(lvl) && Math.Abs(p - lvl) / tick <= confTicks) conf++;
+            }
+            row.Add("profile_confluence_count", conf);
+
+            // breakout inside/outside the PREOPEN value area (30m reference).
+            if (_pre30.HasData)
+            {
+                var inside = p >= _pre30.Val && p <= _pre30.Vah;
+                row.Add("breakout_inside_PREOPEN_value_area", inside ? 1 : 0);
+                row.Add("breakout_outside_PREOPEN_value_area", inside ? 0 : 1);
+            }
+            else
+            {
+                row.Add("breakout_inside_PREOPEN_value_area", double.NaN);
+                row.Add("breakout_outside_PREOPEN_value_area", double.NaN);
+            }
+        }
+
+        private static void AddProfileDist(FeatureRow row, string name, VolumeProfile vp,
+            double p, double tick)
+        {
+            if (vp == null || !vp.HasData)
+            {
+                row.Add($"distance_to_{name}_POC_ticks", double.NaN);
+                row.Add($"distance_to_{name}_VAH_ticks", double.NaN);
+                row.Add($"distance_to_{name}_VAL_ticks", double.NaN);
+                row.Add($"distance_to_{name}_HVN_ticks", double.NaN);
+                row.Add($"distance_to_{name}_LVN_ticks", double.NaN);
+                row.Add($"position_vs_{name}_value_area", double.NaN);
+                return;
+            }
+            row.Add($"distance_to_{name}_POC_ticks", (p - vp.Poc) / tick);
+            row.Add($"distance_to_{name}_VAH_ticks", (p - vp.Vah) / tick);
+            row.Add($"distance_to_{name}_VAL_ticks", (p - vp.Val) / tick);
+            var hvn = vp.NearestHvn(p);
+            var lvn = vp.NearestLvn(p);
+            row.Add($"distance_to_{name}_HVN_ticks", double.IsNaN(hvn) ? double.NaN : (p - hvn) / tick);
+            row.Add($"distance_to_{name}_LVN_ticks", double.IsNaN(lvn) ? double.NaN : (p - lvn) / tick);
+            row.Add($"position_vs_{name}_value_area", p > vp.Vah ? 1 : p < vp.Val ? -1 : 0);
+        }
+
+        // Draw the frozen reaction levels (POC/VAH/VAL + nearest nodes) as blue-magenta
+        // horizontal lines across the execution window. POC thicker.
+        private void DrawProfileLevels()
+        {
+            try
+            {
+                var start = CurrentBar;
+                var end = CurrentBar + 40;
+                foreach (var vp in new[] { _pre15, _pre30, _pre60, _on, _pd })
+                {
+                    if (!vp.HasData) continue;
+                    AddLevelLine(start, end, vp.Poc, 3);
+                    AddLevelLine(start, end, vp.Vah, 2);
+                    AddLevelLine(start, end, vp.Val, 2);
+                    foreach (var h in vp.Hvn) AddLevelLine(start, end, h, 1);
+                    foreach (var l in vp.Lvn) AddLevelLine(start, end, l, 1);
+                }
+            }
+            catch
+            {
+                // drawing must never interrupt the research sidecar / chart.
+            }
+        }
+
+        private void AddLevelLine(int startBar, int endBar, double price, int width)
+        {
+            if (double.IsNaN(price)) return;
+            TrendLines.Add(new TrendLine(startBar, (decimal)price, endBar, (decimal)price,
+                new Pen(ProfileColor, width)));
         }
 
         private bool WhaleAtEvent(string dir, BarData b)
