@@ -42,7 +42,6 @@ namespace ATAS.Indicators
         private readonly List<SlideSnap> _slideSnaps = new();
         private readonly HashSet<int> _slidBars = new();
         // TEMP data-availability probe (pre-open / overnight bars + footprint levels).
-        private int _preBars, _preLvl, _onBars, _onLvl, _pdBars, _pdLvl;
 
         // ── Frozen volume profiles (analysis window, frozen at 09:29:59) ──
         // Live builders accumulate their window; frozen slots hold the snapshot read during
@@ -52,8 +51,6 @@ namespace ATAS.Indicators
         private readonly VolumeProfile _pre15 = new(), _pre30 = new(), _pre60 = new(),
             _on = new(), _pd = new();
         private bool _profilesFrozen;
-        // blue-magenta reaction levels drawn on the chart (execution window).
-        private static readonly Color ProfileColor = Color.FromArgb(170, 40, 235);
 
         // ── Parameters ──────────────────────────────────────────────────
         // 1 = alineado con el exporter (OR = candle de apertura 09:30, 1 min). Con 5
@@ -111,7 +108,6 @@ namespace ATAS.Indicators
             _lastBarNy = "";
             _slideSnaps.Clear();
             _slidBars.Clear();
-            _preBars = _preLvl = _onBars = _onLvl = _pdBars = _pdLvl = 0;
             _profilesFrozen = false;
             foreach (var vp in new[] { _pre15Live, _pre30Live, _pre60Live, _onLive, _pdLive,
                 _pre15, _pre30, _pre60, _on, _pd })
@@ -168,17 +164,6 @@ namespace ATAS.Indicators
             }
 
             var tod = ny.TimeOfDay;
-
-            // TEMP probe: does the featsweep replay actually load pre-open / overnight /
-            // prev-RTH bars, and do they carry footprint price levels? Counts land in the
-            // status file. Remove once the profile-architecture data source is confirmed.
-            {
-                int lvls = 0;
-                try { foreach (var _l in candle.GetAllPriceLevels()) lvls++; } catch { }
-                if (tod >= new TimeSpan(8, 30, 0) && tod < _rthStart) { _preBars++; if (lvls > 0) _preLvl++; }
-                else if (tod >= new TimeSpan(18, 0, 0) || tod < new TimeSpan(8, 30, 0)) { _onBars++; if (lvls > 0) _onLvl++; }
-                else if (tod >= _rthStart && tod < _rthEnd) { _pdBars++; if (lvls > 0) _pdLvl++; }
-            }
 
             // Build the bar for ALL times (needed by the analysis-window profiles, which
             // read pre-open / overnight / prev-RTH bars, not just RTH).
@@ -311,10 +296,7 @@ namespace ATAS.Indicators
                     $"pending_active={(_pending != null ? 1 : 0)}\n" +
                     $"wrote_features_row={(_wroteRow ? 1 : 0)}\n" +
                     $"finalize_ny={FinalizeNy}\n" +
-                    $"gate_by_target={(GateByTargetDate ? 1 : 0)}\n" +
-                    $"probe_preopen_bars={_preBars} with_levels={_preLvl}\n" +
-                    $"probe_overnight_bars={_onBars} with_levels={_onLvl}\n" +
-                    $"probe_rth_bars={_pdBars} with_levels={_pdLvl}\n");
+                    $"gate_by_target={(GateByTargetDate ? 1 : 0)}\n");
             }
             catch { }
         }
@@ -460,7 +442,7 @@ namespace ATAS.Indicators
             _onLive.Freeze(); _on.CopyFrom(_onLive);
             _onLive.Reset(Tick);            // start fresh for the next overnight
             _profilesFrozen = true;
-            DrawProfileLevels();
+            // reaction zone lines removed by user request; features still computed.
         }
 
         // ~40 distance features + value-area position + confluence, from the FROZEN profiles.
@@ -518,37 +500,6 @@ namespace ATAS.Indicators
             row.Add($"distance_to_{name}_HVN_ticks", double.IsNaN(hvn) ? double.NaN : (p - hvn) / tick);
             row.Add($"distance_to_{name}_LVN_ticks", double.IsNaN(lvn) ? double.NaN : (p - lvn) / tick);
             row.Add($"position_vs_{name}_value_area", p > vp.Vah ? 1 : p < vp.Val ? -1 : 0);
-        }
-
-        // Draw the frozen reaction levels (POC/VAH/VAL + nearest nodes) as blue-magenta
-        // horizontal lines across the execution window. POC thicker.
-        private void DrawProfileLevels()
-        {
-            try
-            {
-                var start = CurrentBar;
-                var end = CurrentBar + 40;
-                foreach (var vp in new[] { _pre15, _pre30, _pre60, _on, _pd })
-                {
-                    if (!vp.HasData) continue;
-                    AddLevelLine(start, end, vp.Poc, 3);
-                    AddLevelLine(start, end, vp.Vah, 2);
-                    AddLevelLine(start, end, vp.Val, 2);
-                    foreach (var h in vp.Hvn) AddLevelLine(start, end, h, 1);
-                    foreach (var l in vp.Lvn) AddLevelLine(start, end, l, 1);
-                }
-            }
-            catch
-            {
-                // drawing must never interrupt the research sidecar / chart.
-            }
-        }
-
-        private void AddLevelLine(int startBar, int endBar, double price, int width)
-        {
-            if (double.IsNaN(price)) return;
-            TrendLines.Add(new TrendLine(startBar, (decimal)price, endBar, (decimal)price,
-                new Pen(ProfileColor, width)));
         }
 
         private bool WhaleAtEvent(string dir, BarData b)

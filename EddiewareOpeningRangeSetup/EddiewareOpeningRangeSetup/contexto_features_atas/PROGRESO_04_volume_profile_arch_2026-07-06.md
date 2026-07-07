@@ -119,11 +119,104 @@ al chart aparte (no mezcla con el Feature Scanner).
 - Compila 0 errores (API render OFT.Rendering válida: RenderContext/RenderPen/RenderFont/
   Container.Region/GetYByPrice/SubscribeToDrawingEvents).
 
+## 7b. REANUDAR AQUÍ (tras reinicio) — DLL vigente 16:37
+
+**Último DLL desplegado: 2026-07-06 16:37** (Indicators + Strategies). Incluye: captura
+alineada bus/slide (#1/#2), Volume Profile (A), probe de datos, y el indicador DOM aparte (B).
+`DomLevels.cs` se compiló en el mismo DLL.
+
+### Indicadores a agregar al chart 1m (DisplayName exacto)
+| Indicador | Para |
+|---|---|
+| `02_Visual_Logic` | base (OR/señal), OrMinutes visual |
+| `ATAS Score Trade Result Exporter ENTRY SL TP RESULT` | score CSV (y) + bus |
+| `Feature Scanner` | features (X) + VP + línea azul-magenta + probe. **"OR minutos"=1** |
+| `ATRAPADOS Book Recorder` | solo si corres el probe DOM/MBP |
+| `DOM Levels (orange)` | solo para ver la línea naranja del libro |
+
+(Las estrategias `EW ... Execution Manager` y `EW Trapped Fade v1` van en Strategies, no en el chart.)
+
+### Pasos tras reiniciar
+1. **Sanity features + VP + probe** (base + Feature Scanner en el chart):
+   ```powershell
+   cd "C:\Users\k_99_\Desktop\codding\OpeningRangeSetup\EddiewareOpeningRangeSetup\EddiewareOpeningRangeSetup"
+   python -u 04_run_replay_featsweep_after_sync.py --limit 5 --force
+   ```
+   Verificar (disco):
+   - `featscan_status_*.txt`: `probe_preopen_bars` / `probe_overnight_bars` / `probe_rth_bars`
+     con `with_levels`. → decide si PREOPEN/ON salen en C# o Python (§4).
+   - `features_scan_*.csv`: columnas `distance_to_PD_POC_ticks` etc pobladas (PREOPEN/ON NaN si
+     data ausente). Mismo valor de perfil en traded y slide de la misma fecha = congelado OK.
+   - Chart: líneas **azul-magenta** (al menos PD).
+   - Regresión: 06-26 traded sigue `down`/`29250`; slide_06-30 existe (#2); no-trade sin scan (#1).
+
+2. **Probe DOM/MBP** (+ `ATRAPADOS Book Recorder` en el chart):
+   ```powershell
+   python -u 05_run_book_recorder_probe.py --limit 3
+   ```
+   - `mbp_rows>0` → DOM naranja pinta en replay. `mbo_rows>0` → Track B viable en replay.
+   - MBP = libro por precio (basta para la naranja). MBO = libro + órdenes (Track B).
+
+3. Con probe OK: quitar el probe temporal del `FeatureScanner.cs`, luego **temporada DST completa**
+   (quitar `--limit`).
+
+## 8. Iteración 06-jul tarde (DLL 19:06) — zonas fuera + probe PASA + probe quitado
+
+### 8a. Dibujo de zonas de reacción ELIMINADO (petición usuario)
+Secuencia sobre las líneas de VP en el chart (Feature Scanner):
+1. Probé azul=buy / rosa=sell + quitar HVN/LVN → usuario: "se arruinó, revierte".
+2. Revertido a azul-magenta original.
+3. Usuario: "elimina las zonas, no quiero esas líneas".
+
+**Final:** `DrawProfileLevels()` + `AddLevelLine()` + `ProfileColor` **borrados**. Ya NO se
+dibuja nada en el chart. `TrendLines.Clear()` en cambio de fecha se queda (inocuo).
+**Las features `distance_to_*` / `position_vs_*` / `profile_confluence_count` siguen intactas**
+(el modelo las sigue recibiendo). Solo se fue el overlay visual.
+
+### 8b. Probe de datos §4 → PASA. **BUILD QUEDA EN C#** (no Python)
+Sanity `--limit 5 --force` corrido por el usuario (ventana Replay ATAS visible + stdin).
+`featscan_status_*.txt` (25/26/29/30-jun, 01-jul):
+
+| Ventana | bars | with_levels | % |
+|---|---|---|---|
+| pre-open 08:30–09:29 | 60 | 60 | 100% |
+| overnight 18:00–08:29 | 870 | 870 | 100% |
+| RTH | ~390 | ~390 | 100% |
+
+**Todos los bars traen footprint Levels.** Criterio §4 (preopen>0 ∧ overnight>0 con levels>0)
+→ VP real en C# para los 5 perfiles. PREOPEN/ON NO degradan a NaN.
+
+Features pobladas en `features_scan_*.csv` (1 fila traded c/u):
+
+| Perfil dist POC | 06-30 | 06-26 |
+|---|---|---|
+| PREOPEN_15m | 74 | 16 |
+| ON | 77 | -97 |
+| PD | 77 | -360 |
+| confluence | 0 | 2 |
+
+Valores distintos por perfil = VP real. (07-02 mostró doble conteo 120/1740 = cargó 2 sesiones
+de historia; no afecta la decisión.)
+
+### 8c. Probe temporal QUITADO de `FeatureScanner.cs`
+Borrado: bloque de acumulación (pre/on/rth × with_levels), campos `_preBars.._pdLvl`, su reset
+en cambio de fecha, y los 3 renglones `probe_*` del `WriteStatus()`. Status vuelve a heartbeat
+normal. Compila 0 errores. **DLL 19:06 desplegado (Indicators + Strategies).**
+
+### 8d. REANUDAR AQUÍ — DLL vigente 19:06
+Pendiente del plan:
+| # | Acción |
+|---|---|
+| 1 | Probe DOM/MBP: `python -u 05_run_book_recorder_probe.py --limit 3` (+ `ATRAPADOS Book Recorder` en chart). `mbp_rows>0`→DOM naranja en replay; `mbo_rows>0`→Track B viable. |
+| 2 | Validar no-lookahead: sesión con breakout tardío (fila slide) → perfiles idénticos traded vs slide. Las CSV del sanity solo trajeron 1 fila (traded), no se pudo comparar. |
+| 3 | Temporada DST completa (quitar `--limit`). |
+
 ## 6. Estado
 
-- Probe desplegado (DLL **16:18**). Diseño fijado. Build NO iniciado (espera datos).
-- **Probe AÚN NO corrido:** los `featscan_status_*.txt` en disco NO tienen los campos
-  `probe_*` → el DLL 16:18 no está cargado todavía. Falta **reiniciar ATAS** y correr el sanity.
+- Todo (A + B + captura #1/#2 + probe) en DLL **16:37**, 0 errores. Build A degrada a NaN si
+  pre-open/ON no cargan (PD sí). B es live-only salvo que el probe muestre mbp>0.
+- **Pendiente correr** tras reinicio: sanity (§7b paso 1) + probe DOM (§7b paso 2). Los
+  `featscan_status_*.txt` viejos NO tienen `probe_*` → confirmar que ATAS recargó el 16:37.
 
 ### Cómo verificar el probe (acción pendiente)
 ```powershell
