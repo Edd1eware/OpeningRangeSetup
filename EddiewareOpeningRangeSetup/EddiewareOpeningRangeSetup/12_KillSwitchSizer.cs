@@ -89,6 +89,14 @@ namespace ATAS.Indicators
             _balance += pnlUsd;
             if (_balance > _peak) _peak = _balance;
 
+            // Streak / green bookkeeping from the trade just closed MUST happen before
+            // the tier decision: the tier for the NEXT entry has to reflect ALL trades
+            // closed so far (dd already includes this one, streak must too). Doing it
+            // after made the streak override fire one trade late. Verified against
+            // kill_switch_sim.py (streak-before reproduces the validated path exactly).
+            if (pnlUsd < 0m) { _streak += 1; _green = 0; }
+            else if (pnlUsd > 0m) { _streak = 0; _green += 1; }
+
             var dd = _peak - _balance;
             int ddTier = dd < _f1 * _cushion ? 0 : (dd < _f2 * _cushion ? 1 : 2);
             int streakTier = _streak >= _sPause ? 2 : (_streak >= _sHalf ? 1 : 0);
@@ -106,10 +114,6 @@ namespace ATAS.Indicators
             {
                 _stuck += 1;
             }
-
-            // streak / green bookkeeping from the trade just closed
-            if (pnlUsd < 0m) { _streak += 1; _green = 0; }
-            else if (pnlUsd > 0m) { _streak = 0; _green += 1; }
 
             return CurrentSize;
         }
