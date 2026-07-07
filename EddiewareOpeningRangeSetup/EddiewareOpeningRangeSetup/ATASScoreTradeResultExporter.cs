@@ -100,7 +100,9 @@ namespace ATAS.Indicators
             "Buy_Imbalance_Count,Sell_Imbalance_Count," +
             "Execution_Side_Imbalance_Count,Max_Delta_during_trade,Min_Delta_during_trade," +
             "Volume_Increased_During_Trade,Volume_Increase_Samples,Volume_Observed_Samples," +
-            "Volume_Increasing_Pct_During_Trade,Max_MAE_Speed_500ms,Max_MAE_Speed_1s,Max_MAE_Speed_2s";
+            "Volume_Increasing_Pct_During_Trade,Max_MAE_Speed_500ms,Max_MAE_Speed_1s,Max_MAE_Speed_2s," +
+            "VP_Dir_POC,VP_Dir_VAH,VP_Dir_VAL,VP_Dir_High,VP_Dir_Low,VP_Dir_Range_Ticks,VP_Direction," +
+            "VP_LVN_POC,VP_LVN_Count,VP_LVN_Levels";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
@@ -2371,6 +2373,11 @@ namespace ATAS.Indicators
                 ? BuildTradeCsvRow()
                 : csvRowOverride.TrimEnd('\r', '\n');
 
+            // Append the Volume_Profile_Eddieware levels (read from the shared store by
+            // session date). Single injection point so both the fresh and replay-sync
+            // rows stay aligned with the header.
+            csvRow += "," + BuildVolumeProfileCsvFields(nyDate);
+
             File.WriteAllText(
                 filePath,
                 CsvHeader + Environment.NewLine +
@@ -2469,6 +2476,32 @@ namespace ATAS.Indicators
                     FormatBool(_trade.SpeedIgnoredByStructure),
                     BuildExtendedTelemetryCsvFields()
                 );
+        }
+
+        // 10 fields, always the same count (blank when the Volume_Profile_Eddieware
+        // indicator has not published levels for this session yet).
+        private string BuildVolumeProfileCsvFields(DateTime nyDate)
+        {
+            if (!VolumeProfileStore.TryGet(nyDate, out var vp))
+                return ",,,,,,,,,";
+
+            var dirPoc = vp.HasDirection ? FormatPrice(vp.DirPoc) : "";
+            var dirVah = vp.HasDirection ? FormatPrice(vp.DirVah) : "";
+            var dirVal = vp.HasDirection ? FormatPrice(vp.DirVal) : "";
+            var dirHigh = vp.HasDirection ? FormatPrice(vp.DirHigh) : "";
+            var dirLow = vp.HasDirection ? FormatPrice(vp.DirLow) : "";
+            var dirRange = vp.HasDirection ? FormatTicks(vp.DirRangeTicks) : "";
+            var direction = vp.HasDirection ? (vp.Direction ?? "") : "";
+
+            var lvnPoc = vp.HasLvn ? FormatPrice(vp.LvnPoc) : "";
+            var levels = vp.LvnLevels ?? Array.Empty<decimal>();
+            var lvnCount = vp.HasLvn ? levels.Length.ToString(CultureInfo.InvariantCulture) : "";
+            var lvnLevels = string.Join("|", Array.ConvertAll(levels,
+                x => x.ToString("0.00", CultureInfo.InvariantCulture)));
+
+            return string.Join(",",
+                dirPoc, dirVah, dirVal, dirHigh, dirLow, dirRange, direction,
+                lvnPoc, lvnCount, lvnLevels);
         }
 
         private void WriteTimeOverFile(DateTime nyDate, DateTime nyTime)

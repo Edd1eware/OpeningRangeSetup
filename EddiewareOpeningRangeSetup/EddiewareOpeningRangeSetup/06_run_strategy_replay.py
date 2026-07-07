@@ -21,6 +21,7 @@ from pathlib import Path
 
 import replay_sync_runner_common_after_sync as rs
 import telegram_run_summary_after_sync as telegram
+import atas_process_guard
 
 LADDER_ROOT = (
     rs.RESULTS_FOLDER / "visual_tests" / "sync_ladder_runs" / "sync_v11_ladder_001_resume"
@@ -34,6 +35,42 @@ def _row(path):
         return next(csv.DictReader(open(path, encoding="utf-8-sig")), None)
     except Exception:
         return None
+
+
+# Canal en disco Exporter->Strategy. Mismo path que StrategySignalFile.cs.
+SIGNAL_FILE = rs.RESULTS_FOLDER / "pending_strategy_signal.txt"
+MIN_RANGE_SIGNAL = 140  # FROZEN EXECUTION FILTER (mismo universo que opera la strategy)
+
+
+def prewrite_signal(date_str):
+    """Pre-escribe pending_strategy_signal.txt desde el score CSV canonico ANTES
+    del replay. Mata la race Exporter/Strategy: cuando la strategy abre su ventana
+    09:30-09:40, la senal PENDING ya esta en disco (no depende del timing del
+    exporter dentro del replay). El exporter la re-escribe igual (mismo PENDING) y
+    _enteredToday evita doble entrada. Formato: date,side,entry,sl,isAPlus,bar,PENDING.
+    Devuelve True si escribio una senal valida (fecha con trade en el universo)."""
+    src = rs.RESULTS_FOLDER / f"score_trade_result_{date_str}_NY.csv"
+    r = _row(src)
+    if not r:
+        return False
+    try:
+        if int(float(r.get("range", 0) or 0)) < MIN_RANGE_SIGNAL:
+            return False  # fuera del universo congelado -> no-trade, no pre-escribe
+        side = (r.get("Side") or "").strip()
+        entry = (r.get("Entry_price") or "").strip()
+        if not side or not entry:
+            return False
+        sl = (r.get("SL_price") or entry).strip() or entry
+        is_aplus = "1" if str(r.get("APlus_Speed", "")).strip().upper() == "TRUE" else "0"
+        bar = (r.get("EntryBar") or "0").strip() or "0"
+        line = f"{date_str},{side},{entry},{sl},{is_aplus},{bar},PENDING"
+        SIGNAL_FILE.parent.mkdir(parents=True, exist_ok=True)
+        SIGNAL_FILE.write_text(line, encoding="utf-8")
+        print(f"Signal pre-escrita: {line}")
+        return True
+    except Exception as exc:
+        print(f"prewrite_signal({date_str}) fallo: {exc}")
+        return False
 
 
 def synced_dates(aplus_only):
@@ -65,7 +102,20 @@ def main():
     parser.add_argument("--keep-state", action="store_true",
                         help="NO borra los state files de la strategy (challenge/kill-switch/regime). "
                              "Por defecto se borran para una validacion desde cuenta limpia.")
+    parser.add_argument("--kill-orphans", action="store_true",
+                        help="Mata instancias ATAS pesadas SIN ventana (huerfanas de sesiones "
+                             "previas) antes de correr. Sin este flag solo detecta y avisa. "
+                             "Nunca mata una instancia con ventana ni los helpers ligeros.")
     args = parser.parse_args()
+
+    # Preflight de procesos: multiples instancias ATAS pesadas => Exporter/Strategy
+    # duplicados peleando por pending_strategy_signal.txt => race y trades fantasma.
+    # Por seguridad (el motor de replay podria ser un proceso pesado sin ventana de
+    # TU instancia) solo mata con --kill-orphans; por default reporta.
+    killed = atas_process_guard.cleanup_orphan_atas(dry_run=not args.kill_orphans)
+    if not args.kill_orphans and not killed:
+        # dry_run ya reporto; si detecto >1 pesada avisa como bloqueo suave.
+        pass
 
     if args.dates:
         dates = sorted(set(args.dates))
@@ -162,6 +212,8 @@ def main():
 
     failures = []
     for i, date in enumerate(dates, 1):
+        # Pre-escribe la senal canonica en disco para matar la race Exporter/Strategy.
+        prewrite_signal(date)
         try:
             _, date_failures = rs.run_replay_period(
                 [date],
@@ -229,7 +281,7 @@ def main():
             with open(trades_log, "w", encoding="utf-8") as f:
                 f.write("fecha,side,contratos,entry_fill,exit_fill,ticks,pnl_usd,exit_motivo\n")
                 f.write("\n".join(rows_gen) + "\n")
-            print(f"CSV generado desde score_trade_result: {len(rows_gen)} filas → {trades_log.name}")
+            print(f"CSV generado desde score_trade_result: {len(rows_gen)} filas -> {trades_log.name}")
 
     fail_n = len(failures)
     # PnL real + contratos del log de la estrategia.

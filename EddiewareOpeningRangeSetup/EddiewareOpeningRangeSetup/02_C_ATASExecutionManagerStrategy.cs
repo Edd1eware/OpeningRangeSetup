@@ -36,6 +36,20 @@ namespace ATAS.Indicators
         private int _prevPosition;
         private int _activeContracts;
 
+        // Virtual-fill accounting: ATAS Market Replay solo trae datos de precio, NO
+        // motor de fills -> OpenOrder no llena, CurrentPosition queda en 0 y la
+        // contabilidad real nunca corre. Con UseVirtualFills la strategy simula el
+        // trade de forma determinista desde el precio (entra al TOCAR el entry como
+        // un breakout, aplica su SL/trailing, sale, y alimenta el kill-switch). Es
+        // el mismo enfoque de precio que usa el exporter para el score CSV.
+        private bool _virtualPending;   // senal leida, esperando que el precio toque el entry
+        private bool _virtualOpen;      // posicion virtual viva
+        private string _virtualSide = "";
+        private decimal _virtualEntry;
+        private decimal _virtualStop;    // stop actual (inicial o trailed)
+        private decimal _virtualSlPrice; // SL canonico de la senal (e.SlPrice); 0 = usar SlTicks
+        private int _virtualContracts;
+
         // Risk Governor: tracks challenge equity across ATAS restarts via file.
         private decimal _challengeEquity;
         private decimal _challengePeakEquity;
@@ -128,6 +142,13 @@ namespace ATAS.Indicators
             GroupName = "Kill-switch")]
         public int KillSwitchBase { get; set; } = 3;
 
+        [Display(Name = "Fills virtuales (Replay: sin motor de fills)", Order = 112,
+            GroupName = "Kill-switch",
+            Description = "ON: la strategy simula el trade desde el precio (entra al tocar el " +
+                          "entry, aplica SL/trailing, alimenta el kill-switch). Necesario en " +
+                          "Market Replay (no llena CurrentPosition). OFF para live/emulador real.")]
+        public bool UseVirtualFills { get; set; } = true;
+
         [Display(Name = "Resetear equity del challenge", Order = 104,
             GroupName = "Risk Governor",
             Description = "Activa para borrar el estado guardado y empezar challenge nuevo. Desactiva despues.")]
@@ -169,7 +190,12 @@ namespace ATAS.Indicators
 
         // ── Internals ──────────────────────────────────────────────────────
 
-        private decimal Tick => InstrumentInfo?.TickSize ?? 0.25m;
+        // NQ tick HARDCODED, igual que el exporter (const SetupTickSize=0.25m). NO usar
+        // InstrumentInfo.TickSize: en Market Replay devuelve 1.25 (5x) -> SL/trailing
+        // salían 5x de distancia (bug 2026-07-07, stop a 62.5pts en vez de 12.5 con SlTicks=50).
+        // El sistema es NQ-only; si algún día se opera otro instrumento, parametrizar aquí.
+        private const decimal SetupTickSize = 0.25m;
+        private decimal Tick => SetupTickSize;
 
         // Loss per 1 contract: uses GovernorLossPerContract if set, else derives from SlTicks.
         private decimal EffectiveLossPerContract =>
@@ -402,6 +428,9 @@ namespace ATAS.Indicators
                 _setupActive = false;
                 _setupSide = "";
                 _setupOutcomeRecorded = false;
+                _virtualPending = false;
+                _virtualOpen = false;
+                _virtualSide = "";
             }
 
             var tod = ny.TimeOfDay;
@@ -409,6 +438,11 @@ namespace ATAS.Indicators
             var entryTo = ParseNy(EntryToNy, new TimeSpan(9, 40, 0));
             var hardClose = ParseNy(HardCloseNy, new TimeSpan(9, 50, 0));
             var currentPrice = (decimal)candle.Close;
+
+            // Fills virtuales (Replay sin motor de fills): gestiona el ciclo
+            // pending->fill->trailing->exit determinista y alimenta el kill-switch.
+            if (UseVirtualFills)
+                ManageVirtualTrade(bar, tod, hardClose);
 
             // Per-bar: track setup outcome for shadow queue (label TP=60t, SL=30t).
             // Runs for both real trades and paused-day shadow monitoring.
@@ -432,6 +466,11 @@ namespace ATAS.Indicators
                 }
             }
 
+            // Ruta LIVE/emulador real: detecta fills via CurrentPosition. En Market
+            // Replay CurrentPosition SIEMPRE es 0 (sin motor de fills) -> con
+            // UseVirtualFills todo este bloque se salta y lo maneja ManageVirtualTrade.
+            if (!UseVirtualFills)
+            {
             // Detecta cierre de posicion en OnCalculate (OnNewMyTrade no dispara en Replay).
             int curPos = (int)CurrentPosition;
             if (_tradeOpen && _prevPosition != 0 && curPos == 0)
@@ -486,6 +525,7 @@ namespace ATAS.Indicators
                 _trailActive = false;
                 return;
             }
+            } // fin ruta !UseVirtualFills
 
             if (_enteredToday)
                 return;
@@ -573,6 +613,27 @@ namespace ATAS.Indicators
             // Report the REAL executed size back to the bus so the exporter's Telegram
             // shows the true kill-switch contracts, not the nominal TelegramContracts.
             ExecutionSignalBus.ReportExecuted(e.SessionDate, contracts);
+
+            // Fills virtuales (Replay): no coloca ordenes reales (no llenarian). Arma un
+            // pending virtual que se llena cuando el precio toca el entry (breakout), y
+            // ManageVirtualTrade gestiona SL/trailing/exit determinista alimentando el KS.
+            if (UseVirtualFills)
+            {
+                _virtualContracts = contracts;
+                _virtualSide = e.Side;
+                _virtualEntry = e.EntryPrice;
+                _virtualSlPrice = e.SlPrice;   // SL canonico de la senal (bracket del exporter)
+                _virtualStop = 0m;
+                _virtualPending = true;
+                _virtualOpen = false;
+                _peakFavorableTicks = 0;
+                _trailActive = false;
+                _openSide = e.Side;
+                _entryFillSide = e.Side;
+                _entryPrice = e.EntryPrice;
+                _enteredToday = true;
+                return;
+            }
 
             // Set all state before OpenOrder (OnNewMyTrade unreliable in Replay).
             _openSide = e.Side;
@@ -682,6 +743,101 @@ namespace ATAS.Indicators
             };
             ModifyOrder(_stopOrder, modified);
             _stopOrder = modified;
+        }
+
+        // Contabilidad determinista desde precio para Market Replay (sin motor de fills).
+        // Ciclo: pending (espera que el precio toque el entry) -> open (SL fijo + trailing)
+        // -> exit (stop/trailing tocado por el extremo adverso, o hardClose). Al salir
+        // alimenta el kill-switch via UpdateChallengeEquity y escribe el log rico.
+        private void ManageVirtualTrade(int bar, TimeSpan tod, TimeSpan hardClose)
+        {
+            if (!_virtualPending && !_virtualOpen)
+                return;
+
+            var candle = GetCandle(bar);
+            var hi = (decimal)candle.High;
+            var lo = (decimal)candle.Low;
+            var close = (decimal)candle.Close;
+            var isBuy = _virtualSide == "BUY";
+
+            // 1) Pending -> se llena cuando el precio TOCA el entry (como un breakout).
+            //    No se gestiona SL en la barra de fill (evita falso-SL intrabar por no
+            //    tener orden tick a tick); la gestion arranca en la siguiente barra.
+            if (_virtualPending)
+            {
+                bool touched = isBuy ? hi >= _virtualEntry : lo <= _virtualEntry;
+                if (touched)
+                {
+                    _virtualPending = false;
+                    _virtualOpen = true;
+                    _peakFavorableTicks = 0;
+                    _trailActive = false;
+                    // SL canonico de la senal (bracket del exporter) si viene; si no, SlTicks.
+                    _virtualStop = _virtualSlPrice > 0m
+                        ? _virtualSlPrice
+                        : (isBuy ? _virtualEntry - SlTicks * Tick
+                                 : _virtualEntry + SlTicks * Tick);
+                    _entryFillSide = _virtualSide;
+                }
+                else if (tod >= hardClose)
+                {
+                    _virtualPending = false; // nunca se lleno -> sin trade
+                }
+                return;
+            }
+
+            // 2) Open -> actualiza pico favorable, trailing, y chequea salida.
+            var favExtreme = isBuy ? hi : lo;
+            var favTicks = isBuy
+                ? (favExtreme - _virtualEntry) / Tick
+                : (_virtualEntry - favExtreme) / Tick;
+            if (favTicks > _peakFavorableTicks)
+                _peakFavorableTicks = favTicks;
+
+            if (!_trailActive && _peakFavorableTicks >= TrailActivateTicks)
+                _trailActive = true;
+
+            if (_trailActive)
+            {
+                var trailStop = isBuy
+                    ? _virtualEntry + (_peakFavorableTicks - TrailTicks) * Tick
+                    : _virtualEntry - (_peakFavorableTicks - TrailTicks) * Tick;
+                var improves = isBuy ? trailStop > _virtualStop : trailStop < _virtualStop;
+                if (improves)
+                    _virtualStop = trailStop;
+            }
+
+            // Extremo adverso toca el stop -> salida al precio del stop.
+            var adverseExtreme = isBuy ? lo : hi;
+            bool stopHit = isBuy ? adverseExtreme <= _virtualStop : adverseExtreme >= _virtualStop;
+            if (stopHit)
+            {
+                CloseVirtual(_virtualStop,
+                    _trailActive ? "EW_claude_virtual_trail" : "EW_claude_virtual_SL");
+                return;
+            }
+
+            // Cierre forzado por horario.
+            if (tod >= hardClose)
+                CloseVirtual(close, "EW_claude_virtual_hardclose");
+        }
+
+        private void CloseVirtual(decimal exitPrice, string comment)
+        {
+            var isBuy = _virtualSide == "BUY";
+            var tickMove = isBuy
+                ? (exitPrice - _virtualEntry) / Tick
+                : (_virtualEntry - exitPrice) / Tick;
+            var pnlUsd = tickMove * _virtualContracts * 5m;
+
+            _activeContracts = _virtualContracts;      // LogTrade usa _activeContracts
+            UpdateChallengeEquity(pnlUsd);             // alimenta el kill-switch (OnTradeClosed)
+            LogTrade(_currentNyDate, _virtualSide, _virtualEntry, exitPrice, pnlUsd, comment);
+
+            _virtualOpen = false;
+            _virtualPending = false;
+            _openSide = "";
+            _trailActive = false;
         }
 
         // Override entry fill price with real fill if ATAS fires this (not reliable in Replay).
