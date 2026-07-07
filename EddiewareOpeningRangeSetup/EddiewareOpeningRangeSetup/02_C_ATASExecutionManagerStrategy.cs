@@ -41,6 +41,9 @@ namespace ATAS.Indicators
         private decimal _challengePeakEquity;
         private bool _stateLoaded;
 
+        // Kill-switch graduated sizer (validated 2026-07-07, see 12_KillSwitchSizer.cs).
+        private KillSwitchSizer _killSwitch;
+
         // Rolling WR regime filter: shadow queue updated for every valid setup signal.
         // Shadow outcome uses label thresholds TP=60t SL=30t, not the actual strategy SL.
         private readonly Queue<bool> _shadowQueue = new();
@@ -56,6 +59,7 @@ namespace ATAS.Indicators
 
         private string ChallengeStateFile => Path.Combine(TraderLogDir, "challenge_equity.txt");
         private string RegimeStateFile    => Path.Combine(TraderLogDir, "regime_state.txt");
+        private string KillSwitchStateFile => Path.Combine(TraderLogDir, "killswitch_state.txt");
 
         // ── Properties ────────────────────────────────────────────────────────
 
@@ -107,6 +111,19 @@ namespace ATAS.Indicators
             GroupName = "Risk Governor",
             Description = "0 = calcular automaticamente: (SlTicks+1)*$5 + $9 comision")]
         public decimal GovernorLossPerContract { get; set; } = 0m;
+
+        // ── Kill-switch graduated sizer (validated 2026-07-07) ─────────────
+        // When ON, sizing follows the graduated tier design (full/half/min on
+        // DD-from-peak + losing-streak override) instead of the headroom formula.
+        // Cushion = GovernorMaxDD. Base steps up (3->4) only after forward validation.
+        // The hard headroom governor still caps it (never exceeds the cliff limit).
+
+        [Display(Name = "Kill-switch activado", Order = 110, GroupName = "Kill-switch")]
+        public bool UseKillSwitch { get; set; } = true;
+
+        [Display(Name = "Base contratos (3 arranque, 4 tras forward)", Order = 111,
+            GroupName = "Kill-switch")]
+        public int KillSwitchBase { get; set; } = 3;
 
         [Display(Name = "Resetear equity del challenge", Order = 104,
             GroupName = "Risk Governor",
@@ -171,14 +188,41 @@ namespace ATAS.Indicators
             if (_stateLoaded) return;
             _stateLoaded = true;
 
+            _killSwitch = new KillSwitchSizer(
+                baseSize: Math.Max(1, KillSwitchBase),
+                cushion: GovernorMaxDD);
+
             if (ResetChallengeState)
             {
                 _challengeEquity = 0m;
                 _challengePeakEquity = 0m;
+                _killSwitch.Reset();
                 SaveChallengeState();
+                SaveKillSwitchState();
                 return;
             }
             LoadChallengeState();
+            LoadKillSwitchState();
+        }
+
+        private void LoadKillSwitchState()
+        {
+            try
+            {
+                if (File.Exists(KillSwitchStateFile))
+                    _killSwitch.Deserialize(File.ReadAllText(KillSwitchStateFile).Trim());
+            }
+            catch { }
+        }
+
+        private void SaveKillSwitchState()
+        {
+            try
+            {
+                Directory.CreateDirectory(TraderLogDir);
+                File.WriteAllText(KillSwitchStateFile, _killSwitch.Serialize());
+            }
+            catch { }
         }
 
         private void LoadChallengeState()
@@ -218,15 +262,29 @@ namespace ATAS.Indicators
             if (_challengeEquity > _challengePeakEquity)
                 _challengePeakEquity = _challengeEquity;
             SaveChallengeState();
+
+            // Feed the graduated kill-switch the closed-trade PnL (updates tier/streak).
+            if (_killSwitch != null)
+            {
+                _killSwitch.OnTradeClosed(pnlUsd);
+                SaveKillSwitchState();
+            }
         }
 
         private int AllowedContracts()
         {
-            if (!UseRiskGovernor) return Contracts;
+            // Hard headroom cliff (always applies as a last-resort cap).
             var dd = Math.Max(0m, _challengePeakEquity - _challengeEquity);
             var headroom = GovernorMaxDD - GovernorReserve - dd;
-            var nc = (int)Math.Floor((headroom - 0.01m) / EffectiveLossPerContract);
-            return Math.Clamp(nc, 0, Contracts);
+            var hardCap = (int)Math.Floor((headroom - 0.01m) / EffectiveLossPerContract);
+
+            if (UseKillSwitch && _killSwitch != null)
+            {
+                // Graduated tier size, but never above the hard cliff cap.
+                return Math.Max(0, Math.Min(_killSwitch.CurrentSize, hardCap));
+            }
+            if (!UseRiskGovernor) return Contracts;
+            return Math.Clamp(hardCap, 0, Contracts);
         }
 
         // ── Rolling WR Regime Filter: state persistence ────────────────────

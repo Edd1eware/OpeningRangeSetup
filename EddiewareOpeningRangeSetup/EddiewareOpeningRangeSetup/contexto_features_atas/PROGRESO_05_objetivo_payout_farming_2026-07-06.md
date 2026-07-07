@@ -105,7 +105,75 @@ TOTAL +$29,400. MAX DD path **−$6,810** (sin cambio).
 Caveat higiene: dedup por fecha dejó TIME_OVER=0 en el conteo (tr/mes sobrestimado); el net mensual
 en $ es correcto. Real trading-day rate ~68% con trade (medido antes).
 
-## 2b. PENDIENTE — Kill-switch robusto y confiable (adaptado a ESTAS rachas)
+## 2b-RESUELTO. Kill-switch DISEÑADO + BACKTESTEADO (2026-07-07)
+
+Simulador `analysis_vp/kill_switch_sim.py` sobre la secuencia REAL (174 trades 2025-03→2026-06).
+
+### Diseño final (determinista, sin ML)
+Throttle graduado de tamaño, anclado al cojín $4,500, con tier mínimo (nunca pausa total → evita
+deadlock) y re-arme por días verdes O por tiempo (probe_days=8):
+- tiers = [1.0 full, 0.5 half, 0.25 min] × base contracts
+- dd desde peak: `<0.35·cojín`→full · `<0.60·cojín`→half · `≥0.60`→min
+- override por racha: streak≥3→≤half, streak≥4→min
+- re-arme: sube 1 tier tras 2 días verdes O 8 días atascado (anti-whipsaw/anti-deadlock)
+
+### Hallazgo CRÍTICO — validación de robustez (barajado 2000 perms) INVIRTIÓ el optimismo
+El DD del path observado era **suerte del orden**. P(QUEMA) real por config:
+
+| config | P(QUEMA) barajado | net P50 |
+|---|---|---|
+| FIJO 3c | **26.1%** (¡NO era seguro!) | +$22,410 |
+| FIJO 6c | 99.2% | — |
+| KILL 6c | 34.5% | +$24,518 |
+| FIJO 2c | 1.9% | +$14,940 |
+| **KILL 4c** | **1.9%** | **+$19,780** |
+| KILL 3c | 0.0% | +$16,914 |
+
+- **FIJO 3c NO es seguro (26% quema)** — el −$3,405 observado fue orden favorable. Corrige el
+  consejo previo "sizing 3c arregla el DD".
+- **KILL 6c también era suerte** (parecía +18% seguro; barajado 34.5% quema).
+- Stress: pérdidas ×1.3 → FIJO 3c Y KILL 6c revientan. Distribución ya al filo.
+
+### GANADOR: KILL base-4c (f1=0.35, f2=0.60)
+Vs FIJO 2c (único fijo seguro): **+32% más $ (+$19,780 vs +$14,940) al MISMO 1.9% de quema.**
+El kill-switch se justifica por ROBUSTEZ (mismo retorno a 1/13 del riesgo), no por más retorno.
+Caveat: barajado asume orden i.i.d; si las rachas se agrupan más que al azar (régimen), la quema
+real puede ser >1.9% → razón extra para 4c, no 5-6c.
+
+### PORT HECHO (DLL 2026-07-07 00:25) — KILL en C#
+- Nueva clase `12_KillSwitchSizer.cs`: diseño validado (tiers full/half/min = base/round(base/2)/1,
+  DD desde peak <0.35·cushion→full <0.60→half ≥0.60→min, override racha 3→half/4→min, re-arme 2
+  verdes o 8 atascado, NUNCA pausa total). Persistencia Serialize/Deserialize.
+- Cableado en `02_C_ATASExecutionManagerStrategy.cs`: flag **`UseKillSwitch`** (default ON) + prop
+  **`KillSwitchBase`** (default **3**, subir a 4 tras forward). Reusa `_challengeEquity/_peak`.
+  `AllowedContracts()`: si kill-switch ON → `min(CurrentSize, hardCap)` (el governor duro sigue de
+  techo). `UpdateChallengeEquity` alimenta `OnTradeClosed(pnlUsd)`. Estado en `killswitch_state.txt`.
+- No tocó `03_Speed_clasification` ni el exporter. Governor viejo intacto como fallback (flag OFF).
+- Compila 0 errores, desplegado Indicators+Strategies 00:25.
+
+**CAVEATS pendientes de validar:**
+1. **Integer rounding — RESUELTO:** re-corrido el sim con tiers enteros del C#. base=3 (3/2/1) →
+   0.7% quema, +$18,378. base=4 (4/2/1) → 1.9%, +$19,780. Los números se mantienen (base=3 entero
+   hasta mejor que el fraccional). OK.
+2. **Requisito 6 (replay-validación):** correr replay con `UseKillSwitch=ON, base=3` y verificar que
+   los tiers/net/DD reproducen el simulador Python sobre la misma secuencia. NO usar en vivo antes.
+3. `challenge_equity.txt` (equity/peak) y `killswitch_state.txt` (tier/streak/verdes/atascado/bal/peak)
+   deben resetearse (`ResetChallengeState`) al arrancar cuenta nueva.
+
+### (histórico) PENDIENTE PORT — llevar KILL-4c a C# (ATAS Execution Manager)
+Sizing dinámico en la estrategia de ejecución. Requisitos:
+1. Estado persistente EOD: peak equity, dd desde peak, streak perdedor, tier actual, días verdes,
+   días atascado. Persistir a disco (sobrevive reinicio de ATAS / cambio de sesión).
+2. Leer equity/balance real de la cuenta (o P&L acumulado del día vía el exporter).
+3. Calcular contratos = base(4) × tier según las reglas de arriba, ANTES de cada entrada.
+4. Anclar cojín a la regla Lucid viva ($4,500 estático tras pasar; trailing en eval).
+5. Determinista, sin ML. Log de cada cambio de tier (fecha, dd, streak, tier viejo→nuevo).
+6. Validar en replay que reproduce el net/DD del simulador Python (misma secuencia → mismos tiers).
+NO tocar 03_Speed_clasification ni el exporter; nueva capa de sizing en el Execution Manager.
+
+---
+
+## 2b-viejo. (brief original, superado por 2b-RESUELTO)
 
 Diseñar un kill-switch que se adapte al **tipo real de racha perdedora observada**, no a spikes de
 un día. Debe pausar/bajar tamaño ANTES de que el DD reviente el cojín Lucid.
@@ -178,10 +246,14 @@ fwd_mfe/mae, hit TP/SL, + las features pre-entrada (mismas que features_scan).
   barajó las rachas). **Path real 2025 = MAX DD −$6,810 > cojín $4,500 → 6c se quema con su propio
   peor tramo. Fix determinista: bajar a 3c** (DD → −$3,405).
 - Meses 2025 (6c): Mar −$2,100, Abr −$960 (rojos), May-Sep verdes; TOTAL +$25,770. 6 verdes/2 rojos.
+- **CORRECCIÓN sizing (2026-07-07):** FIJO 3c NO es seguro (26% quema barajado). El ganador robusto
+  es **KILL base-4c** (throttle dinámico, 1.9% quema, +$19,780 P50). Ver §2b-RESUELTO.
 - **Siguiente (pendientes):**
-  1. **Kill-switch robusto (§2b)** — DISEÑO PENDIENTE, adaptado a las rachas reales (sangría lenta
-     multi-semana + cluster SL), graduado 6c→3c→pausa, anclado al cojín. Construir tras cerrar corrida.
-  2. Al cerrar corrida: tabla año completo×completo + MC año-aware (con secuencia real, no i.i.d).
-  3. (Opcional, ~30%) test veto pérdida-grande vs caza-runner con features reducidas + fresh holdout.
-  4. **Near-miss logger (§2c)** — DISEÑO PENDIENTE, para ver si se puede SUBIR frecuencia a igual/mejor
-     PF-WR aflojando compuerta + CatBoost. Test barato (medir pool rechazado) antes de pipeline pesado.
+  1. **PORT KILL-4c a C# (Execution Manager)** — sizing dinámico, estado EOD persistente. Ver §2b-RESUELTO.
+     Validar en replay que reproduce net/DD del simulador Python. PRIORIDAD 1.
+  2. Al cerrar corrida (HECHO): tabla año completo (§1c) + MC año-aware con secuencia real (pendiente
+     rehacer MC — el i.i.d era optimista, usar path real como en kill_switch_sim).
+  3. **Near-miss logger (§2c)** — única vía a +frecuencia. Test barato (medir pool rechazado) antes
+     de pipeline pesado. PRIORIDAD 2.
+  4. (Opcional, ~30%) test veto pérdida-grande vs runner con features reducidas + fresh holdout.
+     CatBoost NO ayuda al setup actual (probado, sin señal, n chico) — solo tras near-miss.
