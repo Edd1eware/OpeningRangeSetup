@@ -10,11 +10,11 @@ Design (deterministic, no ML):
     dd        = peak - equity            (drawdown from peak, $)
     streak    = consecutive losing days
     tier      = current size multiplier (hysteresis on the way up)
-  Size decision (graduated, cushion-anchored):
+  Size decision (graduated, cushion-anchored). Integer tiers, C# parity:
     dd < f1*cushion            -> FULL   (base contracts)
-    f1 <= dd < f2*cushion      -> HALF
-    dd >= f2*cushion           -> PAUSE  (0 contracts, sit out)
-    streak override: streak>=s_half -> at most HALF; streak>=s_pause -> PAUSE
+    f1 <= dd < f2*cushion      -> HALF   (round(base/2), AwayFromZero)
+    dd >= f2*cushion           -> MIN    (1 contract, never 0 -> stays in the game)
+    streak override: streak>=s_half -> at most HALF; streak>=s_pause -> MIN
   Re-arm: step UP one tier only after `rearm_green` green days (anti-whipsaw).
 
 The throttle makes each loss near the floor smaller, so the floor is mathematically
@@ -66,19 +66,26 @@ def run_fixed(ticks, dates, contracts):
     return eq, dd
 
 
-TIER_LEVELS = [1.0, 0.5, 0.25]   # full, half, min (never 0 -> stays in the game)
+def integer_tiers(base):
+    """Contracts per tier, matching 12_KillSwitchSizer.cs: full=base, half=round(base/2)
+    AwayFromZero, min=1. You cannot trade fractional contracts, so the deployed C# and
+    this reference share the same integer ladder (no more [1.0, 0.5, 0.25] fractions)."""
+    half = max(1, int(base / 2 + 0.5))     # AwayFromZero for positive base (C# parity)
+    return [base, half, 1]                  # index 0=full, 1=half, 2=min
 
 
 def run_killswitch(traded, ticks, dates, base, f1, f2, s_half, s_pause,
                    rearm_green, probe_days=8):
     """Graduated throttle, min-tier floor (never full pause), re-arm on green days
-    OR after `probe_days` stuck (anti-deadlock). Returns equity, max_dd, tiers, low_days, taken."""
+    OR after `probe_days` stuck (anti-deadlock). Integer contract tiers (C# parity).
+    Returns equity, max_dd, tiers(index), low_days, taken."""
+    levels = integer_tiers(base)
     equity = 0.0
     peak = 0.0
     streak = 0            # consecutive losing days
     green = 0             # consecutive green days (for re-arm)
     stuck = 0             # days stuck at current low tier (time-based probe)
-    ti = 0                # tier index into TIER_LEVELS (0=full)
+    ti = 0                # tier index (0=full, 1=half, 2=min)
     eq_path, tiers = [], []
     low_days = 0
     taken = 0
@@ -101,7 +108,7 @@ def run_killswitch(traded, ticks, dates, base, f1, f2, s_half, s_pause,
         else:
             stuck += 1
 
-        contracts = base * TIER_LEVELS[ti]
+        contracts = levels[ti]
         if ti > 0:
             low_days += 1
         if traded[i]:
@@ -119,7 +126,7 @@ def run_killswitch(traded, ticks, dates, base, f1, f2, s_half, s_pause,
             elif ticks[i] > 0:
                 streak = 0; green += 1
         eq_path.append(equity)
-        tiers.append(TIER_LEVELS[ti])
+        tiers.append(ti)
 
     eq = np.array(eq_path)
     dd = (eq - np.maximum.accumulate(eq)).min()
@@ -186,7 +193,7 @@ def main() -> int:
               extra=f"low_days={low_days} taken={taken}")
     # tier usage
     vals, cnts = np.unique(tiers, return_counts=True)
-    tmap = {1.0: "full", 0.5: "half", 0.25: "min"}
+    tmap = {0: "full", 1: "half", 2: "min"}
     usage = " ".join(f"{tmap.get(v,v)}={c}" for v, c in zip(vals, cnts))
     print(f"\nUso de tiers (días): {usage}")
     # monthly with kill-switch

@@ -1054,7 +1054,116 @@ def parse_args():
         metavar="N",
         help="Recorta a las ultimas N fechas (prueba rapida). 0 = todas. Una semana = 5.",
     )
+    parser.add_argument(
+        "--gate",
+        type=int,
+        default=0,
+        metavar="N",
+        help=(
+            "Valida las primeras N fechas en X1+X10; si la OPERATIVA coincide (side/entry/"
+            "SL/TP/exit/result/score), corre el RESTO en X10-only. Si difiere, se DETIENE. 0=off."
+        ),
+    )
     return parser.parse_args()
+
+
+def run_gated(args, date_iso_list, output_folder):
+    """Valida las primeras N fechas en X1+X10; si la operativa coincide, corre el
+    resto en X10-only. Evita recorrer las 247 fechas en X1 (1x = una vida).
+    Devuelve 0 si todo bien, 1 si el gate falla o hay errores de UI."""
+    n = args.gate
+    gate_iso = date_iso_list[:n]
+    rest_iso = date_iso_list[n:]
+
+    gate_plan = replay_sync.build_run_plan(quick=True)          # [X1_R1, X10_R1]
+
+    print(
+        f"\nGATED RUN — validacion X1 vs X10 en {len(gate_iso)} fecha(s), "
+        f"luego el RESTO ({len(rest_iso)}) en X10-only.\n"
+        f"Version esperada: {replay_sync.EXPECTED_EXPORTER_VERSION}\n"
+        f"Resultados: {output_folder}\n"
+    )
+    print("Fechas gate: " + ", ".join(gate_iso))
+
+    if args.prepare_only:
+        print("\nPREPARE-ONLY: no se inicio Replay.")
+        return 0
+
+    print("Limpieza unica de Telegram antes de la primera fecha...")
+    clear_telegram_before_run(RESULTS_FOLDER)
+
+    # --- Fase gate: X1 + X10 sobre las primeras N fechas ---
+    _passed_gate, failures_gate = replay_sync.run_replay_period(
+        gate_iso,
+        output_folder=output_folder,
+        run_plan=gate_plan,
+        report_prefix="dst_2025_2026_v11_gate",
+        force=args.force,
+        step=args.step,
+        replay_to_time=REPLAY_END_TIME,
+    )
+
+    if failures_gate:
+        print("\nGATE ABORTADO: fallos de script/UI en la fase gate:")
+        for date_iso, run_name, reason in failures_gate:
+            print(f"  - {date_iso} {run_name}: {reason}")
+        return 1
+
+    # --- Comparacion operativa X1 vs X10 en las fechas gate ---
+    sync_ok = replay_sync.build_comparison_report(
+        output_folder, gate_iso, gate_plan, "dst_2025_2026_v11_gate"
+    )
+
+    if not sync_ok:
+        print(
+            "\nGATE FAIL: X1 y X10 NO coinciden en la operativa de las fechas gate. "
+            "NO se corre el resto. Revisa dst_2025_2026_v11_gate_comparacion.csv."
+        )
+        return 1
+
+    print(
+        f"\nGATE PASS: X1 == X10 en las {len(gate_iso)} fechas gate. "
+        f"Corriendo el RESTO ({len(rest_iso)}) en X10-only...\n"
+    )
+
+    if not rest_iso:
+        print("No hay fechas restantes; el gate cubrio todo.")
+        update_score_workbook()
+        print_feature_scans()
+        return 0
+
+    x10_plan = replay_sync.build_run_plan(quick=True, x10_only=True)   # [X10_R1]
+    passed_rest, failures_rest = replay_sync.run_replay_period(
+        rest_iso,
+        output_folder=output_folder,
+        run_plan=x10_plan,
+        report_prefix="dst_2025_2026_v11_x10rest",
+        force=args.force,
+        step=args.step,
+        replay_to_time=REPLAY_END_TIME,
+    )
+
+    update_score_workbook()
+    print_feature_scans()
+
+    failed_dates = [
+        (date_iso, f"{run_name}: {reason}")
+        for date_iso, run_name, reason in failures_rest
+    ]
+    if failed_dates:
+        print("\nFECHAS CON ERROR (fase X10 resto):")
+        for failed_date, error in failed_dates:
+            print(f"- {failed_date}: {error}")
+
+    send_run_summary(
+        RESULTS_FOLDER,
+        DATES_DST,
+        failed_dates,
+        f"Gated X1/X10 ({len(gate_iso)} gate) + X10 resto 2025-2026 v11",
+    )
+
+    print("\nTERMINO GATED RUN.\n")
+    return 0 if passed_rest and not failures_rest else 1
 
 
 def main():
@@ -1082,6 +1191,11 @@ def main():
         "visual_tests",
         "04_run_replay_score_trade_results_dst_2025_2026_runs",
     )
+
+    # Gated flow: valida las primeras N fechas en X1+X10; si la operativa coincide,
+    # corre el RESTO en X10-only (evita recorrer 247 fechas en X1 = una vida).
+    if args.gate and args.gate > 0:
+        return run_gated(args, date_iso_list, Path(output_folder))
 
     print(
         f"\nINICIANDO REPLAY DE TEMPORADAS DST 2025-2026 V11 X1/X10 "

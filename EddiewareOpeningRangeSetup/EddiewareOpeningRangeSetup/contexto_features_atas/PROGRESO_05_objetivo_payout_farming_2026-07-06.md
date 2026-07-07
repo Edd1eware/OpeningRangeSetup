@@ -160,6 +160,39 @@ real puede ser >1.9% → razón extra para 4c, no 5-6c.
 3. `challenge_equity.txt` (equity/peak) y `killswitch_state.txt` (tier/streak/verdes/atascado/bal/peak)
    deben resetearse (`ResetChallengeState`) al arrancar cuenta nueva.
 
+## 2b-PARITY. Parity check C# vs sim + BUG DE ORDEN corregido (2026-07-07)
+
+Antes del replay ATAS (pesado), parity barato: re-implementar el C# fielmente en Python
+(`analysis_vp/kill_switch_parity.py`) y correr sobre la MISMA secuencia real (174 trades) que
+`kill_switch_sim.py`.
+
+### BUG encontrado — orden streak vs decisión de tier
+`OnTradeClosed` actualizaba `_streak/_green` **después** de decidir el tier → el override por racha
+reaccionaba **1 trade tarde**. El `dd` ya incluía el trade cerrado pero la racha no. En el path 2025
+fue inocuo para el DD (idéntico) pero es riesgo latente justo en el cluster de SL que el switch debe
+atrapar. **FIX (1 bloque en `12_KillSwitchSizer.cs`):** mover el bookkeeping de streak/green ANTES del
+cálculo de tier. Verificado: streak-antes reproduce el sim exacto. Recompilado 0 err + desplegado
+Indicators+Strategies **00:45**.
+
+### Sim cerrado a tiers ENTEROS (referencia canónica única)
+`kill_switch_sim.py` tenía `TIER_LEVELS = [1.0, 0.5, 0.25]` (fraccional, no operable). Cerrado a
+`integer_tiers(base)` = full=base / half=round(base/2) AwayFromZero / min=1 (C# parity). Docstring y
+mapa de uso de tiers actualizados.
+
+### Resultado parity — IDÉNTICO (0/174 divergencia)
+Path real 2025-03→2026-06, tras fix + sim entero, C# desplegado == sim canónico exacto:
+
+| base | net | maxDD | ¿quema? (cojín $4,500) |
+|---|---|---|---|
+| 3 | +$15,785 | −$3,125 | SEGURO |
+| 4 | +$20,015 | −$3,420 | SEGURO |
+
+Tras el fix el override corta a tiempo → más días min-tier (base=3: full=108 half=43 **min=23**, antes
+min=16). Más conservador, como el diseño pide; DD sin cambio, sigue seguro con margen.
+
+**Parity PASA.** Falta solo la validación de INTEGRACIÓN en ATAS (req 6): persistencia de estado EOD +
+timing entry vs `OnTradeClosed` en replay real.
+
 ### (histórico) PENDIENTE PORT — llevar KILL-4c a C# (ATAS Execution Manager)
 Sizing dinámico en la estrategia de ejecución. Requisitos:
 1. Estado persistente EOD: peak equity, dd desde peak, streak perdedor, tier actual, días verdes,
@@ -248,9 +281,29 @@ fwd_mfe/mae, hit TP/SL, + las features pre-entrada (mismas que features_scan).
 - Meses 2025 (6c): Mar −$2,100, Abr −$960 (rojos), May-Sep verdes; TOTAL +$25,770. 6 verdes/2 rojos.
 - **CORRECCIÓN sizing (2026-07-07):** FIJO 3c NO es seguro (26% quema barajado). El ganador robusto
   es **KILL base-4c** (throttle dinámico, 1.9% quema, +$19,780 P50). Ver §2b-RESUELTO.
+- **KILL parity + fix (2026-07-07):** PORT a C# HECHO. Parity check (§2b-PARITY) encontró bug de orden
+  (streak actualizado tarde) → CORREGIDO + redesplegado 00:45. Sim cerrado a tiers enteros. C# desplegado
+  == sim canónico IDÉNTICO (base=3: +$15,785/−$3,125 seguro; base=4: +$20,015/−$3,420 seguro). Falta solo
+  validación de INTEGRACIÓN en replay ATAS.
 - **Siguiente (pendientes):**
-  1. **PORT KILL-4c a C# (Execution Manager)** — sizing dinámico, estado EOD persistente. Ver §2b-RESUELTO.
-     Validar en replay que reproduce net/DD del simulador Python. PRIORIDAD 1.
+  1. **Replay ATAS integración (req 6) — CORRIENDO DESATENDIDO 2026-07-07 ~01:11.** Con `UseKillSwitch=ON,
+     base=3`. **Nuevo flag `--gate N`** en el runner 04 (`run_gated()`): corre las primeras N fechas en
+     X1+X10, compara la OPERATIVA (side/entry/SL/TP/exit/result/score) vía `build_comparison_report`; si
+     coincide → corre el RESTO en **X10-only**; si difiere → se DETIENE. Evita recorrer 247 fechas en X1
+     (1x = una vida). Comando en curso:
+     `python -u 04_run_replay_score_trade_results_dst_2025_2026_after_sync.py --gate 10 --force`
+     (log `gate_run_*.log`, PID lanzado en background, monitor de hitos activo). 10 fechas gate (mar 2025)
+     + 237 resto X10. Carpeta canónica que lee el parity = `X10_R1`.
+     - **Riesgo conocido:** había **7 instancias ATAS (OFT.Platform)** abiertas al lanzar → el runner
+       podría attachear la ventana equivocada. El gate de 10 es la red: si attachea mal, falla barato.
+     - **Al terminar (mañana):** correr `python -u analysis_vp/kill_switch_parity.py --base 3` → meta
+       **+$15,785 / −$3,125** (== sim canónico). Si cuadra → integración OK. Si difiere → bug timing/
+       persistencia. Si el GATE falló → X1≠X10, revisar `dst_2025_2026_v11_gate_comparacion.csv`.
+     Comando: `python -u 04_run_replay_score_trade_results_dst_2025_2026_after_sync.py --force`.
+     **Al terminar:** correr `python -u analysis_vp/kill_switch_parity.py --base 3` → el net/DD del replay
+     debe dar **+$15,785 / −$3,125** (== sim canónico). Si cuadra → integración OK, listo forward. Si
+     difiere → bug de timing/persistencia (`OnTradeClosed` vs entry, o `killswitch_state.txt`), arreglar
+     mañana. NO vivo antes de validar. PRIORIDAD 1.
   2. Al cerrar corrida (HECHO): tabla año completo (§1c) + MC año-aware con secuencia real (pendiente
      rehacer MC — el i.i.d era optimista, usar path real como en kill_switch_sim).
   3. **Near-miss logger (§2c)** — única vía a +frecuencia. Test barato (medir pool rechazado) antes
