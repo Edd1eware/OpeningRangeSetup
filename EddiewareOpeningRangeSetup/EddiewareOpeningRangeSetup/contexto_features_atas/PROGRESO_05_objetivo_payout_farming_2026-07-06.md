@@ -339,13 +339,44 @@ Causas encontradas y resueltas para la validación:
 es temporal para que la validación tome el mismo universo que `kill_switch_sim.py` (174). Nota: si en
 producción se opera solo A+, el kill-switch debe re-validarse sobre ESE subset (no las 174).
 
-Flags de la corrida de validación (panel strategy): `UseKillSwitch=ON`, `KillSwitchBase=3`,
-`ResetChallengeState=ON`, `UseRollingWrFilter=OFF`, `OnlyAPlusSpeed=OFF`.
+**FLAGS BAKEADOS COMO DEFAULT (DLL 12:45) — TODOS TEMP, REVERTIR ANTES DE VIVO:**
+`UseKillSwitch=true` (queda), `KillSwitchBase=3` (queda), **`ResetChallengeState=true`** (revertir a false;
+si no, borra equity acumulada en cada reload), **`UseRollingWrFilter=false`** (revertir a true; protección
+de racha), **`OnlyAPlusSpeed=false`** (revertir a true; edge vivo = solo A+). Bakeados para no togglear en
+UI cada corrida de validación. Los 3 TEMP tienen comentario `TEMP 2026-07-07 ... REVERTIR` en el .cs.
 
-Otras mejoras 2026-07-07 (DLL 09:01): Telegram del exporter ahora muestra **contratos REALES** del
-kill-switch vía canal inverso en memoria (`ExecutionSignalBus.ReportExecuted`/`ExecutedContracts`);
-`Nc (real)` si la strategy ejecutó, `Nc (nominal)` si no (fallback a `TelegramContracts=6`). Solo tocó
-el string Telegram, NO el CsvHeader/ExporterVersion congelados.
+**DESCUBRIMIENTO CRÍTICO — 2 instancias estáticas separadas (código línea 448):** ATAS carga el MISMO DLL
+desde `Indicators/` (para el exporter) y `Strategies/` (para la ChartStrategy) por SEPARADO → **statics
+distintos**. El `ExecutionSignalBus` en memoria NO cruza entre ambas. **El único canal confiable es el
+ARCHIVO** `pending_strategy_signal.txt` (`RESULTS_FOLDER`). Consecuencias:
+1. **El canal inverso del Telegram (DLL 09:01) está MUERTO** — `ReportExecuted`/`ExecutedContracts` usa el
+   bus en memoria → el exporter (instancia Indicators) nunca ve lo que reporta la strategy (instancia
+   Strategies) → Telegram SIEMPRE "nominal", nunca "real" (por eso mostró 6c aun con la strategy en -3).
+   **PENDIENTE: rehacer el canal inverso por ARCHIVO** (la strategy escribe contratos reales a un file, el
+   exporter lo lee), no por bus en memoria.
+2. **Race de timing en la entrada:** el exporter (una instancia) escribe la señal al archivo; la strategy
+   (otra instancia) la lee en su ventana 09:30–09:40. Si la strategy procesa las barras de la ventana
+   ANTES de que el exporter escriba, lee `side=""` → no entra → `signal=PENDING` (no consumida). Intermitente
+   (una corrida operó -3 en el chart, otra no, con setup idéntico). Si persiste con DLL 12:45 limpio →
+   arreglar en código (escribir la señal más temprano, o que la strategy reintente/lea también post-ventana).
+
+Mejora previa (DLL 09:01, ahora MUERTA por lo de arriba): Telegram del exporter con `Nc (real)`/`Nc (nominal)`
+vía bus en memoria. Solo tocó el string Telegram, NO el CsvHeader/ExporterVersion congelados. Rehacer por archivo.
+
+**FIX OnTradeClosed en replay (DLL 12:21):** el `strategy_tester_trades.csv` salía FALSO — lo genera el
+FALLBACK del runner (`06_run` línea 175, `CONTRACTS=3` hardcoded, header CORTO) cuando la strategy no
+escribe su log rico. Causa: `DEFAULT_REPLAY_TO_TIME=09:50` == `HardCloseNy=09:50` → el replay termina
+justo en hardClose, no hay barra posterior donde `curPos==0` → `OnTradeClosed` nunca corre → state en 0,
+posición queda abierta (`-3` visible). **Fix A (C#):** contabilizar el trade DIRECTO en el branch
+hardClose (precio actual = salida, `_tradeOpen=false` evita doble conteo). **Fix B (py):** `06_run`
+extiende `replay_to_time="09:55"`. El log REAL de la strategy = header rico (`...,challenge_equity,...`);
+si sale header corto o state=0, el fix falló. VALIDACIÓN visual OK: chart mostró posición `-3` = kill-switch
+mete 3c. Pendiente: sanity `--dates 2025-03-18` con DLL 12:21 → confirmar header rico + state≠0 + Telegram
+`3c (real)`, luego correr integración.
+
+**Barra de progreso (2026-07-07):** cableada en `run_replay_period` (runner común) → TODOS los runners de
+replay muestran `██████░░░░ XX% | XX min restantes` con ETA. `progress.py` en el dir del proyecto. Ver
+memoria [[project_progress_bar_runners]]. Estándar: todo loop largo del proyecto lleva barra.
 
 ## 4. PENDIENTE — revisar/decidir sobre "NQ Edge Lab" de Codex (analizado 2026-07-07)
 

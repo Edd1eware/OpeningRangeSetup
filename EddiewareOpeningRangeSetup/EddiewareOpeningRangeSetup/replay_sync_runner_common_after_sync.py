@@ -12,6 +12,13 @@ from pywinauto import Desktop
 
 import telegram_run_summary_after_sync as telegram
 
+try:
+    # Barra de progreso con ETA (stderr, siempre flushed). Estandar del proyecto:
+    # todo recorrido largo muestra progreso. Ver progress-bar skill / CLAUDE.md.
+    from progress import ProgressBar
+except Exception:  # pragma: no cover - opcional, no debe romper el runner
+    ProgressBar = None
+
 
 EXPORT_FOLDER = Path(r"C:\Users\k_99_\Desktop\codding\data_footprint_generator")
 RESULTS_FOLDER = EXPORT_FOLDER / "trade_results_score"
@@ -1057,6 +1064,8 @@ def run_replay_period(
                 skipped_count = 0
                 real_durations = []
                 last_notify = 0
+                bar = (ProgressBar(total_dates, label=f"Replay {run_name}")
+                       if ProgressBar else None)
 
                 for index, date_iso in enumerate(date_iso_list, 1):
                     print(
@@ -1164,6 +1173,12 @@ def run_replay_period(
                             remaining=int(round(est_remaining_real)),
                             final=is_final,
                         )
+
+                    if bar:
+                        bar.update()
+
+                if bar:
+                    bar.close()
         finally:
             click_stop()
             restore_file_state(saved_target)

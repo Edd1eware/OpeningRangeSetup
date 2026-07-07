@@ -131,7 +131,9 @@ namespace ATAS.Indicators
         [Display(Name = "Resetear equity del challenge", Order = 104,
             GroupName = "Risk Governor",
             Description = "Activa para borrar el estado guardado y empezar challenge nuevo. Desactiva despues.")]
-        public bool ResetChallengeState { get; set; } = false;
+        // TEMP 2026-07-07: default true para la validación (arranque limpio cada corrida).
+        // REVERTIR a false antes de producción (si no, borra la equity acumulada en cada reload).
+        public bool ResetChallengeState { get; set; } = true;
 
         // ── Rolling WR Regime Filter (Codex 2026-06-29, N=11, hysteresis 1/3) ─
         // Shadow queue updated for EVERY valid setup signal, even when paused.
@@ -140,7 +142,9 @@ namespace ATAS.Indicators
 
         [Display(Name = "Rolling WR Filter activado", Order = 200,
             GroupName = "Rolling WR Filter")]
-        public bool UseRollingWrFilter { get; set; } = true;
+        // TEMP 2026-07-07: default false para la validación (no pausar por régimen).
+        // REVERTIR a true antes de producción (protección de racha del edge vivo).
+        public bool UseRollingWrFilter { get; set; } = false;
 
         [Display(Name = "Lookback N (numero de setups)", Order = 201,
             GroupName = "Rolling WR Filter")]
