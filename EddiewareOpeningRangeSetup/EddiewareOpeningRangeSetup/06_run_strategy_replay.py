@@ -62,6 +62,9 @@ def main():
     parser.add_argument("--all", action="store_true", help="Todas las sesiones (no solo A+ Speed).")
     parser.add_argument("--dates", nargs="*", help="Fechas especificas YYYY-MM-DD.")
     parser.add_argument("--prepare-only", action="store_true", help="Muestra las fechas sin correr.")
+    parser.add_argument("--keep-state", action="store_true",
+                        help="NO borra los state files de la strategy (challenge/kill-switch/regime). "
+                             "Por defecto se borran para una validacion desde cuenta limpia.")
     args = parser.parse_args()
 
     if args.dates:
@@ -77,6 +80,22 @@ def main():
         return 0
 
     OUTPUT.mkdir(parents=True, exist_ok=True)
+
+    # Reset de estado de la strategy: challenge_equity/killswitch/regime son solo
+    # archivos-espejo en OUTPUT (== TraderLogDir del 02_C). Si quedan viejos entre
+    # corridas, el kill-switch arranca con equity/tier/peak contaminados y la
+    # validacion no parte de cuenta limpia (ej. regime_state PAUSADO stale).
+    # Se borran por defecto; --keep-state los conserva.
+    if not args.keep_state:
+        for name in ("challenge_equity.txt", "killswitch_state.txt", "regime_state.txt"):
+            f = OUTPUT / name
+            if f.exists():
+                f.unlink()
+                print(f"State reseteado: {name} borrado (cuenta limpia).")
+        print("NOTA: la strategy re-inicializa su estado en memoria con "
+              "ResetChallengeState=ON. Si esta OFF, reinicia la strategy en ATAS "
+              "para que tome el reset.")
+
     # Solo X10 (la estrategia opera en X10). force=True -> re-corre cada fecha.
     run_plan = [("X10_R1", "X10", rs.X10_TIMEOUT_SECONDS)]
     # progress_meta -> Telegram con ETA exacto por fecha (mediana de la X10 medida)
