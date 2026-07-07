@@ -296,17 +296,80 @@ fwd_mfe/mae, hit TP/SL, + las features pre-entrada (mismas que features_scan).
      + 237 resto X10. Carpeta canónica que lee el parity = `X10_R1`.
      - **Riesgo conocido:** había **7 instancias ATAS (OFT.Platform)** abiertas al lanzar → el runner
        podría attachear la ventana equivocada. El gate de 10 es la red: si attachea mal, falla barato.
-     - **Al terminar (mañana):** correr `python -u analysis_vp/kill_switch_parity.py --base 3` → meta
-       **+$15,785 / −$3,125** (== sim canónico). Si cuadra → integración OK. Si difiere → bug timing/
-       persistencia. Si el GATE falló → X1≠X10, revisar `dst_2025_2026_v11_gate_comparacion.csv`.
-     Comando: `python -u 04_run_replay_score_trade_results_dst_2025_2026_after_sync.py --force`.
-     **Al terminar:** correr `python -u analysis_vp/kill_switch_parity.py --base 3` → el net/DD del replay
-     debe dar **+$15,785 / −$3,125** (== sim canónico). Si cuadra → integración OK, listo forward. Si
-     difiere → bug de timing/persistencia (`OnTradeClosed` vs entry, o `killswitch_state.txt`), arreglar
-     mañana. NO vivo antes de validar. PRIORIDAD 1.
+     - **CORRECCIÓN 2026-07-07 ~08:30 — el "6c" era cosmético, NO DLL viejo.** El Telegram/score CSV los
+       emite el **EXPORTER** (`ATASScoreTradeResultExporter`), que tiene `TelegramContracts=6` **hardcoded**
+       (línea 182) → siempre pinta "6c" y balance = 150000 + Σ(ticks×$5×6), CIEGO al sizing real. El
+       **kill-switch vive en la STRATEGY de ejecución** (`02_C`), componente SEPARADO que sí mete 3c y logea
+       su propio trader-log con `challenge_equity`. Por eso `killswitch_state.txt` no aparecía en el replay
+       de score-results: ese replay corre el exporter, no la strategy. **Mi diagnóstico previo "DLL viejo"
+       fue erróneo.** El usuario confirmó que la strategy sí mete 3.
+     - **FIX 2026-07-07 08:28 — Telegram del exporter ahora muestra ticks + precios** (entry/exit/SL/TP) y
+       marca "6c (display)" para no confundir el nominal con el tamaño real. Solo tocó el string Telegram,
+       NO el CsvHeader/ExporterVersion congelados. DLL redesplegado. Sirve para cross-check del trade real.
+     - **Para validar el kill-switch de verdad:** leer el **trader-log de la STRATEGY** (`fecha,side,
+       contratos,...,challenge_equity`, escrito por `02_C` en TraderLogDir) — ahí están los contratos/tier
+       REALES por trade. Comparar contra los tiers modelados del parity. El score CSV/Telegram del exporter
+       NO sirve para esto (nominal 6c).
+     - **DLL recompilado + redesplegado 08:09** (Indicators+Strategies). PENDIENTE al reanudar:
+       (a) cerrar TODAS las ATAS, abrir UNA con el DLL 08:09; (b) strategy `EW Execution Manager` con
+       `UseKillSwitch=ON, KillSwitchBase=3`; (c) sanity 1 fecha → confirmar que **aparece
+       `killswitch_state.txt`** y Telegram muestra **3c** (no 6c) en el 1er trade → ahí el kill-switch está vivo.
+     - **Falta capturador de tiers:** el score CSV no guarda contratos/tier (y el exporter está congelado).
+       Para validar la integración se necesita un **sidecar-por-fecha** con contratos/tier reales por trade
+       (o parsear el Telegram), y comparar contra los tiers modelados del parity. SIN esto no hay validación
+       forward del kill-switch aunque el DLL correcto esté cargado. PRIORIDAD 1.
+     - **Al validar:** `python -u analysis_vp/kill_switch_parity.py --base 3` → meta **+$15,785 / −$3,125**
+       (== sim canónico). NO vivo antes de validar.
   2. Al cerrar corrida (HECHO): tabla año completo (§1c) + MC año-aware con secuencia real (pendiente
      rehacer MC — el i.i.d era optimista, usar path real como en kill_switch_sim).
   3. **Near-miss logger (§2c)** — única vía a +frecuencia. Test barato (medir pool rechazado) antes
      de pipeline pesado. PRIORIDAD 2.
   4. (Opcional, ~30%) test veto pérdida-grande vs runner con features reducidas + fresh holdout.
      CatBoost NO ayuda al setup actual (probado, sin señal, n chico) — solo tras near-miss.
+
+## 3b. TEMP — flags cambiados para validar el kill-switch (REVERTIR antes de vivo)
+
+Corrida `06_run_strategy_replay.py --all` daba `trades=0`: la strategy consumía la señal sin entrar.
+Causas encontradas y resueltas para la validación:
+- **`regime_state.txt` viejo (06-30) cargaba estado PAUSADO** → `RegimeAllowsTrade()=false`. Borrado.
+- **`OnlyAPlusSpeed=true`** (línea 82) saltaba toda señal no-A+ (2023 no es A+) → `trades=0`. **Default
+  cambiado a `false` (DLL 09:41)** para tomar toda señal canónica = las 174 del modelo del kill-switch.
+
+**REVERTIR a `OnlyAPlusSpeed=true` antes de producción** — el edge vivo es SOLO A+ Speed. El default OFF
+es temporal para que la validación tome el mismo universo que `kill_switch_sim.py` (174). Nota: si en
+producción se opera solo A+, el kill-switch debe re-validarse sobre ESE subset (no las 174).
+
+Flags de la corrida de validación (panel strategy): `UseKillSwitch=ON`, `KillSwitchBase=3`,
+`ResetChallengeState=ON`, `UseRollingWrFilter=OFF`, `OnlyAPlusSpeed=OFF`.
+
+Otras mejoras 2026-07-07 (DLL 09:01): Telegram del exporter ahora muestra **contratos REALES** del
+kill-switch vía canal inverso en memoria (`ExecutionSignalBus.ReportExecuted`/`ExecutedContracts`);
+`Nc (real)` si la strategy ejecutó, `Nc (nominal)` si no (fallback a `TelegramContracts=6`). Solo tocó
+el string Telegram, NO el CsvHeader/ExporterVersion congelados.
+
+## 4. PENDIENTE — revisar/decidir sobre "NQ Edge Lab" de Codex (analizado 2026-07-07)
+
+Archivo: `C:\Users\k_99_\Documents\Indicador ATAS\outputs\nq_edge\NQ_Edge_RR1.xlsx` (8 hojas).
+Codex propone filtro sobre la señal canónica ORB, RR 1:1, dos variantes:
+- **MAX-WR**: Lun–Mié (weekday≤3) + velocidad `BreakOut_TICKS_PER_SEC` ≥ 2.06 ticks/s.
+- **Robusta**: `range` ≥ 100 ticks + velocidad ≥ 2.06.
+
+### Evidencia (hoja Validacion, PF costo = tras 1 tick/fill)
+| Régimen | MAX-WR n | WR | PF costo | Net R |
+|---|---|---|---|---|
+| 2022-2024 | 158 | 47.5% | **0.77** | **−21.0 (PIERDE)** |
+| 2025 | 51 | 70.6% | 2.08 | +17.2 |
+| 2026 (n chico) | 29 | 65.5% | 1.64 | +6.9 |
+| 2025-26 | 80 | 68.8% | 1.90 | +24.1 |
+| **Todo 2022-26** | 238 | 54.6% | **1.03** | **+3.1 (breakeven)** |
+
+### Veredicto
+Metodología DECENTE (sin leakage — excluye MAE/MFE, alarmas, CVD-intratrade, trail, Future_*; costo
+modelado; IC95%; checks de integridad; honesto con el régimen). ADN = **velocidad** (std diff 0.366,
+mediana win 2.53 vs loss 2.20) coincide con nuestro trabajo. **PERO el edge NO está validado forward:**
+régimen-dependiente (muere 2022-24 → todo-2022-26 = breakeven), validación 2026 contaminada por selección
+(el propio Codex lo admite), **filtro weekday sin mecanismo** (data-mining), WR agregado inflado por meses
+perfectos (2025-05 = 7-0 PF 99; 2025-06 rojo 1-3), n chico (2026 IC95% WR 47.3–80.1% toca breakeven).
+Confirma `[[nautilus_or_wr_ceiling]]`: sin edge durable pre-2025. **Tratar como hipótesis, no edge → paper
+trade.** Tirar/justificar el filtro weekday; la velocidad ≥2.06 sí es creíble.
+Opción abierta: cruzar hoja Trades (n=474) contra la secuencia del kill-switch (¿mismo universo?).

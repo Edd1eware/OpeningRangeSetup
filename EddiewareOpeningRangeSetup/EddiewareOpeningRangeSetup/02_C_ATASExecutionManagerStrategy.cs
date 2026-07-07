@@ -78,8 +78,11 @@ namespace ATAS.Indicators
         [Display(Name = "Trailing distancia (ticks)", Order = 40)]
         public decimal TrailTicks { get; set; } = 10;
 
+        // TEMP 2026-07-07: default OFF para la validación del kill-switch (toma toda señal
+        // canónica = las 174 del modelo). REVERTIR a true antes de producción (el edge vivo
+        // es solo A+ Speed).
         [Display(Name = "Solo A+ Speed", Order = 50)]
-        public bool OnlyAPlusSpeed { get; set; } = true;
+        public bool OnlyAPlusSpeed { get; set; } = false;
 
         [Display(Name = "Entrada desde (HH:mm NY)", Order = 60)]
         public string EntryFromNy { get; set; } = "09:30";
@@ -203,6 +206,11 @@ namespace ATAS.Indicators
             }
             LoadChallengeState();
             LoadKillSwitchState();
+            // Persist right away so killswitch_state.txt / challenge_equity.txt EXIST from
+            // the first bar (before trade #1). Confirms the strategy loaded the kill-switch
+            // and is generating state, instead of leaving empty until the first close.
+            SaveChallengeState();
+            SaveKillSwitchState();
         }
 
         private void LoadKillSwitchState()
@@ -441,6 +449,22 @@ namespace ATAS.Indicators
             {
                 if (tod >= hardClose)
                 {
+                    // Contabiliza el trade AQUI (precio actual = salida), de forma
+                    // determinista: en Replay el recorrido puede terminar antes de que
+                    // una barra posterior detecte curPos==0, y entonces OnTradeClosed
+                    // nunca correria. _tradeOpen=false evita doble conteo con el bloque
+                    // de deteccion de cierre de arriba.
+                    if (_tradeOpen)
+                    {
+                        var tickMove = _entryFillSide == "BUY"
+                            ? (currentPrice - _entryFillPrice) / Tick
+                            : (_entryFillPrice - currentPrice) / Tick;
+                        var pnlUsd = tickMove * _activeContracts * 5m;
+                        UpdateChallengeEquity(pnlUsd);
+                        LogTrade(_entryFillTimeNy, _entryFillSide, _entryFillPrice,
+                                 currentPrice, pnlUsd, "HARDCLOSE");
+                        _tradeOpen = false;
+                    }
                     Flatten();
                     return;
                 }
@@ -542,6 +566,9 @@ namespace ATAS.Indicators
             var exitDir = isBuy ? OrderDirections.Sell : OrderDirections.Buy;
 
             _activeContracts = contracts;
+            // Report the REAL executed size back to the bus so the exporter's Telegram
+            // shows the true kill-switch contracts, not the nominal TelegramContracts.
+            ExecutionSignalBus.ReportExecuted(e.SessionDate, contracts);
 
             // Set all state before OpenOrder (OnNewMyTrade unreliable in Replay).
             _openSide = e.Side;

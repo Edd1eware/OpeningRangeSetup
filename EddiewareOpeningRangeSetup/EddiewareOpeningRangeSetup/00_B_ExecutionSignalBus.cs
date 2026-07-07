@@ -67,11 +67,38 @@ namespace ATAS.Indicators
             }
         }
 
+        // Canal INVERSO: la estrategia reporta los contratos REALES que ejecuto
+        // (sizing del kill-switch), para que el Telegram del exporter muestre el
+        // tamano verdadero en vez del nominal TelegramContracts.
+        private static int _executedContracts;
+        private static DateTime _executedDate = DateTime.MinValue;
+
+        public static void ReportExecuted(DateTime sessionDate, int contracts)
+        {
+            lock (Sync)
+            {
+                _executedContracts = contracts;
+                _executedDate = sessionDate.Date;
+            }
+        }
+
+        // Contratos reales ejecutados en esa fecha, o null si la estrategia no
+        // entro (filtro/governor) -> el exporter cae al nominal.
+        public static int? ExecutedContracts(DateTime sessionDate)
+        {
+            lock (Sync)
+            {
+                return _executedDate == sessionDate.Date ? _executedContracts : (int?)null;
+            }
+        }
+
         public static void Reset()
         {
             lock (Sync)
             {
                 _latest = null;
+                _executedContracts = 0;
+                _executedDate = DateTime.MinValue;
             }
         }
     }

@@ -2578,14 +2578,23 @@ namespace ATAS.Indicators
 
             var offset = _nyZone.GetUtcOffset(_trade.EntryDate);
             var utcLabel = (int)offset.TotalHours == -4 ? "UTC-4 (EDT)" : "UTC-5 (EST)";
-            var pnl = TradeResultTicks() * TickValueUsd * TelegramContracts;
+            var ticks = TradeResultTicks();
+            // Prefer the REAL contracts the Execution Manager strategy sized (kill-switch),
+            // reported in-process via the bus. Fall back to the nominal TelegramContracts
+            // when no strategy executed this date (filter/governor skip, or exporter-only run).
+            var executed = ExecutionSignalBus.ExecutedContracts(_trade.EntryDate);
+            var contracts = executed ?? TelegramContracts;
+            var sizeLabel = executed.HasValue ? $"{contracts}c (real)" : $"{contracts}c (nominal)";
+            var pnl = ticks * TickValueUsd * contracts;
             var balance = UpdateAndGetTelegramBalance(_trade.EntryDate.Date, pnl);
 
             return string.Join(
                 Environment.NewLine,
                 $"EW ORB NQ | {_trade.EntryDate:yyyy-MM-dd}",
                 $"{_trade.Result} {_trade.Side} | {_trade.EntryTimeNy:HH:mm:ss} NY ({utcLabel})",
-                $"PnL: {pnl:+$0;-$0} | {TelegramContracts}c",
+                $"Ticks: {ticks:+0;-0} (TP {_trade.TpTicks} / SL {_trade.SlTicks})",
+                $"Entry: {_trade.Entry:0.00} | Exit: {_trade.ExitPrice:0.00} | SL: {_trade.Sl:0.00} | TP: {_trade.Tp:0.00}",
+                $"PnL: {pnl:+$0;-$0} | {sizeLabel}",
                 $"Balance: {balance:$#,##0}",
                 $"Duración: {FormatTradeDuration()}");
         }

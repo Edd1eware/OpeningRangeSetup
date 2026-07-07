@@ -150,7 +150,10 @@ def main():
                 run_plan=run_plan,
                 report_prefix="strategy_replay_test",
                 force=True,
-                replay_to_time=rs.DEFAULT_REPLAY_TO_TIME,
+                # 09:55 (no 09:50): la strategy hace hardClose a 09:50; se necesitan barras
+                # DESPUES para que curPos->0 y dispare OnTradeClosed (log rico + state real).
+                # Solo afecta el replay de la strategy, no el canonico DST congelado.
+                replay_to_time="09:55",
                 progress_meta={**progress_meta,
                                "stage_period": f"{date} ({i}/{len(dates)})"},
             )
