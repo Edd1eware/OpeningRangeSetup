@@ -482,12 +482,22 @@ def click_stop(stop_button=None):
         pass
 
 
-def wait_for_terminal_result(path, started_at, timeout_seconds, stop_button):
+def wait_for_terminal_result(
+    path,
+    started_at,
+    timeout_seconds,
+    stop_button,
+    completion_predicate=None,
+):
     wait_started = time.time()
     last_second = -1
 
     while True:
-        if is_terminal_result(path, started_at, require_expected_version=True):
+        exporter_done = is_terminal_result(
+            path, started_at, require_expected_version=True
+        )
+        extra_done = completion_predicate is None or completion_predicate()
+        if exporter_done and extra_done:
             print("\rResultado terminal detectado." + " " * 60)
             time.sleep(0.4)
             return True
@@ -662,6 +672,7 @@ def run_one_date(
     replay_from_time=DEFAULT_REPLAY_FROM_TIME,
     replay_to_time=DEFAULT_REPLAY_TO_TIME,
     keep_global_result=True,
+    completion_predicate=None,
 ):
     source_result = result_path(date_iso)
     source_timeline = timeline_path(date_iso)
@@ -737,6 +748,7 @@ def run_one_date(
                 started_at,
                 timeout_seconds,
                 stop_button,
+                completion_predicate=completion_predicate,
             )
             if not completed or not source_result.exists():
                 if keep_global_result:
@@ -1009,6 +1021,7 @@ def run_replay_period(
     replay_to_time=DEFAULT_REPLAY_TO_TIME,
     progress_meta=None,
     progress_every=10,
+    completion_predicate=None,
 ):
     output_folder.mkdir(parents=True, exist_ok=True)
 
@@ -1086,6 +1099,7 @@ def run_replay_period(
                             replay_from_time=replay_from_time,
                             replay_to_time=replay_to_time,
                             keep_global_result=True,
+                            completion_predicate=completion_predicate,
                         )
                     except KeyboardInterrupt:
                         raise

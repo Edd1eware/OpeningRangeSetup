@@ -48,6 +48,7 @@ namespace ATAS.Indicators
         private decimal _virtualEntry;
         private decimal _virtualStop;    // stop actual (inicial o trailed)
         private decimal _virtualSlPrice; // SL canonico de la senal (e.SlPrice); 0 = usar SlTicks
+        private int _virtualEntryBar;     // no llenar antes del EntryBar canonico de la senal
         private int _virtualContracts;
 
         // Risk Governor: tracks challenge equity across ATAS restarts via file.
@@ -152,9 +153,9 @@ namespace ATAS.Indicators
         [Display(Name = "Resetear equity del challenge", Order = 104,
             GroupName = "Risk Governor",
             Description = "Activa para borrar el estado guardado y empezar challenge nuevo. Desactiva despues.")]
-        // TEMP 2026-07-07: default true para la validación (arranque limpio cada corrida).
-        // REVERTIR a false antes de producción (si no, borra la equity acumulada en cada reload).
-        public bool ResetChallengeState { get; set; } = true;
+        // El runner borra los state files antes del recorrido. Debe quedar false para que
+        // cada nueva fecha/reload cargue y acumule la equity de la fecha anterior.
+        public bool ResetChallengeState { get; set; } = false;
 
         // ── Rolling WR Regime Filter (Codex 2026-06-29, N=11, hysteresis 1/3) ─
         // Shadow queue updated for EVERY valid setup signal, even when paused.
@@ -623,6 +624,7 @@ namespace ATAS.Indicators
                 _virtualSide = e.Side;
                 _virtualEntry = e.EntryPrice;
                 _virtualSlPrice = e.SlPrice;   // SL canonico de la senal (bracket del exporter)
+                _virtualEntryBar = e.Bar;
                 _virtualStop = 0m;
                 _virtualPending = true;
                 _virtualOpen = false;
@@ -747,7 +749,7 @@ namespace ATAS.Indicators
 
         // Contabilidad determinista desde precio para Market Replay (sin motor de fills).
         // Ciclo: pending (espera que el precio toque el entry) -> open (SL fijo + trailing)
-        // -> exit (stop/trailing tocado por el extremo adverso, o hardClose). Al salir
+        // -> exit (stop/trailing tocado por el precio actual, o hardClose). Al salir
         // alimenta el kill-switch via UpdateChallengeEquity y escribe el log rico.
         private void ManageVirtualTrade(int bar, TimeSpan tod, TimeSpan hardClose)
         {
@@ -755,17 +757,18 @@ namespace ATAS.Indicators
                 return;
 
             var candle = GetCandle(bar);
-            var hi = (decimal)candle.High;
-            var lo = (decimal)candle.Low;
             var close = (decimal)candle.Close;
             var isBuy = _virtualSide == "BUY";
 
-            // 1) Pending -> se llena cuando el precio TOCA el entry (como un breakout).
-            //    No se gestiona SL en la barra de fill (evita falso-SL intrabar por no
-            //    tener orden tick a tick); la gestion arranca en la siguiente barra.
+            // 1) Pending -> se llena cuando el precio ACTUAL toca el entry (breakout),
+            //    nunca antes del EntryBar canonico. OnCalculate corre en cada update del
+            //    replay y Close es el ultimo precio; High/Low son extremos acumulados de
+            //    toda la vela e incluirian recorrido anterior al fill.
             if (_virtualPending)
             {
-                bool touched = isBuy ? hi >= _virtualEntry : lo <= _virtualEntry;
+                bool entryBarReached = _virtualEntryBar < 0 || bar >= _virtualEntryBar;
+                bool touched = entryBarReached &&
+                    (isBuy ? close >= _virtualEntry : close <= _virtualEntry);
                 if (touched)
                 {
                     _virtualPending = false;
@@ -786,8 +789,10 @@ namespace ATAS.Indicators
                 return;
             }
 
-            // 2) Open -> actualiza pico favorable, trailing, y chequea salida.
-            var favExtreme = isBuy ? hi : lo;
+            // 2) Open -> actualiza pico favorable, trailing, y chequea salida usando
+            //    el precio actual. Esto conserva el orden causal intrabar: en 2025-03-18
+            //    el TP/trailing ocurre segundos despues del fill dentro de la misma vela.
+            var favExtreme = close;
             var favTicks = isBuy
                 ? (favExtreme - _virtualEntry) / Tick
                 : (_virtualEntry - favExtreme) / Tick;
@@ -807,8 +812,8 @@ namespace ATAS.Indicators
                     _virtualStop = trailStop;
             }
 
-            // Extremo adverso toca el stop -> salida al precio del stop.
-            var adverseExtreme = isBuy ? lo : hi;
+            // El precio actual toca el stop -> salida al precio del stop.
+            var adverseExtreme = close;
             bool stopHit = isBuy ? adverseExtreme <= _virtualStop : adverseExtreme >= _virtualStop;
             if (stopHit)
             {
