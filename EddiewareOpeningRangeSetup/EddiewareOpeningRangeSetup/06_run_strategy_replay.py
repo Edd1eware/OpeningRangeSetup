@@ -23,6 +23,7 @@ from pathlib import Path
 import replay_sync_runner_common_after_sync as rs
 import telegram_run_summary_after_sync as telegram
 import atas_process_guard
+from progress import ProgressBar
 
 LADDER_ROOT = (
     rs.RESULTS_FOLDER / "visual_tests" / "sync_ladder_runs" / "sync_v11_ladder_001_resume"
@@ -157,6 +158,16 @@ def main():
                 print(f"State reseteado: {name} borrado (cuenta limpia).")
         print("NOTA: ResetChallengeState debe estar OFF para acumular equity entre "
               "fechas. El primer reload carga estos archivos ausentes como cuenta limpia.")
+        # Balance Telegram desde CERO: sin este borrado, fechas de corridas previas
+        # (o muertas a medias) quedan en el JSON y el balance del primer mensaje sale
+        # distinto de TelegramStartingBalance ($150k). El exporter lo repuebla por fecha.
+        balance_file = rs.RESULTS_FOLDER / "telegram_balance.json"
+        if balance_file.exists():
+            balance_file.unlink()
+            print("telegram_balance.json borrado (balance arranca en $150k).")
+        # Borra TODO el historial del bot en el chat antes de arrancar (los >48h
+        # no los puede borrar la Bot API; se reportan y la corrida continua).
+        telegram.clear_telegram_before_run(rs.RESULTS_FOLDER)
 
     # Solo X10 (la estrategia opera en X10). force=True -> re-corre cada fecha.
     run_plan = [("X10_R1", "X10", rs.X10_TIMEOUT_SECONDS)]
@@ -225,6 +236,18 @@ def main():
         return wins, losses, total_pnl, contracts
 
     failures = []
+    # Progreso GLOBAL hacia Telegram: como run_replay_period corre UNA fecha por
+    # llamada, su ETA por-etapa no sirve para el total. Aqui se mide el recorrido
+    # completo (transcurrido / fechas hechas x fechas restantes) y se manda barra+ETA.
+    total_dates = len(dates)
+    run_start = time.time()
+    # Barra GLOBAL en consola (stderr): 10 bloques + % + min restantes del recorrido
+    # completo. La barra interna de run_replay_period corre con total=1 (una fecha
+    # por llamada) y no refleja el avance real.
+    bar = ProgressBar(total_dates, label="Recorrido strategy")
+    consecutive_fail = 0
+    fail_alert_sent = False
+    fail_streak = getattr(rs, "REPLAY_FAIL_ALERT_STREAK", 3)
     for i, date in enumerate(dates, 1):
         # Pre-escribe la senal canonica en disco para matar la race Exporter/Strategy.
         expects_strategy_trade = prewrite_signal(date)
@@ -254,8 +277,8 @@ def main():
                 # No detener al TP/SL del exporter si la strategy sigue abierta.
                 # Para una fecha operable exige tambien su fila rica en el trader-log.
                 completion_predicate=strategy_trade_closed,
-                progress_meta={**progress_meta,
-                               "stage_period": f"{date} ({i}/{len(dates)})"},
+                # Sin progress_meta: el progreso/ETA GLOBAL se manda aqui abajo, no
+                # el parcial de UNA fecha (que siempre daria remaining=0, ETA N/A).
             )
             failures.extend(date_failures)
         except KeyboardInterrupt:
@@ -270,7 +293,41 @@ def main():
             )
             _print_date_summary(date, i, len(dates))
             raise
-        _print_date_summary(date, i, len(dates))
+
+        # Alerta de fechas fallidas seguidas (foco perdido / Replay atorado): avisa
+        # UNA sola vez para reiniciar ATAS/Replay. Antes lo hacia progress_meta.
+        if date_failures:
+            consecutive_fail += 1
+        else:
+            consecutive_fail = 0
+        if consecutive_fail >= fail_streak and not fail_alert_sent:
+            fail_alert_sent = True
+            telegram.send_text(
+                rs.RESULTS_FOLDER,
+                "EW Opening Range | ERROR EN REPLAY\n"
+                f"{consecutive_fail} fechas seguidas fallaron (ultima: {date}).\n"
+                "Probable foco perdido o Replay atorado. REINICIA el Replay/ATAS, "
+                "trae la ventana al frente y relanza el runner (reanuda los huecos).",
+            )
+
+        wins, losses, total_pnl, contracts = _print_date_summary(date, i, len(dates))
+        bar.update(i)
+
+        # Progreso GLOBAL + ETA a Telegram (barra 10 bloques, %, balance, restante).
+        elapsed = time.time() - run_start
+        eta_seconds = (elapsed / i) * (total_dates - i) if i else None
+        telegram.send_overall_progress(
+            rs.RESULTS_FOLDER,
+            done=i,
+            total=total_dates,
+            date=date,
+            elapsed_seconds=elapsed,
+            eta_seconds=eta_seconds,
+            pnl_usd=total_pnl,
+            contracts=contracts,
+            wins=wins,
+            losses=losses,
+        )
 
     # Nunca fabricar trades desde el score CSV: ese fallback ocultaba una strategy
     # detenida y producia un header corto falso. El unico resultado valido aqui es
