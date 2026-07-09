@@ -2,7 +2,22 @@
 
 Fecha de congelación inicial: **2026-07-08**  
 Instrumento inicial: **NQ**  
-Estado: **investigación de eventos; todavía NO es estrategia**
+Estado: **Fase 2 — descubrimiento del ADN de los ganadores** (actualizado 2026-07-09)
+
+## Objetivo final y fases (usuario, 2026-07-09)
+
+**Meta**: pasar una cuenta de $150,000 de lucidtrading.com respetando sus reglas (MaxDD
+$4,500), farmeando payouts, en el menor tiempo posible sin que el riesgo queme la cuenta.
+
+| Fase | Contenido | Estado |
+|---|---|---|
+| 1 — Captura | Banco de eventos multi-temporada DST vía replay corto X10 (2026→2022, frontera de datos detectada automáticamente); EST después | 2025+2026 completas (467 eventos); 2024 corriendo |
+| 2 — ADN | Look-ahead permitido para etiquetar winners; CatBoost + análisis era-blind para detectar qué features separan a los ganadores; gates congelados WR≥50 / PF≥2 / RR 1:1 / ≥4 tr-mes | **ACTUAL** |
+| 3 — Simulación Lucid | Simular la cuenta $150k con el setup que pase gates: máx 3 contratos (sizing según winrate), reglas Lucid, Monte Carlo de paths → distribución de tiempo-a-pasar vs P(quemar) | pendiente |
+| 4+ | Forward paper gate → port ATAS → producción controlada (doctrina general) | pendiente |
+
+Reglas operativas: Excels nunca se borran por script (decisión manual); Telegram con progreso
+por fecha + ETA; cada hallazgo/cambio de plan → .md.
 
 ---
 

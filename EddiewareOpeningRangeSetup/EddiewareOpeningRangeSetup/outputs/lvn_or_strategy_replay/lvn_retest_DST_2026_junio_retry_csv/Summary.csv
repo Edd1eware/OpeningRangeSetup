@@ -1,0 +1,181 @@
+﻿section,segment,metric,value,n
+Overall,ALL,sessions,13.0,13
+Overall,ALL,sessions_with_first_minute_lvn,9.0,13
+Overall,ALL,lvn_occurrence_day_rate,0.6923076923076923,13
+Overall,ALL,lvn_nodes,27.0,27
+Overall,ALL,retest_events,54.0,54
+Overall,ALL,retests_per_lvn,2.0,27
+Shape occurrence,trend_down,days_with_lvn,2.0,7
+Shape occurrence,trend_down,lvn_nodes,7.0,7
+Shape occurrence,trend_down,nodes_with_retest_rate,0.42857142857142855,7
+Shape occurrence,trend_down,mean_retests_per_node,0.42857142857142855,7
+Shape occurrence,trend_up,days_with_lvn,1.0,3
+Shape occurrence,trend_up,lvn_nodes,3.0,3
+Shape occurrence,trend_up,nodes_with_retest_rate,1.0,3
+Shape occurrence,trend_up,mean_retests_per_node,2.3333333333333335,3
+Shape occurrence,unknown,days_with_lvn,6.0,17
+Shape occurrence,unknown,lvn_nodes,17.0,17
+Shape occurrence,unknown,nodes_with_retest_rate,0.7647058823529411,17
+Shape occurrence,unknown,mean_retests_per_node,2.588235294117647,17
+Monthly occurrence,2026-05,days_with_lvn,1.0,2
+Monthly occurrence,2026-05,lvn_nodes,2.0,2
+Monthly occurrence,2026-05,nodes_with_retest,2.0,2
+Monthly occurrence,2026-06,days_with_lvn,8.0,25
+Monthly occurrence,2026-06,lvn_nodes,25.0,25
+Monthly occurrence,2026-06,nodes_with_retest,17.0,25
+Overall,ALL,active_months,2.0,2
+Overall,ALL,mean_events_per_month,27.0,2
+Overall,ALL,median_events_per_month,27.0,2
+Overall,ALL,mean_mfe_ticks,145.41666666666666,54
+Overall,ALL,mean_mae_ticks,223.54166666666666,54
+Overall,ALL,median_mfe_mae_ratio,0.6499057196731616,48
+Shape cohort,trend_down,events,3.0,3
+Shape cohort,trend_down,unique_days,1.0,3
+Shape cohort,trend_down,mean_mfe_ticks,205.0,3
+Shape cohort,trend_down,mean_mae_ticks,285.0,3
+Shape cohort,trend_down,wr_20_20_all,1.0,3
+Shape cohort,trend_down,wr_20_20_resolved,1.0,3
+Shape cohort,trend_down,mean_realized_r_20_20,1.0,3
+Shape cohort,trend_down,ambiguous_20_20,0.0,3
+Shape cohort,trend_down,wr_40_40_all,1.0,3
+Shape cohort,trend_down,wr_40_40_resolved,1.0,3
+Shape cohort,trend_down,mean_realized_r_40_40,1.0,3
+Shape cohort,trend_down,ambiguous_40_40,0.0,3
+Shape cohort,trend_down,wr_60_60_all,1.0,3
+Shape cohort,trend_down,wr_60_60_resolved,1.0,3
+Shape cohort,trend_down,mean_realized_r_60_60,1.0,3
+Shape cohort,trend_down,ambiguous_60_60,0.0,3
+Shape cohort,trend_down,wr_80_80_all,1.0,3
+Shape cohort,trend_down,wr_80_80_resolved,1.0,3
+Shape cohort,trend_down,mean_realized_r_80_80,1.0,3
+Shape cohort,trend_down,ambiguous_80_80,0.0,3
+Shape cohort,trend_up,events,7.0,7
+Shape cohort,trend_up,unique_days,1.0,7
+Shape cohort,trend_up,mean_mfe_ticks,219.16666666666666,7
+Shape cohort,trend_up,mean_mae_ticks,229.16666666666666,7
+Shape cohort,trend_up,wr_20_20_all,0.2857142857142857,7
+Shape cohort,trend_up,wr_20_20_resolved,0.5,4
+Shape cohort,trend_up,mean_realized_r_20_20,0.0,4
+Shape cohort,trend_up,ambiguous_20_20,2.0,7
+Shape cohort,trend_up,wr_40_40_all,0.2857142857142857,7
+Shape cohort,trend_up,wr_40_40_resolved,0.4,5
+Shape cohort,trend_up,mean_realized_r_40_40,-0.2,5
+Shape cohort,trend_up,ambiguous_40_40,1.0,7
+Shape cohort,trend_up,wr_60_60_all,0.42857142857142855,7
+Shape cohort,trend_up,wr_60_60_resolved,0.5,6
+Shape cohort,trend_up,mean_realized_r_60_60,0.0,6
+Shape cohort,trend_up,ambiguous_60_60,0.0,7
+Shape cohort,trend_up,wr_80_80_all,0.42857142857142855,7
+Shape cohort,trend_up,wr_80_80_resolved,0.5,6
+Shape cohort,trend_up,mean_realized_r_80_80,0.0,6
+Shape cohort,trend_up,ambiguous_80_80,0.0,7
+Shape cohort,unknown,events,44.0,44
+Shape cohort,unknown,unique_days,5.0,44
+Shape cohort,unknown,mean_mfe_ticks,129.48717948717947,44
+Shape cohort,unknown,mean_mae_ticks,217.94871794871796,44
+Shape cohort,unknown,wr_20_20_all,0.045454545454545456,44
+Shape cohort,unknown,wr_20_20_resolved,0.2222222222222222,9
+Shape cohort,unknown,mean_realized_r_20_20,-0.5555555555555556,9
+Shape cohort,unknown,ambiguous_20_20,30.0,44
+Shape cohort,unknown,wr_40_40_all,0.22727272727272727,44
+Shape cohort,unknown,wr_40_40_resolved,0.43478260869565216,23
+Shape cohort,unknown,mean_realized_r_40_40,-0.13043478260869565,23
+Shape cohort,unknown,ambiguous_40_40,16.0,44
+Shape cohort,unknown,wr_60_60_all,0.22727272727272727,44
+Shape cohort,unknown,wr_60_60_resolved,0.38461538461538464,26
+Shape cohort,unknown,mean_realized_r_60_60,-0.21913580246913578,27
+Shape cohort,unknown,ambiguous_60_60,12.0,44
+Shape cohort,unknown,wr_80_80_all,0.25,44
+Shape cohort,unknown,wr_80_80_resolved,0.3333333333333333,33
+Shape cohort,unknown,mean_realized_r_80_80,-0.3038194444444444,36
+Shape cohort,unknown,ambiguous_80_80,3.0,44
+Interaction cohort,ACCEPTANCE,events,33.0,33
+Interaction cohort,ACCEPTANCE,unique_days,7.0,33
+Interaction cohort,ACCEPTANCE,mean_mfe_ticks,162.06896551724137,33
+Interaction cohort,ACCEPTANCE,mean_mae_ticks,229.82758620689654,33
+Interaction cohort,ACCEPTANCE,wr_20_20_all,0.15151515151515152,33
+Interaction cohort,ACCEPTANCE,wr_20_20_resolved,0.5,10
+Interaction cohort,ACCEPTANCE,mean_realized_r_20_20,0.0,10
+Interaction cohort,ACCEPTANCE,wr_40_40_all,0.36363636363636365,33
+Interaction cohort,ACCEPTANCE,wr_40_40_resolved,0.631578947368421,19
+Interaction cohort,ACCEPTANCE,mean_realized_r_40_40,0.2631578947368421,19
+Interaction cohort,ACCEPTANCE,wr_60_60_all,0.36363636363636365,33
+Interaction cohort,ACCEPTANCE,wr_60_60_resolved,0.6,20
+Interaction cohort,ACCEPTANCE,mean_realized_r_60_60,0.19444444444444442,21
+Interaction cohort,ACCEPTANCE,wr_80_80_all,0.36363636363636365,33
+Interaction cohort,ACCEPTANCE,wr_80_80_resolved,0.5,24
+Interaction cohort,ACCEPTANCE,mean_realized_r_80_80,0.028846153846153848,26
+Interaction cohort,REJECTION,events,20.0,20
+Interaction cohort,REJECTION,unique_days,5.0,20
+Interaction cohort,REJECTION,mean_mfe_ticks,120.0,20
+Interaction cohort,REJECTION,mean_mae_ticks,213.94736842105263,20
+Interaction cohort,REJECTION,wr_20_20_all,0.1,20
+Interaction cohort,REJECTION,wr_20_20_resolved,0.3333333333333333,6
+Interaction cohort,REJECTION,mean_realized_r_20_20,-0.3333333333333333,6
+Interaction cohort,REJECTION,wr_40_40_all,0.15,20
+Interaction cohort,REJECTION,wr_40_40_resolved,0.25,12
+Interaction cohort,REJECTION,mean_realized_r_40_40,-0.5,12
+Interaction cohort,REJECTION,wr_60_60_all,0.2,20
+Interaction cohort,REJECTION,wr_60_60_resolved,0.26666666666666666,15
+Interaction cohort,REJECTION,mean_realized_r_60_60,-0.4666666666666667,15
+Interaction cohort,REJECTION,wr_80_80_all,0.25,20
+Interaction cohort,REJECTION,wr_80_80_resolved,0.2777777777777778,18
+Interaction cohort,REJECTION,mean_realized_r_80_80,-0.45723684210526316,19
+Interaction cohort,UNRESOLVED,events,1.0,1
+Interaction cohort,UNRESOLVED,unique_days,1.0,1
+Interaction cohort,UNRESOLVED,mean_mfe_ticks,,1
+Interaction cohort,UNRESOLVED,mean_mae_ticks,,1
+Interaction cohort,UNRESOLVED,wr_20_20_all,0.0,1
+Interaction cohort,UNRESOLVED,wr_20_20_resolved,,0
+Interaction cohort,UNRESOLVED,mean_realized_r_20_20,,0
+Interaction cohort,UNRESOLVED,wr_40_40_all,0.0,1
+Interaction cohort,UNRESOLVED,wr_40_40_resolved,,0
+Interaction cohort,UNRESOLVED,mean_realized_r_40_40,,0
+Interaction cohort,UNRESOLVED,wr_60_60_all,0.0,1
+Interaction cohort,UNRESOLVED,wr_60_60_resolved,,0
+Interaction cohort,UNRESOLVED,mean_realized_r_60_60,,0
+Interaction cohort,UNRESOLVED,wr_80_80_all,0.0,1
+Interaction cohort,UNRESOLVED,wr_80_80_resolved,,0
+Interaction cohort,UNRESOLVED,mean_realized_r_80_80,,0
+Interaction x shape,ACCEPTANCE|trend_down,events,3.0,3
+Interaction x shape,ACCEPTANCE|trend_down,wr_20_20_resolved,1.0,3
+Interaction x shape,ACCEPTANCE|trend_down,wr_40_40_resolved,1.0,3
+Interaction x shape,ACCEPTANCE|trend_down,wr_60_60_resolved,1.0,3
+Interaction x shape,ACCEPTANCE|trend_down,wr_80_80_resolved,1.0,3
+Interaction x shape,ACCEPTANCE|trend_up,events,4.0,4
+Interaction x shape,ACCEPTANCE|trend_up,wr_20_20_resolved,0.5,2
+Interaction x shape,ACCEPTANCE|trend_up,wr_40_40_resolved,0.5,2
+Interaction x shape,ACCEPTANCE|trend_up,wr_60_60_resolved,0.6666666666666666,3
+Interaction x shape,ACCEPTANCE|trend_up,wr_80_80_resolved,0.6666666666666666,3
+Interaction x shape,ACCEPTANCE|unknown,events,26.0,26
+Interaction x shape,ACCEPTANCE|unknown,wr_20_20_resolved,0.2,5
+Interaction x shape,ACCEPTANCE|unknown,wr_40_40_resolved,0.5714285714285714,14
+Interaction x shape,ACCEPTANCE|unknown,wr_60_60_resolved,0.5,14
+Interaction x shape,ACCEPTANCE|unknown,wr_80_80_resolved,0.3888888888888889,18
+Interaction x shape,REJECTION|trend_up,events,3.0,3
+Interaction x shape,REJECTION|trend_up,wr_20_20_resolved,0.5,2
+Interaction x shape,REJECTION|trend_up,wr_40_40_resolved,0.3333333333333333,3
+Interaction x shape,REJECTION|trend_up,wr_60_60_resolved,0.3333333333333333,3
+Interaction x shape,REJECTION|trend_up,wr_80_80_resolved,0.3333333333333333,3
+Interaction x shape,REJECTION|unknown,events,17.0,17
+Interaction x shape,REJECTION|unknown,wr_20_20_resolved,0.25,4
+Interaction x shape,REJECTION|unknown,wr_40_40_resolved,0.2222222222222222,9
+Interaction x shape,REJECTION|unknown,wr_60_60_resolved,0.25,12
+Interaction x shape,REJECTION|unknown,wr_80_80_resolved,0.26666666666666666,15
+Interaction x shape,UNRESOLVED|unknown,events,1.0,1
+Interaction x shape,UNRESOLVED|unknown,wr_20_20_resolved,,0
+Interaction x shape,UNRESOLVED|unknown,wr_40_40_resolved,,0
+Interaction x shape,UNRESOLVED|unknown,wr_60_60_resolved,,0
+Interaction x shape,UNRESOLVED|unknown,wr_80_80_resolved,,0
+Monthly,2026-05,events,11.0,11
+Monthly,2026-05,unique_days,1.0,11
+Monthly,2026-05,wr_20_20_resolved,0.25,4
+Monthly,2026-05,wr_40_40_resolved,0.3333333333333333,9
+Monthly,2026-05,wr_60_60_resolved,0.3333333333333333,9
+Monthly,2026-05,wr_80_80_resolved,0.2857142857142857,7
+Monthly,2026-06,events,43.0,43
+Monthly,2026-06,unique_days,6.0,43
+Monthly,2026-06,wr_20_20_resolved,0.5,12
+Monthly,2026-06,wr_40_40_resolved,0.5454545454545454,22
+Monthly,2026-06,wr_60_60_resolved,0.5,26
+Monthly,2026-06,wr_80_80_resolved,0.42857142857142855,35

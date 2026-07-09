@@ -243,6 +243,9 @@ def _measure_outcome(
                 f"hit_minus_{target}": False,
                 f"tp_sl_{target}_{target}_result": "NO_PATH",
                 f"realized_r_{target}_{target}": math.nan,
+                f"exit_price_{target}_{target}": math.nan,
+                f"exit_time_et_{target}_{target}": None,
+                f"trade_duration_seconds_{target}_{target}": math.nan,
             })
         return base
 
@@ -297,24 +300,42 @@ def _measure_outcome(
             # cannot be traded with less than 1 tick of stop.
             "rr_max_achievable": safe_div(mfe, max(mae_before_mfe, 1.0)),
         })
+    direction_sign = 1.0 if expected_side == "LONG" else -1.0 if expected_side == "SHORT" else math.nan
     for target in (20, 40, 60, 80):
         base[f"hit_plus_{target}"] = bool(max_up >= target)
         base[f"hit_minus_{target}"] = bool(max_down >= target)
+        exit_price = exit_time = math.nan
+        duration = float(elapsed[-1])
         if expected_side == "UNKNOWN":
             result, realized_r = "UNKNOWN_DIRECTION", math.nan
         else:
-            result, _ = first_touch_result(elapsed, favorable, adverse, target)
+            result, touch_elapsed, touch_index = first_touch_result(elapsed, favorable, adverse, target)
             if result == "TP":
                 realized_r = 1.0
+                exit_price = reference_price + direction_sign * target * config.tick_size
+                exit_time = path.iloc[touch_index]["timestamp"]
+                duration = touch_elapsed
             elif result == "SL":
                 realized_r = -1.0
+                exit_price = reference_price - direction_sign * target * config.tick_size
+                exit_time = path.iloc[touch_index]["timestamp"]
+                duration = touch_elapsed
             elif result == "AMBIGUOUS":
+                # Both TP and SL crossed in the same unordered bar: time is known,
+                # the resolved price is not — never guess which one hit first.
                 realized_r = math.nan
+                exit_time = path.iloc[touch_index]["timestamp"]
+                duration = touch_elapsed
             else:
                 result = "TIME_EXIT"
                 realized_r = float(np.clip(final_directional / target, -1.0, 1.0))
+                exit_price = float(path.iloc[-1]["close"])
+                exit_time = path.iloc[-1]["timestamp"]
         base[f"tp_sl_{target}_{target}_result"] = result
         base[f"realized_r_{target}_{target}"] = realized_r
+        base[f"exit_price_{target}_{target}"] = exit_price
+        base[f"exit_time_et_{target}_{target}"] = exit_time.isoformat() if isinstance(exit_time, pd.Timestamp) else None
+        base[f"trade_duration_seconds_{target}_{target}"] = duration
     return base
 
 
@@ -355,8 +376,8 @@ def detect_retests(
             start_row = retest_path.iloc[start_position]
             full_path_position = int(start_row["_path_position"])
             approach, approach_hypothetical_side, prior_price, prior_time = _approach(path, full_path_position, zone_low, zone_high)
-            resolution = _resolve_interaction(retest_path, start_position, approach, zone_low, zone_high, precision, config)
-            expected_side = str(resolution["resolved_side"])
+            interaction = _resolve_interaction(retest_path, start_position, approach, zone_low, zone_high, precision, config)
+            expected_side = str(interaction["resolved_side"])
             end_position = start_position
             rearm_position = len(retest_path)
             for cursor in range(start_position + 1, len(retest_path)):
@@ -386,8 +407,8 @@ def detect_retests(
                 abs(prior_price - level) / config.tick_size,
                 float((event_time - prior_time).total_seconds()) if prior_time is not None else math.nan,
             )
-            resolution_time = resolution["resolution_time"]
-            entry_price = float(resolution["entry_price"])
+            resolution_time = interaction["resolution_time"]
+            entry_price = float(interaction["entry_price"])
             seconds_touch_to_entry = (
                 float((resolution_time - event_time).total_seconds()) if resolution_time is not None else math.nan
             )
@@ -407,8 +428,8 @@ def detect_retests(
                 "seconds_from_0931": seconds_from_0931,
                 "approach": approach,
                 "approach_hypothetical_side": approach_hypothetical_side,
-                "lvn_interaction": resolution["lvn_interaction"],
-                "trade_logic": resolution["trade_logic"],
+                "lvn_interaction": interaction["lvn_interaction"],
+                "trade_logic": interaction["trade_logic"],
                 "expected_reaction_side": expected_side,
                 "lvn_zone_low": zone_low,
                 "lvn_zone_high": zone_high,
@@ -461,7 +482,7 @@ def detect_retests(
                 event.update(_measure_outcome(
                     session_frame,
                     resolution_time,
-                    resolution["resolution_sequence"],
+                    interaction["resolution_sequence"],
                     entry_price,
                     expected_side,
                     precision,

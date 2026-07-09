@@ -358,6 +358,45 @@ def write_manifest(path: Path, payload: dict[str, object]) -> None:
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
+def telegram_notify(message: str) -> None:
+    """Notificación best-effort; jamás rompe la captura."""
+    try:
+        from telegram_run_summary_after_sync import _read_credentials, _send_message
+
+        credentials = _read_credentials(str(RESULTS_DIR))
+        if credentials:
+            _send_message(credentials[0], credentials[1], message)
+    except Exception:
+        pass
+
+
+def format_eta(seconds: float) -> str:
+    seconds = max(0, int(seconds))
+    hours, remainder = divmod(seconds, 3600)
+    minutes = remainder // 60
+    return f"{hours}h {minutes:02d}m" if hours else f"{minutes}m"
+
+
+def bracket_winrates(events_csv: Path) -> str:
+    """WR resuelto por bracket desde LVN_Events.csv, para el mensaje final."""
+    try:
+        import pandas as pd
+
+        events = pd.read_csv(events_csv)
+        parts = []
+        for target in (20, 40, 60, 80):
+            column = f"tp_sl_{target}_{target}_result"
+            if column not in events.columns:
+                continue
+            result = events[column].astype(str)
+            wins, losses = int((result == "TP").sum()), int((result == "SL").sum())
+            wr = 100.0 * wins / (wins + losses) if wins + losses else float("nan")
+            parts.append(f"{target}/{target}: {wins}W-{losses}L WR {wr:.0f}%")
+        return " | ".join(parts) if parts else "sin brackets"
+    except Exception as exc:
+        return f"WR no disponible ({type(exc).__name__})"
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--all", action="store_true", help="Todas las fechas disponibles; no filtra A+ ni trades")
@@ -372,6 +411,10 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Inicio del replay HH:MM ET; 09:29 = ventana corta (contexto desde historia), 08:29 = ventana completa")
     parser.add_argument("--replay-to", default=REPLAY_TO_TIME,
                         help="Fin del replay HH:MM ET")
+    parser.add_argument("--stop-after-consecutive-failures", type=int, default=6,
+                        help="Aborta la corrida tras N fechas fallidas seguidas (frontera de datos de replay o ATAS caído); 0 = nunca abortar")
+    parser.add_argument("--telegram-progress-every", type=int, default=1,
+                        help="Manda progreso a Telegram cada N fechas procesadas (default 1 = cada fecha); 0 = sin mensajes de progreso")
     parser.add_argument("--run", action="store_true",
                         help="Ejecuta la captura Replay; sin este flag el script solo hace preview (prepare-only)")
     parser.add_argument("--prepare-only", action="store_true",
@@ -427,6 +470,7 @@ def main(argv: list[str] | None = None) -> int:
     skipped: list[dict[str, object]] = []
     started_at = datetime.now().isoformat()
     run_started = time.time()
+    data_boundary_reached = False
 
     if not args.report_only:
         try:
@@ -439,10 +483,19 @@ def main(argv: list[str] | None = None) -> int:
             print("ERROR: no pude fijar Replay X10. Pon Replay al frente y reintenta.", file=sys.stderr)
             return 3
         bar = ProgressBar(len(dates), label="Captura LVN OR")
+        consecutive_failures = 0
+        captured_rows_total = 0
+        if args.telegram_progress_every > 0:
+            telegram_notify(
+                f"LVN captura INICIO {dates[0]} -> {dates[-1]} | {len(dates)} fechas | "
+                f"ventana {REPLAY_FROM_TIME}-{REPLAY_TO_TIME} X10"
+            )
         for index, date_iso in enumerate(dates, start=1):
             existing = inspect_capture(date_iso)
             if existing["complete"] and not args.force:
                 skipped.append(existing)
+                consecutive_failures = 0
+                captured_rows_total += int(existing.get("rows", 0) or 0)
                 print(f"[{index}/{len(dates)}] {date_iso} SKIP | {existing['rows']} filas")
                 bar.update(index)
                 continue
@@ -465,6 +518,38 @@ def main(argv: list[str] | None = None) -> int:
                       "la historia pre-replay NO trae contexto 08:30-09:30; usa --replay-from 08:29")
             print(f"[{index}/{len(dates)}] {date_iso} | {'OK' if ok else 'FAIL'} | {record['reason']}")
             bar.update(index)
+            if ok:
+                captured_rows_total += int(record.get("rows", 0) or 0)
+            consecutive_failures = 0 if ok else consecutive_failures + 1
+            if args.telegram_progress_every > 0 and (index % args.telegram_progress_every == 0 or index == len(dates)):
+                elapsed_run = time.time() - run_started
+                pct = 100.0 * index / len(dates)
+                filled = int(round(pct / 10))
+                progress_blocks = "▓" * filled + "░" * (10 - filled)
+                # ETA sobre fechas realmente capturadas (los SKIP son instantáneos).
+                worked = len(successes) + len(failures)
+                pending = len(dates) - index
+                rate = elapsed_run / worked if worked else 0.0
+                eta_seconds = rate * pending
+                finish_clock = (datetime.now() + timedelta(seconds=eta_seconds)).strftime("%H:%M")
+                telegram_notify(
+                    f"LVN {dates[0]} -> {dates[-1]}\n"
+                    f"{progress_blocks} {pct:.1f}% ({index}/{len(dates)})\n"
+                    f"Fecha: {date_iso} {'OK' if ok else 'FAIL'} ({int(record.get('rows', 0) or 0):,} filas | {record['elapsed_seconds']:.0f}s)\n"
+                    f"OK {len(successes)} | FAIL {len(failures)} | SKIP {len(skipped)}\n"
+                    f"Filas acumuladas: {captured_rows_total:,}\n"
+                    f"Ritmo: {rate / 60:.1f} min/fecha\n"
+                    f"ETA: {format_eta(eta_seconds)} (fin ~{finish_clock})"
+                )
+            if args.stop_after_consecutive_failures > 0 and consecutive_failures >= args.stop_after_consecutive_failures:
+                data_boundary_reached = True
+                print(f"FRONTERA DE DATOS: {consecutive_failures} fallas consecutivas hasta {date_iso}. "
+                      "Replay sin datos en este rango (o ATAS caído). Abortando el resto de fechas.")
+                telegram_notify(
+                    f"LVN captura FRONTERA DE DATOS: {consecutive_failures} fallas seguidas hasta {date_iso}. "
+                    f"Corrida abortada; ultima fecha buena: {successes[-1]['date'] if successes else 'ninguna'}"
+                )
+                break
     else:
         for date_iso in dates:
             capture = inspect_capture(date_iso)
@@ -473,10 +558,14 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 failures.append(capture)
 
+    successful_dates = sorted(str(row.get("date", "")) for row in successes + skipped if row.get("date"))
     manifest = {
         "started_at": started_at,
         "finished_at": datetime.now().isoformat(),
         "elapsed_seconds": round(time.time() - run_started, 3),
+        "data_boundary_reached": bool(not args.report_only and not prepare_only and data_boundary_reached),
+        "first_successful_date": successful_dates[0] if successful_dates else None,
+        "last_successful_date": successful_dates[-1] if successful_dates else None,
         "requested_dates": dates,
         "successes": successes,
         "skipped": skipped,
@@ -502,11 +591,31 @@ def main(argv: list[str] | None = None) -> int:
         return 5
     command = detector_command(args, report_path, report_dates)
     print("\nGenerando reporte agregado LVN...")
-    completed = subprocess.run(command, cwd=ROOT, text=True)
+    completed = subprocess.run(command, cwd=ROOT, text=True, capture_output=True)
+    if completed.stdout:
+        print(completed.stdout)
+    if completed.stderr:
+        print(completed.stderr, file=sys.stderr)
     if completed.returncode != 0:
         print(f"ERROR: detector terminó con código {completed.returncode}", file=sys.stderr)
+        telegram_notify(f"LVN captura TERMINO con capturas OK, pero el reporte fallo (codigo {completed.returncode}).")
         return completed.returncode
-    print(f"\nREPORTE LISTO: {report_path}")
+    detector_payload: dict[str, object] = {}
+    try:
+        detector_payload = json.loads(completed.stdout[completed.stdout.index("{"):])
+    except (ValueError, AttributeError):
+        pass
+    final_excel = str(detector_payload.get("excel_path", report_path))
+    events_csv = Path(str(detector_payload.get("csv_dir", ""))) / "LVN_Events.csv"
+    wr_text = bracket_winrates(events_csv) if events_csv.is_file() else "sin eventos"
+    telegram_notify(
+        f"LVN captura TERMINADA {report_dates[0]} -> {report_dates[-1]} | "
+        f"fechas OK {len(successes)} SKIP {len(skipped)} FAIL {len(failures)} | "
+        f"sesiones {detector_payload.get('sessions', '?')} | LVNs {detector_payload.get('lvns', '?')} | "
+        f"eventos {detector_payload.get('events', '?')} | {wr_text} | "
+        f"tiempo total {format_eta(time.time() - run_started)} | {final_excel}"
+    )
+    print(f"\nREPORTE LISTO: {final_excel}")
     print(f"Capturas OK/reusadas: {len(successes) + len(skipped)} | fallidas: {len(failures)}")
     return 1 if failures else 0
 

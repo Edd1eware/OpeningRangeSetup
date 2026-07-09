@@ -80,17 +80,17 @@ def first_touch_result(
     favorable: np.ndarray,
     adverse: np.ndarray,
     target_ticks: int,
-) -> tuple[str, float]:
+) -> tuple[str, float, int]:
     tp_idx = np.flatnonzero(favorable >= target_ticks)
     sl_idx = np.flatnonzero(adverse >= target_ticks)
     if tp_idx.size == 0 and sl_idx.size == 0:
-        return "NONE", math.nan
+        return "NONE", math.nan, -1
     if tp_idx.size and sl_idx.size:
         tp_i, sl_i = int(tp_idx[0]), int(sl_idx[0])
         if times[tp_i] == times[sl_i]:
-            return "AMBIGUOUS", float(times[tp_i])
-        return ("TP", float(times[tp_i])) if times[tp_i] < times[sl_i] else ("SL", float(times[sl_i]))
+            return "AMBIGUOUS", float(times[tp_i]), tp_i
+        return ("TP", float(times[tp_i]), tp_i) if times[tp_i] < times[sl_i] else ("SL", float(times[sl_i]), sl_i)
     if tp_idx.size:
-        return "TP", float(times[int(tp_idx[0])])
-    return "SL", float(times[int(sl_idx[0])])
+        return "TP", float(times[int(tp_idx[0])]), int(tp_idx[0])
+    return "SL", float(times[int(sl_idx[0])]), int(sl_idx[0])
 

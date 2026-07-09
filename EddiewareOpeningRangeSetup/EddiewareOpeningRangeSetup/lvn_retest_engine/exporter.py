@@ -177,6 +177,14 @@ def _style_workbook(path: Path) -> None:
 def export_results(output_path: str | Path, sheets: dict[str, pd.DataFrame]) -> tuple[Path, Path]:
     path = Path(output_path).resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
+    # Regla 2026-07-08: NUNCA sobrescribir/borrar un Excel de una corrida anterior.
+    # Si el destino existe, la corrida nueva escribe a un archivo con timestamp;
+    # borrar reportes viejos es SIEMPRE decisión manual del usuario.
+    if path.exists():
+        from datetime import datetime as _dt
+
+        stamp = _dt.now().strftime("%Y%m%d_%H%M%S")
+        path = path.with_name(f"{path.stem}_run{stamp}{path.suffix}")
     csv_dir = path.parent / f"{path.stem}_csv"
     csv_dir.mkdir(parents=True, exist_ok=True)
     ordered = {name: _excel_safe(sheets.get(name, pd.DataFrame())) for name in SHEET_ORDER}
