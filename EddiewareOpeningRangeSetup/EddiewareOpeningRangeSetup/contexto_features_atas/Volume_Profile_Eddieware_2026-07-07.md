@@ -1,5 +1,11 @@
 # Volume_Profile_Eddieware — creación detallada + outputs para backtest (2026-07-07)
 
+> **ACTUALIZACIÓN 2026-07-08:** el LVN ya no usa 08:30–09:40. Ahora se construye
+> exclusivamente con 09:30:00–09:31:00 ET, se revela a las 09:31 y se pinta en verde.
+> El perfil 08:30–09:30 añade clasificación matemática D/P/b/double/trend con
+> probabilidades continuas. El motor de backtest objetivo está documentado en
+> `LVN_Retest_Research_Engine_2026-07-08.md`.
+
 Archivo: `13_Volume_Profile_Eddieware.cs` · clase `VolumeProfileEddieware : Indicator` ·
 `DisplayName = "Volume_Profile_Eddieware"` · namespace `ATAS.Indicators`.
 Integrado a `EddiewareOpeningRangeSetup` (no toca ningún archivo existente).
@@ -13,11 +19,11 @@ Dos perfiles de volumen en **hora NY (DST aware)** para el NQ:
 | Perfil | Ventana default (NY) | Marca |
 |---|---|---|
 | DIRECTION (perfil fijo) | **08:30–09:30** | POC + VAH + VAL + dirección `HIGH`/`LOW`/`INSIDE` |
-| LVN incremental | **08:30–09:40** (máx) | mejor LVN (Low Volume Node) — una línea naranja |
+| LVN primer minuto | **09:30–09:31** (congelado) | mejor LVN (Low Volume Node) — una línea verde |
 
-- **LVN incremental** se reconstruye en cada barra nueva → crece minuto a minuto desde 08:30 hasta
-  09:40 máximo. Solo marca el valle interior que supera el filtro de claridad; si ninguno califica,
-  no pinta una línea débil.
+- **LVN primer minuto** usa solo datos 09:30:00–09:31:00. No dibuja antes de 09:31 y nunca incorpora
+  datos posteriores. Solo marca el candidato numérico más profundo para mantener un overlay limpio;
+  el motor Python conserva todos los candidatos para investigación.
 - **Dirección**: close del último bar vs value area → arriba de VAH = `HIGH` (posible barrido del high),
   abajo de VAL = `LOW` (posible barrido del low), dentro = `INSIDE`.
 
@@ -34,11 +40,9 @@ Dos perfiles de volumen en **hora NY (DST aware)** para el NQ:
    - Fallback (feed sin footprint): todo el `Volume` de la vela en el bin del `Close`.
 4. **POC / Value Area** (`ComputeProfile`): POC = bin de mayor volumen; VA se expande desde el POC
    sumando el lado adyacente más rico hasta cubrir `ValueAreaPct`% (default 70%) del volumen total.
-5. **LVN claro** (`FindBestLvn`): suaviza el histograma a 3 bins y busca mínimos locales interiores
-   por debajo de `LvnThresholdPct` (default 30%). Cada candidato exige volumen aceptado a ambos lados
-   y recibe un score por profundidad (35%), contraste local (30%), fuerza de hombros (15%), balance
-   (10%) e interioridad (10%). Solo sale el candidato con mayor score si alcanza
-   `LvnMinConfidencePct` (default 65%). Las colas y caídas de un solo lado se descartan.
+5. **LVN causal** (`FindBestLvn`): cada precio debe ser menor que el promedio de los `N` vecinos de
+   ambos lados, quedar bajo el porcentaje máximo de vecinos y del POC, y superar el volumen mínimo.
+   El indicador selecciona el candidato con mejor profundidad; el backtest registra todos.
 6. **Dibujo**: `TrendLines.Add(new TrendLine(...))` (líneas horizontales) + `AddText(...)` (labels).
    Las líneas se limpian y redibujan cada barra (developing) y en cada sesión nueva.
 
@@ -51,9 +55,9 @@ Dos perfiles de volumen en **hora NY (DST aware)** para el NQ:
 | POC (direction) | Oro | 3 |
 | VAH | Azul (DodgerBlue) | 2 |
 | VAL | Rojo (OrangeRed) | 2 |
-| LVN | **Naranja** | 3 |
+| LVN | **Verde (LimeGreen)** | 3 |
 | Label dirección | fondo verde (HIGH) / rojo (LOW) / gris (INSIDE) | — |
-| Label LVN | **precio + confianza**, texto negro sobre naranja | — |
+| Label LVN | **precio + quality score**, texto negro sobre verde | — |
 
 ---
 
@@ -72,7 +76,7 @@ Dos perfiles de volumen en **hora NY (DST aware)** para el NQ:
 | `DirPoc` / `DirVah` / `DirVal` | decimal | POC / VAH / VAL (líneas oro/azul/roja) |
 | `DirHigh` / `DirLow` / `DirRangeTicks` | decimal | extremos del perfil fijo + rango en ticks |
 | `Direction` | string | `HIGH` / `LOW` / `INSIDE` |
-| `HasLvn` / `LvnPoc` | bool / decimal | ¿calificó un LVN? + POC del perfil incremental |
+| `HasLvn` / `LvnPoc` | bool / decimal | ¿calificó un LVN? + POC del perfil congelado 09:30–09:31 |
 | `LvnConfidencePct` | decimal | score 0–100 del LVN seleccionado |
 | `LvnLevels` | `IReadOnlyList<decimal>` | vacío o un único precio: la línea LVN seleccionada |
 | `NearestLvnAbove(p)` / `NearestLvnBelow(p)` | decimal | helper: LVN más cercano arriba/abajo de un precio |
@@ -99,7 +103,7 @@ bloque frozen del medio):
 | `VP_Dir_POC` / `VP_Dir_VAH` / `VP_Dir_VAL` | POC / VAH / VAL del perfil fijo 08:30–09:30 |
 | `VP_Dir_High` / `VP_Dir_Low` / `VP_Dir_Range_Ticks` | extremos + rango |
 | `VP_Direction` | HIGH / LOW / INSIDE |
-| `VP_LVN_POC` | POC del perfil LVN incremental 08:30–09:40 |
+| `VP_LVN_POC` | POC del perfil LVN congelado 09:30–09:31 |
 | `VP_LVN_Count` | 0 o 1 (solo el LVN más claro) |
 | `VP_LVN_Levels` | precio de la única línea LVN, ej. `21050.25` |
 
@@ -113,9 +117,8 @@ Detalles de implementación:
 `Volume_Profile_Eddieware` (publica) **y** el exporter (lee/escribe). Si solo está el exporter,
 las 10 columnas salen vacías.
 
-**Causalidad OK**: `direction` se congela 08:30–09:30 (a las 09:30); el LVN a las 09:40. El trade
-del exporter entra 09:31–09:38 y cierra después → al escribir la fila ya hay POC/VAH/VAL; el LVN
-aparece una vez pasadas las 09:40. Sin lookahead en el sesgo.
+**Causalidad OK**: el contexto se congela a las 09:30 y el LVN a las 09:31. La línea LVN empieza en
+la barra de 09:31; nunca se extiende hacia atrás sobre la ventana que lo construyó.
 
 ### Backtest (Python/DuckDB)
 Los niveles VP viajan **dentro del mismo CSV del exporter**, una columna por nivel:
@@ -137,12 +140,13 @@ Reportar por **año × métrica** (trades, trades/mes, WR, R:R, PF, EV bruto/net
 | Grupo | Param | Default |
 |---|---|---|
 | Windows | `DirectionStartNy` / `DirectionEndNy` | 08:30 / 09:30 |
-| Windows | `LvnStartNy` / `LvnEndNy` | 08:30 / 09:40 |
+| Windows | `LvnStartNy` / `LvnEndNy` | 09:30 / 09:31 |
 | Profile | `ValueAreaPct` | 70 |
-| Profile | `LvnThresholdPct` | 30 |
-| Profile | `LvnShoulderTicks` | 8 |
-| Profile | `LvnMinShoulderPct` | 45 |
-| Profile | `LvnMinConfidencePct` | 65 |
+| Profile | `LvnNeighborLevels` | 2 |
+| Profile | `LvnMaxPercentOfNeighbors` | 50 |
+| Profile | `MinLvnVolume` | 1 |
+| Profile | `MaxLvnVolumePercentOfPoc` | 50 |
+| Profile | `MinTotalVolumeAtLvnProfile` | 1 |
 | Profile | `ExtendBars` | 120 |
 | Show | `ShowDirection` / `ShowLvn` / `ShowLabels` | on |
 
@@ -169,6 +173,6 @@ Nota: la propiedad se llama `ValueAreaPct` (no `ValueAreaPercent`) porque `Indic
 ## 8. Pendiente
 - Verificar en ATAS: aplicar `Volume_Profile_Eddieware` + exporter al mismo chart y revisar que las
   10 columnas `VP_*` se pueblan en `score_trade_result_*_NY.csv`.
-- Ajustar primero `LvnMinConfidencePct` si la selección resulta demasiado estricta o permisiva;
-  conservar 65 hasta verla en replay.
-- Validar edge del setup por año (dirección 08:30–09:30 + entrada al LVN post-09:40) con el estándar de backtest.
+- No optimizar parámetros con la misma muestra usada para medir resultados; el motor registra cada
+  rechazo y su razón en `Debug` para poder hacer análisis walk-forward.
+- Validar por año y por forma D/P/b los retests 09:31–09:40 con el motor causal independiente.

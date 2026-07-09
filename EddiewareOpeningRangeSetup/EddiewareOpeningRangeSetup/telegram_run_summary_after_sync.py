@@ -356,7 +356,8 @@ def send_overall_progress(
         f"Ultima fecha: {date}",
     ]
     if pnl_usd is not None:
-        line = f"Balance: ${150000 + pnl_usd:,.0f}  (PnL ${pnl_usd:+,.0f})"
+        line = (f"Balance strategy (kill-switch real): ${150000 + pnl_usd:,.0f}  "
+                f"(PnL ${pnl_usd:+,.0f})")
         if contracts:
             line += f" | {contracts} contratos"
         lines.append(line)

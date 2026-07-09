@@ -79,18 +79,49 @@ Problema: `run_replay_period` corre UNA fecha por llamada, así que su ETA por-e
 - Ambos archivos `py_compile` OK. El PID 6632 en curso usa el código VIEJO en memoria; los
   cambios aplican al próximo `python -u 06_run_strategy_replay.py ...`.
 
-## Fase actual — VALIDACIÓN de ejecución, NO descubrimiento de edge
+## OBJETIVO DE LA CORRIDA — validar la EJECUCIÓN en ATAS, NO el edge
 
-El recorrido con el Execution Manager **valida la ejecución del edge congelado**, no busca edge
-nuevo. El edge (OR CatBoost / A+ Speed, F7 PASA) ya está congelado; esta corrida prueba, sobre
-Replay DST 2025–2026:
-- fills virtuales causales, SL/trailing canónico,
-- kill-switch graduado (base 3c) + Risk Governor (MaxDD $4,500),
-- acumulación de equity/DD entre fechas.
+El edge ya se midió (Python, PROGRESO_05: PF 1.67 / WR 63.7% / 14.4 tr-mes en 2025;
+2026 bandera amarilla PF 1.10, n=9). Lo NO probado es que el port a C# reproduzca esa
+contabilidad fecha tras fecha en Replay. Eso valida esta corrida:
 
-`OnlyAPlusSpeed` está TEMP en OFF (toma las 174 señales canónicas del modelo) para estresar el
-kill-switch; revertir a ON antes de producción (el edge vivo es solo A+ Speed).
-Gate pendiente: 2 meses forward EV>0 / PF>1.15 sobre v1 antes de fondear.
+| # | Qué valida | Criterio de éxito |
+|---|---|---|
+| 1 | **Fills virtuales causales** | Strategy entra en el EntryBar canónico, aplica SL 50 / trailing, sin lookahead. Exits pueden diferir del canónico (trailing), pero coherentes |
+| 2 | **Kill-switch graduado (port C#)** | Tiers/contratos por trade = mismos que el sim Python (`analysis_vp/kill_switch_sim.py`) sobre la misma secuencia de 174 señales (sim: +$19,780, 1.9% quema) |
+| 3 | **Risk Governor** | Nunca sizing que rompa MaxDD $4,500 (Lucid 150k); headroom=0 → skip + freeze |
+| 4 | **Equity/DD acumulado** | `challenge_equity` continuo entre las 239 fechas: sin resets fantasma, sin dobles conteos |
+| 5 | **Infra a escala** | 239 fechas sin trades fantasma, sin CSV falsos, sin strategy detenida silenciosa |
+
+Salida esperada: `strategy_tester_trades.csv` rico (fecha, contratos, ticks, pnl_usd,
+exit_motivo, challenge_equity, challenge_dd) para cruzar contra el sim Python trade por trade.
+
+**Qué NO es esta corrida:** no mide WR/PF del edge (ya medido), no descubre nada nuevo,
+no es forward. `OnlyAPlusSpeed=OFF` TEMP a propósito: las 174 señales canónicas estresan
+el kill-switch; el subset A+ Speed es lo que se operaría en vivo. REVERTIR flags TEMP
+antes de producción.
+
+**Si pasa** → revertir flags TEMP → gate forward 2 meses (EV>0 / PF>1.15) → fondeo.
+**Si el C# no cuadra con el sim** → bug de port; corregir antes de tocar dinero real.
+
+### Bloqueador detectado 07-jul tarde (corrida manual del usuario)
+- Mensaje de trade salió `6c (nominal)` = el Execution Manager NO ejecutó (bus sin
+  contratos reales); `signal=CONSUMED` con `trades=0` en el log rico. La prueba NO vale
+  corriendo así. **Verificar strategy Started en ATAS antes de relanzar** (síntoma igual
+  a PROGRESO_05 §3b; probable strategy Stopped tras los kills/relanzamientos).
+- Traceback en terminal tras 2025-03-11: incompleto, pendiente el paste completo.
+
+### Higiene agregada al runner (07-jul tarde, aplica al próximo lanzamiento)
+Al arrancar (UNA sola vez, antes de la fecha 1; se salta con `--keep-state`):
+1. Borra `telegram_balance.json` → balance arranca en $150,000 exactos (sin basura de
+   corridas muertas — hoy un `-1800` viejo de 03-11 hizo que un TP de +$1,800 mostrara
+   $150,000 plano).
+2. `clear_telegram_before_run` → borra TODO el historial del bot en el chat (los >48h
+   la Bot API no los puede borrar; se reportan y la corrida continúa).
+DENTRO del recorrido nada se resetea: el JSON acumula fecha a fecha (cada fecha
+sobrescribe solo su propia entrada = idempotente) y el balance sube/baja como cuenta real.
+También: barra de progreso global en consola (10 bloques + % + min restantes) además
+del mensaje Telegram por fecha.
 
 ## Pista nueva (paralela, NO estorba el recorrido) — LVN del Volume Profile previo
 

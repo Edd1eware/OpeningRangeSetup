@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
+using System.Globalization;
+using System.IO;
+using System.Text;
 using ATAS.Indicators;
 using ATAS.Indicators.Drawing;
 
@@ -11,16 +14,14 @@ namespace ATAS.Indicators
     // -------------------------
     // Two NY-time (DST aware) session volume profiles for the NQ:
     //
-    //  1) DIRECTION profile  (default 08:30-09:30 NY): a fixed profile that gives the
-    //     likely direction. Draws POC + Value Area High/Low and prints a HIGH/LOW/INSIDE
-    //     bias from where price sits relative to the value area.
+    //  1) CONTEXT profile (default 08:30-09:30 NY): fixed POC/VAH/VAL plus a fully
+    //     quantitative D/P/b/double/trend shape classification. P suggests bullish
+    //     directional context, b bearish, and D neutral/balanced.
     //
-    //  2) LVN developing profile (default 08:30-09:40 NY): a profile that grows one bar
-    //     at a time up to 09:40 max. On every new closed bar it is rebuilt, so the Low
-    //     Volume Nodes settle minute by minute until a high-probability LVN is found.
-    //     A 3-bin smoothed histogram finds interior local valleys, then scores each valley
-    //     by depth, acceptance on both shoulders, balance and distance from the profile
-    //     tails. Only the clearest qualifying LVN is drawn as one orange line.
+    //  2) FIRST-MINUTE LVN profile (default 09:30-09:31 NY): frozen exactly at 09:31.
+    //     A level qualifies only when its volume is lower than both configurable neighbor
+    //     groups and below the configured neighbor/POC ratios. The clearest qualifying
+    //     level is revealed at 09:31 as one green line; later bars never alter its inputs.
     //
     // No file is written. The computed levels are exposed as public read-only OUTPUTS
     // (see the "OUTPUTS" region) so an external exporter/strategy can pull a value when
@@ -37,9 +38,16 @@ namespace ATAS.Indicators
 
         private readonly List<TrendLine> _lines = new();
         private readonly List<decimal> _lvnLevels = new();
+        private readonly HashSet<int> _researchExportedBars = new();
 
         private DateTime _currentDate = DateTime.MinValue;
         private int _lastBuiltBar = -1;
+        private DateTime _researchExportDate = DateTime.MinValue;
+        private bool _researchFileKnownCreated;
+        private int _researchExportedRowCount;
+
+        private const string ResearchTargetDateFile =
+            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\target_trade_result_date.txt";
 
         // ---- Window inputs (NY time) ----
 
@@ -53,11 +61,11 @@ namespace ATAS.Indicators
 
         [DisplayName("LVN Start (NY)")]
         [Category("Windows")]
-        public TimeSpan LvnStartNy { get; set; } = new TimeSpan(8, 30, 0);
+        public TimeSpan LvnStartNy { get; set; } = new TimeSpan(9, 30, 0);
 
         [DisplayName("LVN End (NY)")]
         [Category("Windows")]
-        public TimeSpan LvnEndNy { get; set; } = new TimeSpan(9, 40, 0);
+        public TimeSpan LvnEndNy { get; set; } = new TimeSpan(9, 31, 0);
 
         // ---- Profile inputs ----
 
@@ -65,21 +73,25 @@ namespace ATAS.Indicators
         [Category("Profile")]
         public decimal ValueAreaPct { get; set; } = 70m;
 
-        [DisplayName("LVN Threshold % of POC")]
+        [DisplayName("LVN Neighbor Levels")]
         [Category("Profile")]
-        public decimal LvnThresholdPct { get; set; } = 30m;
+        public int LvnNeighborLevels { get; set; } = 2;
 
-        [DisplayName("LVN Shoulder Search (ticks)")]
+        [DisplayName("LVN Max % of Neighbors")]
         [Category("Profile")]
-        public int LvnShoulderTicks { get; set; } = 8;
+        public decimal LvnMaxPercentOfNeighbors { get; set; } = 50m;
 
-        [DisplayName("LVN Min Shoulder % of POC")]
+        [DisplayName("LVN Min Volume")]
         [Category("Profile")]
-        public decimal LvnMinShoulderPct { get; set; } = 45m;
+        public decimal MinLvnVolume { get; set; } = 1m;
 
-        [DisplayName("LVN Min Confidence %")]
+        [DisplayName("LVN Max % of POC")]
         [Category("Profile")]
-        public decimal LvnMinConfidencePct { get; set; } = 65m;
+        public decimal MaxLvnVolumePercentOfPoc { get; set; } = 50m;
+
+        [DisplayName("LVN Min Profile Volume")]
+        [Category("Profile")]
+        public decimal MinTotalVolumeAtLvnProfile { get; set; } = 1m;
 
         [DisplayName("Extend Lines (bars)")]
         [Category("Profile")]
@@ -99,6 +111,25 @@ namespace ATAS.Indicators
         [Category("Show")]
         public bool ShowLabels { get; set; } = true;
 
+        // ---- Research export (closed footprint bars only) ----
+
+        [DisplayName("Enable LVN Research Export")]
+        [Category("Research Export")]
+        public bool EnableResearchExport { get; set; } = true;
+
+        [DisplayName("Research Export Folder")]
+        [Category("Research Export")]
+        public string ResearchExportFolder { get; set; } =
+            @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\lvn_research_raw";
+
+        [DisplayName("Research Symbol")]
+        [Category("Research Export")]
+        public string ResearchSymbol { get; set; } = "NQ";
+
+        [DisplayName("Research End (NY)")]
+        [Category("Research Export")]
+        public TimeSpan ResearchEndNy { get; set; } = new TimeSpan(9, 40, 0);
+
         // ===================== OUTPUTS (read-only, pull on demand) =====================
         // Updated on every rebuild with the current frozen levels. NaN / empty until the
         // matching window has data. These are the price levels of the drawn lines.
@@ -111,6 +142,16 @@ namespace ATAS.Indicators
         [Browsable(false)] public decimal DirLow { get; private set; }
         [Browsable(false)] public decimal DirRangeTicks { get; private set; }
         [Browsable(false)] public string Direction { get; private set; } = ""; // HIGH / LOW / INSIDE
+        [Browsable(false)] public string ProfileShape { get; private set; } = "UNKNOWN";
+        [Browsable(false)] public string ShapeBias { get; private set; } = "NEUTRAL";
+        [Browsable(false)] public decimal ShapeConfidencePct { get; private set; }
+        [Browsable(false)] public decimal ShapeProbD { get; private set; }
+        [Browsable(false)] public decimal ShapeProbP { get; private set; }
+        [Browsable(false)] public decimal ShapeProbB { get; private set; }
+        [Browsable(false)] public decimal ShapeProbDouble { get; private set; }
+        [Browsable(false)] public decimal ShapeProbTrendUp { get; private set; }
+        [Browsable(false)] public decimal ShapeProbTrendDown { get; private set; }
+        [Browsable(false)] public decimal ShapeProbUnknown { get; private set; }
 
         [Browsable(false)] public bool HasLvn { get; private set; }
         [Browsable(false)] public decimal LvnPoc { get; private set; }
@@ -156,6 +197,13 @@ namespace ATAS.Indicators
                 ResetOutputs();
             }
 
+            // Export bar-1 only: its footprint is closed and cannot be revised by future
+            // ticks. target_trade_result_date.txt gates the export to the runner's date.
+            if (bar > 0)
+                ExportClosedResearchBar(bar - 1);
+            if (ny.TimeOfDay >= ResearchEndNy)
+                WriteResearchDoneMarker(ny.Date);
+
             // Rebuild once per new bar (developing effect for the LVN profile).
             if (bar == _lastBuiltBar)
                 return;
@@ -170,7 +218,7 @@ namespace ATAS.Indicators
         {
             var dirBins = new Dictionary<int, double>();
             var lvnBins = new Dictionary<int, double>();
-            int dirStartBar = -1, lvnStartBar = -1;
+            int dirStartBar = -1, lvnRevealBar = -1;
             double dirClose = double.NaN;
             var tick = GetTickSize();
 
@@ -195,12 +243,18 @@ namespace ATAS.Indicators
                 if (t >= LvnStartNy && t < LvnEndNy)
                 {
                     AddCandle(lvnBins, c, tick);
-                    lvnStartBar = j;
                 }
+
+                if (t >= LvnEndNy)
+                    lvnRevealBar = j;
             }
 
             UpdateDirectionOutputs(dirBins, tick, dirClose);
-            UpdateLvnOutputs(lvnBins, tick);
+            var lastNyTime = ToNy(GetCandle(lastBar).Time).TimeOfDay;
+            if (lastNyTime >= LvnEndNy)
+                UpdateLvnOutputs(lvnBins, tick);
+            else
+                ResetLvnOutputs();
             PublishOutputs();
 
             ClearLines();
@@ -210,7 +264,7 @@ namespace ATAS.Indicators
                 DrawDirection(dirStartBar < 0 ? lastBar : dirStartBar, endBar, lastBar);
 
             if (ShowLvn && HasLvn)
-                DrawLvn(lvnStartBar < 0 ? lastBar : lvnStartBar, endBar);
+                DrawLvn(lvnRevealBar < 0 ? lastBar : lvnRevealBar, endBar);
         }
 
         private static void AddCandle(Dictionary<int, double> bins, dynamic c, decimal tick)
@@ -250,6 +304,7 @@ namespace ATAS.Indicators
                 HasDirection = false;
                 DirPoc = DirVah = DirVal = DirHigh = DirLow = DirRangeTicks = 0m;
                 Direction = "";
+                ResetShapeOutputs();
                 return;
             }
 
@@ -265,6 +320,7 @@ namespace ATAS.Indicators
                 : (decimal)dirClose > DirVah ? "HIGH"
                 : (decimal)dirClose < DirVal ? "LOW"
                 : "INSIDE";
+            ClassifyProfileShape(bins, pocBin, lo, hi);
             HasDirection = true;
         }
 
@@ -309,26 +365,33 @@ namespace ATAS.Indicators
             AddLabel($"VPE_VAH_{_currentDate:yyyyMMdd}", $"VAH {DirVah:0.00}", startBar, DirVah, Color.White, Color.DodgerBlue);
             AddLabel($"VPE_VAL_{_currentDate:yyyyMMdd}", $"VAL {DirVal:0.00}", startBar, DirVal, Color.White, Color.OrangeRed);
 
-            var bg = Direction == "HIGH" ? Color.DarkGreen
-                : Direction == "LOW" ? Color.DarkRed
+            var bg = ShapeBias == "BULLISH" ? Color.DarkGreen
+                : ShapeBias == "BEARISH" ? Color.DarkRed
                 : Color.DimGray;
-            AddLabel($"VPE_DIR_{_currentDate:yyyyMMdd}", $"DIR {Direction}", lastBar, DirVah, Color.White, bg, 55);
+            AddLabel(
+                $"VPE_SHAPE_{_currentDate:yyyyMMdd}",
+                $"SHAPE {ProfileShape}  {ShapeBias}  {ShapeConfidencePct:0}%",
+                lastBar,
+                DirVah,
+                Color.White,
+                bg,
+                55);
         }
 
         private void DrawLvn(int startBar, int endBar)
         {
             // FindBestLvn deliberately exposes exactly one level.
             var level = _lvnLevels[0];
-            AddLine(startBar, level, endBar, level, Color.Orange, 3);
+            AddLine(startBar, level, endBar, level, Color.LimeGreen, 3);
 
             if (ShowLabels)
                 AddLabel(
                     $"VPE_LVN_{_currentDate:yyyyMMdd}",
-                    $"LVN {level:0.00}  {LvnConfidencePct:0}%",
+                    $"LVN 09:30-09:31  {level:0.00}  Q{LvnConfidencePct:0}",
                     endBar - Math.Max(1, ExtendBars / 3),
                     level,
                     Color.Black,
-                    Color.Orange);
+                    Color.LimeGreen);
         }
 
         private readonly struct LvnCandidate
@@ -343,82 +406,55 @@ namespace ATAS.Indicators
             public double Score { get; }
         }
 
-        // A useful LVN is an interior local minimum, not merely any low-volume tail.
-        // Smooth over three bins (the same VP convention used by FeatureScanner), require
-        // meaningful accepted volume on both sides, then retain only the highest score.
+        // Same candidate definition as the Python research engine. Every qualifying node
+        // is exported there; this visual overlay retains the deepest one to keep one line.
         private LvnCandidate? FindBestLvn(Dictionary<int, double> bins, decimal tick)
         {
             ComputeProfile(bins, out var pocBin, out _, out _, out var lo, out var hi);
-            var n = hi - lo + 1;
-            if (n < 7)
+            var neighbors = Math.Max(1, LvnNeighborLevels);
+            if (hi - lo + 1 < neighbors * 2 + 1)
                 return null;
 
-            var raw = new double[n];
-            var smoothed = new double[n];
-            for (int i = 0; i < n; i++)
-                raw[i] = Get(bins, lo + i);
-
-            double smoothedPeak = 0;
-            for (int i = 0; i < n; i++)
-            {
-                double sum = raw[i];
-                int count = 1;
-                if (i > 0) { sum += raw[i - 1]; count++; }
-                if (i < n - 1) { sum += raw[i + 1]; count++; }
-                smoothed[i] = sum / count;
-                smoothedPeak = Math.Max(smoothedPeak, smoothed[i]);
-            }
-
-            if (smoothedPeak <= 0)
+            var pocVolume = Get(bins, pocBin);
+            double totalVolume = 0;
+            for (int k = lo; k <= hi; k++)
+                totalVolume += Get(bins, k);
+            if (pocVolume <= 0 || totalVolume < (double)MinTotalVolumeAtLvnProfile)
                 return null;
-
-            var valleyThreshold = smoothedPeak * Clamp01((double)(LvnThresholdPct / 100m));
-            var minShoulder = smoothedPeak * Clamp01((double)(LvnMinShoulderPct / 100m));
-            var minScore = Clamp01((double)(LvnMinConfidencePct / 100m));
-            var search = Math.Max(2, LvnShoulderTicks);
-            var edgeGuard = Math.Min(2, Math.Max(1, (n - 3) / 4));
 
             LvnCandidate? best = null;
-            for (int i = edgeGuard; i < n - edgeGuard; i++)
+            for (int k = lo + neighbors; k <= hi - neighbors; k++)
             {
-                var valley = smoothed[i];
-                bool localMinimum = valley <= smoothed[i - 1] && valley < smoothed[i + 1];
-                if (!localMinimum || valley > valleyThreshold)
+                var volume = Get(bins, k);
+                double leftMean = 0, rightMean = 0;
+                for (int offset = 1; offset <= neighbors; offset++)
+                {
+                    leftMean += Get(bins, k - offset);
+                    rightMean += Get(bins, k + offset);
+                }
+                leftMean /= neighbors;
+                rightMean /= neighbors;
+                var weakerMean = Math.Min(leftMean, rightMean);
+                if (weakerMean <= 0 || volume < (double)MinLvnVolume)
+                    continue;
+                var neighborRatio = volume / weakerMean;
+                var pocRatio = volume / pocVolume;
+                if (volume >= leftMean || volume >= rightMean ||
+                    neighborRatio > Clamp01((double)(LvnMaxPercentOfNeighbors / 100m)) ||
+                    pocRatio > Clamp01((double)(MaxLvnVolumePercentOfPoc / 100m)))
                     continue;
 
-                var leftPeak = 0.0;
-                var rightPeak = 0.0;
-                for (int j = Math.Max(0, i - search); j < i; j++)
-                    leftPeak = Math.Max(leftPeak, smoothed[j]);
-                for (int j = i + 1; j <= Math.Min(n - 1, i + search); j++)
-                    rightPeak = Math.Max(rightPeak, smoothed[j]);
-
-                // Both sides must show accepted volume. This rejects profile tails and
-                // one-sided drop-offs that look low only because price stopped trading.
-                if (leftPeak < minShoulder || rightPeak < minShoulder)
-                    continue;
-
-                var weakShoulder = Math.Min(leftPeak, rightPeak);
-                var strongShoulder = Math.Max(leftPeak, rightPeak);
-                var depth = Clamp01(1.0 - valley / smoothedPeak);
-                var localContrast = Clamp01(1.0 - valley / Math.Max(weakShoulder, 1e-9));
-                var shoulderStrength = Clamp01(weakShoulder / smoothedPeak);
-                var balance = Clamp01(weakShoulder / Math.Max(strongShoulder, 1e-9));
-                var distanceToEdge = Math.Min(i, n - 1 - i);
-                var interior = Clamp01(distanceToEdge / Math.Max(1.0, (n - 1) / 2.0));
-
-                var score = 0.35 * depth
-                    + 0.30 * localContrast
-                    + 0.15 * shoulderStrength
-                    + 0.10 * balance
-                    + 0.10 * interior;
+                var depth = Clamp01(1.0 - neighborRatio);
+                var pocDepth = Clamp01(1.0 - pocRatio);
+                var distanceToEdge = Math.Min(k - lo, hi - k);
+                var interior = Clamp01(distanceToEdge / Math.Max(1.0, (hi - lo) / 2.0));
+                var score = 0.70 * depth + 0.20 * pocDepth + 0.10 * interior;
 
                 // On an exact tie prefer the structural valley nearer the POC.
-                var price = (lo + i) * (double)tick;
-                if (score >= minScore &&
-                    (best == null || score > best.Value.Score + 1e-9 ||
+                var price = k * (double)tick;
+                if (best == null || score > best.Value.Score + 1e-9 ||
                      (Math.Abs(score - best.Value.Score) <= 1e-9 &&
-                      Math.Abs(lo + i - pocBin) < Math.Abs(best.Value.Price / (double)tick - pocBin))))
+                      Math.Abs(k - pocBin) < Math.Abs(best.Value.Price / (double)tick - pocBin)))
                 {
                     best = new LvnCandidate(price, score);
                 }
@@ -428,6 +464,200 @@ namespace ATAS.Indicators
         }
 
         private static double Clamp01(double value) => Math.Max(0.0, Math.Min(1.0, value));
+
+        // Mathematical prototype probabilities, not outcome-calibrated probabilities.
+        // The same features/formulas are used by detect_lvn_retest_events.py.
+        private void ClassifyProfileShape(Dictionary<int, double> bins, int pocBin, int lo, int hi)
+        {
+            var n = hi - lo + 1;
+            if (n < 3)
+            {
+                ResetShapeOutputs();
+                return;
+            }
+
+            var raw = new double[n];
+            double total = 0, weighted = 0, maximum = 0;
+            for (int i = 0; i < n; i++)
+            {
+                raw[i] = Get(bins, lo + i);
+                total += raw[i];
+                weighted += (lo + i) * raw[i];
+                maximum = Math.Max(maximum, raw[i]);
+            }
+            if (total <= 0 || maximum <= 0)
+            {
+                ResetShapeOutputs();
+                return;
+            }
+
+            var meanBin = weighted / total;
+            double variance = 0, thirdMoment = 0;
+            for (int i = 0; i < n; i++)
+            {
+                var centered = lo + i - meanBin;
+                variance += raw[i] * centered * centered;
+            }
+            variance /= total;
+            var sigma = Math.Sqrt(Math.Max(variance, 1e-12));
+            for (int i = 0; i < n; i++)
+            {
+                var standardized = (lo + i - meanBin) / sigma;
+                thirdMoment += raw[i] * standardized * standardized * standardized;
+            }
+            var skew = variance <= 0 ? 0 : thirdMoment / total;
+
+            double upperVolume = 0, lowerVolume = 0, entropy = 0;
+            for (int i = 0; i < n; i++)
+            {
+                var bin = lo + i;
+                if (bin > pocBin) upperVolume += raw[i];
+                if (bin < pocBin) lowerVolume += raw[i];
+                if (raw[i] > 0)
+                {
+                    var probability = raw[i] / total;
+                    entropy -= probability * Math.Log(probability);
+                }
+            }
+            entropy = n > 1 ? entropy / Math.Log(n) : 0;
+            var upperShare = upperVolume / total;
+            var lowerShare = lowerVolume / total;
+            var pocPosition = (double)(pocBin - lo) / Math.Max(1, hi - lo);
+            var meanPosition = (meanBin - lo) / Math.Max(1, hi - lo);
+
+            double slopeNumerator = 0, slopeDenominator = 0;
+            for (int i = 0; i < n; i++)
+            {
+                var x = -1.0 + 2.0 * i / Math.Max(1, n - 1);
+                slopeNumerator += x * (raw[i] / maximum);
+                slopeDenominator += x * x;
+            }
+            var slope = slopeDenominator > 0 ? slopeNumerator / slopeDenominator : 0;
+
+            var smoothed = new double[n];
+            double smoothedMax = 0;
+            for (int i = 0; i < n; i++)
+            {
+                smoothed[i] = 0.50 * raw[i]
+                    + (i > 0 ? 0.25 * raw[i - 1] : 0)
+                    + (i < n - 1 ? 0.25 * raw[i + 1] : 0);
+                smoothedMax = Math.Max(smoothedMax, smoothed[i]);
+            }
+            var peaks = new List<int>();
+            var peakFloor = smoothedMax * 0.35;
+            for (int i = 1; i < n - 1; i++)
+                if (smoothed[i] >= smoothed[i - 1] && smoothed[i] > smoothed[i + 1] && smoothed[i] >= peakFloor)
+                    peaks.Add(i);
+            if (peaks.Count == 0)
+            {
+                int maxIndex = 0;
+                for (int i = 1; i < n; i++)
+                    if (smoothed[i] > smoothed[maxIndex]) maxIndex = i;
+                peaks.Add(maxIndex);
+            }
+            peaks.Sort((a, b) =>
+            {
+                var volumeCompare = smoothed[b].CompareTo(smoothed[a]);
+                return volumeCompare != 0 ? volumeCompare : a.CompareTo(b);
+            });
+            if (peaks.Count > 3)
+                peaks.RemoveRange(3, peaks.Count - 3);
+
+            double separation = 0, valleyDepth = 0;
+            if (peaks.Count >= 2)
+            {
+                var a = Math.Min(peaks[0], peaks[1]);
+                var b = Math.Max(peaks[0], peaks[1]);
+                separation = (double)(b - a) / Math.Max(1, n - 1);
+                var valley = smoothed[a];
+                for (int i = a + 1; i <= b; i++) valley = Math.Min(valley, smoothed[i]);
+                var weakerPeak = Math.Min(smoothed[a], smoothed[b]);
+                valleyDepth = Clamp01(1.0 - valley / Math.Max(weakerPeak, 1e-12));
+            }
+
+            var balance = Math.Exp(-Math.Abs(Math.Log((upperShare + 1e-9) / (lowerShare + 1e-9))));
+            var centeredScore = Math.Exp(-Math.Abs(pocPosition - 0.5) / 0.20);
+            var symmetric = Math.Exp(-Math.Abs(skew) / 0.85);
+            var singleMode = peaks.Count == 1 ? 1.0 : peaks.Count == 2 ? 0.35 : 0.10;
+            var upperHeavy = Sigmoid((upperShare - lowerShare - 0.08) / 0.06);
+            var lowerHeavy = Sigmoid((lowerShare - upperShare - 0.08) / 0.06);
+            var topLocation = Sigmoid((pocPosition - 0.57) / 0.08);
+            var bottomLocation = Sigmoid((0.43 - pocPosition) / 0.08);
+            var positiveSlope = Sigmoid((slope - 0.08) / 0.08);
+            var negativeSlope = Sigmoid((-slope - 0.08) / 0.08);
+
+            var scores = new[]
+            {
+                Clamp01(balance * centeredScore * symmetric * singleMode),
+                Clamp01(upperHeavy * topLocation * (0.55 + 0.45 * Clamp01(-skew / 2.0)) * singleMode),
+                Clamp01(lowerHeavy * bottomLocation * (0.55 + 0.45 * Clamp01(skew / 2.0)) * singleMode),
+                Clamp01((peaks.Count >= 2 ? 1.0 : 0.0) * separation * 2.0 * valleyDepth),
+                Clamp01(positiveSlope * Sigmoid((meanPosition - 0.53) / 0.08) * (0.6 + 0.4 * entropy)),
+                Clamp01(negativeSlope * Sigmoid((0.47 - meanPosition) / 0.08) * (0.6 + 0.4 * entropy)),
+                0.0
+            };
+            double strongest = 0;
+            for (int i = 0; i < 6; i++) strongest = Math.Max(strongest, scores[i]);
+            scores[6] = Clamp01(0.65 - strongest + 0.25 * (1.0 - entropy));
+
+            const double temperature = 0.22;
+            var probabilities = new double[scores.Length];
+            double logitMax = double.MinValue, denominator = 0;
+            for (int i = 0; i < scores.Length; i++) logitMax = Math.Max(logitMax, scores[i] / temperature);
+            for (int i = 0; i < scores.Length; i++)
+            {
+                probabilities[i] = Math.Exp(scores[i] / temperature - logitMax);
+                denominator += probabilities[i];
+            }
+            int winner = 0;
+            for (int i = 0; i < probabilities.Length; i++)
+            {
+                probabilities[i] /= denominator;
+                if (probabilities[i] > probabilities[winner]) winner = i;
+            }
+
+            var names = new[] { "D", "P", "b", "DOUBLE", "TREND_UP", "TREND_DOWN", "UNKNOWN" };
+            ProfileShape = names[winner];
+            ShapeBias = winner == 1 || winner == 4 ? "BULLISH"
+                : winner == 2 || winner == 5 ? "BEARISH"
+                : "NEUTRAL";
+            ShapeConfidencePct = (decimal)(probabilities[winner] * 100.0);
+            ShapeProbD = (decimal)probabilities[0];
+            ShapeProbP = (decimal)probabilities[1];
+            ShapeProbB = (decimal)probabilities[2];
+            ShapeProbDouble = (decimal)probabilities[3];
+            ShapeProbTrendUp = (decimal)probabilities[4];
+            ShapeProbTrendDown = (decimal)probabilities[5];
+            ShapeProbUnknown = (decimal)probabilities[6];
+        }
+
+        private static double Sigmoid(double value)
+        {
+            if (value >= 0)
+            {
+                var z = Math.Exp(-value);
+                return 1.0 / (1.0 + z);
+            }
+            var negativeZ = Math.Exp(value);
+            return negativeZ / (1.0 + negativeZ);
+        }
+
+        private void ResetShapeOutputs()
+        {
+            ProfileShape = "UNKNOWN";
+            ShapeBias = "NEUTRAL";
+            ShapeConfidencePct = 0m;
+            ShapeProbD = ShapeProbP = ShapeProbB = ShapeProbDouble = 0m;
+            ShapeProbTrendUp = ShapeProbTrendDown = ShapeProbUnknown = 0m;
+        }
+
+        private void ResetLvnOutputs()
+        {
+            HasLvn = false;
+            LvnPoc = 0m;
+            LvnConfidencePct = 0m;
+            _lvnLevels.Clear();
+        }
 
         // POC bin, value-area edges (expand from POC to ValueAreaPct of total),
         // and the min/max occupied bins.
@@ -505,6 +735,153 @@ namespace ATAS.Indicators
                 true);
         }
 
+        private bool IsResearchTargetDate(DateTime nyDate)
+        {
+            if (!EnableResearchExport)
+                return false;
+            try
+            {
+                if (!File.Exists(ResearchTargetDateFile))
+                    return false;
+                var target = File.ReadAllText(ResearchTargetDateFile).Trim();
+                return target == nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private string ResearchCsvPath(DateTime nyDate) => Path.Combine(
+            ResearchExportFolder,
+            $"lvn_research_raw_{nyDate:yyyy-MM-dd}_NY.csv");
+
+        private string ResearchDonePath(DateTime nyDate) => Path.Combine(
+            ResearchExportFolder,
+            $"lvn_research_done_{nyDate:yyyy-MM-dd}.txt");
+
+        private void PrepareResearchDate(DateTime nyDate, string csvPath)
+        {
+            if (_researchExportDate != nyDate.Date)
+            {
+                _researchExportDate = nyDate.Date;
+                _researchExportedBars.Clear();
+                _researchFileKnownCreated = File.Exists(csvPath);
+                _researchExportedRowCount = 0;
+                return;
+            }
+
+            // The runner deletes the target file before a forced same-date replay.
+            if (_researchFileKnownCreated && !File.Exists(csvPath))
+            {
+                _researchExportedBars.Clear();
+                _researchFileKnownCreated = false;
+                _researchExportedRowCount = 0;
+            }
+        }
+
+        private void ExportClosedResearchBar(int closedBar)
+        {
+            try
+            {
+                var candle = GetCandle(closedBar);
+                var ny = ToNy(candle.Time);
+                if (!IsResearchTargetDate(ny.Date) ||
+                    ny.TimeOfDay < DirectionStartNy || ny.TimeOfDay >= ResearchEndNy)
+                    return;
+
+                Directory.CreateDirectory(ResearchExportFolder);
+                var path = ResearchCsvPath(ny.Date);
+                PrepareResearchDate(ny.Date, path);
+                if (_researchExportedBars.Contains(closedBar))
+                    return;
+
+                var builder = new StringBuilder();
+                if (!File.Exists(path))
+                {
+                    builder.AppendLine(
+                        "timestamp,symbol,price,bid_volume,ask_volume,volume," +
+                        "open,high,low,close,input_granularity,source_bar");
+                }
+
+                var timestamp = ny.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture);
+                var open = Convert.ToDecimal(candle.Open).ToString(CultureInfo.InvariantCulture);
+                var high = Convert.ToDecimal(candle.High).ToString(CultureInfo.InvariantCulture);
+                var low = Convert.ToDecimal(candle.Low).ToString(CultureInfo.InvariantCulture);
+                var close = Convert.ToDecimal(candle.Close).ToString(CultureInfo.InvariantCulture);
+                var anyLevels = false;
+
+                try
+                {
+                    foreach (var level in candle.GetAllPriceLevels())
+                    {
+                        var price = Convert.ToDecimal(level.Price);
+                        var bid = Convert.ToDecimal(level.Bid);
+                        var ask = Convert.ToDecimal(level.Ask);
+                        var volume = bid + ask;
+                        builder.Append(timestamp).Append(',')
+                            .Append(ResearchSymbol).Append(',')
+                            .Append(price.ToString(CultureInfo.InvariantCulture)).Append(',')
+                            .Append(bid.ToString(CultureInfo.InvariantCulture)).Append(',')
+                            .Append(ask.ToString(CultureInfo.InvariantCulture)).Append(',')
+                            .Append(volume.ToString(CultureInfo.InvariantCulture)).Append(',')
+                            .Append(open).Append(',').Append(high).Append(',')
+                            .Append(low).Append(',').Append(close).Append(',')
+                            .Append("FOOTPRINT_BAR,").Append(closedBar).AppendLine();
+                        anyLevels = true;
+                        _researchExportedRowCount++;
+                    }
+                }
+                catch
+                {
+                    anyLevels = false;
+                }
+
+                if (!anyLevels)
+                {
+                    var price = Convert.ToDecimal(candle.Close);
+                    var volume = Convert.ToDecimal(candle.Volume);
+                    builder.Append(timestamp).Append(',')
+                        .Append(ResearchSymbol).Append(',')
+                        .Append(price.ToString(CultureInfo.InvariantCulture)).Append(",0,0,")
+                        .Append(volume.ToString(CultureInfo.InvariantCulture)).Append(',')
+                        .Append(open).Append(',').Append(high).Append(',')
+                        .Append(low).Append(',').Append(close).Append(',')
+                        .Append("BAR_CLOSE_FALLBACK,").Append(closedBar).AppendLine();
+                    _researchExportedRowCount++;
+                }
+
+                File.AppendAllText(path, builder.ToString(), new UTF8Encoding(false));
+                _researchExportedBars.Add(closedBar);
+                _researchFileKnownCreated = true;
+            }
+            catch
+            {
+                // Research export must never break chart calculation.
+            }
+        }
+
+        private void WriteResearchDoneMarker(DateTime nyDate)
+        {
+            try
+            {
+                if (!IsResearchTargetDate(nyDate) || _researchExportDate != nyDate.Date)
+                    return;
+                var csvPath = ResearchCsvPath(nyDate);
+                if (!File.Exists(csvPath) || _researchExportedRowCount <= 0)
+                    return;
+                Directory.CreateDirectory(ResearchExportFolder);
+                File.WriteAllText(
+                    ResearchDonePath(nyDate),
+                    $"date={nyDate:yyyy-MM-dd}\nrows={_researchExportedRowCount}\ncompleted_at_ny={DateTime.Now:O}\n",
+                    new UTF8Encoding(false));
+            }
+            catch
+            {
+                // Marker is diagnostic only.
+            }
+        }
+
         // Publish the current frozen levels so the exporter can read them by session date.
         private void PublishOutputs()
         {
@@ -529,10 +906,8 @@ namespace ATAS.Indicators
             HasDirection = false;
             DirPoc = DirVah = DirVal = DirHigh = DirLow = DirRangeTicks = 0m;
             Direction = "";
-            HasLvn = false;
-            LvnPoc = 0m;
-            LvnConfidencePct = 0m;
-            _lvnLevels.Clear();
+            ResetShapeOutputs();
+            ResetLvnOutputs();
         }
 
         private DateTime ToNy(DateTime t)

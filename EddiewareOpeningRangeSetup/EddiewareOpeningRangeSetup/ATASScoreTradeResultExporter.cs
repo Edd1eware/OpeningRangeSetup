@@ -181,7 +181,8 @@ namespace ATAS.Indicators
         public bool RequireBodyOkForTrade { get; set; } = false;
         public bool RequireVwapOkForTrade { get; set; } = false;
         // Para el PnL en $ del Telegram (NQ = $5/tick). Contratos = sizing Lucid.
-        public int TelegramContracts { get; set; } = 6;
+        // 3c NQ = safe sizing (path DD -$3,405 < $4,500 cushion; 6c busts at -$6,810).
+        public int TelegramContracts { get; set; } = 3;
         public decimal TickValueUsd { get; set; } = 5m;
         // Balance corrido en Telegram: arranca en esta cuenta y suma/resta cada PnL.
         public decimal TelegramStartingBalance { get; set; } = 150000m;
@@ -2601,7 +2602,7 @@ namespace ATAS.Indicators
             TelegramTradeNotifier.QueueTerminalResult(
                 _exportFolder,
                 nyDate,
-                $"EW ORB NQ | {nyDate:yyyy-MM-dd}\nTIME OVER\nBalance: {timeOverBalance:$#,##0}");
+                $"EW ORB NQ | {nyDate:yyyy-MM-dd}\nTIME OVER\nBalance canónico: {timeOverBalance:$#,##0}");
         }
 
         private string BuildTelegramTradeMessage()
@@ -2628,7 +2629,7 @@ namespace ATAS.Indicators
                 $"Ticks: {ticks:+0;-0} (TP {_trade.TpTicks} / SL {_trade.SlTicks})",
                 $"Entry: {_trade.Entry:0.00} | Exit: {_trade.ExitPrice:0.00} | SL: {_trade.Sl:0.00} | TP: {_trade.Tp:0.00}",
                 $"PnL: {pnl:+$0;-$0} | {sizeLabel}",
-                $"Balance: {balance:$#,##0}",
+                $"Balance canónico: {balance:$#,##0}",
                 $"Duración: {FormatTradeDuration()}");
         }
 
