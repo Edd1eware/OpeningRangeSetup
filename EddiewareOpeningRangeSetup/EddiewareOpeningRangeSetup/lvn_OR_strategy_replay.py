@@ -25,7 +25,7 @@ import re
 import subprocess
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from progress import ProgressBar
@@ -106,6 +106,67 @@ def weekday_dates(start: str, end: str) -> list[str]:
     return dates
 
 
+def _easter_sunday(year: int) -> date:
+    # Anonymous Gregorian computus.
+    a = year % 19
+    b, c = divmod(year, 100)
+    d, e = divmod(b, 4)
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i, k = divmod(c, 4)
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month, day = divmod(h + l - 7 * m + 114, 31)
+    return date(year, month, day + 1)
+
+
+def _nth_weekday(year: int, month: int, weekday: int, n: int) -> date:
+    first = date(year, month, 1)
+    offset = (weekday - first.weekday()) % 7
+    return first + timedelta(days=offset + (n - 1) * 7)
+
+
+def _last_weekday(year: int, month: int, weekday: int) -> date:
+    next_month = date(year + (month == 12), month % 12 + 1, 1)
+    last = next_month - timedelta(days=1)
+    return last - timedelta(days=(last.weekday() - weekday) % 7)
+
+
+def _observed(holiday: date) -> date | None:
+    # NYSE observance: Saturday -> Friday before; Sunday -> Monday after.
+    if holiday.weekday() == 5:
+        return holiday - timedelta(days=1)
+    if holiday.weekday() == 6:
+        return holiday + timedelta(days=1)
+    return holiday
+
+
+def us_market_holidays(year: int) -> set[str]:
+    """Feriados NYSE/CME equity index sin sesión RTH normal 09:30 ET."""
+    holidays: set[date] = set()
+    for fixed in (date(year, 1, 1), date(year, 6, 19), date(year, 7, 4), date(year, 12, 25)):
+        observed = _observed(fixed)
+        if observed is not None and observed.year == year:
+            holidays.add(observed)
+    holidays.add(_nth_weekday(year, 1, 0, 3))        # MLK: 3er lunes enero
+    holidays.add(_nth_weekday(year, 2, 0, 3))        # Presidents: 3er lunes febrero
+    holidays.add(_easter_sunday(year) - timedelta(days=2))  # Good Friday
+    holidays.add(_last_weekday(year, 5, 0))          # Memorial: último lunes mayo
+    holidays.add(_nth_weekday(year, 9, 0, 1))        # Labor: 1er lunes septiembre
+    holidays.add(_nth_weekday(year, 11, 3, 4))       # Thanksgiving: 4o jueves noviembre
+    return {value.isoformat() for value in holidays}
+
+
+def filter_trading_days(dates: list[str]) -> tuple[list[str], list[str]]:
+    holidays: set[str] = set()
+    for year in {int(value[:4]) for value in dates}:
+        holidays |= us_market_holidays(year)
+    kept = [value for value in dates if value not in holidays]
+    skipped = sorted(value for value in dates if value in holidays)
+    return kept, skipped
+
+
 def select_dates(args: argparse.Namespace) -> list[str]:
     if args.dates:
         dates = sorted(set(args.dates))
@@ -116,9 +177,13 @@ def select_dates(args: argparse.Namespace) -> list[str]:
     else:
         dates = discover_result_dates()
     if args.from_date:
-        dates = [date for date in dates if date >= args.from_date]
+        dates = [date_iso for date_iso in dates if date_iso >= args.from_date]
     if args.to_date:
-        dates = [date for date in dates if date <= args.to_date]
+        dates = [date_iso for date_iso in dates if date_iso <= args.to_date]
+    if not args.include_holidays:
+        dates, skipped = filter_trading_days(dates)
+        if skipped:
+            print(f"Feriados de mercado excluidos ({len(skipped)}): {', '.join(skipped)}")
     return dates
 
 
@@ -294,7 +359,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--to-date")
     parser.add_argument("--date-source", choices=("results", "weekdays"), default="results",
                         help="results evita fines de semana/feriados usando sesiones ya conocidas")
-    parser.add_argument("--prepare-only", action="store_true")
+    parser.add_argument("--include-holidays", action="store_true",
+                        help="No excluir feriados de mercado US (default: se excluyen)")
+    parser.add_argument("--run", action="store_true",
+                        help="Ejecuta la captura Replay; sin este flag el script solo hace preview (prepare-only)")
+    parser.add_argument("--prepare-only", action="store_true",
+                        help="Fuerza preview; es el comportamiento default si no pasas --run ni --report-only")
     parser.add_argument("--report-only", action="store_true", help="No abre Replay; procesa capturas existentes")
     parser.add_argument("--capture-only", action="store_true", help="Captura Replay pero no genera Excel")
     parser.add_argument("--force", action="store_true", help="Repite capturas completas existentes")
@@ -329,7 +399,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Raw footprint: {RAW_DIR}")
     print(f"Reporte final: {report_path}")
     print("IMPORTANTE: chart NQ 1 minuto + Volume_Profile_Eddieware; strategy NO requerida.")
-    if args.prepare_only:
+    prepare_only = args.prepare_only or (not args.run and not args.report_only)
+    if prepare_only:
+        if not args.prepare_only:
+            print("Modo preview (default). Para capturar de verdad agrega --run.")
         for date_iso in dates:
             status = inspect_capture(date_iso)
             print(f"  {date_iso} | {'OK' if status['complete'] else status['reason']}")

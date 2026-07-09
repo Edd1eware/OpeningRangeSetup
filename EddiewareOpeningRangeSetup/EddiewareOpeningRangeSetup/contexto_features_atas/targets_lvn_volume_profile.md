@@ -251,21 +251,29 @@ No usa `pending_strategy_signal.txt`, A+ Speed ni resultados de la estrategia.
 - `No_Retest`;
 - `Debug`.
 
-Comando principal:
+Reglas del runner (2026-07-08):
+
+- solo días hábiles de trading: excluye automáticamente feriados NYSE/CME
+  (New Year, MLK, Presidents, Good Friday, Memorial, Juneteenth, July 4, Labor,
+  Thanksgiving, Christmas, con observancia sáb→vie / dom→lun); `--include-holidays`
+  desactiva el filtro;
+- **default = preview (`prepare-only`)**: sin `--run` el script NUNCA abre Replay;
+- la regla Replay X1/X10 no se toca: el script fija X10 solo, ventana 08:29–09:42.
+
+Comando principal (captura real):
+
+```powershell
+python -u lvn_OR_strategy_replay.py --all --run `
+  --from-date 2025-03-10 `
+  --to-date 2026-07-06
+```
+
+Vista previa sin iniciar ATAS (default, no requiere flag):
 
 ```powershell
 python -u lvn_OR_strategy_replay.py --all `
   --from-date 2025-03-10 `
   --to-date 2026-07-06
-```
-
-Vista previa sin iniciar ATAS:
-
-```powershell
-python -u lvn_OR_strategy_replay.py --all `
-  --from-date 2025-03-10 `
-  --to-date 2026-07-06 `
-  --prepare-only
 ```
 
 Generar de nuevo el reporte usando capturas existentes:
@@ -314,7 +322,7 @@ leer resultados. Las fechas restantes deben reintentarse y mantenerse visibles e
 ### Paso 1 — Pilot de 3–5 fechas
 
 ```powershell
-python -u lvn_OR_strategy_replay.py --dates 2025-03-10 2025-03-11 2026-07-02
+python -u lvn_OR_strategy_replay.py --run --dates 2025-03-10 2025-03-11 2026-07-02
 ```
 
 Validar manualmente:
@@ -327,7 +335,7 @@ Validar manualmente:
 
 ### Paso 2 — Temporada completa DST
 
-Ejecutar el comando principal. Reintentar únicamente fechas fallidas usando `--dates ... --force`.
+Ejecutar el comando principal. Reintentar únicamente fechas fallidas usando `--dates ... --run --force`.
 
 ### Paso 3 — Auditoría causal
 
