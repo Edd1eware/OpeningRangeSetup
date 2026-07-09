@@ -29,6 +29,8 @@ def detect_lvns(profile: Profile, config: ResearchConfig) -> tuple[list[dict[str
     poc = float(profile.metrics["poc"])
     poc_volume = float(profile.metrics["poc_volume"])
     n = config.lvn_neighbor_levels
+    level_step = profile.tick_size  # native price grid detected for this profile
+    levels_per_tick = safe_div(level_step, config.tick_size, 1.0)
     debug: list[dict[str, object]] = []
     accepted_indices: list[int] = []
     diagnostics: dict[int, dict[str, object]] = {}
@@ -48,7 +50,7 @@ def detect_lvns(profile: Profile, config: ResearchConfig) -> tuple[list[dict[str
         volume = float(volumes[i])
         row: dict[str, object] = {
             "candidate_type": "LVN",
-            "price": float(price_bin * config.tick_size),
+            "price": float(price_bin * level_step),
             "price_bin": int(price_bin),
             "volume": volume,
             "status": "REJECTED",
@@ -95,19 +97,19 @@ def detect_lvns(profile: Profile, config: ResearchConfig) -> tuple[list[dict[str
     for node_number, group in enumerate(_group_adjacent(accepted_indices), start=1):
         representative = min(
             group,
-            key=lambda i: (volumes[i], abs(float(bins[i] * config.tick_size) - poc), bins[i]),
+            key=lambda i: (volumes[i], abs(float(bins[i] * level_step) - poc), bins[i]),
         )
         diag = diagnostics[representative]
         low_bin, high_bin = int(bins[group[0]]), int(bins[group[-1]])
-        price = float(bins[representative] * config.tick_size)
+        price = float(bins[representative] * level_step)
         nodes.append({
             "lvn_id": f"{profile.profile_name}_LVN_{node_number:02d}",
             "price": price,
             "volume": float(volumes[representative]),
             "depth": float(diag["depth"]),
-            "width_ticks": int(high_bin - low_bin + 1),
-            "low_price": float(low_bin * config.tick_size),
-            "high_price": float(high_bin * config.tick_size),
+            "width_ticks": round((high_bin - low_bin + 1) * levels_per_tick),
+            "low_price": float(low_bin * level_step),
+            "high_price": float(high_bin * level_step),
             "left_neighbor_mean": float(diag["left_neighbor_mean"]),
             "right_neighbor_mean": float(diag["right_neighbor_mean"]),
             "volume_percent_of_neighbors": float(diag["volume_percent_of_neighbors"]),

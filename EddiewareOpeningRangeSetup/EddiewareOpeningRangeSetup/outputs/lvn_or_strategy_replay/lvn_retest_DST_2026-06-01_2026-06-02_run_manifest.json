@@ -1,0 +1,39 @@
+{
+  "started_at": "2026-07-08T21:36:08.760453",
+  "finished_at": "2026-07-08T21:37:45.496814",
+  "elapsed_seconds": 96.736,
+  "requested_dates": [
+    "2026-06-01",
+    "2026-06-02"
+  ],
+  "successes": [
+    {
+      "date": "2026-06-01",
+      "csv": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\lvn_research_raw\\lvn_research_raw_2026-06-01_NY.csv",
+      "marker": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\lvn_research_raw\\lvn_research_done_2026-06-01.txt",
+      "complete": true,
+      "rows": 1206,
+      "reason": "OK",
+      "first_timestamp": "2026-06-01 08:30:00.000",
+      "last_timestamp": "2026-06-01 09:39:00.000",
+      "context_ok": true,
+      "elapsed_seconds": 81.32
+    }
+  ],
+  "skipped": [],
+  "failures": [
+    {
+      "date": "2026-06-02",
+      "csv": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\lvn_research_raw\\lvn_research_raw_2026-06-02_NY.csv",
+      "marker": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\lvn_research_raw\\lvn_research_done_2026-06-02.txt",
+      "complete": false,
+      "rows": 0,
+      "reason": "RuntimeError: ATAS no aceptó el rango solicitado después de 3 intentos. FROM='01/06/2026 09:29:00 a. m.', TO='01/06/2026 09:50:00 a. m.'",
+      "elapsed_seconds": 13.122
+    }
+  ],
+  "raw_dir": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\lvn_research_raw",
+  "report_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\outputs\\lvn_or_strategy_replay\\lvn_retest_DST_2026-06-01_2026-06-02.xlsx",
+  "replay_window": "09:29-09:50",
+  "chart_requirement": "NQ 1 MINUTE"
+}

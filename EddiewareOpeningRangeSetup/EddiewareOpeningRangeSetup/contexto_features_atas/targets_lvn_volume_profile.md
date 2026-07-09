@@ -91,6 +91,61 @@ Los umbrales de "normal", "rápida" y "alta" NO se definen en captura: se deriva
 era-blind, sobre las distribuciones observadas. Cualquier filtro por velocidad se especifica
 recién en Fase B, nunca antes.
 
+### H8 — LVN superior + rechazo desde abajo → SHORT (registrada 2026-07-08, look-ahead exploratorio)
+
+Observación discrecional en replay (imagen `imagenes_IA\LVN_Upper_VAH_Short.png`, sesión
+2026-06-01): LVN ubicado ARRIBA del VAH contextual; el precio sube desde abajo después de
+09:30, rechaza en la zona y revierte con recorrido amplio.
+
+En términos del motor: `distance_to_context_vah_ticks > 0` + `FROM_BELOW` + `REJECTION` →
+SHORT. Todas las variables ya se capturan; H8 es una cohorte a medir, no un filtro.
+
+Nota metodológica: la exploración con look-ahead (mirar el resultado en el chart) SÍ se vale
+para generar hipótesis como esta; la validación sigue siendo causal y era-blind.
+
+### Regla anti-perfección de shapes
+
+Muchos perfiles NO van a salir de libro (D/P/b puros) y aun así pueden dar buenos resultados.
+Por eso:
+
+1. la etiqueta rígida de shape jamás filtra eventos en captura ni en Fase A;
+2. el vector continuo de probabilidades es el input primario (CatBoost/cohortes por buckets);
+3. `UNKNOWN`/confianza baja son cohortes válidas con su propio WR/R:R — no basura;
+4. un setup puede vivir en shapes "feos" (ej. H8: lo que importa es la ubicación del LVN vs
+   VAH y la interacción, no que el perfil sea una b perfecta).
+
+### Calibración de tolerancias por entradas ganadoras (regla 2026-07-08)
+
+Las tolerancias operativas (`retest_tolerance_ticks`, `resolution_confirm_ticks`, buckets de
+probabilidad de shape, distancia LVN↔VAH, deceleration_ratio) NO se fijan a priori: se derivan
+de las distribuciones de los eventos que terminaron en entrada ganadora, con objetivo de
+**recall alto** — atrapar la mayoría de los trades buenos, no maximizar pureza.
+
+Procedimiento:
+
+1. correr captura con tolerancias amplias (captura TODO);
+1b. metodología de arranque: empezar mirando los casos de libro (ej. ACCEPTANCE/REJECTION
+   con shape_confidence alto, textbook) para validar que la lógica funciona, y desde ahí IR
+   BAJANDO el % mínimo de confianza del shape hasta encontrar el piso donde los resultados
+   (WR/R:R) todavía se sostienen — no exigir shapes perfectos desde el día uno;
+2. sobre años de desarrollo: distribución de cada variable en winners vs losers;
+3. elegir tolerancia que retenga ~80-90% de winners (percentiles de winners, no grid-search
+   de PF);
+3b. caso central: **porcentaje mínimo de aproximación al shape** — el umbral de
+   `shape_confidence` / `prob_X` NO exige shapes perfectos; se busca el % mínimo de similitud
+   que aún produce buenos resultados, calibrado sobre la distribución de winners (percentil
+   bajo de los winners = piso), porque muchos perfiles imperfectos ganan igual;
+4. validar en años fresh sin re-tocar (era-blind);
+5. si la tolerancia calibrada mata frecuencia o no sobrevive fresh → variable descartada como
+   filtro, se queda como feature de CatBoost;
+6. CatBoost como auxiliar del descubrimiento (doctrina): entrenar sobre años de desarrollo con
+   TODAS las variables continuas y usar feature importance/SHAP para rankear cuáles separan
+   winners — eso prioriza qué tolerancias vale la pena calibrar; el modelo NO decide el filtro
+   final, solo apunta dónde mirar.
+
+Alineado con doctrina frecuencia > pureza: mejor atrapar 85% de winners con algo de ruido que
+50% ultra-limpio.
+
 Ninguna hipótesis autoriza filtrar observaciones durante la captura.
 
 ---
@@ -174,7 +229,12 @@ Estos valores no deben optimizarse con la misma muestra usada para evaluar el re
 ### Outcome
 
 - max up/down, MFE y MAE en ticks;
-- tiempo a MFE/MAE;
+- tiempo a MFE/MAE (cuánto tarda en llegar a su máxima extensión);
+- `mae_before_mfe_ticks`: adverso sobrevivido ANTES de la máxima extensión (SL real que
+  necesitaba el winner);
+- `max_pullback_before_mfe_ticks`: retroceso máximo desde el pico favorable en el camino al
+  MFE (profundidad de pullback que tolera una gestión runner);
+- `rr_max_achievable = MFE / mae_before_mfe`: R:R máximo extraíble del evento;
 - hits ±20, ±40, ±60 y ±80 ticks;
 - resultado 20/20, 40/40, 60/60 y 80/80;
 - R realizado por bracket;
@@ -304,6 +364,18 @@ No se interpreta WR/R:R hasta cumplir:
 
 Target operativo sugerido: al menos 95% de las sesiones objetivo capturadas correctamente antes de
 leer resultados. Las fechas restantes deben reintentarse y mantenerse visibles en el manifest.
+
+### Hallazgo piloto 2026-07-08: footprint step incorrecto (BLOQUEANTE, resuelto en chart)
+
+Piloto de 2 fechas (2026-06-01, 2026-06-02) con ventana replay corta: captura OK (2/2) pero
+`lvns=0, events=0` en ambas. Causa raíz: el chart NQ exportaba niveles de footprint cada
+**1.25 (5 ticks)**, no 0.25 (1 tick) — confirmado contando 48 niveles en el minuto 09:30-09:31
+con paso exacto 1.25. El motor Python arma bins con `tick_size=0.25`, así que cada nivel real
+caía aislado 5 bins aparte y TODOS los candidatos LVN fallaban `NEIGHBORS_HAVE_NO_VOLUME`.
+No es bug del indicador/motor: es configuración del row size del footprint en el chart ATAS.
+Fix: cambiar el row/cell size del chart a 1 tick antes de recapturar. Regla anti-perfección de
+shapes (targets §2) NO aplica aquí — este no es un shape imperfecto, es un input inválido para
+todo el pipeline (contexto Y minuto), debía corregirse antes de escalar al mes.
 
 ---
 

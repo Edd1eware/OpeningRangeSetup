@@ -14,6 +14,8 @@ def detect_hvns(profile: Profile, config: ResearchConfig) -> tuple[list[dict[str
         return [], [{"candidate_type": "HVN", "status": "REJECTED", "reason": "NO_PROFILE_DATA"}]
     levels = profile.levels
     n = config.hvn_neighbor_levels
+    level_step = profile.tick_size  # native price grid detected for this profile
+    levels_per_tick = safe_div(level_step, config.tick_size, 1.0)
     bins = levels.index.to_numpy(dtype=int)
     volumes = levels["volume"].to_numpy(dtype=float)
     debug: list[dict[str, object]] = []
@@ -23,7 +25,7 @@ def detect_hvns(profile: Profile, config: ResearchConfig) -> tuple[list[dict[str
         volume = float(volumes[i])
         row: dict[str, object] = {
             "candidate_type": "HVN",
-            "price": float(price_bin * config.tick_size),
+            "price": float(price_bin * level_step),
             "price_bin": int(price_bin),
             "volume": volume,
             "status": "REJECTED",
@@ -61,9 +63,9 @@ def detect_hvns(profile: Profile, config: ResearchConfig) -> tuple[list[dict[str
             row.update({
                 "status": "ACCEPTED",
                 "reason": "QUALIFIED",
-                "width_ticks": int(right_i - left_i + 1),
-                "low_price": float(bins[left_i] * config.tick_size),
-                "high_price": float(bins[right_i] * config.tick_size),
+                "width_ticks": round((right_i - left_i + 1) * levels_per_tick),
+                "low_price": float(bins[left_i] * level_step),
+                "high_price": float(bins[right_i] * level_step),
                 "prominence": 1.0 - safe_div(stronger_neighbor_mean, volume, 1.0),
             })
             candidates.append(row)

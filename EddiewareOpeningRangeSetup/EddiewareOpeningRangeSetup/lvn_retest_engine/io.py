@@ -30,6 +30,7 @@ ALIASES: dict[str, tuple[str, ...]] = {
     "big_trade_volume": ("big_trade_volume", "large_trade_volume", "whale_volume"),
     "iceberg": ("iceberg", "iceberg_count", "is_iceberg"),
     "absorption": ("absorption", "absorption_count", "is_absorption"),
+    "bar_trades": ("bar_trades", "ticks", "trade_count", "num_trades", "tick_count"),
 }
 
 
@@ -162,6 +163,7 @@ def normalize_input(frame: pd.DataFrame, path: Path, config: ResearchConfig) -> 
         "big_trade_volume": _number(frame, "big_trade_volume"),
         "iceberg": _boolean_or_number(frame, "iceberg"),
         "absorption": _boolean_or_number(frame, "absorption"),
+        "bar_trades": _number(frame, "bar_trades"),
         "trade_side": side,
         "source_file": str(path),
         "source_row": np.arange(raw_rows, dtype=np.int64),

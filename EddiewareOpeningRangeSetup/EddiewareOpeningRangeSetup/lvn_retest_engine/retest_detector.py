@@ -162,6 +162,41 @@ def _order_flow_metrics(
         "absorption_available": absorption_available,
         "absorption_count": float(episode["absorption"].fillna(0).sum()) if absorption_available else math.nan,
     }
+    # Aggression confirmation (speed + flow rate) over the retest episode. Bars are
+    # 1-minute footprints, so BAR granularity assumes 60s per distinct timestamp.
+    per_bar = episode.groupby("timestamp", sort=False).agg(
+        trades=("bar_trades", "first"), vol=("volume", "sum"),
+        bid=("bid_volume", "sum"), ask=("ask_volume", "sum"))
+    if precision == "TICK":
+        # Sub-second touch episodes carry no measurable rate; floor at 1 second.
+        duration = max(float((event_end - event_start).total_seconds()), 1.0)
+    else:
+        duration = max(60.0 * len(per_bar), 1e-9)
+    trades_available = bool(per_bar["trades"].notna().any())
+    result.update({
+        "tape_speed_trades_per_second": float(per_bar["trades"].fillna(0).sum()) / duration if trades_available else math.nan,
+        "aggression_volume_per_second": float(per_bar["vol"].sum()) / duration,
+        "aggression_delta_per_second": float(per_bar["ask"].sum() - per_bar["bid"].sum()) / duration,
+    })
+    # Delta and delta-change of the touch bar vs the prior bar (both closed by the
+    # time the event is evaluated; footprint bars are only known at their close).
+    bar_deltas = (
+        session_frame.loc[session_frame["timestamp"] <= event_start]
+        .groupby("timestamp", sort=True)
+        .agg(bid=("bid_volume", "sum"), ask=("ask_volume", "sum"))
+    )
+    if len(bar_deltas):
+        deltas = bar_deltas["ask"] - bar_deltas["bid"]
+        delta_touch = float(deltas.iloc[-1])
+        delta_prev = float(deltas.iloc[-2]) if len(deltas) > 1 else math.nan
+        delta_change = delta_touch - delta_prev if math.isfinite(delta_prev) else math.nan
+    else:
+        delta_touch = delta_prev = delta_change = math.nan
+    result.update({
+        "delta_touch_bar": delta_touch,
+        "delta_prev_bar": delta_prev,
+        "delta_change_touch_bar": delta_change,
+    })
     result.update(_imbalance_metrics(episode, lvn_price, config))
     return result
 
@@ -234,15 +269,33 @@ def _measure_outcome(
         final_directional = math.nan
 
     if expected_side == "UNKNOWN":
-        base.update({"mfe_ticks": math.nan, "mae_ticks": math.nan, "time_to_mfe_seconds": math.nan, "time_to_mae_seconds": math.nan, "mfe_mae_ratio": math.nan})
+        base.update({
+            "mfe_ticks": math.nan, "mae_ticks": math.nan,
+            "time_to_mfe_seconds": math.nan, "time_to_mae_seconds": math.nan,
+            "mfe_mae_ratio": math.nan, "mae_before_mfe_ticks": math.nan,
+            "max_pullback_before_mfe_ticks": math.nan, "rr_max_achievable": math.nan,
+        })
     else:
         mfe, mae = float(np.nanmax(favorable)), float(np.nanmax(adverse))
+        mfe_position = int(np.nanargmax(favorable))
+        # Adverse excursion that had to be survived BEFORE price printed its max
+        # extension: this bounds the SL a winner actually required.
+        mae_before_mfe = float(np.nanmax(adverse[: mfe_position + 1]))
+        # Largest retracement from the running favorable peak on the way to the MFE:
+        # the pullback depth a runner-style management had to tolerate.
+        running_peak = np.maximum.accumulate(favorable[: mfe_position + 1])
+        max_pullback = float(np.nanmax(running_peak - favorable[: mfe_position + 1]))
         base.update({
             "mfe_ticks": mfe,
             "mae_ticks": mae,
-            "time_to_mfe_seconds": float(elapsed[int(np.nanargmax(favorable))]),
+            "time_to_mfe_seconds": float(elapsed[mfe_position]),
             "time_to_mae_seconds": float(elapsed[int(np.nanargmax(adverse))]),
             "mfe_mae_ratio": safe_div(mfe, mae),
+            "mae_before_mfe_ticks": mae_before_mfe,
+            "max_pullback_before_mfe_ticks": max_pullback,
+            # Floor the risk at 1 tick: a winner with zero adverse excursion still
+            # cannot be traded with less than 1 tick of stop.
+            "rr_max_achievable": safe_div(mfe, max(mae_before_mfe, 1.0)),
         })
     for target in (20, 40, 60, 80):
         base[f"hit_plus_{target}"] = bool(max_up >= target)

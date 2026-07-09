@@ -38,8 +38,13 @@ RESULTS_DIR = DATA_ROOT / "trade_results_score"
 LADDER_ROOT = RESULTS_DIR / "visual_tests" / "sync_ladder_runs" / "sync_v11_ladder_001_resume"
 DEFAULT_OUTPUT_DIR = ROOT / "outputs" / "lvn_or_strategy_replay"
 DETECTOR = ROOT / "detect_lvn_retest_events.py"
-REPLAY_FROM_TIME = "08:29"
-REPLAY_TO_TIME = "09:42"
+# Ventana corta por default (2026-07-08): el contexto 08:30-09:30 se lee de las
+# barras históricas que ATAS ya carga al iniciar el replay; solo se replaya desde
+# 09:29. Usa --replay-from 08:29 para volver a la ventana completa (paridad/debug).
+# Fin en 10:00 (colchón extra sobre retest_end=09:40) para dar más margen de
+# analisis manual antes de que el runner corte la captura.
+REPLAY_FROM_TIME = "09:29"
+REPLAY_TO_TIME = "10:00"
 DEFAULT_TIMEOUT_SECONDS = 15 * 60
 RAW_HEADER_REQUIRED = {"timestamp", "price", "bid_volume", "ask_volume", "volume"}
 rs = None
@@ -219,10 +224,12 @@ def inspect_capture(date_iso: str, started_at: float | None = None) -> dict[str,
                 if not first_timestamp:
                     first_timestamp = timestamp
                 last_timestamp = timestamp
+        context_ok = bool(first_timestamp) and first_timestamp[11:16] <= "08:35"
         info.update({
             "rows": row_count,
             "first_timestamp": first_timestamp,
             "last_timestamp": last_timestamp,
+            "context_ok": context_ok,
         })
         if row_count <= 0:
             info["reason"] = "NO_DATA_ROWS"
@@ -361,6 +368,10 @@ def build_parser() -> argparse.ArgumentParser:
                         help="results evita fines de semana/feriados usando sesiones ya conocidas")
     parser.add_argument("--include-holidays", action="store_true",
                         help="No excluir feriados de mercado US (default: se excluyen)")
+    parser.add_argument("--replay-from", default=REPLAY_FROM_TIME,
+                        help="Inicio del replay HH:MM ET; 09:29 = ventana corta (contexto desde historia), 08:29 = ventana completa")
+    parser.add_argument("--replay-to", default=REPLAY_TO_TIME,
+                        help="Fin del replay HH:MM ET")
     parser.add_argument("--run", action="store_true",
                         help="Ejecuta la captura Replay; sin este flag el script solo hace preview (prepare-only)")
     parser.add_argument("--prepare-only", action="store_true",
@@ -384,9 +395,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    global RAW_DIR
+    global RAW_DIR, REPLAY_FROM_TIME, REPLAY_TO_TIME
     args = build_parser().parse_args(argv)
     RAW_DIR = Path(args.raw_dir).resolve()
+    REPLAY_FROM_TIME = args.replay_from
+    REPLAY_TO_TIME = args.replay_to
     dates = select_dates(args)
     if not dates and not args.report_only:
         print("ERROR: no hay fechas para recorrer.", file=sys.stderr)
@@ -397,6 +410,7 @@ def main(argv: list[str] | None = None) -> int:
     if dates:
         print(f"Rango efectivo: {dates[0]} -> {dates[-1]}")
     print(f"Raw footprint: {RAW_DIR}")
+    print(f"Ventana Replay: {REPLAY_FROM_TIME}-{REPLAY_TO_TIME} ET (X10)")
     print(f"Reporte final: {report_path}")
     print("IMPORTANTE: chart NQ 1 minuto + Volume_Profile_Eddieware; strategy NO requerida.")
     prepare_only = args.prepare_only or (not args.run and not args.report_only)
@@ -446,6 +460,9 @@ def main(argv: list[str] | None = None) -> int:
                 "reason": reason or capture.get("reason", "OK"),
             }
             (successes if ok else failures).append(record)
+            if ok and record.get("context_ok") is False:
+                print(f"  WARNING {date_iso}: primer row {record.get('first_timestamp')} > 08:35 — "
+                      "la historia pre-replay NO trae contexto 08:30-09:30; usa --replay-from 08:29")
             print(f"[{index}/{len(dates)}] {date_iso} | {'OK' if ok else 'FAIL'} | {record['reason']}")
             bar.update(index)
     else:

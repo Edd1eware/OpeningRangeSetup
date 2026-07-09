@@ -70,6 +70,31 @@ def _value_area(levels: pd.DataFrame, poc_bin: int, target_pct: float) -> tuple[
     return low, high, safe_div(accumulated, float(levels["volume"].sum()), 0.0)
 
 
+def detect_level_step(prices: np.ndarray, tick_size: float) -> float:
+    """Native price grid actually present in the data (mode of consecutive gaps).
+
+    The chart's footprint row size sets how many real ticks each exported price
+    level spans (e.g. 5 ticks/row instead of 1). Binning at a fixed config
+    tick_size when the data grid is coarser leaves every "neighbor" bin at zero
+    volume and breaks LVN/HVN neighbor detection structurally. Detecting the
+    real grid per profile makes detection correct regardless of chart config.
+    """
+    unique_prices = np.unique(prices)
+    if unique_prices.size < 2:
+        return tick_size
+    diffs = np.diff(unique_prices)
+    diffs = diffs[diffs > 1e-9]
+    if diffs.size == 0:
+        return tick_size
+    ticks = np.rint(diffs / tick_size).astype(np.int64)
+    ticks = ticks[ticks > 0]
+    if ticks.size == 0:
+        return tick_size
+    values, counts = np.unique(ticks, return_counts=True)
+    step_ticks = int(values[np.argmax(counts)])
+    return float(step_ticks) * tick_size
+
+
 def build_profile(
     session_frame: pd.DataFrame,
     session_date: date,
@@ -82,7 +107,8 @@ def build_profile(
     if selected.empty:
         return Profile(session_date, profile_name, start, end, config.tick_size, pd.DataFrame(), 0)
 
-    selected["price_bin"] = np.rint(selected["price"] / config.tick_size).astype("int64")
+    level_step = detect_level_step(selected["price"].to_numpy(dtype=float), config.tick_size)
+    selected["price_bin"] = np.rint(selected["price"] / level_step).astype("int64")
     grouped = selected.groupby("price_bin", sort=True).agg(
         volume=("volume", "sum"),
         bid_volume=("bid_volume", "sum"),
@@ -92,9 +118,9 @@ def build_profile(
     lo, hi = int(grouped.index.min()), int(grouped.index.max())
     full_index = pd.RangeIndex(lo, hi + 1, name="price_bin")
     levels = grouped.reindex(full_index, fill_value=0.0)
-    levels["price"] = levels.index.to_numpy(dtype=float) * config.tick_size
+    levels["price"] = levels.index.to_numpy(dtype=float) * level_step
     levels["delta"] = levels["ask_volume"] - levels["bid_volume"]
-    levels.attrs["tick_size"] = config.tick_size
+    levels.attrs["tick_size"] = level_step
 
     prices = levels["price"].to_numpy(dtype=float)
     volumes = levels["volume"].to_numpy(dtype=float)
@@ -112,15 +138,17 @@ def build_profile(
         "bid_volume": float(levels["bid_volume"].sum()),
         "ask_volume": float(levels["ask_volume"].sum()),
         "delta": float(levels["delta"].sum()),
-        "poc": float(poc_bin * config.tick_size),
+        "poc": float(poc_bin * level_step),
         "poc_volume": float(levels.at[poc_bin, "volume"]),
-        "vah": float(va_high_bin * config.tick_size),
-        "val": float(va_low_bin * config.tick_size),
+        "vah": float(va_high_bin * level_step),
+        "val": float(va_low_bin * level_step),
         "value_area_actual_pct": actual_va_pct,
-        "high": float(hi * config.tick_size),
-        "low": float(lo * config.tick_size),
-        "profile_width_ticks": int(hi - lo),
-        "value_area_width_ticks": int(va_high_bin - va_low_bin),
+        "high": float(hi * level_step),
+        "low": float(lo * level_step),
+        "level_step": level_step,
+        "level_step_ticks": safe_div(level_step, config.tick_size),
+        "profile_width_ticks": safe_div((hi - lo) * level_step, config.tick_size),
+        "value_area_width_ticks": safe_div((va_high_bin - va_low_bin) * level_step, config.tick_size),
         "price_level_count": int(len(levels)),
         "occupied_price_level_count": occupied,
         "empty_level_count": int(len(levels) - occupied),
@@ -137,13 +165,13 @@ def build_profile(
         "volume_slope": linear_slope(volumes),
         "poc_position": safe_div(poc_bin - lo, max(1, hi - lo), 0.5),
         "center_of_mass_position": safe_div(
-            moments["center_of_mass"] - lo * config.tick_size,
-            max(config.tick_size, (hi - lo) * config.tick_size),
+            moments["center_of_mass"] - lo * level_step,
+            max(level_step, (hi - lo) * level_step),
             0.5,
         ),
         "source_rows": int(len(selected)),
     }
-    return Profile(session_date, profile_name, start, end, config.tick_size, levels, len(selected), metrics)
+    return Profile(session_date, profile_name, start, end, level_step, levels, len(selected), metrics)
 
 
 def flatten_profile(profile: Profile, prefix: str = "") -> dict[str, object]:

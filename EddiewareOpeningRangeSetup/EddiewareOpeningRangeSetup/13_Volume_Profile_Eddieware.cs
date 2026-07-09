@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using ATAS.Indicators;
 using ATAS.Indicators.Drawing;
@@ -38,6 +39,7 @@ namespace ATAS.Indicators
 
         private readonly List<TrendLine> _lines = new();
         private readonly List<decimal> _lvnLevels = new();
+        private readonly List<decimal> _lvnScores = new();
         private readonly HashSet<int> _researchExportedBars = new();
 
         private DateTime _currentDate = DateTime.MinValue;
@@ -92,6 +94,10 @@ namespace ATAS.Indicators
         [DisplayName("LVN Min Profile Volume")]
         [Category("Profile")]
         public decimal MinTotalVolumeAtLvnProfile { get; set; } = 1m;
+
+        [DisplayName("Max LVN Areas (1-5)")]
+        [Category("Profile")]
+        public int MaxLvnAreas { get; set; } = 5;
 
         [DisplayName("Extend Lines (bars)")]
         [Category("Profile")]
@@ -216,8 +222,8 @@ namespace ATAS.Indicators
         // redraw. Cheap: only a handful of intraday bars fall inside each window.
         private void Rebuild(int lastBar)
         {
-            var dirBins = new Dictionary<int, double>();
-            var lvnBins = new Dictionary<int, double>();
+            var dirRaw = new List<(double Price, double Volume)>();
+            var lvnRaw = new List<(double Price, double Volume)>();
             int dirStartBar = -1, lvnRevealBar = -1;
             double dirClose = double.NaN;
             var tick = GetTickSize();
@@ -234,7 +240,7 @@ namespace ATAS.Indicators
 
                 if (t >= DirectionStartNy && t < DirectionEndNy)
                 {
-                    AddCandle(dirBins, c, tick);
+                    CollectCandleLevels(dirRaw, c);
                     dirStartBar = j;
                     if (double.IsNaN(dirClose))
                         dirClose = Convert.ToDouble(c.Close); // latest bar in window (loop high->low)
@@ -242,17 +248,26 @@ namespace ATAS.Indicators
 
                 if (t >= LvnStartNy && t < LvnEndNy)
                 {
-                    AddCandle(lvnBins, c, tick);
+                    CollectCandleLevels(lvnRaw, c);
                 }
 
                 if (t >= LvnEndNy)
                     lvnRevealBar = j;
             }
 
-            UpdateDirectionOutputs(dirBins, tick, dirClose);
+            // The chart's footprint row size can span several real ticks (e.g. 5 ticks/row).
+            // Binning at a fixed instrument tick when the data grid is coarser leaves every
+            // "neighbor" bin at zero volume and breaks LVN/HVN detection structurally, so the
+            // native grid actually present in the data is detected per window instead.
+            var dirStep = DetectLevelStep(dirRaw, (double)tick);
+            var lvnStep = DetectLevelStep(lvnRaw, (double)tick);
+            var dirBins = BinLevels(dirRaw, dirStep);
+            var lvnBins = BinLevels(lvnRaw, lvnStep);
+
+            UpdateDirectionOutputs(dirBins, (decimal)dirStep, tick, dirClose);
             var lastNyTime = ToNy(GetCandle(lastBar).Time).TimeOfDay;
             if (lastNyTime >= LvnEndNy)
-                UpdateLvnOutputs(lvnBins, tick);
+                UpdateLvnOutputs(lvnBins, (decimal)lvnStep);
             else
                 ResetLvnOutputs();
             PublishOutputs();
@@ -267,20 +282,16 @@ namespace ATAS.Indicators
                 DrawLvn(lvnRevealBar < 0 ? lastBar : lvnRevealBar, endBar);
         }
 
-        private static void AddCandle(Dictionary<int, double> bins, dynamic c, decimal tick)
+        private static void CollectCandleLevels(List<(double Price, double Volume)> raw, dynamic c)
         {
-            var t = (double)tick;
             bool any = false;
-
             try
             {
                 foreach (var l in c.GetAllPriceLevels())
                 {
                     var price = Convert.ToDouble(l.Price);
                     var vol = Convert.ToDouble(l.Ask) + Convert.ToDouble(l.Bid);
-                    var k = (int)Math.Round(price / t);
-                    bins.TryGetValue(k, out var v);
-                    bins[k] = v + vol;
+                    raw.Add((price, vol));
                     any = true;
                 }
             }
@@ -289,15 +300,51 @@ namespace ATAS.Indicators
             if (!any)
             {
                 // Feed without footprint: dump the whole candle volume at its close.
-                var k = (int)Math.Round(Convert.ToDouble(c.Close) / t);
-                bins.TryGetValue(k, out var v);
-                bins[k] = v + Convert.ToDouble(c.Volume);
+                raw.Add((Convert.ToDouble(c.Close), Convert.ToDouble(c.Volume)));
             }
+        }
+
+        // Mode of the consecutive gaps between distinct traded prices: the real price
+        // grid the data is exported at, whatever the chart's footprint row size is set to.
+        private static double DetectLevelStep(List<(double Price, double Volume)> raw, double tick)
+        {
+            if (tick <= 0) tick = (double)FallbackTickSize;
+            var distinct = raw.Select(r => r.Price).Distinct().OrderBy(p => p).ToArray();
+            if (distinct.Length < 2)
+                return tick;
+
+            var counts = new Dictionary<long, int>();
+            long bestKey = 0;
+            int bestCount = 0;
+            for (int i = 1; i < distinct.Length; i++)
+            {
+                var diff = distinct[i] - distinct[i - 1];
+                if (diff <= 1e-9) continue;
+                var stepTicks = (long)Math.Round(diff / tick);
+                if (stepTicks <= 0) continue;
+                counts.TryGetValue(stepTicks, out var count);
+                count++;
+                counts[stepTicks] = count;
+                if (count > bestCount) { bestCount = count; bestKey = stepTicks; }
+            }
+            return bestCount > 0 ? bestKey * tick : tick;
+        }
+
+        private static Dictionary<int, double> BinLevels(List<(double Price, double Volume)> raw, double step)
+        {
+            var bins = new Dictionary<int, double>();
+            foreach (var (price, vol) in raw)
+            {
+                var k = (int)Math.Round(price / step);
+                bins.TryGetValue(k, out var v);
+                bins[k] = v + vol;
+            }
+            return bins;
         }
 
         // ---- Compute + store OUTPUTS ----
 
-        private void UpdateDirectionOutputs(Dictionary<int, double> bins, decimal tick, double dirClose)
+        private void UpdateDirectionOutputs(Dictionary<int, double> bins, decimal levelStep, decimal realTick, double dirClose)
         {
             if (bins.Count == 0)
             {
@@ -309,12 +356,12 @@ namespace ATAS.Indicators
             }
 
             ComputeProfile(bins, out var pocBin, out var vahBin, out var valBin, out var lo, out var hi);
-            DirPoc = (decimal)(pocBin * (double)tick);
-            DirVah = (decimal)(vahBin * (double)tick);
-            DirVal = (decimal)(valBin * (double)tick);
-            DirHigh = (decimal)(hi * (double)tick);
-            DirLow = (decimal)(lo * (double)tick);
-            DirRangeTicks = hi - lo;
+            DirPoc = (decimal)(pocBin * (double)levelStep);
+            DirVah = (decimal)(vahBin * (double)levelStep);
+            DirVal = (decimal)(valBin * (double)levelStep);
+            DirHigh = (decimal)(hi * (double)levelStep);
+            DirLow = (decimal)(lo * (double)levelStep);
+            DirRangeTicks = realTick > 0 ? (hi - lo) * levelStep / realTick : hi - lo;
             Direction = double.IsNaN(dirClose)
                 ? ""
                 : (decimal)dirClose > DirVah ? "HIGH"
@@ -324,7 +371,7 @@ namespace ATAS.Indicators
             HasDirection = true;
         }
 
-        private void UpdateLvnOutputs(Dictionary<int, double> bins, decimal tick)
+        private void UpdateLvnOutputs(Dictionary<int, double> bins, decimal levelStep)
         {
             _lvnLevels.Clear();
             if (bins.Count == 0)
@@ -336,17 +383,23 @@ namespace ATAS.Indicators
             }
 
             ComputeProfile(bins, out var pocBin, out _, out _, out _, out _);
-            LvnPoc = (decimal)(pocBin * (double)tick);
-            var best = FindBestLvn(bins, tick);
-            if (best == null)
+            LvnPoc = (decimal)(pocBin * (double)levelStep);
+            var candidates = FindLvnCandidates(bins, levelStep);
+            if (candidates.Count == 0)
             {
                 HasLvn = false;
                 LvnConfidencePct = 0m;
+                _lvnScores.Clear();
                 return;
             }
 
-            _lvnLevels.Add((decimal)best.Value.Price);
-            LvnConfidencePct = (decimal)(best.Value.Score * 100.0);
+            _lvnScores.Clear();
+            foreach (var candidate in candidates)
+            {
+                _lvnLevels.Add((decimal)candidate.Price);
+                _lvnScores.Add((decimal)(candidate.Score * 100.0));
+            }
+            LvnConfidencePct = _lvnScores[0];
             HasLvn = true;
         }
 
@@ -380,18 +433,23 @@ namespace ATAS.Indicators
 
         private void DrawLvn(int startBar, int endBar)
         {
-            // FindBestLvn deliberately exposes exactly one level.
-            var level = _lvnLevels[0];
-            AddLine(startBar, level, endBar, level, Color.LimeGreen, 3);
+            // Up to MaxLvnAreas nodes, ranked by score: LVN1 = strongest (thicker line).
+            for (int i = 0; i < _lvnLevels.Count; i++)
+            {
+                var level = _lvnLevels[i];
+                var score = i < _lvnScores.Count ? _lvnScores[i] : 0m;
+                var color = i == 0 ? Color.LimeGreen : Color.MediumSeaGreen;
+                AddLine(startBar, level, endBar, level, color, i == 0 ? 3 : 2);
 
-            if (ShowLabels)
-                AddLabel(
-                    $"VPE_LVN_{_currentDate:yyyyMMdd}",
-                    $"LVN 09:30-09:31  {level:0.00}  Q{LvnConfidencePct:0}",
-                    endBar - Math.Max(1, ExtendBars / 3),
-                    level,
-                    Color.Black,
-                    Color.LimeGreen);
+                if (ShowLabels)
+                    AddLabel(
+                        $"VPE_LVN_{_currentDate:yyyyMMdd}_{i + 1}",
+                        $"LVN{i + 1} 09:30-09:31  {level:0.00}  Q{score:0}",
+                        endBar - Math.Max(1, ExtendBars / 3),
+                        level,
+                        Color.Black,
+                        color);
+            }
         }
 
         private readonly struct LvnCandidate
@@ -407,22 +465,37 @@ namespace ATAS.Indicators
         }
 
         // Same candidate definition as the Python research engine. Every qualifying node
-        // is exported there; this visual overlay retains the deepest one to keep one line.
-        private LvnCandidate? FindBestLvn(Dictionary<int, double> bins, decimal tick)
+        // is exported there; this visual overlay shows the top MaxLvnAreas (1-5) nodes so
+        // the research phase can watch several areas while collecting winner DNA.
+        // Adjacent qualifying levels collapse into one node (same grouping as Python).
+        private List<LvnCandidate> FindLvnCandidates(Dictionary<int, double> bins, decimal levelStep)
         {
+            var tick = levelStep;
+            var nodes = new List<LvnCandidate>();
             ComputeProfile(bins, out var pocBin, out _, out _, out var lo, out var hi);
             var neighbors = Math.Max(1, LvnNeighborLevels);
             if (hi - lo + 1 < neighbors * 2 + 1)
-                return null;
+                return nodes;
 
             var pocVolume = Get(bins, pocBin);
             double totalVolume = 0;
             for (int k = lo; k <= hi; k++)
                 totalVolume += Get(bins, k);
             if (pocVolume <= 0 || totalVolume < (double)MinTotalVolumeAtLvnProfile)
-                return null;
+                return nodes;
 
-            LvnCandidate? best = null;
+            int groupStartBin = int.MinValue, groupBestBin = int.MinValue, previousBin = int.MinValue;
+            double groupBestScore = -1, groupBestVolume = double.MaxValue;
+
+            void CloseGroup()
+            {
+                if (groupStartBin != int.MinValue)
+                    nodes.Add(new LvnCandidate(groupBestBin * (double)tick, groupBestScore));
+                groupStartBin = int.MinValue;
+                groupBestScore = -1;
+                groupBestVolume = double.MaxValue;
+            }
+
             for (int k = lo + neighbors; k <= hi - neighbors; k++)
             {
                 var volume = Get(bins, k);
@@ -436,13 +509,19 @@ namespace ATAS.Indicators
                 rightMean /= neighbors;
                 var weakerMean = Math.Min(leftMean, rightMean);
                 if (weakerMean <= 0 || volume < (double)MinLvnVolume)
+                {
+                    CloseGroup();
                     continue;
+                }
                 var neighborRatio = volume / weakerMean;
                 var pocRatio = volume / pocVolume;
                 if (volume >= leftMean || volume >= rightMean ||
                     neighborRatio > Clamp01((double)(LvnMaxPercentOfNeighbors / 100m)) ||
                     pocRatio > Clamp01((double)(MaxLvnVolumePercentOfPoc / 100m)))
+                {
+                    CloseGroup();
                     continue;
+                }
 
                 var depth = Clamp01(1.0 - neighborRatio);
                 var pocDepth = Clamp01(1.0 - pocRatio);
@@ -450,17 +529,34 @@ namespace ATAS.Indicators
                 var interior = Clamp01(distanceToEdge / Math.Max(1.0, (hi - lo) / 2.0));
                 var score = 0.70 * depth + 0.20 * pocDepth + 0.10 * interior;
 
-                // On an exact tie prefer the structural valley nearer the POC.
-                var price = k * (double)tick;
-                if (best == null || score > best.Value.Score + 1e-9 ||
-                     (Math.Abs(score - best.Value.Score) <= 1e-9 &&
-                      Math.Abs(k - pocBin) < Math.Abs(best.Value.Price / (double)tick - pocBin)))
+                if (previousBin != k - 1 || groupStartBin == int.MinValue)
                 {
-                    best = new LvnCandidate(price, score);
+                    CloseGroup();
+                    groupStartBin = k;
                 }
-            }
 
-            return best;
+                // Node representative: lowest volume; on an exact tie prefer nearer the POC.
+                if (volume < groupBestVolume - 1e-9 ||
+                    (Math.Abs(volume - groupBestVolume) <= 1e-9 &&
+                     Math.Abs(k - pocBin) < Math.Abs(groupBestBin - pocBin)))
+                {
+                    groupBestBin = k;
+                    groupBestVolume = volume;
+                    groupBestScore = score;
+                }
+                else if (score > groupBestScore)
+                {
+                    groupBestScore = score;
+                }
+                previousBin = k;
+            }
+            CloseGroup();
+
+            nodes.Sort((a, b) => b.Score.CompareTo(a.Score));
+            var limit = Math.Max(1, Math.Min(5, MaxLvnAreas));
+            if (nodes.Count > limit)
+                nodes.RemoveRange(limit, nodes.Count - limit);
+            return nodes;
         }
 
         private static double Clamp01(double value) => Math.Max(0.0, Math.Min(1.0, value));
@@ -657,6 +753,7 @@ namespace ATAS.Indicators
             LvnPoc = 0m;
             LvnConfidencePct = 0m;
             _lvnLevels.Clear();
+            _lvnScores.Clear();
         }
 
         // POC bin, value-area edges (expand from POC to ValueAreaPct of total),
@@ -801,7 +898,7 @@ namespace ATAS.Indicators
                 {
                     builder.AppendLine(
                         "timestamp,symbol,price,bid_volume,ask_volume,volume," +
-                        "open,high,low,close,input_granularity,source_bar");
+                        "open,high,low,close,input_granularity,source_bar,bar_trades");
                 }
 
                 var timestamp = ny.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture);
@@ -809,6 +906,9 @@ namespace ATAS.Indicators
                 var high = Convert.ToDecimal(candle.High).ToString(CultureInfo.InvariantCulture);
                 var low = Convert.ToDecimal(candle.Low).ToString(CultureInfo.InvariantCulture);
                 var close = Convert.ToDecimal(candle.Close).ToString(CultureInfo.InvariantCulture);
+                var barTrades = "";
+                try { barTrades = Convert.ToInt64(candle.Ticks).ToString(CultureInfo.InvariantCulture); }
+                catch { barTrades = ""; }
                 var anyLevels = false;
 
                 try
@@ -827,7 +927,8 @@ namespace ATAS.Indicators
                             .Append(volume.ToString(CultureInfo.InvariantCulture)).Append(',')
                             .Append(open).Append(',').Append(high).Append(',')
                             .Append(low).Append(',').Append(close).Append(',')
-                            .Append("FOOTPRINT_BAR,").Append(closedBar).AppendLine();
+                            .Append("FOOTPRINT_BAR,").Append(closedBar).Append(',')
+                            .Append(barTrades).AppendLine();
                         anyLevels = true;
                         _researchExportedRowCount++;
                     }
@@ -847,7 +948,8 @@ namespace ATAS.Indicators
                         .Append(volume.ToString(CultureInfo.InvariantCulture)).Append(',')
                         .Append(open).Append(',').Append(high).Append(',')
                         .Append(low).Append(',').Append(close).Append(',')
-                        .Append("BAR_CLOSE_FALLBACK,").Append(closedBar).AppendLine();
+                        .Append("BAR_CLOSE_FALLBACK,").Append(closedBar).Append(',')
+                        .Append(barTrades).AppendLine();
                     _researchExportedRowCount++;
                 }
 

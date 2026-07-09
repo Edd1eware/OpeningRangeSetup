@@ -92,6 +92,31 @@ continuas; los umbrales "normal/rápida/alta" de H7 se derivan después, era-bli
 `Summary` agrega cohortes `Interaction cohort` (WR/R por `lvn_interaction`) e
 `Interaction x shape`.
 
+## Actualización 2026-07-08 (3): ADN de winners, agresión y replay corto
+
+**Outcome extendido** (por evento, medido desde entry):
+`mae_before_mfe_ticks` (adverso sobrevivido antes de la máxima extensión),
+`max_pullback_before_mfe_ticks` (retroceso máximo desde el pico favorable rumbo al MFE),
+`rr_max_achievable` (MFE / max(mae_before_mfe, 1 tick)), `time_to_mfe_seconds` (ya existía:
+cuánto tarda en llegar a su máxima extensión).
+
+**Agresión** (confirmación por speed + imbalances, decisión 2026-07-08 — solo features útiles
+para volume profile: delta, delta change, volume, imbalances, speed, vPOC/VAH/VAL):
+`tape_speed_trades_per_second` (requiere columna `bar_trades` del export nuevo),
+`aggression_volume_per_second`, `aggression_delta_per_second`, `delta_touch_bar`,
+`delta_prev_bar`, `delta_change_touch_bar` + los imbalances apilados ya existentes.
+vPOC/VAH/VAL cubiertos por las distancias contextuales y del minuto.
+
+**Indicador (DLL 039EFBE0)**: hasta 3 áreas LVN dibujadas (`Max LVN Areas`, default 3;
+LVN1 = más profundo, línea gruesa) — fase research recolecta ADN de las 3 zonas; export CSV
+agrega columna `bar_trades` (trades por barra). Requiere reiniciar ATAS para cargar.
+
+**Replay corto (default nuevo)**: ventana `09:29–09:42` — el contexto 08:30–09:30 se lee de
+las barras históricas que ATAS carga al abrir el replay; ~5x más rápido por fecha. Paridad
+verificable con `compare_context_parity.py` (captura FULL 08:29 vs SHORT 09:29). Si la
+historia no trae contexto, el runner avisa (`context_ok=False`) y se regresa a
+`--replay-from 08:29`.
+
 Parámetro nuevo: `--resolution-confirm-ticks` (default 1) = ticks más allá del borde de zona
 para confirmar aceptación o rechazo.
 
