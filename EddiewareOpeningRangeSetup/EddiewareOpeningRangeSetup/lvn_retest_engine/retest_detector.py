@@ -474,8 +474,46 @@ def detect_retests(
             for shape_name in ("D", "P", "b", "double", "trend_up", "trend_down", "unknown"):
                 event[f"context_prob_{shape_name}"] = context_profile.shape.get(f"prob_{shape_name}", math.nan)
                 event[f"minute_prob_{shape_name}"] = minute_profile.shape.get(f"prob_{shape_name}", math.nan)
+            # Profile Feature Engine (usuario 2026-07-09): momentos/estructura del perfil
+            # contextual y del minuto como features del EVENTO, para que CatBoost pueda
+            # rankear qué separa los días buenos de los malos.
+            for metric in ("skewness", "kurtosis_excess", "entropy", "profile_width_ticks",
+                           "value_area_width_ticks", "upper_volume_share", "lower_volume_share",
+                           "poc_position", "center_of_mass_position", "max_level_volume_share",
+                           "volume_slope", "total_volume", "delta"):
+                event[f"ctx_{metric}"] = context_profile.metrics.get(metric, math.nan)
+                event[f"min_{metric}"] = minute_profile.metrics.get(metric, math.nan)
+            for shape_metric in ("distribution_count", "double_mode_separation", "double_valley_depth"):
+                event[f"ctx_{shape_metric}"] = context_profile.shape.get(shape_metric, math.nan)
+            event["ctx_hvn_count"] = len(context_profile.hvns)
+            event["ctx_lvn_count"] = len(context_profile.lvns)
+            event["minute_lvn_count"] = len(minute_profile.lvns)
+            main_hvn = max(context_profile.hvns, key=lambda node: float(node.get("volume", 0)), default=None)
+            event["ctx_hvn_dominance"] = float(main_hvn["prominence"]) if main_hvn and "prominence" in main_hvn else math.nan
+            event["distance_to_main_hvn_ticks"] = (
+                safe_div(level - float(main_hvn["price"]), config.tick_size) if main_hvn else math.nan
+            )
+            ctx_poc = float(context_profile.metrics.get("poc", math.nan))
+            ctx_vah = float(context_profile.metrics.get("vah", math.nan))
+            ctx_val = float(context_profile.metrics.get("val", math.nan))
+            event["open_to_ctx_poc_ticks"] = safe_div(rth_open - ctx_poc, config.tick_size)
+            event["open_to_ctx_vah_ticks"] = safe_div(rth_open - ctx_vah, config.tick_size)
+            event["open_to_ctx_val_ticks"] = safe_div(rth_open - ctx_val, config.tick_size)
+            event["day_of_week"] = session_date.weekday()
             event.update(session_context)
             event.update(_order_flow_metrics(session_frame, event_time, event_end, level, config, precision))
+            # Versión CAUSAL de la agresión: ventana touch -> confirmación de entrada.
+            # Las métricas de episodio completo (arriba) pueden incluir flujo POSTERIOR a la
+            # entrada y solo sirven para descripción, nunca como feature de modelo (leak).
+            causal_end = resolution_time if resolution_time is not None else event_time
+            causal_flow = _order_flow_metrics(session_frame, event_time, causal_end, level, config, precision)
+            event.update({
+                "pre_entry_volume_per_second": causal_flow.get("aggression_volume_per_second", math.nan),
+                "pre_entry_delta_per_second": causal_flow.get("aggression_delta_per_second", math.nan),
+                "pre_entry_tape_speed": causal_flow.get("tape_speed_trades_per_second", math.nan),
+                "pre_entry_lvn_delta": causal_flow.get("lvn_retest_delta", math.nan),
+                "pre_entry_lvn_volume": causal_flow.get("lvn_retest_volume", math.nan),
+            })
             if expected_side in ("LONG", "SHORT"):
                 # Outcome starts at the acceptance/rejection confirmation and is
                 # measured from the confirmation price, never from the touch.

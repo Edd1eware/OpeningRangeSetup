@@ -60,23 +60,23 @@ def build_summary(events: pd.DataFrame, daily: pd.DataFrame, lvn_profiles: pd.Da
             _summary_row("Overall", "ALL", "median_mfe_mae_ratio", float(events["mfe_mae_ratio"].median()), int(events["mfe_mae_ratio"].notna().sum())),
         ])
 
+        # Shape cohort = medición pura (decisión usuario 2026-07-09): frecuencia del grupo y
+        # su máxima extensión (MFE). Sin WR/PF aquí — la estrategia se diseña después.
+        total_months = int(events["month"].nunique()) or 1
         for shape, cohort in events.groupby("context_profile_shape", dropna=False):
-            rows.append(_summary_row("Shape cohort", str(shape), "events", len(cohort), len(cohort)))
-            rows.append(_summary_row("Shape cohort", str(shape), "unique_days", cohort["date"].nunique(), len(cohort)))
-            rows.append(_summary_row("Shape cohort", str(shape), "mean_mfe_ticks", float(cohort["mfe_ticks"].mean()), len(cohort)))
-            rows.append(_summary_row("Shape cohort", str(shape), "mean_mae_ticks", float(cohort["mae_ticks"].mean()), len(cohort)))
-            for target in (20, 40, 60, 80):
-                column = f"tp_sl_{target}_{target}_result"
-                result = cohort[column].astype(str)
-                resolved = result.isin(["TP", "SL"])
-                wins = int((result == "TP").sum())
-                losses = int((result == "SL").sum())
-                rows.extend([
-                    _summary_row("Shape cohort", str(shape), f"wr_{target}_{target}_all", wins / len(cohort) if len(cohort) else math.nan, len(cohort)),
-                    _summary_row("Shape cohort", str(shape), f"wr_{target}_{target}_resolved", wins / (wins + losses) if wins + losses else math.nan, wins + losses),
-                    _summary_row("Shape cohort", str(shape), f"mean_realized_r_{target}_{target}", float(cohort[f"realized_r_{target}_{target}"].mean()), int(cohort[f"realized_r_{target}_{target}"].notna().sum())),
-                    _summary_row("Shape cohort", str(shape), f"ambiguous_{target}_{target}", int((result == "AMBIGUOUS").sum()), len(cohort)),
-                ])
+            mfe = pd.to_numeric(cohort["mfe_ticks"], errors="coerce").dropna()
+            time_to_mfe = pd.to_numeric(cohort["time_to_mfe_seconds"], errors="coerce").dropna()
+            rows.extend([
+                _summary_row("Shape cohort", str(shape), "events", len(cohort), len(cohort)),
+                _summary_row("Shape cohort", str(shape), "unique_days", cohort["date"].nunique(), len(cohort)),
+                _summary_row("Shape cohort", str(shape), "events_per_month", len(cohort) / total_months, len(cohort)),
+                _summary_row("Shape cohort", str(shape), "mfe_ticks_median", float(mfe.median()) if len(mfe) else math.nan, len(mfe)),
+                _summary_row("Shape cohort", str(shape), "mfe_ticks_mean", float(mfe.mean()) if len(mfe) else math.nan, len(mfe)),
+                _summary_row("Shape cohort", str(shape), "mfe_ticks_p90", float(mfe.quantile(0.9)) if len(mfe) else math.nan, len(mfe)),
+                _summary_row("Shape cohort", str(shape), "mfe_ticks_max", float(mfe.max()) if len(mfe) else math.nan, len(mfe)),
+                _summary_row("Shape cohort", str(shape), "mae_ticks_median", float(pd.to_numeric(cohort["mae_ticks"], errors="coerce").median()), len(cohort)),
+                _summary_row("Shape cohort", str(shape), "time_to_mfe_seconds_median", float(time_to_mfe.median()) if len(time_to_mfe) else math.nan, len(time_to_mfe)),
+            ])
 
         if "lvn_interaction" in events.columns:
             for interaction, cohort in events.groupby("lvn_interaction", dropna=False):

@@ -62,8 +62,10 @@ level_step) y/o bajar el row size del chart a 1 tick en el template correcto de 
 | **2 (ACTUAL)** | Descubrir el ADN de los ganadores (look-ahead + CatBoost + era-blind) | en curso |
 | 3 | Simular cuenta Lucid $150k: máx 3 contratos (sizing según winrate), reglas de Lucid (MaxDD $4,500), medir tiempo-a-pasar vs probabilidad de quemarla (Monte Carlo de paths) | pendiente de que Fase 2 produzca un setup que pase gates |
 
-Secuencia acordada al terminar 2024: reporte → gates 3 temporadas → CatBoost 3 temporadas
-SOLO si algún segmento pasa gate → MD + Telegram.
+Secuencia acordada al terminar 2024: reporte → gates 3 temporadas → si gate PASA: CatBoost
+3 temporadas + lanzar DST 2023 (2023-03-12→2023-11-03) y al terminar, DST 2022 desde mediados
+(2022-06-15→2022-11-04, frontera de datos sondeada hacia atrás después). Si gate NO pasa:
+reporte Telegram y esperar decisión del usuario. Reintentos por fecha: 3 intentos / 60s.
 
 ## Decisión pendiente (gates NO pasan → el loop no autoriza escalar solo)
 

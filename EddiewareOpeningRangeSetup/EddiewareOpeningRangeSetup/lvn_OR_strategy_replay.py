@@ -377,6 +377,97 @@ def format_eta(seconds: float) -> str:
     return f"{hours}h {minutes:02d}m" if hours else f"{minutes}m"
 
 
+def quick_session_stats(date_iso: str) -> dict[str, object] | None:
+    """LVNs/retests/shape de UNA sesión recién capturada, en memoria, sin escribir archivos."""
+    try:
+        from lvn_retest_engine.config import ResearchConfig
+        from lvn_retest_engine.feature_extractor import session_features
+        from lvn_retest_engine.hvn_detector import detect_hvns
+        from lvn_retest_engine.io import read_inputs
+        from lvn_retest_engine.lvn_detector import detect_lvns
+        from lvn_retest_engine.profile_builder import build_profile
+        from lvn_retest_engine.retest_detector import detect_retests
+        from lvn_retest_engine.shape_classifier import classify_shape
+
+        config = ResearchConfig()
+        data, _, _ = read_inputs([str(raw_path(date_iso))], config)
+        session_date = data["session_date"].iloc[0]
+        frame = data.loc[data["session_date"] == session_date]
+        context = build_profile(frame, session_date, "CONTEXT_0830_0930",
+                                config.context_profile_start, config.context_profile_end, config)
+        minute = build_profile(frame, session_date, "FIRST_MINUTE_0930_0931",
+                               config.lvn_profile_start, config.lvn_profile_end, config)
+        for profile in (context, minute):
+            profile.hvns, _ = detect_hvns(profile, config)
+            profile.lvns, _ = detect_lvns(profile, config)
+            profile.shape = classify_shape(profile, config)
+        features = session_features(frame, context, minute, None, config)
+        events, _ = detect_retests(frame, session_date, minute, context, features, config)
+        import math as _math
+        rr_values = []
+        for event in events:
+            value = event.get("rr_max_achievable")
+            if isinstance(value, (int, float)) and _math.isfinite(float(value)):
+                rr_values.append(float(value))
+        retested_ids = {str(event["lvn_id"]) for event in events}
+        mfe_by_lvn: dict[str, float] = {}
+        for event in events:
+            value = event.get("mfe_ticks")
+            if isinstance(value, (int, float)) and _math.isfinite(float(value)):
+                key = str(event["lvn_id"])
+                mfe_by_lvn[key] = max(mfe_by_lvn.get(key, 0.0), float(value))
+        lvn_lines = []
+        for node in minute.lvns[:5]:
+            node_id = str(node["lvn_id"])
+            mfe_text = f" MFEmax {mfe_by_lvn[node_id]:.0f}t" if node_id in mfe_by_lvn else ""
+            lvn_lines.append(
+                f"  LVN {float(node['price']):.2f} | ancho {node.get('width_ticks', '?')}t | "
+                f"vol {float(node.get('volume', 0)):.0f} | prof {float(node.get('depth', 0)):.2f} | "
+                f"{'RETEST' if node_id in retested_ids else 'sin retest'}{mfe_text}"
+            )
+        return {
+            "lvns": len(minute.lvns),
+            "retested": len(retested_ids),
+            "events": len(events),
+            "shape": str(context.shape.get("profile_shape", "?")),
+            "interactions": "/".join(sorted({str(e["lvn_interaction"]) for e in events})) or "-",
+            "rr_mean": sum(rr_values) / len(rr_values) if rr_values else None,
+            "rr_max": max(rr_values) if rr_values else None,
+            "rr_min": min(rr_values) if rr_values else None,
+            "lvn_lines": lvn_lines,
+        }
+    except Exception:
+        return None
+
+
+def shape_breakdown(events_csv: Path) -> str:
+    """Medición pura por shape (D/P/b/double/trend/unknown): frecuencia y máxima extensión.
+
+    Sin WR/PF (decisión usuario 2026-07-09): primero medir el evento, la estrategia después.
+    """
+    try:
+        import pandas as pd
+
+        events = pd.read_csv(events_csv)
+        if "context_profile_shape" not in events.columns:
+            return "sin datos de shape"
+        events["month"] = pd.to_datetime(events["date"]).dt.to_period("M")
+        months = int(events["month"].nunique()) or 1
+        lines = []
+        for shape, cohort in events.groupby("context_profile_shape", dropna=False):
+            mfe = pd.to_numeric(cohort["mfe_ticks"], errors="coerce").dropna()
+            if len(mfe) == 0:
+                lines.append(f"{shape}: {len(cohort)} eventos, sin MFE medible")
+                continue
+            lines.append(
+                f"{shape}: n={len(cohort)} ({len(cohort) / months:.1f}/mes) | "
+                f"MFE med {mfe.median():.0f}t prom {mfe.mean():.0f}t p90 {mfe.quantile(0.9):.0f}t max {mfe.max():.0f}t"
+            )
+        return "\n".join(sorted(lines))
+    except Exception as exc:
+        return f"shape breakdown no disponible ({type(exc).__name__})"
+
+
 def bracket_winrates(events_csv: Path) -> str:
     """WR resuelto por bracket desde LVN_Events.csv, para el mensaje final."""
     try:
@@ -500,15 +591,26 @@ def main(argv: list[str] | None = None) -> int:
                 bar.update(index)
                 continue
             date_started = time.time()
-            try:
-                ok, reason, capture = run_capture_date(date_iso, args.timeout_seconds)
-            except KeyboardInterrupt:
-                print("\nRecorrido cancelado por usuario.")
-                raise
-            except Exception as exc:
-                ok, reason, capture = False, f"{type(exc).__name__}: {exc}", inspect_capture(date_iso)
+            # Hasta 3 intentos por fecha con 60s de espera: la mayoría de los FAIL son
+            # hipos de UI de ATAS (rango no confirmado, foco perdido), no falta de datos.
+            attempt = 0
+            ok, reason, capture = False, "", {}
+            for attempt in range(1, 4):
+                try:
+                    ok, reason, capture = run_capture_date(date_iso, args.timeout_seconds)
+                except KeyboardInterrupt:
+                    print("\nRecorrido cancelado por usuario.")
+                    raise
+                except Exception as exc:
+                    ok, reason, capture = False, f"{type(exc).__name__}: {exc}", inspect_capture(date_iso)
+                if ok:
+                    break
+                if attempt < 3:
+                    print(f"  {date_iso} intento {attempt}/3 falló ({reason}); reintento en 60s...")
+                    time.sleep(60)
             record = {
                 **capture,
+                "attempts": attempt,
                 "elapsed_seconds": round(time.time() - date_started, 3),
                 "reason": reason or capture.get("reason", "OK"),
             }
@@ -532,10 +634,24 @@ def main(argv: list[str] | None = None) -> int:
                 rate = elapsed_run / worked if worked else 0.0
                 eta_seconds = rate * pending
                 finish_clock = (datetime.now() + timedelta(seconds=eta_seconds)).strftime("%H:%M")
+                stats = quick_session_stats(date_iso) if ok else None
+                rr_line = ""
+                if stats and stats.get("rr_mean") is not None:
+                    rr_line = (f"RR max alcanzable: prom {stats['rr_mean']:.1f} | "
+                               f"max {stats['rr_max']:.1f} | min {stats['rr_min']:.1f}\n")
+                lvn_detail = ("\n".join(stats["lvn_lines"]) + "\n") if stats and stats.get("lvn_lines") else ""
+                stats_line = (
+                    f"LVNs: {stats['lvns']} ({stats['retested']} retesteados) | "
+                    f"eventos: {stats['events']} | shape ctx: {stats['shape']} | {stats['interactions']}\n"
+                    f"{lvn_detail}"
+                    f"{rr_line}"
+                ) if stats else ""
                 telegram_notify(
                     f"LVN {dates[0]} -> {dates[-1]}\n"
                     f"{progress_blocks} {pct:.1f}% ({index}/{len(dates)})\n"
-                    f"Fecha: {date_iso} {'OK' if ok else 'FAIL'} ({int(record.get('rows', 0) or 0):,} filas | {record['elapsed_seconds']:.0f}s)\n"
+                    f"Fecha: {date_iso} {'OK' if ok else 'FAIL'} ({int(record.get('rows', 0) or 0):,} filas | {record['elapsed_seconds']:.0f}s"
+                    f"{f' | {attempt} intentos' if attempt > 1 else ''})\n"
+                    f"{stats_line}"
                     f"OK {len(successes)} | FAIL {len(failures)} | SKIP {len(skipped)}\n"
                     f"Filas acumuladas: {captured_rows_total:,}\n"
                     f"Ritmo: {rate / 60:.1f} min/fecha\n"
@@ -608,12 +724,15 @@ def main(argv: list[str] | None = None) -> int:
     final_excel = str(detector_payload.get("excel_path", report_path))
     events_csv = Path(str(detector_payload.get("csv_dir", ""))) / "LVN_Events.csv"
     wr_text = bracket_winrates(events_csv) if events_csv.is_file() else "sin eventos"
+    shapes_text = shape_breakdown(events_csv) if events_csv.is_file() else "sin eventos"
     telegram_notify(
-        f"LVN captura TERMINADA {report_dates[0]} -> {report_dates[-1]} | "
+        f"LVN captura TERMINADA {report_dates[0]} -> {report_dates[-1]}\n"
         f"fechas OK {len(successes)} SKIP {len(skipped)} FAIL {len(failures)} | "
         f"sesiones {detector_payload.get('sessions', '?')} | LVNs {detector_payload.get('lvns', '?')} | "
-        f"eventos {detector_payload.get('events', '?')} | {wr_text} | "
-        f"tiempo total {format_eta(time.time() - run_started)} | {final_excel}"
+        f"eventos {detector_payload.get('events', '?')}\n"
+        f"Brackets: {wr_text}\n"
+        f"--- Por shape contextual (80/80) ---\n{shapes_text}\n"
+        f"tiempo total {format_eta(time.time() - run_started)}\n{final_excel}"
     )
     print(f"\nREPORTE LISTO: {final_excel}")
     print(f"Capturas OK/reusadas: {len(successes) + len(skipped)} | fallidas: {len(failures)}")

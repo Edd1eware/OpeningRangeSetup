@@ -1,98 +1,156 @@
 #!/usr/bin/env python3
-"""CatBoost descubrimiento LVN (2026-07-09) — dev DST 2025, holdout DST 2026.
+"""CatBoost — ADN de ganadores LVN, multi-tamaño (2026-07-09).
 
-Doctrina: CatBoost = herramienta de descubrimiento, no de ordeñe. Modelo chico (n~400),
-features causales al momento del retest, target = win del bracket 80/80. El holdout 2026 se
-toca UNA vez. Nada se optimiza mirando 2026.
+Tarea (usuario): sacar el ADN de los ganadores SIN importar si son grandes o chicos.
+Diseño: un modelo por cada tamaño de winner (bracket 20/40/60/80 1:1) + un regresor de la
+extensión continua (MFE en ticks). El ADN final = ranking agregado de importancias entre
+los 5 objetivos: una feature que separa winners chicos Y grandes es ADN robusto; una que
+solo aparece en un bracket es ruido de tamaño.
+
+Era-blind: entrena en años dev, valida en año val, y el holdout se toca UNA sola vez.
+Features: whitelist CAUSAL explícita (nada del outcome entra al modelo).
+
+Uso (banco completo):
+  python catboost_lvn_dna.py --events "outputs/lvn_or_strategy_replay/*_csv/LVN_Events.csv" \
+      --dev-years 2022 2023 2024 --val-year 2025 --holdout-year 2026
 """
 from __future__ import annotations
 
+import argparse
+import glob
+
 import numpy as np
 import pandas as pd
-from catboost import CatBoostClassifier, Pool
+from catboost import CatBoostClassifier, CatBoostRegressor, Pool
+from sklearn.metrics import roc_auc_score
 
-FILES = [
-    "outputs/lvn_or_strategy_replay/lvn_retest_DST_2025_csv/LVN_Events.csv",
-    "outputs/lvn_or_strategy_replay/lvn_retest_DST_2026_full_v2_csv/LVN_Events.csv",
-]
-TARGET_COLUMN = "tp_sl_80_80_result"
 NUMERIC_FEATURES = [
+    # ubicación del LVN
     "distance_to_context_vah_ticks", "distance_to_context_poc_ticks", "distance_to_context_val_ticks",
     "distance_to_minute_poc_ticks", "distance_to_vwap_ticks", "distance_to_open_ticks",
+    "distance_to_or_high_ticks", "distance_to_or_low_ticks", "distance_to_main_hvn_ticks",
+    "open_to_ctx_poc_ticks", "open_to_ctx_vah_ticks", "open_to_ctx_val_ticks",
+    # estructura del nodo
     "lvn_volume", "lvn_depth", "lvn_width_ticks",
-    "delta_touch_bar", "delta_change_touch_bar", "lvn_retest_delta",
-    "aggression_volume_per_second", "aggression_delta_per_second", "tape_speed_trades_per_second",
-    "approach_speed_ticks_per_second", "distance_traveled_to_lvn_ticks", "deceleration_ratio",
-    "seconds_from_0931", "seconds_touch_to_entry", "retest_number", "prior_move_from_open_ticks",
+    # forma del perfil (contexto y minuto)
+    "ctx_skewness", "ctx_kurtosis_excess", "ctx_entropy", "ctx_profile_width_ticks",
+    "ctx_value_area_width_ticks", "ctx_upper_volume_share", "ctx_lower_volume_share",
+    "ctx_poc_position", "ctx_center_of_mass_position", "ctx_max_level_volume_share",
+    "ctx_volume_slope", "ctx_total_volume", "ctx_delta",
+    "ctx_distribution_count", "ctx_double_mode_separation", "ctx_double_valley_depth",
+    "ctx_hvn_count", "ctx_lvn_count", "ctx_hvn_dominance",
+    "min_skewness", "min_entropy", "min_total_volume", "min_delta", "minute_lvn_count",
     "context_prob_D", "context_prob_P", "context_prob_b", "context_prob_trend_up",
     "context_prob_trend_down", "context_shape_confidence", "minute_shape_confidence",
-    "vwap_slope_ticks", "ema_slope_ticks",
+    # flujo/agresión PRE-ENTRADA (causal: ventana touch->confirmación).
+    # EXCLUIDAS por leak las de episodio completo (aggression_*, tape_speed_*,
+    # lvn_retest_*, time_inside_lvn_zone_seconds): pueden incluir flujo posterior
+    # a la entrada (hallazgo 2026-07-09, AUC inflado a 0.89).
+    "delta_touch_bar", "delta_change_touch_bar",
+    "pre_entry_volume_per_second", "pre_entry_delta_per_second", "pre_entry_tape_speed",
+    "pre_entry_lvn_delta", "pre_entry_lvn_volume",
+    "approach_speed_ticks_per_second", "zone_speed_ticks_per_second", "deceleration_ratio",
+    "distance_traveled_to_lvn_ticks", "prior_move_from_open_ticks",
+    # temporal
+    "seconds_from_0931", "seconds_touch_to_entry",
+    "retest_number", "day_of_week",
+    "vwap_slope_ticks", "ema_slope_ticks", "realized_volatility",
 ]
 CATEGORICAL_FEATURES = ["lvn_interaction", "approach", "prior_movement_direction", "context_profile_shape"]
+BRACKETS = (20, 40, 60, 80)
+
+
+def model_params(kind: str) -> dict:
+    base = dict(iterations=400, depth=3, learning_rate=0.05, l2_leaf_reg=10,
+                random_seed=7, verbose=0, allow_writing_files=False)
+    return base
 
 
 def main() -> int:
-    events = pd.concat([pd.read_csv(path) for path in FILES], ignore_index=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--events", nargs="+", required=True)
+    parser.add_argument("--dev-years", type=int, nargs="+", required=True)
+    parser.add_argument("--val-year", type=int, required=True)
+    parser.add_argument("--holdout-year", type=int, default=None,
+                        help="Solo pasar cuando se decida gastar la mirada única al holdout")
+    parser.add_argument("--top", type=int, default=12)
+    args = parser.parse_args()
+
+    paths = sorted({p for pattern in args.events for p in glob.glob(pattern, recursive=True)})
+    events = pd.concat([pd.read_csv(p) for p in paths], ignore_index=True)
     events = events.drop_duplicates(subset=["event_id"], keep="last").copy()
     events["year"] = pd.to_datetime(events["date"]).dt.year
-    events["month"] = pd.to_datetime(events["date"]).dt.to_period("M")
-    resolved = events.loc[events[TARGET_COLUMN].isin(["TP", "SL"])].copy()
-    resolved["win"] = (resolved[TARGET_COLUMN] == "TP").astype(int)
 
-    numeric = [f for f in NUMERIC_FEATURES if f in resolved.columns]
-    categorical = [f for f in CATEGORICAL_FEATURES if f in resolved.columns]
+    numeric = [f for f in NUMERIC_FEATURES if f in events.columns]
+    categorical = [f for f in CATEGORICAL_FEATURES if f in events.columns]
     for feature in categorical:
-        resolved[feature] = resolved[feature].fillna("NA").astype(str)
+        events[feature] = events[feature].fillna("NA").astype(str)
     for feature in numeric:
-        resolved[feature] = pd.to_numeric(resolved[feature], errors="coerce")
-
-    dev = resolved.loc[resolved["year"] == 2025]
-    hold = resolved.loc[resolved["year"] == 2026]
-    print(f"dev 2025: {len(dev)} | holdout 2026: {len(hold)} | base WR dev {100 * dev['win'].mean():.1f}% "
-          f"hold {100 * hold['win'].mean():.1f}%")
-
+        events[feature] = pd.to_numeric(events[feature], errors="coerce")
     features = numeric + categorical
-    dev_pool = Pool(dev[features], dev["win"], cat_features=categorical)
-    model = CatBoostClassifier(
-        iterations=300, depth=3, learning_rate=0.05, l2_leaf_reg=10,
-        loss_function="Logloss", random_seed=7, verbose=0, allow_writing_files=False,
-    )
-    # CV temporal dentro de dev (3 folds por orden de fecha) para estimar techo honesto.
-    dev_sorted = dev.sort_values("date").reset_index(drop=True)
-    fold_size = len(dev_sorted) // 3
-    aucs = []
-    from sklearn.metrics import roc_auc_score
-    for k in range(2):
-        train = dev_sorted.iloc[: fold_size * (k + 1)]
-        valid = dev_sorted.iloc[fold_size * (k + 1): fold_size * (k + 2)]
-        if valid["win"].nunique() < 2:
+    print(f"eventos {len(events)} | features causales {len(features)} "
+          f"({len(numeric)} numéricas + {len(categorical)} categóricas)")
+
+    dev = events.loc[events["year"].isin(args.dev_years)]
+    val = events.loc[events["year"] == args.val_year]
+    print(f"dev {sorted(args.dev_years)}: {len(dev)} | val {args.val_year}: {len(val)}")
+
+    importance_ranks: list[pd.Series] = []
+    print(f"\n{'objetivo':>14} {'n_dev':>6} {'base%':>6} {'AUC/R2 val':>11}")
+    for target in BRACKETS:
+        column = f"tp_sl_{target}_{target}_result"
+        dev_t = dev.loc[dev[column].isin(["TP", "SL"])]
+        val_t = val.loc[val[column].isin(["TP", "SL"])]
+        if len(dev_t) < 60 or val_t[column].nunique() < 2:
+            print(f"win_{target:>9} {len(dev_t):6d}  -- n insuficiente, se omite")
             continue
-        m = model.copy()
-        m.fit(Pool(train[features], train["win"], cat_features=categorical))
-        aucs.append(roc_auc_score(valid["win"], m.predict_proba(valid[features])[:, 1]))
-    print(f"AUC walk-forward dentro de dev: {[f'{a:.3f}' for a in aucs]}")
+        y_dev = (dev_t[column] == "TP").astype(int)
+        model = CatBoostClassifier(loss_function="Logloss", **model_params("clf"))
+        pool = Pool(dev_t[features], y_dev, cat_features=categorical)
+        model.fit(pool)
+        auc = roc_auc_score((val_t[column] == "TP").astype(int),
+                            model.predict_proba(val_t[features])[:, 1])
+        print(f"win_{target:>9} {len(dev_t):6d} {100 * y_dev.mean():6.1f} {auc:11.3f}")
+        imp = pd.Series(model.get_feature_importance(pool), index=features)
+        importance_ranks.append(imp.rank(pct=True))
 
-    model.fit(dev_pool)
-    importances = sorted(zip(features, model.get_feature_importance(dev_pool)), key=lambda t: -t[1])
-    print("\nTop 12 importancias (dev):")
-    for name, value in importances[:12]:
-        print(f"  {name:38s} {value:6.2f}")
+    # Winner size-agnóstico: regresión de la extensión continua (todos los eventos).
+    dev_r = dev.dropna(subset=["mfe_ticks"])
+    val_r = val.dropna(subset=["mfe_ticks"])
+    if len(dev_r) >= 60:
+        reg = CatBoostRegressor(loss_function="RMSE", **model_params("reg"))
+        pool = Pool(dev_r[features], np.log1p(dev_r["mfe_ticks"].clip(lower=0)), cat_features=categorical)
+        reg.fit(pool)
+        pred = reg.predict(val_r[features])
+        y_true = np.log1p(val_r["mfe_ticks"].clip(lower=0))
+        ss_res = float(((y_true - pred) ** 2).sum())
+        ss_tot = float(((y_true - y_true.mean()) ** 2).sum())
+        r2 = 1 - ss_res / ss_tot if ss_tot else float("nan")
+        print(f"{'mfe_log':>14} {len(dev_r):6d} {'':6} {r2:11.3f}")
+        imp = pd.Series(reg.get_feature_importance(pool), index=features)
+        importance_ranks.append(imp.rank(pct=True))
 
-    # Única mirada al holdout.
-    hold_scores = model.predict_proba(hold[features])[:, 1]
-    auc_hold = roc_auc_score(hold["win"], hold_scores)
-    print(f"\nAUC HOLDOUT 2026: {auc_hold:.3f}")
-    hold = hold.assign(score=hold_scores)
-    months = hold["month"].nunique() or 1
-    print(f"{'corte':>8} {'n':>4} {'tr/mes':>7} {'WR%':>6} {'PF':>6}")
-    for pct in (0.5, 0.6, 0.7):
-        threshold = np.quantile(hold_scores, pct)
-        top = hold.loc[hold["score"] >= threshold]
-        n = len(top)
-        wins = int(top["win"].sum())
-        losses = n - wins
-        pf = wins / losses if losses else float("inf")
-        print(f"top{100 - pct * 100:3.0f}% {n:4d} {n / months:7.1f} {100 * wins / n if n else 0:6.1f} {pf:6.2f}")
+    if not importance_ranks:
+        print("Sin modelos entrenables.")
+        return 1
+    adn = pd.concat(importance_ranks, axis=1).mean(axis=1).sort_values(ascending=False)
+    print(f"\n=== ADN agregado (rank medio de importancia entre {len(importance_ranks)} objetivos) ===")
+    print(adn.head(args.top).to_string(float_format=lambda v: f"{v:.3f}"))
+
+    if args.holdout_year is not None:
+        hold = events.loc[events["year"] == args.holdout_year]
+        print(f"\n=== HOLDOUT {args.holdout_year} (mirada única) ===")
+        for target in BRACKETS:
+            column = f"tp_sl_{target}_{target}_result"
+            dev_t = dev.loc[dev[column].isin(["TP", "SL"])]
+            hold_t = hold.loc[hold[column].isin(["TP", "SL"])]
+            if len(dev_t) < 60 or hold_t[column].nunique() < 2:
+                continue
+            model = CatBoostClassifier(loss_function="Logloss", **model_params("clf"))
+            model.fit(Pool(dev_t[features], (dev_t[column] == "TP").astype(int), cat_features=categorical))
+            auc = roc_auc_score((hold_t[column] == "TP").astype(int),
+                                model.predict_proba(hold_t[features])[:, 1])
+            print(f"win_{target}: AUC holdout {auc:.3f} (n={len(hold_t)})")
     return 0
 
 

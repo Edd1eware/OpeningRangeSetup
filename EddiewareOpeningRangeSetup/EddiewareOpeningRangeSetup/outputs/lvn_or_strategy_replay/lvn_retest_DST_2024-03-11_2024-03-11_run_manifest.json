@@ -1,0 +1,32 @@
+{
+  "started_at": "2026-07-10T07:07:30.925714",
+  "finished_at": "2026-07-10T07:08:58.059317",
+  "elapsed_seconds": 87.134,
+  "data_boundary_reached": false,
+  "first_successful_date": "2024-03-11",
+  "last_successful_date": "2024-03-11",
+  "requested_dates": [
+    "2024-03-11"
+  ],
+  "successes": [
+    {
+      "date": "2024-03-11",
+      "csv": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\lvn_research_raw\\lvn_research_raw_2024-03-11_NY.csv",
+      "marker": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\lvn_research_raw\\lvn_research_done_2024-03-11.txt",
+      "complete": true,
+      "rows": 695,
+      "reason": "OK",
+      "first_timestamp": "2024-03-11 08:30:00.000",
+      "last_timestamp": "2024-03-11 09:39:00.000",
+      "context_ok": true,
+      "attempts": 1,
+      "elapsed_seconds": 84.096
+    }
+  ],
+  "skipped": [],
+  "failures": [],
+  "raw_dir": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\lvn_research_raw",
+  "report_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\outputs\\lvn_or_strategy_replay\\lvn_retest_DST_2024-03-11_2024-03-11.xlsx",
+  "replay_window": "09:29-10:00",
+  "chart_requirement": "NQ 1 MINUTE"
+}
