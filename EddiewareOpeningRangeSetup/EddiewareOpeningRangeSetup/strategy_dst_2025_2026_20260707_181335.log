@@ -1,711 +1,0 @@
-[atas_guard] 9 procesos, 1 instancia(s) pesada(s). Nada que limpiar (1 instancia = OK).
-Fechas a recorrer en Replay X10 (estrategia activa): 239
-  2025-03-10
-  2025-03-11
-  2025-03-12
-  2025-03-13
-  2025-03-14
-  2025-03-17
-  2025-03-18
-  2025-03-19
-  2025-03-20
-  2025-03-21
-  2025-03-24
-  2025-03-25
-  2025-03-26
-  2025-03-27
-  2025-03-28
-  2025-03-31
-  2025-04-01
-  2025-04-02
-  2025-04-03
-  2025-04-04
-  2025-04-07
-  2025-04-08
-  2025-04-09
-  2025-04-10
-  2025-04-11
-  2025-04-14
-  2025-04-15
-  2025-04-16
-  2025-04-17
-  2025-04-21
-  2025-04-22
-  2025-04-23
-  2025-04-24
-  2025-04-25
-  2025-04-28
-  2025-04-29
-  2025-04-30
-  2025-05-01
-  2025-05-02
-  2025-05-05
-  2025-05-06
-  2025-05-07
-  2025-05-08
-  2025-05-09
-  2025-05-12
-  2025-05-13
-  2025-05-14
-  2025-05-15
-  2025-05-16
-  2025-05-19
-  2025-05-20
-  2025-05-21
-  2025-05-22
-  2025-05-23
-  2025-05-27
-  2025-05-28
-  2025-05-29
-  2025-05-30
-  2025-06-02
-  2025-06-03
-  2025-06-04
-  2025-06-05
-  2025-06-06
-  2025-06-09
-  2025-06-10
-  2025-06-11
-  2025-06-12
-  2025-06-13
-  2025-06-16
-  2025-06-17
-  2025-06-18
-  2025-06-20
-  2025-06-23
-  2025-06-24
-  2025-06-25
-  2025-06-26
-  2025-06-27
-  2025-06-30
-  2025-07-01
-  2025-07-02
-  2025-07-03
-  2025-07-07
-  2025-07-08
-  2025-07-09
-  2025-07-10
-  2025-07-11
-  2025-07-14
-  2025-07-15
-  2025-07-16
-  2025-07-17
-  2025-07-18
-  2025-07-21
-  2025-07-22
-  2025-07-23
-  2025-07-24
-  2025-07-25
-  2025-07-28
-  2025-07-29
-  2025-07-30
-  2025-07-31
-  2025-08-01
-  2025-08-04
-  2025-08-05
-  2025-08-06
-  2025-08-07
-  2025-08-08
-  2025-08-11
-  2025-08-12
-  2025-08-13
-  2025-08-14
-  2025-08-15
-  2025-08-18
-  2025-08-19
-  2025-08-20
-  2025-08-21
-  2025-08-22
-  2025-08-25
-  2025-08-26
-  2025-08-27
-  2025-08-28
-  2025-08-29
-  2025-09-02
-  2025-09-03
-  2025-09-04
-  2025-09-05
-  2025-09-08
-  2025-09-09
-  2025-09-10
-  2025-09-11
-  2025-09-12
-  2025-09-15
-  2025-09-16
-  2025-09-17
-  2025-09-18
-  2025-09-19
-  2025-09-22
-  2025-09-23
-  2025-09-24
-  2025-09-25
-  2025-09-26
-  2025-09-29
-  2025-09-30
-  2025-10-01
-  2025-10-02
-  2025-10-03
-  2025-10-06
-  2025-10-07
-  2025-10-08
-  2025-10-09
-  2025-10-10
-  2025-10-13
-  2025-10-14
-  2025-10-15
-  2025-10-16
-  2025-10-17
-  2025-10-20
-  2025-10-21
-  2025-10-22
-  2025-10-23
-  2025-10-24
-  2025-10-27
-  2025-10-28
-  2025-10-29
-  2025-10-30
-  2025-10-31
-  2026-03-09
-  2026-03-10
-  2026-03-11
-  2026-03-12
-  2026-03-13
-  2026-03-16
-  2026-03-17
-  2026-03-18
-  2026-03-19
-  2026-03-20
-  2026-03-23
-  2026-03-24
-  2026-03-25
-  2026-03-26
-  2026-03-27
-  2026-03-30
-  2026-03-31
-  2026-04-01
-  2026-04-02
-  2026-04-06
-  2026-04-07
-  2026-04-08
-  2026-04-09
-  2026-04-10
-  2026-04-13
-  2026-04-14
-  2026-04-15
-  2026-04-16
-  2026-04-17
-  2026-04-20
-  2026-04-21
-  2026-04-22
-  2026-04-23
-  2026-04-24
-  2026-04-27
-  2026-04-28
-  2026-04-29
-  2026-04-30
-  2026-05-01
-  2026-05-04
-  2026-05-05
-  2026-05-06
-  2026-05-07
-  2026-05-08
-  2026-05-11
-  2026-05-12
-  2026-05-13
-  2026-05-14
-  2026-05-15
-  2026-05-18
-  2026-05-19
-  2026-05-20
-  2026-05-21
-  2026-05-22
-  2026-05-26
-  2026-05-27
-  2026-05-28
-  2026-05-29
-  2026-06-01
-  2026-06-02
-  2026-06-03
-  2026-06-04
-  2026-06-05
-  2026-06-08
-  2026-06-09
-  2026-06-10
-  2026-06-11
-  2026-06-12
-  2026-06-15
-  2026-06-16
-  2026-06-17
-  2026-06-18
-  2026-06-22
-  2026-06-23
-State reseteado: challenge_equity.txt borrado (cuenta limpia).
-State reseteado: killswitch_state.txt borrado (cuenta limpia).
-NOTA: la strategy re-inicializa su estado en memoria con ResetChallengeState=ON. Si esta OFF, reinicia la strategy en ATAS para que tome el reset.
-Log previo respaldado: strategy_tester_trades_prev_1783469492.csv
-telegram_sent_dates.txt reseteado (indicador C# re-enviara Telegram por trade).
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-03-10.
-Rango: FROM 10/03/2025 09:30:00 a. m. | TO 10/03/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-03-10...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 04:59Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:28 / resta 04:31Esperando CSV terminal v11: 00:29 / resta 04:30Esperando CSV terminal v11: 00:30 / resta 04:29Esperando CSV terminal v11: 00:31 / resta 04:28Esperando CSV terminal v11: 00:32 / resta 04:27Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-03-10 | Entry=19802.50 | Resultado=TP | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[ 1/239] 2025-03-10 | signal=PENDING  | trades= 0 | wins=0 losses=0 WR=N/A | PnL=$0
-Signal pre-escrita: 2025-03-11,SELL,19403.75,19418.75,0,2315,PENDING
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-03-11.
-Rango: FROM 11/03/2025 09:30:00 a. m. | TO 11/03/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-03-11...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:28 / resta 04:31Esperando CSV terminal v11: 00:29 / resta 04:30Esperando CSV terminal v11: 00:30 / resta 04:29Esperando CSV terminal v11: 00:31 / resta 04:28Esperando CSV terminal v11: 00:32 / resta 04:27Esperando CSV terminal v11: 00:33 / resta 04:26Esperando CSV terminal v11: 00:34 / resta 04:25Esperando CSV terminal v11: 00:35 / resta 04:24Esperando CSV terminal v11: 00:36 / resta 04:23Esperando CSV terminal v11: 00:37 / resta 04:22Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-03-11 | Entry=19403.75 | Resultado=SL | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[ 2/239] 2025-03-11 | signal=PENDING  | trades= 1 | wins=0 losses=1 WR=0% | PnL=$-900
-Signal pre-escrita: 2025-03-12,BUY,19742.50,19737.50,0,2313,PENDING
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-03-12.
-Rango: FROM 12/03/2025 09:30:00 a. m. | TO 12/03/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-03-12...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-03-12 | Entry=19742.50 | Resultado=TP | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[ 3/239] 2025-03-12 | signal=PENDING  | trades= 2 | wins=0 losses=2 WR=0% | PnL=$-1,200
-Signal pre-escrita: 2025-03-13,SELL,19501.25,19516.25,0,2316,PENDING
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-03-13.
-Rango: FROM 13/03/2025 09:30:00 a. m. | TO 13/03/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-03-13...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:28 / resta 04:31Esperando CSV terminal v11: 00:29 / resta 04:30Esperando CSV terminal v11: 00:32 / resta 04:27Esperando CSV terminal v11: 00:33 / resta 04:26Esperando CSV terminal v11: 00:34 / resta 04:25Esperando CSV terminal v11: 00:35 / resta 04:24Esperando CSV terminal v11: 00:36 / resta 04:23Esperando CSV terminal v11: 00:37 / resta 04:22Esperando CSV terminal v11: 00:38 / resta 04:21Esperando CSV terminal v11: 00:39 / resta 04:20Esperando CSV terminal v11: 00:40 / resta 04:19Esperando CSV terminal v11: 00:41 / resta 04:18Esperando CSV terminal v11: 00:42 / resta 04:17Esperando CSV terminal v11: 00:43 / resta 04:16Esperando CSV terminal v11: 00:44 / resta 04:15Esperando CSV terminal v11: 00:45 / resta 04:14Esperando CSV terminal v11: 00:48 / resta 04:11Esperando CSV terminal v11: 00:49 / resta 04:10Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-03-13 | Entry=19502.50 | Resultado=SL | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[ 4/239] 2025-03-13 | signal=PENDING  | trades= 3 | wins=1 losses=2 WR=33% | PnL=$-1,050
-Signal pre-escrita: 2025-03-14,BUY,19503.75,19498.75,0,2311,PENDING
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-03-14.
-Rango: FROM 14/03/2025 09:30:00 a. m. | TO 14/03/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-03-14...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-03-14 | Entry=19503.75 | Resultado=SL | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[ 5/239] 2025-03-14 | signal=PENDING  | trades= 4 | wins=1 losses=3 WR=25% | PnL=$-1,350
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-03-17.
-Rango: FROM 17/03/2025 09:30:00 a. m. | TO 17/03/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-03-17...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 04:59Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:26 / resta 04:33Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-03-17 | Entry=19745.00 | Resultado=OPEN | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[ 6/239] 2025-03-17 | signal=CONSUMED | trades= 4 | wins=1 losses=3 WR=25% | PnL=$-1,350
-Signal pre-escrita: 2025-03-18,SELL,19830.00,19845.00,1,2315,PENDING
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-03-18.
-Rango: FROM 18/03/2025 09:30:00 a. m. | TO 18/03/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-03-18...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 04:59Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:29 / resta 04:30Esperando CSV terminal v11: 00:30 / resta 04:29Esperando CSV terminal v11: 00:31 / resta 04:28Esperando CSV terminal v11: 00:32 / resta 04:27Esperando CSV terminal v11: 00:33 / resta 04:26Esperando CSV terminal v11: 00:34 / resta 04:25Esperando CSV terminal v11: 00:35 / resta 04:24Esperando CSV terminal v11: 00:36 / resta 04:23Esperando CSV terminal v11: 00:37 / resta 04:22Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-03-18 | Entry=19830.00 | Resultado=TP | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[ 7/239] 2025-03-18 | signal=PENDING  | trades= 5 | wins=2 losses=3 WR=40% | PnL=$-1,200
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-03-19.
-Rango: FROM 19/03/2025 09:30:00 a. m. | TO 19/03/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-03-19...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:28 / resta 04:31Esperando CSV terminal v11: 00:29 / resta 04:30Esperando CSV terminal v11: 00:30 / resta 04:29Esperando CSV terminal v11: 00:31 / resta 04:28Esperando CSV terminal v11: 00:32 / resta 04:27Esperando CSV terminal v11: 00:33 / resta 04:26Esperando CSV terminal v11: 00:34 / resta 04:25Esperando CSV terminal v11: 00:35 / resta 04:24Esperando CSV terminal v11: 00:36 / resta 04:23Esperando CSV terminal v11: 00:37 / resta 04:22Esperando CSV terminal v11: 00:38 / resta 04:21Esperando CSV terminal v11: 00:39 / resta 04:20Esperando CSV terminal v11: 00:40 / resta 04:19Esperando CSV terminal v11: 00:41 / resta 04:18Esperando CSV terminal v11: 00:42 / resta 04:17Esperando CSV terminal v11: 00:43 / resta 04:16Esperando CSV terminal v11: 00:44 / resta 04:15Esperando CSV terminal v11: 00:45 / resta 04:14Esperando CSV terminal v11: 00:46 / resta 04:13Esperando CSV terminal v11: 00:47 / resta 04:12Esperando CSV terminal v11: 00:48 / resta 04:11Esperando CSV terminal v11: 00:49 / resta 04:10Esperando CSV terminal v11: 00:50 / resta 04:09Esperando CSV terminal v11: 00:51 / resta 04:08Esperando CSV terminal v11: 00:52 / resta 04:07Esperando CSV terminal v11: 00:54 / resta 04:05Esperando CSV terminal v11: 00:55 / resta 04:04Esperando CSV terminal v11: 00:56 / resta 04:03Esperando CSV terminal v11: 00:57 / resta 04:02Esperando CSV terminal v11: 00:58 / resta 04:01Esperando CSV terminal v11: 00:59 / resta 04:00Esperando CSV terminal v11: 01:00 / resta 03:59Esperando CSV terminal v11: 01:01 / resta 03:58Esperando CSV terminal v11: 01:02 / resta 03:57Esperando CSV terminal v11: 01:03 / resta 03:56Esperando CSV terminal v11: 01:04 / resta 03:55Esperando CSV terminal v11: 01:05 / resta 03:54Esperando CSV terminal v11: 01:06 / resta 03:53Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-03-19 | Entry= | Resultado=TIME_OVER | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[ 8/239] 2025-03-19 | signal=CONSUMED | trades= 5 | wins=2 losses=3 WR=40% | PnL=$-1,200
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-03-20.
-Rango: FROM 20/03/2025 09:30:00 a. m. | TO 20/03/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-03-20...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:21 / resta 04:38Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-03-20 | Entry=19810.00 | Resultado=TP | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[ 9/239] 2025-03-20 | signal=CONSUMED | trades= 5 | wins=2 losses=3 WR=40% | PnL=$-1,200
-Signal pre-escrita: 2025-03-21,BUY,19701.25,19696.25,0,2311,PENDING
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-03-21.
-Rango: FROM 21/03/2025 09:30:00 a. m. | TO 21/03/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-03-21...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-03-21 | Entry=19701.25 | Resultado=TP | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[10/239] 2025-03-21 | signal=PENDING  | trades= 6 | wins=3 losses=3 WR=50% | PnL=$-1,050
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-03-24.
-Rango: FROM 24/03/2025 09:30:00 a. m. | TO 24/03/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-03-24...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-03-24 | Entry=20265.00 | Resultado=TP | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[11/239] 2025-03-24 | signal=CONSUMED | trades= 6 | wins=3 losses=3 WR=50% | PnL=$-1,050
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-03-25.
-Rango: FROM 25/03/2025 09:30:00 a. m. | TO 25/03/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-03-25...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:28 / resta 04:31Esperando CSV terminal v11: 00:29 / resta 04:30Esperando CSV terminal v11: 00:30 / resta 04:29Esperando CSV terminal v11: 00:31 / resta 04:28Esperando CSV terminal v11: 00:32 / resta 04:27Esperando CSV terminal v11: 00:33 / resta 04:26Esperando CSV terminal v11: 00:34 / resta 04:25Esperando CSV terminal v11: 00:35 / resta 04:24Esperando CSV terminal v11: 00:36 / resta 04:23Esperando CSV terminal v11: 00:37 / resta 04:22Esperando CSV terminal v11: 00:38 / resta 04:21Esperando CSV terminal v11: 00:40 / resta 04:19Esperando CSV terminal v11: 00:41 / resta 04:18Esperando CSV terminal v11: 00:42 / resta 04:17Esperando CSV terminal v11: 00:43 / resta 04:16Esperando CSV terminal v11: 00:44 / resta 04:15Esperando CSV terminal v11: 00:45 / resta 04:14Esperando CSV terminal v11: 00:46 / resta 04:13Esperando CSV terminal v11: 00:47 / resta 04:12Esperando CSV terminal v11: 00:48 / resta 04:11Esperando CSV terminal v11: 00:49 / resta 04:10Esperando CSV terminal v11: 00:50 / resta 04:09Esperando CSV terminal v11: 00:51 / resta 04:08Esperando CSV terminal v11: 00:52 / resta 04:07Esperando CSV terminal v11: 00:53 / resta 04:06Esperando CSV terminal v11: 00:54 / resta 04:05Esperando CSV terminal v11: 00:55 / resta 04:04Esperando CSV terminal v11: 00:56 / resta 04:03Esperando CSV terminal v11: 00:57 / resta 04:02Esperando CSV terminal v11: 00:58 / resta 04:01Esperando CSV terminal v11: 00:59 / resta 04:00Esperando CSV terminal v11: 01:00 / resta 03:59Esperando CSV terminal v11: 01:01 / resta 03:58Esperando CSV terminal v11: 01:02 / resta 03:57Esperando CSV terminal v11: 01:03 / resta 03:56Esperando CSV terminal v11: 01:04 / resta 03:55Esperando CSV terminal v11: 01:05 / resta 03:54Esperando CSV terminal v11: 01:06 / resta 03:53Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-03-25 | Entry= | Resultado=TIME_OVER | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[12/239] 2025-03-25 | signal=CONSUMED | trades= 6 | wins=3 losses=3 WR=50% | PnL=$-1,050
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-03-26.
-Rango: FROM 26/03/2025 09:30:00 a. m. | TO 26/03/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-03-26...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-03-26 | Entry=20428.75 | Resultado=SL | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[13/239] 2025-03-26 | signal=CONSUMED | trades= 6 | wins=3 losses=3 WR=50% | PnL=$-1,050
-Signal pre-escrita: 2025-03-27,BUY,20067.50,20062.50,0,2311,PENDING
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-03-27.
-Rango: FROM 27/03/2025 09:30:00 a. m. | TO 27/03/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-03-27...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 04:59Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-03-27 | Entry=20067.50 | Resultado=SL | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[14/239] 2025-03-27 | signal=PENDING  | trades= 7 | wins=4 losses=3 WR=57% | PnL=$-900
-Signal pre-escrita: 2025-03-28,SELL,19850.00,19855.00,0,2313,PENDING
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-03-28.
-Rango: FROM 28/03/2025 09:30:00 a. m. | TO 28/03/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-03-28...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 04:59Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:28 / resta 04:31Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-03-28 | Entry=19850.00 | Resultado=TP | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[15/239] 2025-03-28 | signal=PENDING  | trades= 8 | wins=5 losses=3 WR=62% | PnL=$-600
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-03-31.
-Rango: FROM 31/03/2025 09:30:00 a. m. | TO 31/03/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-03-31...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-03-31 | Entry=19151.25 | Resultado=SL | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[16/239] 2025-03-31 | signal=CONSUMED | trades= 8 | wins=5 losses=3 WR=62% | PnL=$-600
-Signal pre-escrita: 2025-04-01,BUY,19405.00,19390.00,0,2312,PENDING
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-04-01.
-Rango: FROM 01/04/2025 09:30:00 a. m. | TO 01/04/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-04-01...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 04:59Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-04-01 | Entry=19405.00 | Resultado=TP | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[17/239] 2025-04-01 | signal=PENDING  | trades= 9 | wins=6 losses=3 WR=67% | PnL=$-450
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-04-02.
-Rango: FROM 02/04/2025 09:30:00 a. m. | TO 02/04/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-04-02...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-04-02 | Entry=19366.25 | Resultado=SL | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[18/239] 2025-04-02 | signal=CONSUMED | trades= 9 | wins=6 losses=3 WR=67% | PnL=$-450
-Signal pre-escrita: 2025-04-03,BUY,19030.00,19015.00,1,2310,PENDING
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-04-03.
-Rango: FROM 03/04/2025 09:30:00 a. m. | TO 03/04/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-04-03...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:28 / resta 04:31Esperando CSV terminal v11: 00:29 / resta 04:30Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-04-03 | Entry=19030.00 | Resultado=TP | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[19/239] 2025-04-03 | signal=PENDING  | trades=10 | wins=7 losses=3 WR=70% | PnL=$-300
-Signal pre-escrita: 2025-04-04,BUY,18236.25,18224.75,0,2309,PENDING
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-04-04.
-Rango: FROM 04/04/2025 09:30:00 a. m. | TO 04/04/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-04-04...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-04-04 | Entry=18236.25 | Resultado=OPEN | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[20/239] 2025-04-04 | signal=PENDING  | trades=11 | wins=7 losses=4 WR=64% | PnL=$-990
-Signal pre-escrita: 2025-04-07,BUY,16961.25,16951.00,0,2311,PENDING
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-04-07.
-Rango: FROM 07/04/2025 09:30:00 a. m. | TO 07/04/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-04-07...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 04:59Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-04-07 | Entry=16961.25 | Resultado=TP | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[21/239] 2025-04-07 | signal=PENDING  | trades=12 | wins=8 losses=4 WR=67% | PnL=$-465
-Signal pre-escrita: 2025-04-08,SELL,18137.50,18152.50,1,2311,PENDING
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-04-08.
-Rango: FROM 08/04/2025 09:30:00 a. m. | TO 08/04/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-04-08...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 04:59Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-04-08 | Entry=18137.50 | Resultado=TP | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[22/239] 2025-04-08 | signal=PENDING  | trades=13 | wins=9 losses=4 WR=69% | PnL=$-240
-Signal pre-escrita: 2025-04-09,BUY,17336.25,17321.25,1,2312,PENDING
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-04-09.
-Rango: FROM 09/04/2025 09:30:00 a. m. | TO 09/04/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-04-09...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-04-09 | Entry=17336.25 | Resultado=TP | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[23/239] 2025-04-09 | signal=PENDING  | trades=14 | wins=10 losses=4 WR=71% | PnL=$-15
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-04-10.
-Rango: FROM 10/04/2025 09:30:00 a. m. | TO 10/04/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-04-10...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:28 / resta 04:31Esperando CSV terminal v11: 00:29 / resta 04:30Esperando CSV terminal v11: 00:30 / resta 04:29Esperando CSV terminal v11: 00:31 / resta 04:28Esperando CSV terminal v11: 00:32 / resta 04:27Esperando CSV terminal v11: 00:33 / resta 04:26Esperando CSV terminal v11: 00:34 / resta 04:25Esperando CSV terminal v11: 00:35 / resta 04:24Esperando CSV terminal v11: 00:36 / resta 04:23Esperando CSV terminal v11: 00:37 / resta 04:22Esperando CSV terminal v11: 00:38 / resta 04:21Esperando CSV terminal v11: 00:39 / resta 04:20Esperando CSV terminal v11: 00:40 / resta 04:19Esperando CSV terminal v11: 00:41 / resta 04:18Esperando CSV terminal v11: 00:42 / resta 04:17Esperando CSV terminal v11: 00:43 / resta 04:16Esperando CSV terminal v11: 00:44 / resta 04:15Esperando CSV terminal v11: 00:45 / resta 04:14Esperando CSV terminal v11: 00:46 / resta 04:13Esperando CSV terminal v11: 00:47 / resta 04:12Esperando CSV terminal v11: 00:48 / resta 04:11Esperando CSV terminal v11: 00:49 / resta 04:10Esperando CSV terminal v11: 00:50 / resta 04:09Esperando CSV terminal v11: 00:51 / resta 04:08Esperando CSV terminal v11: 00:52 / resta 04:07Esperando CSV terminal v11: 00:54 / resta 04:05Esperando CSV terminal v11: 00:55 / resta 04:04Esperando CSV terminal v11: 00:56 / resta 04:03Esperando CSV terminal v11: 00:57 / resta 04:02Esperando CSV terminal v11: 00:58 / resta 04:01Esperando CSV terminal v11: 00:59 / resta 04:00Esperando CSV terminal v11: 01:00 / resta 03:59Esperando CSV terminal v11: 01:01 / resta 03:58Esperando CSV terminal v11: 01:02 / resta 03:57Esperando CSV terminal v11: 01:03 / resta 03:56Esperando CSV terminal v11: 01:04 / resta 03:55Esperando CSV terminal v11: 01:05 / resta 03:54Esperando CSV terminal v11: 01:06 / resta 03:53Esperando CSV terminal v11: 01:07 / resta 03:52Esperando CSV terminal v11: 01:08 / resta 03:51Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-04-10 | Entry= | Resultado=TIME_OVER | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[24/239] 2025-04-10 | signal=CONSUMED | trades=14 | wins=10 losses=4 WR=71% | PnL=$-15
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-04-11.
-Rango: FROM 11/04/2025 09:30:00 a. m. | TO 11/04/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-04-11...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 04:59Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:28 / resta 04:31Esperando CSV terminal v11: 00:29 / resta 04:30Esperando CSV terminal v11: 00:30 / resta 04:29Esperando CSV terminal v11: 00:31 / resta 04:28Esperando CSV terminal v11: 00:33 / resta 04:26Esperando CSV terminal v11: 00:34 / resta 04:25Esperando CSV terminal v11: 00:35 / resta 04:24Esperando CSV terminal v11: 00:36 / resta 04:23Esperando CSV terminal v11: 00:37 / resta 04:22Esperando CSV terminal v11: 00:38 / resta 04:21Esperando CSV terminal v11: 00:39 / resta 04:20Esperando CSV terminal v11: 00:40 / resta 04:19Esperando CSV terminal v11: 00:41 / resta 04:18Esperando CSV terminal v11: 00:42 / resta 04:17Esperando CSV terminal v11: 00:43 / resta 04:16Esperando CSV terminal v11: 00:44 / resta 04:15Esperando CSV terminal v11: 00:45 / resta 04:14Esperando CSV terminal v11: 00:46 / resta 04:13Esperando CSV terminal v11: 00:47 / resta 04:12Esperando CSV terminal v11: 00:48 / resta 04:11Esperando CSV terminal v11: 00:49 / resta 04:10Esperando CSV terminal v11: 00:50 / resta 04:09Esperando CSV terminal v11: 00:51 / resta 04:08Esperando CSV terminal v11: 00:52 / resta 04:07Esperando CSV terminal v11: 00:53 / resta 04:06Esperando CSV terminal v11: 00:54 / resta 04:05Esperando CSV terminal v11: 00:55 / resta 04:04Esperando CSV terminal v11: 00:56 / resta 04:03Esperando CSV terminal v11: 00:57 / resta 04:02Esperando CSV terminal v11: 00:58 / resta 04:01Esperando CSV terminal v11: 00:59 / resta 04:00Esperando CSV terminal v11: 01:00 / resta 03:59Esperando CSV terminal v11: 01:01 / resta 03:58Esperando CSV terminal v11: 01:02 / resta 03:57Esperando CSV terminal v11: 01:03 / resta 03:56Esperando CSV terminal v11: 01:04 / resta 03:55Esperando CSV terminal v11: 01:05 / resta 03:54Esperando CSV terminal v11: 01:06 / resta 03:53Esperando CSV terminal v11: 01:07 / resta 03:52Esperando CSV terminal v11: 01:08 / resta 03:51Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-04-11 | Entry= | Resultado=TIME_OVER | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[25/239] 2025-04-11 | signal=CONSUMED | trades=14 | wins=10 losses=4 WR=71% | PnL=$-15
-Signal pre-escrita: 2025-04-14,SELL,19163.75,19179.00,0,2315,PENDING
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-04-14.
-Rango: FROM 14/04/2025 09:30:00 a. m. | TO 14/04/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-04-14...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:28 / resta 04:31Esperando CSV terminal v11: 00:29 / resta 04:30Esperando CSV terminal v11: 00:30 / resta 04:29Esperando CSV terminal v11: 00:31 / resta 04:28Esperando CSV terminal v11: 00:32 / resta 04:27Esperando CSV terminal v11: 00:33 / resta 04:26Esperando CSV terminal v11: 00:34 / resta 04:25Esperando CSV terminal v11: 00:35 / resta 04:24Esperando CSV terminal v11: 00:36 / resta 04:23Esperando CSV terminal v11: 00:37 / resta 04:22Esperando CSV terminal v11: 00:38 / resta 04:21Esperando CSV terminal v11: 00:39 / resta 04:20Esperando CSV terminal v11: 00:40 / resta 04:19Esperando CSV terminal v11: 00:41 / resta 04:18Esperando CSV terminal v11: 00:42 / resta 04:17Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-04-14 | Entry=19163.75 | Resultado=TP | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[26/239] 2025-04-14 | signal=PENDING  | trades=15 | wins=11 losses=4 WR=73% | PnL=$135
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-04-15.
-Rango: FROM 15/04/2025 09:30:00 a. m. | TO 15/04/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-04-15...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:28 / resta 04:31Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-04-15 | Entry=19040.00 | Resultado=SL | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[27/239] 2025-04-15 | signal=CONSUMED | trades=15 | wins=11 losses=4 WR=73% | PnL=$135
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-04-16.
-Rango: FROM 16/04/2025 09:30:00 a. m. | TO 16/04/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-04-16...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 04:59Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:28 / resta 04:31Esperando CSV terminal v11: 00:29 / resta 04:30Esperando CSV terminal v11: 00:30 / resta 04:29Esperando CSV terminal v11: 00:31 / resta 04:28Esperando CSV terminal v11: 00:32 / resta 04:27Esperando CSV terminal v11: 00:33 / resta 04:26Esperando CSV terminal v11: 00:34 / resta 04:25Esperando CSV terminal v11: 00:35 / resta 04:24Esperando CSV terminal v11: 00:36 / resta 04:23Esperando CSV terminal v11: 00:37 / resta 04:22Esperando CSV terminal v11: 00:38 / resta 04:21Esperando CSV terminal v11: 00:39 / resta 04:20Esperando CSV terminal v11: 00:40 / resta 04:19Esperando CSV terminal v11: 00:41 / resta 04:18Esperando CSV terminal v11: 00:42 / resta 04:17Esperando CSV terminal v11: 00:43 / resta 04:16Esperando CSV terminal v11: 00:44 / resta 04:15Esperando CSV terminal v11: 00:45 / resta 04:14Esperando CSV terminal v11: 00:46 / resta 04:13Esperando CSV terminal v11: 00:47 / resta 04:12Esperando CSV terminal v11: 00:48 / resta 04:11Esperando CSV terminal v11: 00:49 / resta 04:10Esperando CSV terminal v11: 00:50 / resta 04:09Esperando CSV terminal v11: 00:51 / resta 04:08Esperando CSV terminal v11: 00:52 / resta 04:07Esperando CSV terminal v11: 00:53 / resta 04:06Esperando CSV terminal v11: 00:54 / resta 04:05Esperando CSV terminal v11: 00:55 / resta 04:04Esperando CSV terminal v11: 00:56 / resta 04:03Esperando CSV terminal v11: 00:57 / resta 04:02Esperando CSV terminal v11: 00:58 / resta 04:01Esperando CSV terminal v11: 00:59 / resta 04:00Esperando CSV terminal v11: 01:00 / resta 03:59Esperando CSV terminal v11: 01:01 / resta 03:58Esperando CSV terminal v11: 01:02 / resta 03:57Esperando CSV terminal v11: 01:03 / resta 03:56Esperando CSV terminal v11: 01:04 / resta 03:55Esperando CSV terminal v11: 01:05 / resta 03:54Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-04-16 | Entry= | Resultado=TIME_OVER | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[28/239] 2025-04-16 | signal=CONSUMED | trades=15 | wins=11 losses=4 WR=73% | PnL=$135
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-04-17.
-Rango: FROM 17/04/2025 09:30:00 a. m. | TO 17/04/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-04-17...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-04-17 | Entry=18462.50 | Resultado=SL | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[29/239] 2025-04-17 | signal=CONSUMED | trades=15 | wins=11 losses=4 WR=73% | PnL=$135
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-04-21.
-Rango: FROM 21/04/2025 09:30:00 a. m. | TO 21/04/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-04-21...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 04:59Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:28 / resta 04:31Esperando CSV terminal v11: 00:29 / resta 04:30Esperando CSV terminal v11: 00:30 / resta 04:29Esperando CSV terminal v11: 00:31 / resta 04:28Esperando CSV terminal v11: 00:32 / resta 04:27Esperando CSV terminal v11: 00:33 / resta 04:26Esperando CSV terminal v11: 00:34 / resta 04:25Esperando CSV terminal v11: 00:35 / resta 04:24Esperando CSV terminal v11: 00:36 / resta 04:23Esperando CSV terminal v11: 00:37 / resta 04:22Esperando CSV terminal v11: 00:38 / resta 04:21Esperando CSV terminal v11: 00:39 / resta 04:20Esperando CSV terminal v11: 00:40 / resta 04:19Esperando CSV terminal v11: 00:41 / resta 04:18Esperando CSV terminal v11: 00:42 / resta 04:17Esperando CSV terminal v11: 00:43 / resta 04:16Esperando CSV terminal v11: 00:44 / resta 04:15Esperando CSV terminal v11: 00:45 / resta 04:14Esperando CSV terminal v11: 00:46 / resta 04:13Esperando CSV terminal v11: 00:47 / resta 04:12Esperando CSV terminal v11: 00:48 / resta 04:11Esperando CSV terminal v11: 00:49 / resta 04:10Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-04-21 | Entry=18075.00 | Resultado=TP | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[30/239] 2025-04-21 | signal=CONSUMED | trades=15 | wins=11 losses=4 WR=73% | PnL=$135
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-04-22.
-Rango: FROM 22/04/2025 09:30:00 a. m. | TO 22/04/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-04-22...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:28 / resta 04:31Esperando CSV terminal v11: 00:29 / resta 04:30Esperando CSV terminal v11: 00:30 / resta 04:29Esperando CSV terminal v11: 00:31 / resta 04:28Esperando CSV terminal v11: 00:32 / resta 04:27Esperando CSV terminal v11: 00:33 / resta 04:26Esperando CSV terminal v11: 00:34 / resta 04:25Esperando CSV terminal v11: 00:35 / resta 04:24Esperando CSV terminal v11: 00:36 / resta 04:23Esperando CSV terminal v11: 00:37 / resta 04:22Esperando CSV terminal v11: 00:38 / resta 04:21Esperando CSV terminal v11: 00:39 / resta 04:20Esperando CSV terminal v11: 00:40 / resta 04:19Esperando CSV terminal v11: 00:41 / resta 04:18Esperando CSV terminal v11: 00:42 / resta 04:17Esperando CSV terminal v11: 00:43 / resta 04:16Esperando CSV terminal v11: 00:44 / resta 04:15Esperando CSV terminal v11: 00:45 / resta 04:14Esperando CSV terminal v11: 00:46 / resta 04:13Esperando CSV terminal v11: 00:47 / resta 04:12Esperando CSV terminal v11: 00:48 / resta 04:11Esperando CSV terminal v11: 00:49 / resta 04:10Esperando CSV terminal v11: 00:50 / resta 04:09Esperando CSV terminal v11: 00:51 / resta 04:08Esperando CSV terminal v11: 00:52 / resta 04:07Esperando CSV terminal v11: 00:53 / resta 04:06Esperando CSV terminal v11: 00:54 / resta 04:05Esperando CSV terminal v11: 00:55 / resta 04:04Esperando CSV terminal v11: 00:56 / resta 04:03Esperando CSV terminal v11: 00:58 / resta 04:01Esperando CSV terminal v11: 00:59 / resta 04:00Esperando CSV terminal v11: 01:00 / resta 03:59Esperando CSV terminal v11: 01:01 / resta 03:58Esperando CSV terminal v11: 01:02 / resta 03:57Esperando CSV terminal v11: 01:03 / resta 03:56Esperando CSV terminal v11: 01:04 / resta 03:55Esperando CSV terminal v11: 01:05 / resta 03:54Esperando CSV terminal v11: 01:06 / resta 03:53Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-04-22 | Entry= | Resultado=TIME_OVER | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[31/239] 2025-04-22 | signal=CONSUMED | trades=15 | wins=11 losses=4 WR=73% | PnL=$135
-Signal pre-escrita: 2025-04-23,BUY,19005.00,19000.00,0,2313,PENDING
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-04-23.
-Rango: FROM 23/04/2025 09:30:00 a. m. | TO 23/04/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-04-23...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 04:59Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:28 / resta 04:31Esperando CSV terminal v11: 00:29 / resta 04:30Esperando CSV terminal v11: 00:30 / resta 04:29Esperando CSV terminal v11: 00:31 / resta 04:28Esperando CSV terminal v11: 00:32 / resta 04:27Esperando CSV terminal v11: 00:33 / resta 04:26Esperando CSV terminal v11: 00:34 / resta 04:25Esperando CSV terminal v11: 00:35 / resta 04:24Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-04-23 | Entry=19005.00 | Resultado=SL | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[32/239] 2025-04-23 | signal=PENDING  | trades=16 | wins=11 losses=5 WR=69% | PnL=$-165
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-04-24.
-Rango: FROM 24/04/2025 09:30:00 a. m. | TO 24/04/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-04-24...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-04-24 | Entry=18885.00 | Resultado=SL | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[33/239] 2025-04-24 | signal=CONSUMED | trades=16 | wins=11 losses=5 WR=69% | PnL=$-165
-Signal pre-escrita: 2025-04-25,BUY,19350.00,19329.75,0,2315,PENDING
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-04-25.
-Rango: FROM 25/04/2025 09:30:00 a. m. | TO 25/04/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-04-25...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 04:59Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:28 / resta 04:31Esperando CSV terminal v11: 00:29 / resta 04:30Esperando CSV terminal v11: 00:30 / resta 04:29Esperando CSV terminal v11: 00:31 / resta 04:28Esperando CSV terminal v11: 00:32 / resta 04:27Esperando CSV terminal v11: 00:33 / resta 04:26Esperando CSV terminal v11: 00:35 / resta 04:24Esperando CSV terminal v11: 00:36 / resta 04:23Esperando CSV terminal v11: 00:38 / resta 04:21Esperando CSV terminal v11: 00:42 / resta 04:17Esperando CSV terminal v11: 00:45 / resta 04:14Esperando CSV terminal v11: 00:46 / resta 04:13Esperando CSV terminal v11: 00:47 / resta 04:12Esperando CSV terminal v11: 00:49 / resta 04:10Esperando CSV terminal v11: 00:50 / resta 04:09Esperando CSV terminal v11: 00:51 / resta 04:08Esperando CSV terminal v11: 00:52 / resta 04:07Esperando CSV terminal v11: 00:53 / resta 04:06Esperando CSV terminal v11: 01:01 / resta 03:58Esperando CSV terminal v11: 01:05 / resta 03:54Esperando CSV terminal v11: 01:06 / resta 03:53Esperando CSV terminal v11: 01:07 / resta 03:52Esperando CSV terminal v11: 01:08 / resta 03:51Esperando CSV terminal v11: 01:09 / resta 03:50Esperando CSV terminal v11: 01:10 / resta 03:49Esperando CSV terminal v11: 01:11 / resta 03:48Esperando CSV terminal v11: 01:12 / resta 03:47Esperando CSV terminal v11: 01:13 / resta 03:46Esperando CSV terminal v11: 01:14 / resta 03:45Esperando CSV terminal v11: 01:16 / resta 03:43Esperando CSV terminal v11: 01:17 / resta 03:42Esperando CSV terminal v11: 01:19 / resta 03:40Esperando CSV terminal v11: 01:20 / resta 03:39Esperando CSV terminal v11: 01:23 / resta 03:36Esperando CSV terminal v11: 01:24 / resta 03:35Esperando CSV terminal v11: 01:26 / resta 03:33Esperando CSV terminal v11: 01:27 / resta 03:32Esperando CSV terminal v11: 01:28 / resta 03:31Esperando CSV terminal v11: 01:31 / resta 03:28Esperando CSV terminal v11: 01:34 / resta 03:25Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-04-25 | Entry=19350.00 | Resultado=SL | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[34/239] 2025-04-25 | signal=PENDING  | trades=17 | wins=12 losses=5 WR=71% | PnL=$135
-Signal pre-escrita: 2025-04-28,BUY,19576.25,19562.25,0,2311,PENDING
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-04-28.
-Rango: FROM 28/04/2025 09:30:00 a. m. | TO 28/04/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-04-28...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 04:59Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-04-28 | Entry=19576.25 | Resultado=OPEN | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[35/239] 2025-04-28 | signal=PENDING  | trades=18 | wins=12 losses=6 WR=67% | PnL=$-705
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-04-29.
-Rango: FROM 29/04/2025 09:30:00 a. m. | TO 29/04/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-04-29...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 04:59Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:28 / resta 04:31Esperando CSV terminal v11: 00:29 / resta 04:30Esperando CSV terminal v11: 00:30 / resta 04:29Esperando CSV terminal v11: 00:31 / resta 04:28Esperando CSV terminal v11: 00:32 / resta 04:27Esperando CSV terminal v11: 00:33 / resta 04:26Esperando CSV terminal v11: 00:34 / resta 04:25Esperando CSV terminal v11: 00:35 / resta 04:24Esperando CSV terminal v11: 00:36 / resta 04:23Esperando CSV terminal v11: 00:37 / resta 04:22Esperando CSV terminal v11: 00:38 / resta 04:21Esperando CSV terminal v11: 00:39 / resta 04:20Esperando CSV terminal v11: 00:40 / resta 04:19Esperando CSV terminal v11: 00:41 / resta 04:18Esperando CSV terminal v11: 00:42 / resta 04:17Esperando CSV terminal v11: 00:43 / resta 04:16Esperando CSV terminal v11: 00:44 / resta 04:15Esperando CSV terminal v11: 00:45 / resta 04:14Esperando CSV terminal v11: 00:46 / resta 04:13Esperando CSV terminal v11: 00:47 / resta 04:12Esperando CSV terminal v11: 00:48 / resta 04:11Esperando CSV terminal v11: 00:49 / resta 04:10Esperando CSV terminal v11: 00:50 / resta 04:09Esperando CSV terminal v11: 00:51 / resta 04:08Esperando CSV terminal v11: 00:52 / resta 04:07Esperando CSV terminal v11: 00:53 / resta 04:06Esperando CSV terminal v11: 00:54 / resta 04:05Esperando CSV terminal v11: 00:55 / resta 04:04Esperando CSV terminal v11: 00:56 / resta 04:03Esperando CSV terminal v11: 00:57 / resta 04:02Esperando CSV terminal v11: 00:58 / resta 04:01Esperando CSV terminal v11: 00:59 / resta 04:00Esperando CSV terminal v11: 01:00 / resta 03:59Esperando CSV terminal v11: 01:01 / resta 03:58Esperando CSV terminal v11: 01:02 / resta 03:57Esperando CSV terminal v11: 01:03 / resta 03:56Esperando CSV terminal v11: 01:04 / resta 03:55Esperando CSV terminal v11: 01:05 / resta 03:54Esperando CSV terminal v11: 01:06 / resta 03:53Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-04-29 | Entry= | Resultado=TIME_OVER | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[36/239] 2025-04-29 | signal=CONSUMED | trades=18 | wins=12 losses=6 WR=67% | PnL=$-705
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-04-30.
-Rango: FROM 30/04/2025 09:30:00 a. m. | TO 30/04/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-04-30...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:29 / resta 04:30Esperando CSV terminal v11: 00:30 / resta 04:29Esperando CSV terminal v11: 00:31 / resta 04:28Esperando CSV terminal v11: 00:32 / resta 04:27Esperando CSV terminal v11: 00:33 / resta 04:26Esperando CSV terminal v11: 00:36 / resta 04:23Esperando CSV terminal v11: 00:37 / resta 04:22Esperando CSV terminal v11: 00:38 / resta 04:21Esperando CSV terminal v11: 00:40 / resta 04:19Esperando CSV terminal v11: 00:41 / resta 04:18Esperando CSV terminal v11: 00:44 / resta 04:15Esperando CSV terminal v11: 00:46 / resta 04:13Esperando CSV terminal v11: 00:48 / resta 04:11Esperando CSV terminal v11: 00:49 / resta 04:10Esperando CSV terminal v11: 00:52 / resta 04:07Esperando CSV terminal v11: 00:53 / resta 04:06Esperando CSV terminal v11: 00:54 / resta 04:05Esperando CSV terminal v11: 00:55 / resta 04:04Esperando CSV terminal v11: 00:56 / resta 04:03Esperando CSV terminal v11: 00:57 / resta 04:02Esperando CSV terminal v11: 00:58 / resta 04:01Esperando CSV terminal v11: 00:59 / resta 04:00Esperando CSV terminal v11: 01:00 / resta 03:59Esperando CSV terminal v11: 01:01 / resta 03:58Esperando CSV terminal v11: 01:02 / resta 03:57Esperando CSV terminal v11: 01:03 / resta 03:56Esperando CSV terminal v11: 01:04 / resta 03:55Esperando CSV terminal v11: 01:05 / resta 03:54Esperando CSV terminal v11: 01:06 / resta 03:53Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-04-30 | Entry= | Resultado=TIME_OVER | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[37/239] 2025-04-30 | signal=CONSUMED | trades=18 | wins=12 losses=6 WR=67% | PnL=$-705
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-05-01.
-Rango: FROM 01/05/2025 09:30:00 a. m. | TO 01/05/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-05-01...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-05-01 | Entry=19932.50 | Resultado=TP | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[38/239] 2025-05-01 | signal=CONSUMED | trades=18 | wins=12 losses=6 WR=67% | PnL=$-705
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-05-02.
-Rango: FROM 02/05/2025 09:30:00 a. m. | TO 02/05/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-05-02...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:28 / resta 04:31Esperando CSV terminal v11: 00:29 / resta 04:30Esperando CSV terminal v11: 00:30 / resta 04:29Esperando CSV terminal v11: 00:31 / resta 04:28Esperando CSV terminal v11: 00:33 / resta 04:26Esperando CSV terminal v11: 00:34 / resta 04:25Esperando CSV terminal v11: 00:35 / resta 04:24Esperando CSV terminal v11: 00:36 / resta 04:23Esperando CSV terminal v11: 00:37 / resta 04:22Esperando CSV terminal v11: 00:38 / resta 04:21Esperando CSV terminal v11: 00:39 / resta 04:20Esperando CSV terminal v11: 00:40 / resta 04:19Esperando CSV terminal v11: 00:41 / resta 04:18Esperando CSV terminal v11: 00:42 / resta 04:17Esperando CSV terminal v11: 00:43 / resta 04:16Esperando CSV terminal v11: 00:45 / resta 04:14Esperando CSV terminal v11: 00:46 / resta 04:13Esperando CSV terminal v11: 00:47 / resta 04:12Esperando CSV terminal v11: 00:48 / resta 04:11Esperando CSV terminal v11: 00:49 / resta 04:10Esperando CSV terminal v11: 00:50 / resta 04:09Esperando CSV terminal v11: 00:51 / resta 04:08Esperando CSV terminal v11: 00:52 / resta 04:07Esperando CSV terminal v11: 00:53 / resta 04:06Esperando CSV terminal v11: 00:54 / resta 04:05Esperando CSV terminal v11: 00:55 / resta 04:04Esperando CSV terminal v11: 00:56 / resta 04:03Esperando CSV terminal v11: 00:57 / resta 04:02Esperando CSV terminal v11: 00:58 / resta 04:01Esperando CSV terminal v11: 00:59 / resta 04:00Esperando CSV terminal v11: 01:00 / resta 03:59Esperando CSV terminal v11: 01:01 / resta 03:58Esperando CSV terminal v11: 01:02 / resta 03:57Esperando CSV terminal v11: 01:03 / resta 03:56Esperando CSV terminal v11: 01:04 / resta 03:55Esperando CSV terminal v11: 01:05 / resta 03:54Esperando CSV terminal v11: 01:06 / resta 03:53Esperando CSV terminal v11: 01:07 / resta 03:52Esperando CSV terminal v11: 01:08 / resta 03:51Esperando CSV terminal v11: 01:09 / resta 03:50Esperando CSV terminal v11: 01:10 / resta 03:49Esperando CSV terminal v11: 01:11 / resta 03:48Esperando CSV terminal v11: 01:12 / resta 03:47Esperando CSV terminal v11: 01:13 / resta 03:46Esperando CSV terminal v11: 01:14 / resta 03:45Esperando CSV terminal v11: 01:15 / resta 03:44Esperando CSV terminal v11: 01:16 / resta 03:43Esperando CSV terminal v11: 01:17 / resta 03:42Esperando CSV terminal v11: 01:18 / resta 03:41Esperando CSV terminal v11: 01:19 / resta 03:40Esperando CSV terminal v11: 01:20 / resta 03:39Esperando CSV terminal v11: 01:21 / resta 03:38Esperando CSV terminal v11: 01:22 / resta 03:37Esperando CSV terminal v11: 01:23 / resta 03:36Esperando CSV terminal v11: 01:24 / resta 03:35Esperando CSV terminal v11: 01:25 / resta 03:34Esperando CSV terminal v11: 01:26 / resta 03:33Esperando CSV terminal v11: 01:27 / resta 03:32Esperando CSV terminal v11: 01:28 / resta 03:31Esperando CSV terminal v11: 01:29 / resta 03:30Esperando CSV terminal v11: 01:30 / resta 03:29Esperando CSV terminal v11: 01:31 / resta 03:28Esperando CSV terminal v11: 01:32 / resta 03:27Esperando CSV terminal v11: 01:33 / resta 03:26Esperando CSV terminal v11: 01:34 / resta 03:25Esperando CSV terminal v11: 01:35 / resta 03:24Esperando CSV terminal v11: 01:36 / resta 03:23Esperando CSV terminal v11: 01:37 / resta 03:22Esperando CSV terminal v11: 01:38 / resta 03:21Esperando CSV terminal v11: 01:39 / resta 03:20Esperando CSV terminal v11: 01:40 / resta 03:19Esperando CSV terminal v11: 01:41 / resta 03:18Esperando CSV terminal v11: 01:42 / resta 03:17Esperando CSV terminal v11: 01:43 / resta 03:16Esperando CSV terminal v11: 01:44 / resta 03:15Esperando CSV terminal v11: 01:45 / resta 03:14Esperando CSV terminal v11: 01:46 / resta 03:13Esperando CSV terminal v11: 01:47 / resta 03:12Esperando CSV terminal v11: 01:48 / resta 03:11Esperando CSV terminal v11: 01:49 / resta 03:10Esperando CSV terminal v11: 01:50 / resta 03:09Esperando CSV terminal v11: 01:51 / resta 03:08Esperando CSV terminal v11: 01:52 / resta 03:07Esperando CSV terminal v11: 01:53 / resta 03:06Esperando CSV terminal v11: 01:54 / resta 03:05Esperando CSV terminal v11: 01:55 / resta 03:04Esperando CSV terminal v11: 01:56 / resta 03:03Esperando CSV terminal v11: 01:57 / resta 03:02Esperando CSV terminal v11: 01:58 / resta 03:01Esperando CSV terminal v11: 01:59 / resta 03:00Esperando CSV terminal v11: 02:00 / resta 02:59Esperando CSV terminal v11: 02:01 / resta 02:58Esperando CSV terminal v11: 02:02 / resta 02:57Esperando CSV terminal v11: 02:03 / resta 02:56Esperando CSV terminal v11: 02:04 / resta 02:55Esperando CSV terminal v11: 02:05 / resta 02:54Esperando CSV terminal v11: 02:06 / resta 02:53Esperando CSV terminal v11: 02:07 / resta 02:52Esperando CSV terminal v11: 02:08 / resta 02:51Esperando CSV terminal v11: 02:09 / resta 02:50Esperando CSV terminal v11: 02:10 / resta 02:49Esperando CSV terminal v11: 02:11 / resta 02:48Esperando CSV terminal v11: 02:12 / resta 02:47Esperando CSV terminal v11: 02:13 / resta 02:46Esperando CSV terminal v11: 02:14 / resta 02:45Esperando CSV terminal v11: 02:15 / resta 02:44Esperando CSV terminal v11: 02:16 / resta 02:43Esperando CSV terminal v11: 02:17 / resta 02:42Esperando CSV terminal v11: 02:18 / resta 02:41Esperando CSV terminal v11: 02:19 / resta 02:40Esperando CSV terminal v11: 02:20 / resta 02:39Esperando CSV terminal v11: 02:21 / resta 02:38Esperando CSV terminal v11: 02:22 / resta 02:37Esperando CSV terminal v11: 02:23 / resta 02:36Esperando CSV terminal v11: 02:24 / resta 02:35Esperando CSV terminal v11: 02:25 / resta 02:34Esperando CSV terminal v11: 02:26 / resta 02:33Esperando CSV terminal v11: 02:27 / resta 02:32Esperando CSV terminal v11: 02:28 / resta 02:31Esperando CSV terminal v11: 02:29 / resta 02:30Esperando CSV terminal v11: 02:30 / resta 02:29Esperando CSV terminal v11: 02:31 / resta 02:28Esperando CSV terminal v11: 02:32 / resta 02:27Esperando CSV terminal v11: 02:33 / resta 02:26Esperando CSV terminal v11: 02:34 / resta 02:25Esperando CSV terminal v11: 02:35 / resta 02:24Esperando CSV terminal v11: 02:36 / resta 02:23Esperando CSV terminal v11: 02:37 / resta 02:22Esperando CSV terminal v11: 02:38 / resta 02:21Esperando CSV terminal v11: 02:39 / resta 02:20Esperando CSV terminal v11: 02:40 / resta 02:19Esperando CSV terminal v11: 02:41 / resta 02:18Esperando CSV terminal v11: 02:42 / resta 02:17Esperando CSV terminal v11: 02:43 / resta 02:16Esperando CSV terminal v11: 02:44 / resta 02:15Esperando CSV terminal v11: 02:45 / resta 02:14Esperando CSV terminal v11: 02:46 / resta 02:13Esperando CSV terminal v11: 02:47 / resta 02:12Esperando CSV terminal v11: 02:48 / resta 02:11Esperando CSV terminal v11: 02:49 / resta 02:10Esperando CSV terminal v11: 02:50 / resta 02:09Esperando CSV terminal v11: 02:51 / resta 02:08Esperando CSV terminal v11: 02:52 / resta 02:07Esperando CSV terminal v11: 02:53 / resta 02:06Esperando CSV terminal v11: 02:54 / resta 02:05Esperando CSV terminal v11: 02:55 / resta 02:04Esperando CSV terminal v11: 02:56 / resta 02:03Esperando CSV terminal v11: 02:57 / resta 02:02Esperando CSV terminal v11: 02:58 / resta 02:01Esperando CSV terminal v11: 02:59 / resta 02:00Esperando CSV terminal v11: 03:00 / resta 01:59Esperando CSV terminal v11: 03:01 / resta 01:58Esperando CSV terminal v11: 03:02 / resta 01:57Esperando CSV terminal v11: 03:03 / resta 01:56Esperando CSV terminal v11: 03:04 / resta 01:55Esperando CSV terminal v11: 03:05 / resta 01:54Esperando CSV terminal v11: 03:06 / resta 01:53Esperando CSV terminal v11: 03:07 / resta 01:52Esperando CSV terminal v11: 03:08 / resta 01:51Esperando CSV terminal v11: 03:09 / resta 01:50Esperando CSV terminal v11: 03:10 / resta 01:49Esperando CSV terminal v11: 03:11 / resta 01:48Esperando CSV terminal v11: 03:12 / resta 01:47Esperando CSV terminal v11: 03:13 / resta 01:46Esperando CSV terminal v11: 03:14 / resta 01:45Esperando CSV terminal v11: 03:15 / resta 01:44Esperando CSV terminal v11: 03:16 / resta 01:43Esperando CSV terminal v11: 03:17 / resta 01:42Esperando CSV terminal v11: 03:18 / resta 01:41Esperando CSV terminal v11: 03:19 / resta 01:40Esperando CSV terminal v11: 03:20 / resta 01:39Esperando CSV terminal v11: 03:21 / resta 01:38Esperando CSV terminal v11: 03:22 / resta 01:37Esperando CSV terminal v11: 03:23 / resta 01:36Esperando CSV terminal v11: 03:24 / resta 01:35Esperando CSV terminal v11: 03:25 / resta 01:34Esperando CSV terminal v11: 03:26 / resta 01:33Esperando CSV terminal v11: 03:27 / resta 01:32Esperando CSV terminal v11: 03:28 / resta 01:31Esperando CSV terminal v11: 03:29 / resta 01:30Esperando CSV terminal v11: 03:30 / resta 01:29Esperando CSV terminal v11: 03:31 / resta 01:28Esperando CSV terminal v11: 03:32 / resta 01:27Esperando CSV terminal v11: 03:33 / resta 01:26Esperando CSV terminal v11: 03:34 / resta 01:25Esperando CSV terminal v11: 03:35 / resta 01:24Esperando CSV terminal v11: 03:36 / resta 01:23Esperando CSV terminal v11: 03:37 / resta 01:22Esperando CSV terminal v11: 03:38 / resta 01:21Esperando CSV terminal v11: 03:39 / resta 01:20Esperando CSV terminal v11: 03:40 / resta 01:19Esperando CSV terminal v11: 03:41 / resta 01:18Esperando CSV terminal v11: 03:42 / resta 01:17Esperando CSV terminal v11: 03:43 / resta 01:16Esperando CSV terminal v11: 03:44 / resta 01:15Esperando CSV terminal v11: 03:45 / resta 01:14Esperando CSV terminal v11: 03:46 / resta 01:13Esperando CSV terminal v11: 03:47 / resta 01:12Esperando CSV terminal v11: 03:48 / resta 01:11Esperando CSV terminal v11: 03:49 / resta 01:10Esperando CSV terminal v11: 03:50 / resta 01:09Esperando CSV terminal v11: 03:51 / resta 01:08Esperando CSV terminal v11: 03:52 / resta 01:07Esperando CSV terminal v11: 03:53 / resta 01:06Esperando CSV terminal v11: 03:54 / resta 01:05Esperando CSV terminal v11: 03:55 / resta 01:04Esperando CSV terminal v11: 03:56 / resta 01:03Esperando CSV terminal v11: 03:57 / resta 01:02Esperando CSV terminal v11: 03:58 / resta 01:01Esperando CSV terminal v11: 03:59 / resta 01:00Esperando CSV terminal v11: 04:00 / resta 00:59Esperando CSV terminal v11: 04:01 / resta 00:58Esperando CSV terminal v11: 04:02 / resta 00:57Esperando CSV terminal v11: 04:03 / resta 00:56Esperando CSV terminal v11: 04:04 / resta 00:55Esperando CSV terminal v11: 04:05 / resta 00:54Esperando CSV terminal v11: 04:06 / resta 00:53Esperando CSV terminal v11: 04:07 / resta 00:52Esperando CSV terminal v11: 04:08 / resta 00:51Esperando CSV terminal v11: 04:09 / resta 00:50Esperando CSV terminal v11: 04:10 / resta 00:49Esperando CSV terminal v11: 04:11 / resta 00:48Esperando CSV terminal v11: 04:12 / resta 00:47Esperando CSV terminal v11: 04:13 / resta 00:46Esperando CSV terminal v11: 04:14 / resta 00:45Esperando CSV terminal v11: 04:15 / resta 00:44Esperando CSV terminal v11: 04:16 / resta 00:43Esperando CSV terminal v11: 04:17 / resta 00:42Esperando CSV terminal v11: 04:18 / resta 00:41Esperando CSV terminal v11: 04:19 / resta 00:40Esperando CSV terminal v11: 04:20 / resta 00:39Esperando CSV terminal v11: 04:21 / resta 00:38Esperando CSV terminal v11: 04:22 / resta 00:37Esperando CSV terminal v11: 04:23 / resta 00:36Esperando CSV terminal v11: 04:24 / resta 00:35Esperando CSV terminal v11: 04:25 / resta 00:34Esperando CSV terminal v11: 04:26 / resta 00:33Esperando CSV terminal v11: 04:27 / resta 00:32Esperando CSV terminal v11: 04:28 / resta 00:31Esperando CSV terminal v11: 04:29 / resta 00:30Esperando CSV terminal v11: 04:30 / resta 00:29Esperando CSV terminal v11: 04:31 / resta 00:28Esperando CSV terminal v11: 04:32 / resta 00:27Esperando CSV terminal v11: 04:33 / resta 00:26Esperando CSV terminal v11: 04:34 / resta 00:25Esperando CSV terminal v11: 04:35 / resta 00:24Esperando CSV terminal v11: 04:36 / resta 00:23Esperando CSV terminal v11: 04:37 / resta 00:22Esperando CSV terminal v11: 04:38 / resta 00:21Esperando CSV terminal v11: 04:39 / resta 00:20Esperando CSV terminal v11: 04:40 / resta 00:19Esperando CSV terminal v11: 04:41 / resta 00:18Esperando CSV terminal v11: 04:42 / resta 00:17Esperando CSV terminal v11: 04:43 / resta 00:16Esperando CSV terminal v11: 04:44 / resta 00:15Esperando CSV terminal v11: 04:45 / resta 00:14Esperando CSV terminal v11: 04:46 / resta 00:13Esperando CSV terminal v11: 04:47 / resta 00:12Esperando CSV terminal v11: 04:48 / resta 00:11Esperando CSV terminal v11: 04:49 / resta 00:10Esperando CSV terminal v11: 04:50 / resta 00:09Esperando CSV terminal v11: 04:51 / resta 00:08Esperando CSV terminal v11: 04:52 / resta 00:07Esperando CSV terminal v11: 04:53 / resta 00:06Esperando CSV terminal v11: 04:54 / resta 00:05Esperando CSV terminal v11: 04:55 / resta 00:04Esperando CSV terminal v11: 04:56 / resta 00:03Esperando CSV terminal v11: 04:57 / resta 00:02Esperando CSV terminal v11: 04:58 / resta 00:01Esperando CSV terminal v11: 04:59 / resta 00:00Timeout esperando resultado.                                                            
-[39/239] 2025-05-02 | signal=CONSUMED | trades=18 | wins=12 losses=6 WR=67% | PnL=$-705
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-05-05.
-Rango: FROM 05/05/2025 09:30:00 a. m. | TO 05/05/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-05-05...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:28 / resta 04:31Esperando CSV terminal v11: 00:29 / resta 04:30Esperando CSV terminal v11: 00:30 / resta 04:29Esperando CSV terminal v11: 00:31 / resta 04:28Esperando CSV terminal v11: 00:32 / resta 04:27Esperando CSV terminal v11: 00:33 / resta 04:26Esperando CSV terminal v11: 00:34 / resta 04:25Esperando CSV terminal v11: 00:35 / resta 04:24Esperando CSV terminal v11: 00:36 / resta 04:23Esperando CSV terminal v11: 00:37 / resta 04:22Esperando CSV terminal v11: 00:38 / resta 04:21Esperando CSV terminal v11: 00:39 / resta 04:20Esperando CSV terminal v11: 00:40 / resta 04:19Esperando CSV terminal v11: 00:41 / resta 04:18Esperando CSV terminal v11: 00:42 / resta 04:17Esperando CSV terminal v11: 00:43 / resta 04:16Esperando CSV terminal v11: 00:44 / resta 04:15Esperando CSV terminal v11: 00:45 / resta 04:14Esperando CSV terminal v11: 00:46 / resta 04:13Esperando CSV terminal v11: 00:47 / resta 04:12Esperando CSV terminal v11: 00:48 / resta 04:11Esperando CSV terminal v11: 00:49 / resta 04:10Esperando CSV terminal v11: 00:50 / resta 04:09Esperando CSV terminal v11: 00:51 / resta 04:08Esperando CSV terminal v11: 00:52 / resta 04:07Esperando CSV terminal v11: 00:53 / resta 04:06Esperando CSV terminal v11: 00:54 / resta 04:05Esperando CSV terminal v11: 00:55 / resta 04:04Esperando CSV terminal v11: 00:56 / resta 04:03Esperando CSV terminal v11: 00:57 / resta 04:02Esperando CSV terminal v11: 00:58 / resta 04:01Esperando CSV terminal v11: 00:59 / resta 04:00Esperando CSV terminal v11: 01:00 / resta 03:59Esperando CSV terminal v11: 01:01 / resta 03:58Esperando CSV terminal v11: 01:02 / resta 03:57Esperando CSV terminal v11: 01:03 / resta 03:56Esperando CSV terminal v11: 01:04 / resta 03:55Esperando CSV terminal v11: 01:05 / resta 03:54Esperando CSV terminal v11: 01:06 / resta 03:53Esperando CSV terminal v11: 01:07 / resta 03:52Esperando CSV terminal v11: 01:08 / resta 03:51Esperando CSV terminal v11: 01:09 / resta 03:50Esperando CSV terminal v11: 01:10 / resta 03:49Esperando CSV terminal v11: 01:11 / resta 03:48Esperando CSV terminal v11: 01:12 / resta 03:47Esperando CSV terminal v11: 01:13 / resta 03:46Esperando CSV terminal v11: 01:14 / resta 03:45Esperando CSV terminal v11: 01:15 / resta 03:44Esperando CSV terminal v11: 01:16 / resta 03:43Esperando CSV terminal v11: 01:17 / resta 03:42Esperando CSV terminal v11: 01:18 / resta 03:41Esperando CSV terminal v11: 01:19 / resta 03:40Esperando CSV terminal v11: 01:20 / resta 03:39Esperando CSV terminal v11: 01:21 / resta 03:38Esperando CSV terminal v11: 01:22 / resta 03:37Esperando CSV terminal v11: 01:23 / resta 03:36Esperando CSV terminal v11: 01:24 / resta 03:35Esperando CSV terminal v11: 01:25 / resta 03:34Esperando CSV terminal v11: 01:26 / resta 03:33Esperando CSV terminal v11: 01:27 / resta 03:32Esperando CSV terminal v11: 01:28 / resta 03:31Esperando CSV terminal v11: 01:29 / resta 03:30Esperando CSV terminal v11: 01:30 / resta 03:29Esperando CSV terminal v11: 01:31 / resta 03:28Esperando CSV terminal v11: 01:32 / resta 03:27Esperando CSV terminal v11: 01:33 / resta 03:26Esperando CSV terminal v11: 01:34 / resta 03:25Esperando CSV terminal v11: 01:35 / resta 03:24Esperando CSV terminal v11: 01:36 / resta 03:23Esperando CSV terminal v11: 01:37 / resta 03:22Esperando CSV terminal v11: 01:38 / resta 03:21Esperando CSV terminal v11: 01:39 / resta 03:20Esperando CSV terminal v11: 01:40 / resta 03:19Esperando CSV terminal v11: 01:41 / resta 03:18Esperando CSV terminal v11: 01:42 / resta 03:17Esperando CSV terminal v11: 01:43 / resta 03:16Esperando CSV terminal v11: 01:44 / resta 03:15Esperando CSV terminal v11: 01:45 / resta 03:14Esperando CSV terminal v11: 01:46 / resta 03:13Esperando CSV terminal v11: 01:47 / resta 03:12Esperando CSV terminal v11: 01:48 / resta 03:11Esperando CSV terminal v11: 01:49 / resta 03:10Esperando CSV terminal v11: 01:50 / resta 03:09Esperando CSV terminal v11: 01:51 / resta 03:08Esperando CSV terminal v11: 01:52 / resta 03:07Esperando CSV terminal v11: 01:53 / resta 03:06Esperando CSV terminal v11: 01:54 / resta 03:05Esperando CSV terminal v11: 01:55 / resta 03:04Esperando CSV terminal v11: 01:56 / resta 03:03Esperando CSV terminal v11: 01:57 / resta 03:02Esperando CSV terminal v11: 01:58 / resta 03:01Esperando CSV terminal v11: 01:59 / resta 03:00Esperando CSV terminal v11: 02:00 / resta 02:59Esperando CSV terminal v11: 02:01 / resta 02:58Esperando CSV terminal v11: 02:02 / resta 02:57Esperando CSV terminal v11: 02:03 / resta 02:56Esperando CSV terminal v11: 02:04 / resta 02:55Esperando CSV terminal v11: 02:05 / resta 02:54Esperando CSV terminal v11: 02:06 / resta 02:53Esperando CSV terminal v11: 02:07 / resta 02:52Esperando CSV terminal v11: 02:08 / resta 02:51Esperando CSV terminal v11: 02:09 / resta 02:50Esperando CSV terminal v11: 02:10 / resta 02:49Esperando CSV terminal v11: 02:11 / resta 02:48Esperando CSV terminal v11: 02:12 / resta 02:47Esperando CSV terminal v11: 02:13 / resta 02:46Esperando CSV terminal v11: 02:14 / resta 02:45Esperando CSV terminal v11: 02:15 / resta 02:44Esperando CSV terminal v11: 02:16 / resta 02:43Esperando CSV terminal v11: 02:17 / resta 02:42Esperando CSV terminal v11: 02:18 / resta 02:41Esperando CSV terminal v11: 02:19 / resta 02:40Esperando CSV terminal v11: 02:20 / resta 02:39Esperando CSV terminal v11: 02:21 / resta 02:38Esperando CSV terminal v11: 02:22 / resta 02:37Esperando CSV terminal v11: 02:23 / resta 02:36Esperando CSV terminal v11: 02:24 / resta 02:35Esperando CSV terminal v11: 02:25 / resta 02:34Esperando CSV terminal v11: 02:26 / resta 02:33Esperando CSV terminal v11: 02:27 / resta 02:32Esperando CSV terminal v11: 02:28 / resta 02:31Esperando CSV terminal v11: 02:29 / resta 02:30Esperando CSV terminal v11: 02:30 / resta 02:29Esperando CSV terminal v11: 02:31 / resta 02:28Esperando CSV terminal v11: 02:32 / resta 02:27Esperando CSV terminal v11: 02:33 / resta 02:26Esperando CSV terminal v11: 02:34 / resta 02:25Esperando CSV terminal v11: 02:35 / resta 02:24Esperando CSV terminal v11: 02:36 / resta 02:23Esperando CSV terminal v11: 02:37 / resta 02:22Esperando CSV terminal v11: 02:38 / resta 02:21Esperando CSV terminal v11: 02:39 / resta 02:20Esperando CSV terminal v11: 02:40 / resta 02:19Esperando CSV terminal v11: 02:41 / resta 02:18Esperando CSV terminal v11: 02:42 / resta 02:17Esperando CSV terminal v11: 02:43 / resta 02:16Esperando CSV terminal v11: 02:44 / resta 02:15Esperando CSV terminal v11: 02:45 / resta 02:14Esperando CSV terminal v11: 02:46 / resta 02:13Esperando CSV terminal v11: 02:47 / resta 02:12Esperando CSV terminal v11: 02:48 / resta 02:11Esperando CSV terminal v11: 02:49 / resta 02:10Esperando CSV terminal v11: 02:50 / resta 02:09Esperando CSV terminal v11: 02:51 / resta 02:08Esperando CSV terminal v11: 02:52 / resta 02:07Esperando CSV terminal v11: 02:53 / resta 02:06Esperando CSV terminal v11: 02:54 / resta 02:05Esperando CSV terminal v11: 02:55 / resta 02:04Esperando CSV terminal v11: 02:56 / resta 02:03Esperando CSV terminal v11: 02:57 / resta 02:02Esperando CSV terminal v11: 02:58 / resta 02:01Esperando CSV terminal v11: 02:59 / resta 02:00Esperando CSV terminal v11: 03:00 / resta 01:59Esperando CSV terminal v11: 03:01 / resta 01:58Esperando CSV terminal v11: 03:02 / resta 01:57Esperando CSV terminal v11: 03:03 / resta 01:56Esperando CSV terminal v11: 03:04 / resta 01:55Esperando CSV terminal v11: 03:05 / resta 01:54Esperando CSV terminal v11: 03:06 / resta 01:53Esperando CSV terminal v11: 03:07 / resta 01:52Esperando CSV terminal v11: 03:08 / resta 01:51Esperando CSV terminal v11: 03:09 / resta 01:50Esperando CSV terminal v11: 03:10 / resta 01:49Esperando CSV terminal v11: 03:11 / resta 01:48Esperando CSV terminal v11: 03:12 / resta 01:47Esperando CSV terminal v11: 03:13 / resta 01:46Esperando CSV terminal v11: 03:14 / resta 01:45Esperando CSV terminal v11: 03:15 / resta 01:44Esperando CSV terminal v11: 03:16 / resta 01:43Esperando CSV terminal v11: 03:17 / resta 01:42Esperando CSV terminal v11: 03:18 / resta 01:41Esperando CSV terminal v11: 03:19 / resta 01:40Esperando CSV terminal v11: 03:20 / resta 01:39Esperando CSV terminal v11: 03:21 / resta 01:38Esperando CSV terminal v11: 03:22 / resta 01:37Esperando CSV terminal v11: 03:23 / resta 01:36Esperando CSV terminal v11: 03:24 / resta 01:35Esperando CSV terminal v11: 03:25 / resta 01:34Esperando CSV terminal v11: 03:26 / resta 01:33Esperando CSV terminal v11: 03:27 / resta 01:32Esperando CSV terminal v11: 03:28 / resta 01:31Esperando CSV terminal v11: 03:29 / resta 01:30Esperando CSV terminal v11: 03:30 / resta 01:29Esperando CSV terminal v11: 03:31 / resta 01:28Esperando CSV terminal v11: 03:32 / resta 01:27Esperando CSV terminal v11: 03:33 / resta 01:26Esperando CSV terminal v11: 03:34 / resta 01:25Esperando CSV terminal v11: 03:35 / resta 01:24Esperando CSV terminal v11: 03:36 / resta 01:23Esperando CSV terminal v11: 03:37 / resta 01:22Esperando CSV terminal v11: 03:38 / resta 01:21Esperando CSV terminal v11: 03:39 / resta 01:20Esperando CSV terminal v11: 03:40 / resta 01:19Esperando CSV terminal v11: 03:41 / resta 01:18Esperando CSV terminal v11: 03:42 / resta 01:17Esperando CSV terminal v11: 03:43 / resta 01:16Esperando CSV terminal v11: 03:44 / resta 01:15Esperando CSV terminal v11: 03:45 / resta 01:14Esperando CSV terminal v11: 03:46 / resta 01:13Esperando CSV terminal v11: 03:47 / resta 01:12Esperando CSV terminal v11: 03:48 / resta 01:11Esperando CSV terminal v11: 03:49 / resta 01:10Esperando CSV terminal v11: 03:50 / resta 01:09Esperando CSV terminal v11: 03:51 / resta 01:08Esperando CSV terminal v11: 03:52 / resta 01:07Esperando CSV terminal v11: 03:53 / resta 01:06Esperando CSV terminal v11: 03:54 / resta 01:05Esperando CSV terminal v11: 03:55 / resta 01:04Esperando CSV terminal v11: 03:56 / resta 01:03Esperando CSV terminal v11: 03:57 / resta 01:02Esperando CSV terminal v11: 03:58 / resta 01:01Esperando CSV terminal v11: 03:59 / resta 01:00Esperando CSV terminal v11: 04:00 / resta 00:59Esperando CSV terminal v11: 04:01 / resta 00:58Esperando CSV terminal v11: 04:02 / resta 00:57Esperando CSV terminal v11: 04:03 / resta 00:56Esperando CSV terminal v11: 04:04 / resta 00:55Esperando CSV terminal v11: 04:05 / resta 00:54Esperando CSV terminal v11: 04:06 / resta 00:53Esperando CSV terminal v11: 04:07 / resta 00:52Esperando CSV terminal v11: 04:08 / resta 00:51Esperando CSV terminal v11: 04:09 / resta 00:50Esperando CSV terminal v11: 04:10 / resta 00:49Esperando CSV terminal v11: 04:11 / resta 00:48Esperando CSV terminal v11: 04:12 / resta 00:47Esperando CSV terminal v11: 04:13 / resta 00:46Esperando CSV terminal v11: 04:14 / resta 00:45Esperando CSV terminal v11: 04:15 / resta 00:44Esperando CSV terminal v11: 04:16 / resta 00:43Esperando CSV terminal v11: 04:17 / resta 00:42Esperando CSV terminal v11: 04:18 / resta 00:41Esperando CSV terminal v11: 04:19 / resta 00:40Esperando CSV terminal v11: 04:20 / resta 00:39Esperando CSV terminal v11: 04:21 / resta 00:38Esperando CSV terminal v11: 04:22 / resta 00:37Esperando CSV terminal v11: 04:23 / resta 00:36Esperando CSV terminal v11: 04:24 / resta 00:35Esperando CSV terminal v11: 04:25 / resta 00:34Esperando CSV terminal v11: 04:26 / resta 00:33Esperando CSV terminal v11: 04:27 / resta 00:32Esperando CSV terminal v11: 04:28 / resta 00:31Esperando CSV terminal v11: 04:29 / resta 00:30Esperando CSV terminal v11: 04:30 / resta 00:29Esperando CSV terminal v11: 04:31 / resta 00:28Esperando CSV terminal v11: 04:32 / resta 00:27Esperando CSV terminal v11: 04:33 / resta 00:26Esperando CSV terminal v11: 04:34 / resta 00:25Esperando CSV terminal v11: 04:35 / resta 00:24Esperando CSV terminal v11: 04:36 / resta 00:23Esperando CSV terminal v11: 04:37 / resta 00:22Esperando CSV terminal v11: 04:38 / resta 00:21Esperando CSV terminal v11: 04:39 / resta 00:20Esperando CSV terminal v11: 04:40 / resta 00:19Esperando CSV terminal v11: 04:41 / resta 00:18Esperando CSV terminal v11: 04:42 / resta 00:17Esperando CSV terminal v11: 04:43 / resta 00:16Esperando CSV terminal v11: 04:44 / resta 00:15Esperando CSV terminal v11: 04:45 / resta 00:14Esperando CSV terminal v11: 04:46 / resta 00:13Esperando CSV terminal v11: 04:47 / resta 00:12Esperando CSV terminal v11: 04:48 / resta 00:11Esperando CSV terminal v11: 04:49 / resta 00:10Esperando CSV terminal v11: 04:50 / resta 00:09Esperando CSV terminal v11: 04:51 / resta 00:08Esperando CSV terminal v11: 04:52 / resta 00:07Esperando CSV terminal v11: 04:53 / resta 00:06Esperando CSV terminal v11: 04:54 / resta 00:05Esperando CSV terminal v11: 04:55 / resta 00:04Esperando CSV terminal v11: 04:56 / resta 00:03Esperando CSV terminal v11: 04:57 / resta 00:02Esperando CSV terminal v11: 04:58 / resta 00:01Esperando CSV terminal v11: 04:59 / resta 00:00Timeout esperando resultado.                                                            
-[40/239] 2025-05-05 | signal=CONSUMED | trades=18 | wins=12 losses=6 WR=67% | PnL=$-705
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-05-06.
-Rango: FROM 06/05/2025 09:30:00 a. m. | TO 06/05/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-05-06...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:28 / resta 04:31Esperando CSV terminal v11: 00:29 / resta 04:30Esperando CSV terminal v11: 00:30 / resta 04:29Esperando CSV terminal v11: 00:31 / resta 04:28Esperando CSV terminal v11: 00:32 / resta 04:27Esperando CSV terminal v11: 00:33 / resta 04:26Esperando CSV terminal v11: 00:34 / resta 04:25Esperando CSV terminal v11: 00:35 / resta 04:24Esperando CSV terminal v11: 00:36 / resta 04:23Esperando CSV terminal v11: 00:37 / resta 04:22Esperando CSV terminal v11: 00:38 / resta 04:21Esperando CSV terminal v11: 00:39 / resta 04:20Esperando CSV terminal v11: 00:40 / resta 04:19Esperando CSV terminal v11: 00:41 / resta 04:18Esperando CSV terminal v11: 00:42 / resta 04:17Esperando CSV terminal v11: 00:43 / resta 04:16Esperando CSV terminal v11: 00:44 / resta 04:15Esperando CSV terminal v11: 00:45 / resta 04:14Esperando CSV terminal v11: 00:46 / resta 04:13Esperando CSV terminal v11: 00:47 / resta 04:12Esperando CSV terminal v11: 00:48 / resta 04:11Esperando CSV terminal v11: 00:49 / resta 04:10Esperando CSV terminal v11: 00:50 / resta 04:09Esperando CSV terminal v11: 00:51 / resta 04:08Esperando CSV terminal v11: 00:52 / resta 04:07Esperando CSV terminal v11: 00:53 / resta 04:06Esperando CSV terminal v11: 00:54 / resta 04:05Esperando CSV terminal v11: 00:55 / resta 04:04Esperando CSV terminal v11: 00:56 / resta 04:03Esperando CSV terminal v11: 00:57 / resta 04:02Esperando CSV terminal v11: 00:58 / resta 04:01Esperando CSV terminal v11: 00:59 / resta 04:00Esperando CSV terminal v11: 01:00 / resta 03:59Esperando CSV terminal v11: 01:01 / resta 03:58Esperando CSV terminal v11: 01:02 / resta 03:57Esperando CSV terminal v11: 01:03 / resta 03:56Esperando CSV terminal v11: 01:04 / resta 03:55Esperando CSV terminal v11: 01:05 / resta 03:54Esperando CSV terminal v11: 01:06 / resta 03:53Esperando CSV terminal v11: 01:07 / resta 03:52Esperando CSV terminal v11: 01:08 / resta 03:51Esperando CSV terminal v11: 01:09 / resta 03:50Esperando CSV terminal v11: 01:10 / resta 03:49Esperando CSV terminal v11: 01:11 / resta 03:48Esperando CSV terminal v11: 01:12 / resta 03:47Esperando CSV terminal v11: 01:13 / resta 03:46Esperando CSV terminal v11: 01:14 / resta 03:45Esperando CSV terminal v11: 01:15 / resta 03:44Esperando CSV terminal v11: 01:16 / resta 03:43Esperando CSV terminal v11: 01:17 / resta 03:42Esperando CSV terminal v11: 01:18 / resta 03:41Esperando CSV terminal v11: 01:19 / resta 03:40Esperando CSV terminal v11: 01:20 / resta 03:39Esperando CSV terminal v11: 01:21 / resta 03:38Esperando CSV terminal v11: 01:22 / resta 03:37Esperando CSV terminal v11: 01:23 / resta 03:36Esperando CSV terminal v11: 01:24 / resta 03:35Esperando CSV terminal v11: 01:25 / resta 03:34Esperando CSV terminal v11: 01:26 / resta 03:33Esperando CSV terminal v11: 01:27 / resta 03:32Esperando CSV terminal v11: 01:28 / resta 03:31Esperando CSV terminal v11: 01:29 / resta 03:30Esperando CSV terminal v11: 01:30 / resta 03:29Esperando CSV terminal v11: 01:31 / resta 03:28Esperando CSV terminal v11: 01:32 / resta 03:27Esperando CSV terminal v11: 01:33 / resta 03:26Esperando CSV terminal v11: 01:34 / resta 03:25Esperando CSV terminal v11: 01:35 / resta 03:24Esperando CSV terminal v11: 01:36 / resta 03:23Esperando CSV terminal v11: 01:37 / resta 03:22Esperando CSV terminal v11: 01:38 / resta 03:21Esperando CSV terminal v11: 01:39 / resta 03:20Esperando CSV terminal v11: 01:40 / resta 03:19Esperando CSV terminal v11: 01:41 / resta 03:18Esperando CSV terminal v11: 01:42 / resta 03:17Esperando CSV terminal v11: 01:43 / resta 03:16Esperando CSV terminal v11: 01:44 / resta 03:15Esperando CSV terminal v11: 01:45 / resta 03:14Esperando CSV terminal v11: 01:46 / resta 03:13Esperando CSV terminal v11: 01:47 / resta 03:12Esperando CSV terminal v11: 01:48 / resta 03:11Esperando CSV terminal v11: 01:49 / resta 03:10Esperando CSV terminal v11: 01:50 / resta 03:09Esperando CSV terminal v11: 01:51 / resta 03:08Esperando CSV terminal v11: 01:52 / resta 03:07Esperando CSV terminal v11: 01:53 / resta 03:06Esperando CSV terminal v11: 01:54 / resta 03:05Esperando CSV terminal v11: 01:55 / resta 03:04Esperando CSV terminal v11: 01:56 / resta 03:03Esperando CSV terminal v11: 01:57 / resta 03:02Esperando CSV terminal v11: 01:58 / resta 03:01Esperando CSV terminal v11: 01:59 / resta 03:00Esperando CSV terminal v11: 02:00 / resta 02:59Esperando CSV terminal v11: 02:01 / resta 02:58Esperando CSV terminal v11: 02:02 / resta 02:57Esperando CSV terminal v11: 02:03 / resta 02:56Esperando CSV terminal v11: 02:04 / resta 02:55Esperando CSV terminal v11: 02:05 / resta 02:54Esperando CSV terminal v11: 02:06 / resta 02:53Esperando CSV terminal v11: 02:07 / resta 02:52Esperando CSV terminal v11: 02:08 / resta 02:51Esperando CSV terminal v11: 02:09 / resta 02:50Esperando CSV terminal v11: 02:10 / resta 02:49Esperando CSV terminal v11: 02:11 / resta 02:48Esperando CSV terminal v11: 02:12 / resta 02:47Esperando CSV terminal v11: 02:13 / resta 02:46Esperando CSV terminal v11: 02:14 / resta 02:45Esperando CSV terminal v11: 02:15 / resta 02:44Esperando CSV terminal v11: 02:16 / resta 02:43Esperando CSV terminal v11: 02:17 / resta 02:42Esperando CSV terminal v11: 02:18 / resta 02:41

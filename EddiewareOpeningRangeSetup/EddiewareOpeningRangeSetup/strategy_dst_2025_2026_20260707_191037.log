@@ -1,279 +1,0 @@
-[atas_guard] 9 procesos, 1 instancia(s) pesada(s). Nada que limpiar (1 instancia = OK).
-Fechas a recorrer en Replay X10 (estrategia activa): 239
-  2025-03-10
-  2025-03-11
-  2025-03-12
-  2025-03-13
-  2025-03-14
-  2025-03-17
-  2025-03-18
-  2025-03-19
-  2025-03-20
-  2025-03-21
-  2025-03-24
-  2025-03-25
-  2025-03-26
-  2025-03-27
-  2025-03-28
-  2025-03-31
-  2025-04-01
-  2025-04-02
-  2025-04-03
-  2025-04-04
-  2025-04-07
-  2025-04-08
-  2025-04-09
-  2025-04-10
-  2025-04-11
-  2025-04-14
-  2025-04-15
-  2025-04-16
-  2025-04-17
-  2025-04-21
-  2025-04-22
-  2025-04-23
-  2025-04-24
-  2025-04-25
-  2025-04-28
-  2025-04-29
-  2025-04-30
-  2025-05-01
-  2025-05-02
-  2025-05-05
-  2025-05-06
-  2025-05-07
-  2025-05-08
-  2025-05-09
-  2025-05-12
-  2025-05-13
-  2025-05-14
-  2025-05-15
-  2025-05-16
-  2025-05-19
-  2025-05-20
-  2025-05-21
-  2025-05-22
-  2025-05-23
-  2025-05-27
-  2025-05-28
-  2025-05-29
-  2025-05-30
-  2025-06-02
-  2025-06-03
-  2025-06-04
-  2025-06-05
-  2025-06-06
-  2025-06-09
-  2025-06-10
-  2025-06-11
-  2025-06-12
-  2025-06-13
-  2025-06-16
-  2025-06-17
-  2025-06-18
-  2025-06-20
-  2025-06-23
-  2025-06-24
-  2025-06-25
-  2025-06-26
-  2025-06-27
-  2025-06-30
-  2025-07-01
-  2025-07-02
-  2025-07-03
-  2025-07-07
-  2025-07-08
-  2025-07-09
-  2025-07-10
-  2025-07-11
-  2025-07-14
-  2025-07-15
-  2025-07-16
-  2025-07-17
-  2025-07-18
-  2025-07-21
-  2025-07-22
-  2025-07-23
-  2025-07-24
-  2025-07-25
-  2025-07-28
-  2025-07-29
-  2025-07-30
-  2025-07-31
-  2025-08-01
-  2025-08-04
-  2025-08-05
-  2025-08-06
-  2025-08-07
-  2025-08-08
-  2025-08-11
-  2025-08-12
-  2025-08-13
-  2025-08-14
-  2025-08-15
-  2025-08-18
-  2025-08-19
-  2025-08-20
-  2025-08-21
-  2025-08-22
-  2025-08-25
-  2025-08-26
-  2025-08-27
-  2025-08-28
-  2025-08-29
-  2025-09-02
-  2025-09-03
-  2025-09-04
-  2025-09-05
-  2025-09-08
-  2025-09-09
-  2025-09-10
-  2025-09-11
-  2025-09-12
-  2025-09-15
-  2025-09-16
-  2025-09-17
-  2025-09-18
-  2025-09-19
-  2025-09-22
-  2025-09-23
-  2025-09-24
-  2025-09-25
-  2025-09-26
-  2025-09-29
-  2025-09-30
-  2025-10-01
-  2025-10-02
-  2025-10-03
-  2025-10-06
-  2025-10-07
-  2025-10-08
-  2025-10-09
-  2025-10-10
-  2025-10-13
-  2025-10-14
-  2025-10-15
-  2025-10-16
-  2025-10-17
-  2025-10-20
-  2025-10-21
-  2025-10-22
-  2025-10-23
-  2025-10-24
-  2025-10-27
-  2025-10-28
-  2025-10-29
-  2025-10-30
-  2025-10-31
-  2026-03-09
-  2026-03-10
-  2026-03-11
-  2026-03-12
-  2026-03-13
-  2026-03-16
-  2026-03-17
-  2026-03-18
-  2026-03-19
-  2026-03-20
-  2026-03-23
-  2026-03-24
-  2026-03-25
-  2026-03-26
-  2026-03-27
-  2026-03-30
-  2026-03-31
-  2026-04-01
-  2026-04-02
-  2026-04-06
-  2026-04-07
-  2026-04-08
-  2026-04-09
-  2026-04-10
-  2026-04-13
-  2026-04-14
-  2026-04-15
-  2026-04-16
-  2026-04-17
-  2026-04-20
-  2026-04-21
-  2026-04-22
-  2026-04-23
-  2026-04-24
-  2026-04-27
-  2026-04-28
-  2026-04-29
-  2026-04-30
-  2026-05-01
-  2026-05-04
-  2026-05-05
-  2026-05-06
-  2026-05-07
-  2026-05-08
-  2026-05-11
-  2026-05-12
-  2026-05-13
-  2026-05-14
-  2026-05-15
-  2026-05-18
-  2026-05-19
-  2026-05-20
-  2026-05-21
-  2026-05-22
-  2026-05-26
-  2026-05-27
-  2026-05-28
-  2026-05-29
-  2026-06-01
-  2026-06-02
-  2026-06-03
-  2026-06-04
-  2026-06-05
-  2026-06-08
-  2026-06-09
-  2026-06-10
-  2026-06-11
-  2026-06-12
-  2026-06-15
-  2026-06-16
-  2026-06-17
-  2026-06-18
-  2026-06-22
-  2026-06-23
-State reseteado: challenge_equity.txt borrado (cuenta limpia).
-State reseteado: killswitch_state.txt borrado (cuenta limpia).
-NOTA: ResetChallengeState debe estar OFF para acumular equity entre fechas. El primer reload carga estos archivos ausentes como cuenta limpia.
-Log previo respaldado: strategy_tester_trades_prev_1783472857.csv
-telegram_sent_dates.txt reseteado (indicador C# re-enviara Telegram por trade).
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-03-10.
-Rango: FROM 10/03/2025 09:30:00 a. m. | TO 10/03/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-03-10...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:28 / resta 04:31Esperando CSV terminal v11: 00:29 / resta 04:30Esperando CSV terminal v11: 00:30 / resta 04:29Esperando CSV terminal v11: 00:31 / resta 04:28Esperando CSV terminal v11: 00:32 / resta 04:27Esperando CSV terminal v11: 00:33 / resta 04:26Esperando CSV terminal v11: 00:34 / resta 04:25Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-03-10 | Entry=19802.50 | Resultado=TP | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[ 1/239] 2025-03-10 | signal=PENDING  | trades= 0 | wins=0 losses=0 WR=N/A | PnL=$0
-Signal pre-escrita: 2025-03-11,SELL,19403.75,19418.75,0,2315,PENDING
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-03-11.
-Rango: FROM 11/03/2025 09:30:00 a. m. | TO 11/03/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-03-11...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 05:00Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41Esperando CSV terminal v11: 00:19 / resta 04:40Esperando CSV terminal v11: 00:20 / resta 04:39Esperando CSV terminal v11: 00:21 / resta 04:38Esperando CSV terminal v11: 00:22 / resta 04:37Esperando CSV terminal v11: 00:23 / resta 04:36Esperando CSV terminal v11: 00:24 / resta 04:35Esperando CSV terminal v11: 00:25 / resta 04:34Esperando CSV terminal v11: 00:26 / resta 04:33Esperando CSV terminal v11: 00:27 / resta 04:32Esperando CSV terminal v11: 00:28 / resta 04:31Esperando CSV terminal v11: 00:29 / resta 04:30Esperando CSV terminal v11: 00:30 / resta 04:29Esperando CSV terminal v11: 00:31 / resta 04:28Esperando CSV terminal v11: 00:32 / resta 04:27Esperando CSV terminal v11: 00:33 / resta 04:26Esperando CSV terminal v11: 00:34 / resta 04:25Esperando CSV terminal v11: 00:35 / resta 04:24Esperando CSV terminal v11: 00:36 / resta 04:23Esperando CSV terminal v11: 00:37 / resta 04:22Esperando CSV terminal v11: 00:38 / resta 04:21Esperando CSV terminal v11: 00:39 / resta 04:20Esperando CSV terminal v11: 00:40 / resta 04:19Resultado terminal detectado.                                                            
-Guardado: X10_R1 2025-03-11 | Entry=19403.75 | Resultado=SL | Version=score-exporter-2026-06-23-v11-canonical-sync-guards
-[ 2/239] 2025-03-11 | signal=PENDING  | trades= 1 | wins=0 losses=1 WR=0% | PnL=$-900
-Signal pre-escrita: 2025-03-12,BUY,19742.50,19737.50,0,2313,PENDING
-
-Configurando Replay en X10...
-Replay configurado automáticamente en 10x.
-
-[X10_R1 1/1] 2025-03-12.
-Rango: FROM 12/03/2025 09:30:00 a. m. | TO 12/03/2025 09:55:00 a. m.
-Iniciando X10_R1 para 2025-03-12...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 04:59Esperando CSV terminal v11: 00:01 / resta 04:58Esperando CSV terminal v11: 00:02 / resta 04:57Esperando CSV terminal v11: 00:03 / resta 04:56Esperando CSV terminal v11: 00:04 / resta 04:55Esperando CSV terminal v11: 00:05 / resta 04:54Esperando CSV terminal v11: 00:06 / resta 04:53Esperando CSV terminal v11: 00:07 / resta 04:52Esperando CSV terminal v11: 00:08 / resta 04:51Esperando CSV terminal v11: 00:09 / resta 04:50Esperando CSV terminal v11: 00:10 / resta 04:49Esperando CSV terminal v11: 00:11 / resta 04:48Esperando CSV terminal v11: 00:12 / resta 04:47Esperando CSV terminal v11: 00:13 / resta 04:46Esperando CSV terminal v11: 00:14 / resta 04:45Esperando CSV terminal v11: 00:15 / resta 04:44Esperando CSV terminal v11: 00:16 / resta 04:43Esperando CSV terminal v11: 00:17 / resta 04:42Esperando CSV terminal v11: 00:18 / resta 04:41

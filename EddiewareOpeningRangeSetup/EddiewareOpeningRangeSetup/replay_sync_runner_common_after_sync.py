@@ -12,13 +12,6 @@ from pywinauto import Desktop
 
 import telegram_run_summary_after_sync as telegram
 
-try:
-    # Barra de progreso con ETA (stderr, siempre flushed). Estandar del proyecto:
-    # todo recorrido largo muestra progreso. Ver progress-bar skill / CLAUDE.md.
-    from progress import ProgressBar
-except Exception:  # pragma: no cover - opcional, no debe romper el runner
-    ProgressBar = None
-
 
 EXPORT_FOLDER = Path(r"C:\Users\k_99_\Desktop\codding\data_footprint_generator")
 RESULTS_FOLDER = EXPORT_FOLDER / "trade_results_score"
@@ -482,22 +475,12 @@ def click_stop(stop_button=None):
         pass
 
 
-def wait_for_terminal_result(
-    path,
-    started_at,
-    timeout_seconds,
-    stop_button,
-    completion_predicate=None,
-):
+def wait_for_terminal_result(path, started_at, timeout_seconds, stop_button):
     wait_started = time.time()
     last_second = -1
 
     while True:
-        exporter_done = is_terminal_result(
-            path, started_at, require_expected_version=True
-        )
-        extra_done = completion_predicate is None or completion_predicate()
-        if exporter_done and extra_done:
+        if is_terminal_result(path, started_at, require_expected_version=True):
             print("\rResultado terminal detectado." + " " * 60)
             time.sleep(0.4)
             return True
@@ -672,7 +655,6 @@ def run_one_date(
     replay_from_time=DEFAULT_REPLAY_FROM_TIME,
     replay_to_time=DEFAULT_REPLAY_TO_TIME,
     keep_global_result=True,
-    completion_predicate=None,
 ):
     source_result = result_path(date_iso)
     source_timeline = timeline_path(date_iso)
@@ -748,7 +730,6 @@ def run_one_date(
                 started_at,
                 timeout_seconds,
                 stop_button,
-                completion_predicate=completion_predicate,
             )
             if not completed or not source_result.exists():
                 if keep_global_result:
@@ -1021,7 +1002,6 @@ def run_replay_period(
     replay_to_time=DEFAULT_REPLAY_TO_TIME,
     progress_meta=None,
     progress_every=10,
-    completion_predicate=None,
 ):
     output_folder.mkdir(parents=True, exist_ok=True)
 
@@ -1077,8 +1057,6 @@ def run_replay_period(
                 skipped_count = 0
                 real_durations = []
                 last_notify = 0
-                bar = (ProgressBar(total_dates, label=f"Replay {run_name}")
-                       if ProgressBar else None)
 
                 for index, date_iso in enumerate(date_iso_list, 1):
                     print(
@@ -1099,7 +1077,6 @@ def run_replay_period(
                             replay_from_time=replay_from_time,
                             replay_to_time=replay_to_time,
                             keep_global_result=True,
-                            completion_predicate=completion_predicate,
                         )
                     except KeyboardInterrupt:
                         raise
@@ -1187,12 +1164,6 @@ def run_replay_period(
                             remaining=int(round(est_remaining_real)),
                             final=is_final,
                         )
-
-                    if bar:
-                        bar.update()
-
-                if bar:
-                    bar.close()
         finally:
             click_stop()
             restore_file_state(saved_target)

@@ -100,9 +100,7 @@ namespace ATAS.Indicators
             "Buy_Imbalance_Count,Sell_Imbalance_Count," +
             "Execution_Side_Imbalance_Count,Max_Delta_during_trade,Min_Delta_during_trade," +
             "Volume_Increased_During_Trade,Volume_Increase_Samples,Volume_Observed_Samples," +
-            "Volume_Increasing_Pct_During_Trade,Max_MAE_Speed_500ms,Max_MAE_Speed_1s,Max_MAE_Speed_2s," +
-            "VP_Dir_POC,VP_Dir_VAH,VP_Dir_VAL,VP_Dir_High,VP_Dir_Low,VP_Dir_Range_Ticks,VP_Direction," +
-            "VP_LVN_POC,VP_LVN_Count,VP_LVN_Levels";
+            "Volume_Increasing_Pct_During_Trade,Max_MAE_Speed_500ms,Max_MAE_Speed_1s,Max_MAE_Speed_2s";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
@@ -181,8 +179,7 @@ namespace ATAS.Indicators
         public bool RequireBodyOkForTrade { get; set; } = false;
         public bool RequireVwapOkForTrade { get; set; } = false;
         // Para el PnL en $ del Telegram (NQ = $5/tick). Contratos = sizing Lucid.
-        // 3c NQ = safe sizing (path DD -$3,405 < $4,500 cushion; 6c busts at -$6,810).
-        public int TelegramContracts { get; set; } = 3;
+        public int TelegramContracts { get; set; } = 6;
         public decimal TickValueUsd { get; set; } = 5m;
         // Balance corrido en Telegram: arranca en esta cuenta y suma/resta cada PnL.
         public decimal TelegramStartingBalance { get; set; } = 150000m;
@@ -2374,11 +2371,6 @@ namespace ATAS.Indicators
                 ? BuildTradeCsvRow()
                 : csvRowOverride.TrimEnd('\r', '\n');
 
-            // Append the Volume_Profile_Eddieware levels (read from the shared store by
-            // session date). Single injection point so both the fresh and replay-sync
-            // rows stay aligned with the header.
-            csvRow += "," + BuildVolumeProfileCsvFields(nyDate);
-
             File.WriteAllText(
                 filePath,
                 CsvHeader + Environment.NewLine +
@@ -2479,32 +2471,6 @@ namespace ATAS.Indicators
                 );
         }
 
-        // 10 fields, always the same count (blank when the Volume_Profile_Eddieware
-        // indicator has not published levels for this session yet).
-        private string BuildVolumeProfileCsvFields(DateTime nyDate)
-        {
-            if (!VolumeProfileStore.TryGet(nyDate, out var vp))
-                return ",,,,,,,,,";
-
-            var dirPoc = vp.HasDirection ? FormatPrice(vp.DirPoc) : "";
-            var dirVah = vp.HasDirection ? FormatPrice(vp.DirVah) : "";
-            var dirVal = vp.HasDirection ? FormatPrice(vp.DirVal) : "";
-            var dirHigh = vp.HasDirection ? FormatPrice(vp.DirHigh) : "";
-            var dirLow = vp.HasDirection ? FormatPrice(vp.DirLow) : "";
-            var dirRange = vp.HasDirection ? FormatTicks(vp.DirRangeTicks) : "";
-            var direction = vp.HasDirection ? (vp.Direction ?? "") : "";
-
-            var lvnPoc = vp.HasLvn ? FormatPrice(vp.LvnPoc) : "";
-            var levels = vp.LvnLevels ?? Array.Empty<decimal>();
-            var lvnCount = vp.HasLvn ? levels.Length.ToString(CultureInfo.InvariantCulture) : "";
-            var lvnLevels = string.Join("|", Array.ConvertAll(levels,
-                x => x.ToString("0.00", CultureInfo.InvariantCulture)));
-
-            return string.Join(",",
-                dirPoc, dirVah, dirVal, dirHigh, dirLow, dirRange, direction,
-                lvnPoc, lvnCount, lvnLevels);
-        }
-
         private void WriteTimeOverFile(DateTime nyDate, DateTime nyTime)
         {
             if (!Directory.Exists(_exportFolder))
@@ -2602,7 +2568,7 @@ namespace ATAS.Indicators
             TelegramTradeNotifier.QueueTerminalResult(
                 _exportFolder,
                 nyDate,
-                $"EW ORB NQ | {nyDate:yyyy-MM-dd}\nTIME OVER\nBalance canónico: {timeOverBalance:$#,##0}");
+                $"EW ORB NQ | {nyDate:yyyy-MM-dd}\nTIME OVER\nBalance: {timeOverBalance:$#,##0}");
         }
 
         private string BuildTelegramTradeMessage()
@@ -2612,24 +2578,15 @@ namespace ATAS.Indicators
 
             var offset = _nyZone.GetUtcOffset(_trade.EntryDate);
             var utcLabel = (int)offset.TotalHours == -4 ? "UTC-4 (EDT)" : "UTC-5 (EST)";
-            var ticks = TradeResultTicks();
-            // Prefer the REAL contracts the Execution Manager strategy sized (kill-switch),
-            // reported in-process via the bus. Fall back to the nominal TelegramContracts
-            // when no strategy executed this date (filter/governor skip, or exporter-only run).
-            var executed = ExecutionSignalBus.ExecutedContracts(_trade.EntryDate);
-            var contracts = executed ?? TelegramContracts;
-            var sizeLabel = executed.HasValue ? $"{contracts}c (real)" : $"{contracts}c (nominal)";
-            var pnl = ticks * TickValueUsd * contracts;
+            var pnl = TradeResultTicks() * TickValueUsd * TelegramContracts;
             var balance = UpdateAndGetTelegramBalance(_trade.EntryDate.Date, pnl);
 
             return string.Join(
                 Environment.NewLine,
                 $"EW ORB NQ | {_trade.EntryDate:yyyy-MM-dd}",
                 $"{_trade.Result} {_trade.Side} | {_trade.EntryTimeNy:HH:mm:ss} NY ({utcLabel})",
-                $"Ticks: {ticks:+0;-0} (TP {_trade.TpTicks} / SL {_trade.SlTicks})",
-                $"Entry: {_trade.Entry:0.00} | Exit: {_trade.ExitPrice:0.00} | SL: {_trade.Sl:0.00} | TP: {_trade.Tp:0.00}",
-                $"PnL: {pnl:+$0;-$0} | {sizeLabel}",
-                $"Balance canónico: {balance:$#,##0}",
+                $"PnL: {pnl:+$0;-$0} | {TelegramContracts}c",
+                $"Balance: {balance:$#,##0}",
                 $"Duración: {FormatTradeDuration()}");
         }
 

@@ -1,7 +1,0 @@
-﻿section,segment,metric,value,n
-Overall,ALL,sessions,1.0,1
-Overall,ALL,sessions_with_first_minute_lvn,0.0,1
-Overall,ALL,lvn_occurrence_day_rate,0.0,1
-Overall,ALL,lvn_nodes,0.0,0
-Overall,ALL,retest_events,0.0,0
-Overall,ALL,retests_per_lvn,,0

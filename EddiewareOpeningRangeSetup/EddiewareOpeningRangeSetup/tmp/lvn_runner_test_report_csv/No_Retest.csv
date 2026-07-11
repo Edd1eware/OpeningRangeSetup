@@ -1,2 +1,0 @@
-﻿date,symbol,lvn_count,lvn_ids,lvn_prices,context_profile_shape,context_prob_P,context_prob_b,context_prob_D,reason
-2026-06-02,NQ,1,FIRST_MINUTE_0930_0931_LVN_01,100.50,D,0.011455384140967785,0.011455384140967785,0.9256303967896063,LVN_DETECTED_BUT_NOT_RETESTED_BEFORE_0940
