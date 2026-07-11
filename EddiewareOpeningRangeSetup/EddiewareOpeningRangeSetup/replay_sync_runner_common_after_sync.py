@@ -884,6 +884,14 @@ def build_run_plan(quick=True, x1_only=False, x10_only=False):
     return [("X1_R1", "X1", X1_TIMEOUT_SECONDS), *x10_runs]
 
 
+# Layouts soportados por los contadores de sesiones:
+#   <root>/<stage>/X1_*/csv (ladder)  y  <root>/X1_*/csv (corrida unica).
+_X1_CSV_GLOB_PATTERNS = (
+    "X1_*/score_trade_result_*_NY.csv",
+    "*/X1_*/score_trade_result_*_NY.csv",
+)
+
+
 def count_distinct_sessions(session_roots):
     """Cuenta sesiones distintas (fechas con CSV X1 guardado) para la meta de 500.
 
@@ -897,10 +905,13 @@ def count_distinct_sessions(session_roots):
         root_path = Path(root)
         if not root_path.exists():
             continue
-        for csv_path in root_path.glob("*/X1_*/score_trade_result_*_NY.csv"):
-            match = re.search(r"(\d{4}-\d{2}-\d{2})", csv_path.name)
-            if match:
-                seen.add(match.group(1))
+        # Ladder roots nest per-stage (<root>/<stage>/X1_*); single-run roots
+        # (e.g. DST 2025-2026) hold X1_* directly. Support both layouts.
+        for pattern in _X1_CSV_GLOB_PATTERNS:
+            for csv_path in root_path.glob(pattern):
+                match = re.search(r"(\d{4}-\d{2}-\d{2})", csv_path.name)
+                if match:
+                    seen.add(match.group(1))
     return len(seen)
 
 
@@ -915,26 +926,27 @@ def count_synced_sessions(session_roots):
         root_path = Path(root)
         if not root_path.exists():
             continue
-        for x1_path in root_path.glob("*/X1_*/score_trade_result_*_NY.csv"):
-            match = re.search(r"(\d{4}-\d{2}-\d{2})", x1_path.name)
-            if not match:
-                continue
-            date_iso = match.group(1)
-            if date_iso in seen:
-                continue
-            x10_dir = x1_path.parent.parent / x1_path.parent.name.replace("X1", "X10", 1)
-            x10_path = x10_dir / x1_path.name
-            if not x10_path.exists():
-                continue
-            r1 = read_csv_row(x1_path)
-            r10 = read_csv_row(x10_path)
-            if not r1 or not r10:
-                continue
-            if all(
-                normalize(r1.get(field)) == normalize(r10.get(field))
-                for field in OPERATIVA_COMPARISON_FIELDS
-            ):
-                seen.add(date_iso)
+        for pattern in _X1_CSV_GLOB_PATTERNS:
+            for x1_path in root_path.glob(pattern):
+                match = re.search(r"(\d{4}-\d{2}-\d{2})", x1_path.name)
+                if not match:
+                    continue
+                date_iso = match.group(1)
+                if date_iso in seen:
+                    continue
+                x10_dir = x1_path.parent.parent / x1_path.parent.name.replace("X1", "X10", 1)
+                x10_path = x10_dir / x1_path.name
+                if not x10_path.exists():
+                    continue
+                r1 = read_csv_row(x1_path)
+                r10 = read_csv_row(x10_path)
+                if not r1 or not r10:
+                    continue
+                if all(
+                    normalize(r1.get(field)) == normalize(r10.get(field))
+                    for field in OPERATIVA_COMPARISON_FIELDS
+                ):
+                    seen.add(date_iso)
     return len(seen)
 
 

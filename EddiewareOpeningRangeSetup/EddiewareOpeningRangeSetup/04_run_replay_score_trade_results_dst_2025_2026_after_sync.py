@@ -17,17 +17,56 @@ from telegram_run_summary_after_sync import clear_telegram_before_run, send_run_
 # CONFIG
 # =========================================================
 
-# Temporadas DST completas de Nueva York para 2025 y 2026.
+# Temporadas DST completas de Nueva York de 2022 a 2026.
+# 2022 arranca el 04/04/2022 (inicio de datos disponibles), no en el cambio DST.
 # Se excluyen fines de semana y cierres completos del mercado de EE. UU.
 # Los cierres tempranos se incluyen porque el replay solo usa 09:30-09:50 NY.
 # Formato requerido por el panel Replay de ATAS: dd/mm/yyyy.
 
 DST_SEASONS = (
+    (date(2022, 4, 4), date(2022, 11, 4)),
+    (date(2023, 3, 13), date(2023, 11, 3)),
+    (date(2024, 3, 11), date(2024, 11, 1)),
     (date(2025, 3, 10), date(2025, 10, 31)),
     (date(2026, 3, 9), date(2026, 10, 30)),
 )
 
 MARKET_CLOSED_DATES = {
+    # 2022
+    date(2022, 1, 17),  # Martin Luther King Jr. Day
+    date(2022, 2, 21),  # Washington's Birthday
+    date(2022, 4, 15),  # Good Friday
+    date(2022, 5, 30),  # Memorial Day
+    date(2022, 6, 20),  # Juneteenth observed
+    date(2022, 7, 4),   # Independence Day
+    date(2022, 9, 5),   # Labor Day
+    date(2022, 11, 24), # Thanksgiving Day
+    date(2022, 12, 26), # Christmas Day observed
+
+    # 2023
+    date(2023, 1, 2),   # New Year's Day observed
+    date(2023, 1, 16),  # Martin Luther King Jr. Day
+    date(2023, 2, 20),  # Washington's Birthday
+    date(2023, 4, 7),   # Good Friday
+    date(2023, 5, 29),  # Memorial Day
+    date(2023, 6, 19),  # Juneteenth
+    date(2023, 7, 4),   # Independence Day
+    date(2023, 9, 4),   # Labor Day
+    date(2023, 11, 23), # Thanksgiving Day
+    date(2023, 12, 25), # Christmas Day
+
+    # 2024
+    date(2024, 1, 1),   # New Year's Day
+    date(2024, 1, 15),  # Martin Luther King Jr. Day
+    date(2024, 2, 19),  # Washington's Birthday
+    date(2024, 3, 29),  # Good Friday
+    date(2024, 5, 27),  # Memorial Day
+    date(2024, 6, 19),  # Juneteenth
+    date(2024, 7, 4),   # Independence Day
+    date(2024, 9, 2),   # Labor Day
+    date(2024, 11, 28), # Thanksgiving Day
+    date(2024, 12, 25), # Christmas Day
+
     # 2025
     date(2025, 1, 1),   # New Year's Day
     date(2025, 1, 9),   # National Day of Mourning
@@ -88,6 +127,10 @@ DATES_DST = [
     if datetime.strptime(replay_date, "%d/%m/%Y").date() <= LAST_REPLAY_DATE
 ]
 
+# Fase 1: primeras N fechas en X1 y luego X10 para validar sincronia X1==X10.
+# Fase 2: si la sincronia pasa, corrida completa desde 04/04/2022 SOLO en X10.
+SYNC_CHECK_DATE_COUNT = 10
+
 # Replay recomendado para esta prueba: X10.
 # Ventana por dia: 09:30 a 09:50 NY. El exporter escribe TIME_OVER si no hay trade antes/de 09:40;
 # si ya hay trade abierto, dejamos correr hasta 09:50 para que resuelva TP/SL/EXIT/BE.
@@ -108,8 +151,8 @@ REPLAY_STARTED_FILE = os.path.join(EXPORT_FOLDER, "replay_trade_result_started_a
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCORE_WORKBOOK_TEMPLATE = os.path.join(BASE_DIR, "Score_indicator_results_updated.xlsx")
 SCORE_WORKBOOK_TEMPLATE_FALLBACK = os.path.join(BASE_DIR, "Score_indicator_results_updated_fallback.xlsx")
-SCORE_WORKBOOK = os.path.join(BASE_DIR, "Score_indicator_results_updated_2025_2026.xlsx")
-SCORE_WORKBOOK_FALLBACK = os.path.join(BASE_DIR, "Score_indicator_results_updated_2025_2026_fallback.xlsx")
+SCORE_WORKBOOK = os.path.join(BASE_DIR, "Score_indicator_results_updated_2022_2026.xlsx")
+SCORE_WORKBOOK_FALLBACK = os.path.join(BASE_DIR, "Score_indicator_results_updated_2022_2026_fallback.xlsx")
 RUN_STARTED_AT = time.time()
 RESUME_EXISTING_RESULTS = True
 STALE_RESULT_BACKUP_DIR = os.path.join(RESULTS_FOLDER, "_replay_result_backups")
@@ -1008,8 +1051,9 @@ def update_score_workbook():
 def parse_args():
     parser = argparse.ArgumentParser(
         description=(
-            "Corre las temporadas DST 2025-2026 usando el flujo v11 canónico: "
-            "X1 genera la fila oficial y X10 la sincroniza."
+            "Corre las temporadas DST 2022-2026 (desde 04/04/2022) con flujo v11: "
+            "Fase 1 valida sincronia X1/X10 en las primeras "
+            f"{SYNC_CHECK_DATE_COUNT} fechas; Fase 2 corre todo SOLO en X10."
         )
     )
     parser.add_argument(
@@ -1103,6 +1147,20 @@ def main():
         print("Ejecutando limpieza unica de Telegram antes de la primera fecha...")
         clear_telegram_before_run(RESULTS_FOLDER)
 
+    # Progreso Telegram durante la corrida: ping de inicio, avance cada 10
+    # fechas con ETA y alerta si el Replay se atora. La meta global son las
+    # sesiones de ESTA corrida sincronizadas X1==X10 (session_roots apunta solo
+    # a la carpeta de esta corrida para no contar ladder/featsweep/1mes).
+    progress_meta = {
+        "stage_index": 1,
+        "stage_total": 1,
+        "stage_label": "Temporadas DST 2025-2026 v11",
+        "stage_period": f"{DATES_DST[0]} -> {DATES_DST[-1]}",
+        "global_target": len(date_iso_list),
+        "session_roots": [output_folder],
+        "run_label": "DST 2025-2026 X1/X10",
+    }
+
     passed, failures = replay_sync.run_replay_period(
         date_iso_list,
         output_folder=Path(output_folder),
@@ -1112,6 +1170,7 @@ def main():
         step=args.step,
         compare_only=args.compare_only,
         replay_to_time=REPLAY_END_TIME,
+        progress_meta=progress_meta,
     )
 
     update_score_workbook()
