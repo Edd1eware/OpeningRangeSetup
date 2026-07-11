@@ -180,6 +180,64 @@ def is_saved_run_complete(output_folder, date_iso, run_name):
     )
 
 
+def stage_run_names(run_plan):
+    return [name for name, _, _ in run_plan]
+
+
+def completed_stage_dates(output_folder, date_iso_list, run_plan):
+    """Fechas completas para una etapa: todos los run_name requeridos existen."""
+    names = stage_run_names(run_plan)
+    completed = set()
+    for date_iso in date_iso_list:
+        if all(is_saved_run_complete(output_folder, date_iso, name) for name in names):
+            completed.add(date_iso)
+    return completed
+
+
+def count_stage_completed_dates(output_folder, date_iso_list, run_plan):
+    return len(completed_stage_dates(output_folder, date_iso_list, run_plan))
+
+
+def estimate_remaining_stage_work(
+    output_folder,
+    date_iso_list,
+    run_plan,
+    durations_by_speed,
+    *,
+    current_pass_index=0,
+    current_index=0,
+    force=False,
+):
+    """Cuenta corridas pendientes reales y estima ETA por velocidad."""
+    pending = 0
+    eta_seconds = 0.0
+    for pass_index, (run_name, speed_label, _) in enumerate(run_plan):
+        if pass_index < current_pass_index:
+            continue
+
+        dates_to_check = (
+            date_iso_list[current_index:]
+            if pass_index == current_pass_index
+            else date_iso_list
+        )
+        if force:
+            pending_for_run = len(dates_to_check)
+        else:
+            pending_for_run = sum(
+                1
+                for date_iso in dates_to_check
+                if not is_saved_run_complete(output_folder, date_iso, run_name)
+            )
+
+        pending += pending_for_run
+        eta_seconds += pending_for_run * estimate_speed_seconds(
+            speed_label,
+            durations_by_speed,
+        )
+
+    return eta_seconds, pending
+
+
 def describe_saved_run(output_folder, date_iso, run_name):
     row = read_csv_row(destination_result_path(output_folder, date_iso, run_name)) or {}
     return (
@@ -957,8 +1015,35 @@ def _send_stage_progress(progress_meta, *, done, total, passed, failed,
     if not progress_meta:
         return
 
+    completed_dates = None
+    stage_names = None
+    stage_output_folder = progress_meta.get("_output_folder")
+    stage_date_iso_list = progress_meta.get("_date_iso_list")
+    stage_run_plan = progress_meta.get("_run_plan")
+    if stage_output_folder and stage_date_iso_list and stage_run_plan:
+        completed_dates = completed_stage_dates(
+            stage_output_folder,
+            stage_date_iso_list,
+            stage_run_plan,
+        )
+        stage_names = stage_run_names(stage_run_plan)
+        done = len(completed_dates)
+
     global_done = count_distinct_sessions(progress_meta.get("session_roots"))
     global_synced = count_synced_sessions(progress_meta.get("session_roots"))
+
+    # Stats acumuladas (WR/PF/TP/SL/rachas) leidas de los CSV de la corrida.
+    stats = None
+    stats_root = progress_meta.get("stats_root")
+    if stats_root:
+        try:
+            stats = telegram.compute_run_stats(
+                stats_root,
+                allowed_dates=completed_dates,
+                run_names=stage_names,
+            )
+        except Exception as exc:
+            print(f"WARNING: stats Telegram fallo: {exc}")
 
     # PnL real acumulado + contratos, leidos del log de la estrategia (si aplica).
     pnl_usd = None
@@ -997,6 +1082,7 @@ def _send_stage_progress(progress_meta, *, done, total, passed, failed,
             start=start,
             pnl_usd=pnl_usd,
             contracts=contracts,
+            stats=stats,
         )
     except Exception as exc:
         print(f"WARNING: progreso Telegram fallo: {exc}")
@@ -1016,6 +1102,11 @@ def run_replay_period(
     progress_every=10,
 ):
     output_folder.mkdir(parents=True, exist_ok=True)
+    if progress_meta:
+        progress_meta = dict(progress_meta)
+        progress_meta["_output_folder"] = output_folder
+        progress_meta["_date_iso_list"] = list(date_iso_list)
+        progress_meta["_run_plan"] = list(run_plan)
 
     if compare_only:
         passed = build_comparison_report(output_folder, date_iso_list, run_plan, report_prefix)
@@ -1030,26 +1121,39 @@ def run_replay_period(
         saved_marker = save_file_state(REPLAY_STARTED_FILE, backup_folder / "marker")
 
         try:
+            # Mediciones de duracion por velocidad (X1/X10), compartidas entre
+            # pasadas, para un ETA robusto de la ETAPA completa.
+            durations_by_speed = {}
+            initial_done = count_stage_completed_dates(output_folder, date_iso_list, run_plan)
+            initial_eta, initial_pending = estimate_remaining_stage_work(
+                output_folder,
+                date_iso_list,
+                run_plan,
+                durations_by_speed,
+                force=force,
+            )
+
             # Ping de inicio de etapa: confirmacion inmediata en Telegram sin
             # esperar a que cierre la primera fecha real.
             _send_stage_progress(
                 progress_meta,
-                done=0,
+                done=initial_done,
                 total=len(date_iso_list),
                 passed=0,
                 failed=0,
                 skipped=0,
-                eta_seconds=None,
+                eta_seconds=initial_eta,
                 avg_seconds=None,
-                remaining=len(date_iso_list),
+                remaining=initial_pending,
                 start=True,
             )
 
-            # Mediciones de duracion por velocidad (X1/X10), compartidas entre
-            # pasadas, para un ETA robusto de la ETAPA completa.
-            durations_by_speed = {}
             consecutive_fail = 0
             error_alert_sent = False
+            stage_passed_count = 0
+            stage_failed_count = 0
+            stage_skipped_count = 0
+            last_notify_done = initial_done
 
             for pass_index, (run_name, speed_label, timeout_seconds) in enumerate(run_plan):
                 if speed_label != previous_speed:
@@ -1068,7 +1172,6 @@ def run_replay_period(
                 failed_count = 0
                 skipped_count = 0
                 real_durations = []
-                last_notify = 0
 
                 for index, date_iso in enumerate(date_iso_list, 1):
                     print(
@@ -1099,13 +1202,16 @@ def run_replay_period(
                     elapsed = time.time() - started
                     if reason == "SKIPPED":
                         skipped_count += 1
+                        stage_skipped_count += 1
                     else:
                         real_durations.append(elapsed)
                         durations_by_speed.setdefault(speed_label, []).append(elapsed)
                         if ok:
                             passed_count += 1
+                            stage_passed_count += 1
                         else:
                             failed_count += 1
+                            stage_failed_count += 1
 
                     if not ok:
                         failures.append((date_iso, run_name, reason))
@@ -1132,49 +1238,46 @@ def run_replay_period(
                         except Exception:
                             pass
 
-                    # ETA de la ETAPA COMPLETA (no solo de esta pasada):
-                    # 1) fechas reales que faltan en la pasada actual x mediana de
-                    #    esta velocidad; 2) + cada pasada pendiente (p.ej. el X10
-                    #    tras el X1) x su propia mediana. Mediana, no promedio, para
-                    #    que un TIME_OVER de 20 min no infle el numero.
-                    real_ratio = (
-                        len(real_durations) / index if index else 0
+                    # ETA exacto por corridas pendientes. Si una fecha ya esta
+                    # guardada y no hay --force, no infla el ETA ni el contador.
+                    eta_seconds, est_remaining_real = estimate_remaining_stage_work(
+                        output_folder,
+                        date_iso_list,
+                        run_plan,
+                        durations_by_speed,
+                        current_pass_index=pass_index,
+                        current_index=index,
+                        force=force,
                     )
-                    remaining_current = (total_dates - index) * real_ratio
-                    cur_speed_seconds = estimate_speed_seconds(
-                        speed_label, durations_by_speed
-                    )
-                    eta_seconds = remaining_current * cur_speed_seconds
-                    total_remaining_real = remaining_current
-                    for next_name, next_speed, _ in run_plan[pass_index + 1:]:
-                        pending_real = total_dates * real_ratio
-                        total_remaining_real += pending_real
-                        eta_seconds += pending_real * estimate_speed_seconds(
-                            next_speed, durations_by_speed
-                        )
-                    avg_seconds = cur_speed_seconds
-                    est_remaining_real = total_remaining_real
 
-                    is_real = reason != "SKIPPED"
-                    is_final = index == total_dates
-                    should_notify = (
-                        is_real
-                        or is_final
-                        or (index - last_notify >= progress_every)
+                    stage_done = count_stage_completed_dates(
+                        output_folder,
+                        date_iso_list,
+                        run_plan,
                     )
+                    stage_final = (
+                        pass_index == len(run_plan) - 1
+                        and index == total_dates
+                    )
+                    interval_hit = (
+                        progress_every
+                        and stage_done > last_notify_done
+                        and stage_done - last_notify_done >= progress_every
+                    )
+                    should_notify = stage_final or interval_hit
                     if progress_meta and should_notify:
-                        last_notify = index
+                        last_notify_done = stage_done
                         _send_stage_progress(
                             progress_meta,
-                            done=index,
+                            done=stage_done,
                             total=total_dates,
-                            passed=passed_count,
-                            failed=failed_count,
-                            skipped=skipped_count,
+                            passed=stage_passed_count,
+                            failed=stage_failed_count,
+                            skipped=stage_skipped_count,
                             eta_seconds=eta_seconds,
-                            avg_seconds=avg_seconds,
+                            avg_seconds=None,
                             remaining=int(round(est_remaining_real)),
-                            final=is_final,
+                            final=stage_final,
                         )
         finally:
             click_stop()

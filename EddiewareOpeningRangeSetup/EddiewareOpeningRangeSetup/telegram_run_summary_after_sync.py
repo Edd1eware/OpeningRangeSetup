@@ -2,6 +2,7 @@ import csv
 import io
 import json
 import os
+import re
 import tempfile
 from pathlib import Path
 from urllib.parse import urlencode
@@ -46,6 +47,103 @@ def _read_credentials(results_folder):
     token = credentials.get("token")
     chat_id = credentials.get("chat_id")
     return (token, chat_id) if token and chat_id else None
+
+
+def compute_run_stats(run_root, allowed_dates=None, run_names=None):
+    """Stats acumuladas de la corrida leyendo score_trade_result_*_NY.csv bajo
+    run_root (carpetas X1_*/X10_* directas o anidadas). Una fila por fecha; si
+    una fecha existe en X1 y X10 gana la de X10 (es la pasada completa).
+
+    Retorna dict con: trades, winrate, pf, tp_ticks, sl_ticks,
+    max_consec_wins, max_consec_losses. None si no hay trades cerrados.
+    BE (0 ticks) no cuenta como win ni loss y corta ambas rachas.
+    """
+    root = Path(run_root)
+    if not root.exists():
+        return None
+
+    if allowed_dates is not None:
+        allowed_dates = set(allowed_dates)
+    if run_names is not None:
+        run_names = set(run_names)
+
+    rows_by_date = {}
+    for csv_path in sorted(root.rglob("score_trade_result_*_NY.csv")):
+        parent = csv_path.parent.name
+        if not (parent.startswith("X1_") or parent.startswith("X10_")):
+            continue
+        if run_names is not None and parent not in run_names:
+            continue
+        try:
+            with open(csv_path, "r", encoding="utf-8-sig", newline="") as fh:
+                row = next(iter(csv.DictReader(fh)), None)
+        except Exception:
+            continue
+        if not row:
+            continue
+        match = re.search(r"(\d{4}-\d{2}-\d{2})", csv_path.name)
+        date_key = match.group(1) if match else str(row.get("fecha") or "").strip() or csv_path.name
+        if allowed_dates is not None and date_key not in allowed_dates:
+            continue
+        is_x10 = parent.startswith("X10_")
+        if date_key in rows_by_date and not is_x10:
+            continue
+        rows_by_date[date_key] = row
+
+    ticks_by_date = []
+    tp_ticks = sl_ticks = None
+    for date_key in sorted(rows_by_date):
+        row = rows_by_date[date_key]
+        result_ticks = _parse_result_ticks(row.get("result TP SL BE"))
+        if result_ticks is None:
+            continue
+        ticks_by_date.append(result_ticks)
+        tp_ticks = row.get("TP_ticks") or tp_ticks
+        sl_ticks = row.get("SL_ticks") or sl_ticks
+
+    if not ticks_by_date:
+        return None
+
+    wins = [t for t in ticks_by_date if t > 0]
+    losses = [t for t in ticks_by_date if t < 0]
+    gross_win = sum(wins)
+    gross_loss = -sum(losses)
+
+    max_consec_wins = max_consec_losses = 0
+    run_wins = run_losses = 0
+    for t in ticks_by_date:
+        if t > 0:
+            run_wins += 1
+            run_losses = 0
+        elif t < 0:
+            run_losses += 1
+            run_wins = 0
+        else:  # BE corta ambas rachas
+            run_wins = run_losses = 0
+        max_consec_wins = max(max_consec_wins, run_wins)
+        max_consec_losses = max(max_consec_losses, run_losses)
+
+    return {
+        "trades": len(ticks_by_date),
+        "winrate": 100.0 * len(wins) / len(ticks_by_date),
+        "pf": (gross_win / gross_loss) if gross_loss > 0 else None,
+        "tp_ticks": tp_ticks,
+        "sl_ticks": sl_ticks,
+        "max_consec_wins": max_consec_wins,
+        "max_consec_losses": max_consec_losses,
+    }
+
+
+def _format_stats_line(stats):
+    pf = stats.get("pf")
+    pf_text = f"{pf:.2f}" if pf is not None else "inf"
+    return (
+        f"WR {stats['winrate']:.0f}% | PF {pf_text} | "
+        f"TP {stats['tp_ticks'] or '?'} ticks | SL {stats['sl_ticks'] or '?'} ticks | "
+        f"racha max ganadas {stats['max_consec_wins']} | "
+        f"racha max perdidas {stats['max_consec_losses']} | "
+        f"n={stats['trades']} trades"
+    )
 
 
 def _expected_result_path(results_folder, date):
@@ -334,6 +432,7 @@ def send_progress_update(
     global_synced=None,
     pnl_usd=None,
     contracts=None,
+    stats=None,
 ):
     """Manda un mensaje de progreso. El avance que importa es el TOTAL hacia la
     meta (sesiones sincronizadas X1==X10), no el parcial por etapa."""
@@ -377,6 +476,18 @@ def send_progress_update(
         f"EW Opening Range | {header} ({run_label})",
         f"Fase: ETAPA {stage_index:02d}/{stage_total:02d} - {stage_label}",
     ]
+    if stage_period:
+        lines.append(f"Periodo: {stage_period}")
+    # Avance de la etapa actual (fechas completas, no pasadas internas X1/X10).
+    if total:
+        lines.append(f"Etapa: {done}/{total} fechas completas")
+        lines.append(
+            "Corridas de esta ejecucion: "
+            f"OK {passed} | fallas {failed} | saltadas {skipped}"
+        )
+    # Stats acumuladas de la corrida (WR/PF/TP/SL/rachas).
+    if stats:
+        lines.append(_format_stats_line(stats))
     # Progreso TOTAL hacia la meta (sincronizadas X1==X10), no parcial por etapa.
     if global_target:
         missing = max(global_target - synced, 0)
@@ -391,14 +502,11 @@ def send_progress_update(
         if contracts:
             line += f" | {contracts} contratos"
         lines.append(line)
-    if not final and not start:
-        if avg_seconds:
-            lines.append(
-                f"ETA etapa: {_format_eta(eta_seconds)} "
-                f"(prom {avg_seconds:.0f} s/fecha x {remaining} fechas)"
-            )
-        else:
-            lines.append(f"ETA etapa: {_format_eta(eta_seconds)}")
+    if not final and not start and remaining and remaining > 0:
+        lines.append(
+            f"ETA etapa: {_format_eta(eta_seconds)} "
+            f"({remaining} corridas pendientes)"
+        )
 
     message = "\n".join(lines)
     try:

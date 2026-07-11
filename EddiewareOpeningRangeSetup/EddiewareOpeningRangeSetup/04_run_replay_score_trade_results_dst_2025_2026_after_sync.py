@@ -3,6 +3,7 @@ from pywinauto import Desktop
 import csv
 from datetime import date, datetime, timedelta
 import os
+import shutil
 import time
 from pathlib import Path
 import pyperclip
@@ -11,7 +12,7 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 import replay_sync_runner_common_after_sync as replay_sync
-from telegram_run_summary_after_sync import clear_telegram_before_run, send_run_summary
+from telegram_run_summary_after_sync import clear_telegram_before_run, send_run_summary, send_text
 
 # =========================================================
 # CONFIG
@@ -1048,6 +1049,38 @@ def update_score_workbook():
 # =========================================================
 
 
+def reset_replay_run_state(output_folder):
+    """Archiva resultados previos y reinicia el estado contable de Telegram."""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_path = Path(output_folder)
+
+    if output_path.exists():
+        archive_path = output_path.parent / f"_archive_{output_path.name}_reset_{timestamp}"
+        suffix = 1
+        while archive_path.exists():
+            archive_path = output_path.parent / (
+                f"_archive_{output_path.name}_reset_{timestamp}_{suffix}"
+            )
+            suffix += 1
+        shutil.move(str(output_path), str(archive_path))
+        print(f"Resultados previos archivados: {archive_path}")
+
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    # No tocar telegram_message_ids.txt aqui: clear_telegram_before_run lo usa
+    # para borrar mensajes viejos antes de vaciarlo. El balance si debe volver a
+    # arrancar desde TelegramStartingBalance ($150,000 en el exporter).
+    for file_name in ("telegram_balance.json", "telegram_challenge_passed.flag"):
+        state_path = Path(RESULTS_FOLDER) / file_name
+        if not state_path.exists():
+            continue
+        backup_path = state_path.with_name(
+            f"{state_path.stem}_backup_{timestamp}{state_path.suffix}"
+        )
+        shutil.move(str(state_path), str(backup_path))
+        print(f"Estado Telegram reiniciado; backup: {backup_path}")
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description=(
@@ -1075,6 +1108,11 @@ def parse_args():
         "--force",
         action="store_true",
         help="Ignora corridas guardadas y vuelve a correr todo.",
+    )
+    parser.add_argument(
+        "--reset-state",
+        action="store_true",
+        help="Archiva resultados de esta corrida y reinicia balance/stats Telegram.",
     )
     parser.add_argument(
         "--step",
@@ -1114,12 +1152,6 @@ def main():
 
     print_excel_sizes_by_year()
 
-    quick = True
-    run_plan = replay_sync.build_run_plan(
-        quick=quick,
-        x1_only=args.x1_only,
-        x10_only=args.x10_only,
-    )
     date_iso_list = [replay_sync.date_iso_from_replay(date) for date in DATES_DST]
     output_folder = os.path.join(
         RESULTS_FOLDER,
@@ -1127,51 +1159,168 @@ def main():
         "04_run_replay_score_trade_results_dst_2025_2026_runs",
     )
 
+    # --x1-only / --x10-only conservan el modo manual de UNA fase sobre todas
+    # las fechas. Sin flags corre el flujo de dos fases (sync 10 -> full X10).
+    single_phase = args.x1_only or args.x10_only
+
+    sync_dates = date_iso_list[:SYNC_CHECK_DATE_COUNT]
+    run_plan_sync = replay_sync.build_run_plan(quick=True)
+    run_plan_x10 = replay_sync.build_run_plan(quick=True, x10_only=True)
+
     print(
-        f"\nINICIANDO REPLAY DE TEMPORADAS DST 2025-2026 V11 X1/X10 "
-        f"({len(DATES_DST)} sesiones)\n"
+        f"\nINICIANDO REPLAY DE TEMPORADAS DST 2022-2026 V11 "
+        f"({len(DATES_DST)} sesiones desde {DATES_DST[0]})\n"
         f"Fecha NY actual: {TODAY_NY:%d/%m/%Y} | "
         f"Ultima fecha permitida: {LAST_REPLAY_DATE:%d/%m/%Y}\n"
         f"Version esperada: {replay_sync.EXPECTED_EXPORTER_VERSION}\n"
         f"Resultados de validacion: {output_folder}\n"
     )
-    print("Plan:")
-    for run_name, speed_label, _ in run_plan:
-        print(f"  - {run_name}: Replay {speed_label}")
+    if single_phase:
+        run_plan_manual = replay_sync.build_run_plan(
+            quick=True,
+            x1_only=args.x1_only,
+            x10_only=args.x10_only,
+        )
+        print("Plan (modo manual, una fase):")
+        for run_name, speed_label, _ in run_plan_manual:
+            print(f"  - {run_name}: Replay {speed_label}")
+    else:
+        print("Plan:")
+        print(
+            f"  - FASE 1 (sincronia): primeras {len(sync_dates)} fechas en "
+            "X1_R1 y X10_R1; aborta si divergen."
+        )
+        print(
+            f"  - FASE 2 (historia completa): {len(date_iso_list)} fechas "
+            "desde 04/04/2022 SOLO en X10 (las ya corridas se saltan)."
+        )
 
     if args.prepare_only:
         print("\nPREPARE-ONLY correcto. No se inició Replay.")
         return 0
 
+    if args.reset_state and args.compare_only:
+        print("WARNING: --reset-state se ignora en --compare-only.")
+    elif args.reset_state:
+        print("Reiniciando resultados/Telegram para corrida desde cero...")
+        reset_replay_run_state(output_folder)
+
     if not args.compare_only:
         print("Ejecutando limpieza unica de Telegram antes de la primera fecha...")
         clear_telegram_before_run(RESULTS_FOLDER)
 
-    # Progreso Telegram durante la corrida: ping de inicio, avance cada 10
-    # fechas con ETA y alerta si el Replay se atora. La meta global son las
-    # sesiones de ESTA corrida sincronizadas X1==X10 (session_roots apunta solo
-    # a la carpeta de esta corrida para no contar ladder/featsweep/1mes).
-    progress_meta = {
-        "stage_index": 1,
-        "stage_total": 1,
-        "stage_label": "Temporadas DST 2025-2026 v11",
-        "stage_period": f"{DATES_DST[0]} -> {DATES_DST[-1]}",
-        "global_target": len(date_iso_list),
-        "session_roots": [output_folder],
-        "run_label": "DST 2025-2026 X1/X10",
-    }
+    if single_phase:
+        progress_meta = {
+            "stage_index": 1,
+            "stage_total": 1,
+            "stage_label": "DST 2022-2026 v11 (modo manual)",
+            "stage_period": f"{DATES_DST[0]} -> {DATES_DST[-1]}",
+            "session_roots": [output_folder],
+            "run_label": "DST 2022-2026",
+            "stats_root": output_folder,
+        }
+        passed, failures = replay_sync.run_replay_period(
+            date_iso_list,
+            output_folder=Path(output_folder),
+            run_plan=run_plan_manual,
+            report_prefix="dst_2022_2026_v11",
+            force=args.force,
+            step=args.step,
+            compare_only=args.compare_only,
+            replay_to_time=REPLAY_END_TIME,
+            progress_meta=progress_meta,
+        )
+    else:
+        # ── FASE 1: sincronia X1==X10 en las primeras fechas ──────────────
+        progress_meta_sync = {
+            "stage_index": 1,
+            "stage_total": 2,
+            "stage_label": f"Sincronia X1/X10 ({len(sync_dates)} fechas)",
+            "stage_period": f"{DATES_DST[0]} -> {DATES_DST[len(sync_dates) - 1]}",
+            "global_target": len(sync_dates),
+            "session_roots": [output_folder],
+            "run_label": "DST 2022-2026",
+            "stats_root": output_folder,
+        }
+        passed_sync, failures_sync = replay_sync.run_replay_period(
+            sync_dates,
+            output_folder=Path(output_folder),
+            run_plan=run_plan_sync,
+            report_prefix="dst_2022_2026_sync10_v11",
+            force=args.force,
+            step=args.step,
+            compare_only=args.compare_only,
+            replay_to_time=REPLAY_END_TIME,
+            progress_meta=progress_meta_sync,
+        )
 
-    passed, failures = replay_sync.run_replay_period(
-        date_iso_list,
-        output_folder=Path(output_folder),
-        run_plan=run_plan,
-        report_prefix="dst_2025_2026_v11",
-        force=args.force,
-        step=args.step,
-        compare_only=args.compare_only,
-        replay_to_time=REPLAY_END_TIME,
-        progress_meta=progress_meta,
-    )
+        phase1_synced = passed_sync and not failures_sync
+        sync_report_path = (
+            Path(output_folder) / "dst_2022_2026_sync10_v11_resumen.txt"
+        )
+        sync_message = [
+            "EW Opening Range | FASE 1 X1/X10 "
+            + ("SINCRONIZADO" if phase1_synced else "NO SINCRONIZADO"),
+            f"Fechas verificadas: {len(sync_dates)}",
+            f"Periodo: {DATES_DST[0]} -> {DATES_DST[len(sync_dates) - 1]}",
+            "Comparacion: campos operativos (entrada/SL/TP/salida/resultado/score).",
+        ]
+        if phase1_synced:
+            sync_message.append("X1_R1 y X10_R1 coinciden. Se habilita FASE 2 X10 completa.")
+        else:
+            sync_message.append("Replay detenido: revisar diferencias antes de FASE 2.")
+            if sync_report_path.exists():
+                sync_message.append(f"Reporte: {sync_report_path}")
+            if failures_sync:
+                sync_message.append("Errores:")
+                for date_iso, run_name, reason in failures_sync[:5]:
+                    sync_message.append(f"- {date_iso} {run_name}: {reason}")
+        send_text(RESULTS_FOLDER, "\n".join(sync_message))
+
+        if not passed_sync or failures_sync:
+            failed_dates = [
+                (date_iso, f"{run_name}: {reason}")
+                for date_iso, run_name, reason in failures_sync
+            ]
+            print("\nFASE 1 FALLO: sincronia X1/X10 divergente o fechas con error.")
+            for failed_date, error in failed_dates:
+                print(f"- {failed_date}: {error}")
+            send_run_summary(
+                RESULTS_FOLDER,
+                DATES_DST[: len(sync_dates)],
+                failed_dates,
+                "DST 2022-2026 FASE 1 (sincronia X1/X10) FALLO — corrida detenida",
+            )
+            print("\nCORRIDA DETENIDA: NO se inicia la fase X10 completa.\n")
+            return 1
+
+        print(
+            f"\nFASE 1 OK: {len(sync_dates)} fechas sincronizadas X1==X10. "
+            "Iniciando FASE 2 (X10 completo desde 04/04/2022)...\n"
+        )
+
+        # ── FASE 2: historia completa SOLO X10 ────────────────────────────
+        # Sin global_target/session_roots: la metrica de sincronia X1==X10 no
+        # aplica en X10-only; el avance real va en la linea de etapa (done/total).
+        progress_meta_full = {
+            "stage_index": 2,
+            "stage_total": 2,
+            "stage_label": "Historia completa X10 desde 04/04/2022",
+            "stage_period": f"{DATES_DST[0]} -> {DATES_DST[-1]}",
+            "run_label": "DST 2022-2026",
+            "stats_root": output_folder,
+        }
+        passed, failures = replay_sync.run_replay_period(
+            date_iso_list,
+            output_folder=Path(output_folder),
+            run_plan=run_plan_x10,
+            report_prefix="dst_2022_2026_x10_full_v11",
+            force=args.force,
+            step=args.step,
+            compare_only=args.compare_only,
+            replay_to_time=REPLAY_END_TIME,
+            progress_meta=progress_meta_full,
+        )
 
     update_score_workbook()
 
@@ -1190,10 +1339,10 @@ def main():
         RESULTS_FOLDER,
         DATES_DST,
         failed_dates,
-        "Temporadas DST completas 2025-2026 v11 X1/X10",
+        "Temporadas DST 2022-2026 v11 (sync 10 X1/X10 + full X10)",
     )
 
-    print("\nTERMINO LA PRUEBA DE TEMPORADAS DST COMPLETAS 2025-2026 V11.\n")
+    print("\nTERMINO LA PRUEBA DE TEMPORADAS DST COMPLETAS 2022-2026 V11.\n")
     return 0 if passed and not failures else 1
 
 
