@@ -1,4 +1,5 @@
 import csv
+import json
 import math
 import re
 from datetime import datetime
@@ -298,6 +299,21 @@ def md_table(rows, cols, limit=None):
     return "\n".join(lines)
 
 
+def json_safe(value):
+    if isinstance(value, dict):
+        return {str(k): json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_safe(v) for v in value]
+    if isinstance(value, np.generic):
+        return json_safe(value.item())
+    if isinstance(value, float):
+        if math.isnan(value):
+            return None
+        if math.isinf(value):
+            return "inf" if value > 0 else "-inf"
+    return value
+
+
 def block_boot(rng, x, n, block=8):
     out = []
     while len(out) < n:
@@ -483,7 +499,34 @@ def main():
         "- Dynamic sizing uses `score total` as the probability proxy. It does not use future MFE/MAE.",
         "- Profile-shape buckets P/b/D/Trend/Tree are not optimized because the v11 files do not populate reliable profile-shape labels.",
     ]
-    (OUT_DIR / "README.md").write_text("\n\n".join(report), encoding="utf-8")
+    report_path = OUT_DIR / "README.md"
+    report_path.write_text("\n\n".join(report), encoding="utf-8")
+    (OUT_DIR / "summary.json").write_text(
+        json.dumps(
+            json_safe(
+                {
+                    "generated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "source": str(RUN_DIR),
+                    "event_count": int(event_count),
+                    "executed_trades": int(len(loaded)),
+                    "no_entry": int(event_count - len(loaded)),
+                    "best": best,
+                    "best_summary": best_summary,
+                    "trades_per_month": trades_per_month,
+                    "dynamic_sizing": best_size,
+                    "dynamic_summary": sized_summary,
+                    "monte_carlo_ticks": mc_ticks,
+                    "monte_carlo_usd": mc_usd,
+                    "lucid_150k": lucid,
+                    "report_path": str(report_path),
+                    "output_dir": str(OUT_DIR),
+                }
+            ),
+            indent=2,
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
     print(OUT_DIR / "README.md")
     print(best["setup"])
     print(best_size["rule"])

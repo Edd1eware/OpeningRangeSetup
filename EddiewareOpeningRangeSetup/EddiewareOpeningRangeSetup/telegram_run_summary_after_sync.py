@@ -91,11 +91,14 @@ def compute_run_stats(run_root, allowed_dates=None, run_names=None):
         rows_by_date[date_key] = row
 
     ticks_by_date = []
+    time_over_count = 0
     tp_ticks = sl_ticks = None
     for date_key in sorted(rows_by_date):
         row = rows_by_date[date_key]
         result_ticks = _parse_result_ticks(row.get("result TP SL BE"))
         if result_ticks is None:
+            if str(row.get("Result_Label") or "").strip().upper() == "TIME_OVER":
+                time_over_count += 1
             continue
         ticks_by_date.append(result_ticks)
         tp_ticks = row.get("TP_ticks") or tp_ticks
@@ -125,8 +128,14 @@ def compute_run_stats(run_root, allowed_dates=None, run_names=None):
 
     return {
         "trades": len(ticks_by_date),
+        "wins": len(wins),
+        "losses": len(losses),
+        "break_evens": len([t for t in ticks_by_date if t == 0]),
         "winrate": 100.0 * len(wins) / len(ticks_by_date),
         "pf": (gross_win / gross_loss) if gross_loss > 0 else None,
+        "profit_ticks": sum(ticks_by_date),
+        "expectancy_ticks": sum(ticks_by_date) / len(ticks_by_date),
+        "time_over": time_over_count,
         "tp_ticks": tp_ticks,
         "sl_ticks": sl_ticks,
         "max_consec_wins": max_consec_wins,
@@ -137,13 +146,43 @@ def compute_run_stats(run_root, allowed_dates=None, run_names=None):
 def _format_stats_line(stats):
     pf = stats.get("pf")
     pf_text = f"{pf:.2f}" if pf is not None else "inf"
+    expectancy = stats.get("expectancy_ticks")
+    profit = stats.get("profit_ticks")
+    suffix = ""
+    if expectancy is not None and profit is not None:
+        suffix = f" | Exp {expectancy:+.2f} ticks | Net {profit:+.0f} ticks"
     return (
         f"WR {stats['winrate']:.0f}% | PF {pf_text} | "
         f"TP {stats['tp_ticks'] or '?'} ticks | SL {stats['sl_ticks'] or '?'} ticks | "
         f"racha max ganadas {stats['max_consec_wins']} | "
         f"racha max perdidas {stats['max_consec_losses']} | "
         f"n={stats['trades']} trades"
+        f"{suffix}"
     )
+
+
+def _date_iso_from_ddmmyyyy(date_text):
+    day, month, year = date_text.split("/")
+    return f"{year}-{month}-{day}"
+
+
+def _find_replay_run_root(results_folder):
+    """Encuentra la carpeta de corrida que contiene X10_R1/X1_R1."""
+    root = Path(results_folder)
+    direct_has_runs = any(
+        child.is_dir() and (child.name.startswith("X1_") or child.name.startswith("X10_"))
+        for child in root.iterdir()
+    ) if root.exists() else False
+    if direct_has_runs:
+        return root
+
+    candidates = [
+        root / "visual_tests" / "04_run_replay_score_trade_results_dst_2025_2026_runs",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return root
 
 
 def _expected_result_path(results_folder, date):
@@ -678,20 +717,44 @@ def send_run_summary(results_folder, dates, failed_dates=None, run_label="Replay
         print("Telegram resumen: faltan credenciales.")
         return False
 
-    results = _collect_results(results_folder, dates)
-    wins = [ticks for ticks in results if ticks > 0]
-    losses = [ticks for ticks in results if ticks < 0]
-    break_evens = [ticks for ticks in results if ticks == 0]
-    decided = len(wins) + len(losses)
-    win_rate = (len(wins) / decided * 100) if decided else None
-    gross_profit = sum(wins)
-    gross_loss = abs(sum(losses))
-    profit_factor = (
-        gross_profit / gross_loss
-        if gross_loss > 0
-        else ("INF" if gross_profit > 0 else None)
+    run_root = _find_replay_run_root(results_folder)
+    allowed_dates = [_date_iso_from_ddmmyyyy(d) for d in dates]
+    run_stats = compute_run_stats(
+        run_root,
+        allowed_dates=allowed_dates,
+        run_names={"X10_R1"},
     )
-    net_ticks = sum(results)
+
+    if run_stats:
+        win_rate = run_stats["winrate"]
+        profit_factor = run_stats["pf"] if run_stats["pf"] is not None else "INF"
+        net_ticks = run_stats["profit_ticks"]
+        wins_count = run_stats["wins"]
+        losses_count = run_stats["losses"]
+        break_evens_count = run_stats["break_evens"]
+        results_count = run_stats["trades"]
+        time_over_count = run_stats.get("time_over", 0)
+    else:
+        results = _collect_results(results_folder, dates)
+        wins = [ticks for ticks in results if ticks > 0]
+        losses = [ticks for ticks in results if ticks < 0]
+        break_evens = [ticks for ticks in results if ticks == 0]
+        decided = len(wins) + len(losses)
+        win_rate = (len(wins) / decided * 100) if decided else None
+        gross_profit = sum(wins)
+        gross_loss = abs(sum(losses))
+        profit_factor = (
+            gross_profit / gross_loss
+            if gross_loss > 0
+            else ("INF" if gross_profit > 0 else None)
+        )
+        net_ticks = sum(results)
+        wins_count = len(wins)
+        losses_count = len(losses)
+        break_evens_count = len(break_evens)
+        results_count = len(results)
+        time_over_count = 0
+
     failed_count = len(failed_dates or [])
 
     win_rate_text = f"{win_rate:.2f}%" if win_rate is not None else "N/A"
@@ -703,11 +766,14 @@ def send_run_summary(results_folder, dates, failed_dates=None, run_label="Replay
     message = "\n".join(
         [
             f"EW Opening Range | Corrida terminada ({run_label})",
-            f"Win rate: {win_rate_text}",
-            f"Profit factor: {profit_factor_text}",
-            f"Wins: {len(wins)} | Losses: {len(losses)} | BE: {len(break_evens)}",
+            "Resumen CRUDO X10:",
+            f"WR: {win_rate_text}",
+            f"PF: {profit_factor_text}",
+            f"Wins: {wins_count} | Losses: {losses_count} | BE: {break_evens_count}",
             f"Net ticks: {net_ticks:+.0f}",
-            f"Resultados: {len(results)}/{len(dates)} | Errores: {failed_count}",
+            f"Trades: {results_count} | TIME_OVER: {time_over_count}",
+            f"Fechas esperadas: {len(dates)} | Errores: {failed_count}",
+            f"Fuente: {run_root}",
         ]
     )
     if failed_dates:
