@@ -114,6 +114,20 @@ def replay_date_is_allowed(date_ddmmyyyy):
     return replay_date <= last_replay_date
 
 
+def parse_cli_date(value):
+    text = str(value or "").strip()
+    if not text:
+        return None
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(text, fmt).date()
+        except ValueError:
+            pass
+    raise argparse.ArgumentTypeError(
+        f"Fecha invalida: {value!r}. Usa YYYY-MM-DD o DD/MM/YYYY."
+    )
+
+
 ALL_DATES_DST = [
     replay_date
     for season_start, season_end in DST_SEASONS
@@ -790,6 +804,7 @@ def get_or_create_headers(ws):
         "SL_price",
         "Entry_price",
         "TP_price",
+        "EntryTime_NY",
         "SL_ticks",
         "TP_ticks",
         "Exit_price",
@@ -825,6 +840,9 @@ def get_or_create_headers(ws):
         if header in headers:
             headers.remove(header)
 
+    if "EntryTime_NY" not in headers:
+        insert_after = headers.index("TP_price") + 1 if "TP_price" in headers else len(headers)
+        headers[insert_after:insert_after] = ["EntryTime_NY"]
     entry_time_index = headers.index("EntryTime_NY") + 1
     headers[entry_time_index:entry_time_index] = ["ExitTime_NY", "Trade_Duration"]
 
@@ -840,6 +858,8 @@ def get_or_create_headers(ws):
         if header in headers:
             headers.remove(header)
 
+    if "MFE_ticks" not in headers:
+        headers.append("MFE_ticks")
     mfe_index = headers.index("MFE_ticks") + 1
     headers[mfe_index:mfe_index] = trade_path_headers
 
@@ -1136,6 +1156,23 @@ def parse_args():
         metavar="N",
         help="Recorta a las ultimas N fechas (prueba rapida). 0 = todas. Una semana = 5.",
     )
+    parser.add_argument(
+        "--from-date",
+        type=parse_cli_date,
+        default=None,
+        help="Primera fecha de la seccion, formato YYYY-MM-DD o DD/MM/YYYY.",
+    )
+    parser.add_argument(
+        "--to-date",
+        type=parse_cli_date,
+        default=None,
+        help="Ultima fecha de la seccion, formato YYYY-MM-DD o DD/MM/YYYY.",
+    )
+    parser.add_argument(
+        "--section-label",
+        default="",
+        help="Etiqueta corta para Telegram/reportes de una corrida seccionada.",
+    )
     return parser.parse_args()
 
 
@@ -1143,12 +1180,38 @@ def main():
     args = parse_args()
 
     global DATES_DST
+    if args.from_date or args.to_date:
+        from_date = args.from_date or datetime.strptime(DATES_DST[0], "%d/%m/%Y").date()
+        to_date = args.to_date or datetime.strptime(DATES_DST[-1], "%d/%m/%Y").date()
+        if from_date > to_date:
+            raise SystemExit("--from-date no puede ser mayor que --to-date.")
+        DATES_DST = [
+            replay_date
+            for replay_date in DATES_DST
+            if from_date <= datetime.strptime(replay_date, "%d/%m/%Y").date() <= to_date
+        ]
+        if not DATES_DST:
+            raise SystemExit(
+                f"No hay sesiones operables en el rango {from_date:%Y-%m-%d} -> {to_date:%Y-%m-%d}."
+            )
+        print(
+            f"SECCION: {len(DATES_DST)} sesiones operables "
+            f"{DATES_DST[0]} -> {DATES_DST[-1]} "
+            "(fines de semana y feriados USA/CME excluidos)."
+        )
+
     if args.limit and args.limit > 0:
         DATES_DST = DATES_DST[-args.limit:]
         print(
             f"LIMITADO a las ultimas {len(DATES_DST)} fechas para prueba rapida: "
             f"{DATES_DST[0]} -> {DATES_DST[-1]}"
         )
+
+    run_label = (
+        f"CAUSAL NO-LOOKAHEAD {args.section_label}".strip()
+        if args.section_label
+        else "CAUSAL NO-LOOKAHEAD DST 2022-2026"
+    )
 
     print_excel_sizes_by_year()
 
@@ -1168,7 +1231,7 @@ def main():
     run_plan_x10 = replay_sync.build_run_plan(quick=True, x10_only=True)
 
     print(
-        f"\nINICIANDO REPLAY DE TEMPORADAS DST 2022-2026 V11 "
+        f"\nINICIANDO REPLAY {run_label} "
         f"({len(DATES_DST)} sesiones desde {DATES_DST[0]})\n"
         f"Fecha NY actual: {TODAY_NY:%d/%m/%Y} | "
         f"Ultima fecha permitida: {LAST_REPLAY_DATE:%d/%m/%Y}\n"
@@ -1213,10 +1276,10 @@ def main():
         progress_meta = {
             "stage_index": 1,
             "stage_total": 1,
-            "stage_label": "DST 2022-2026 v11 (modo manual)",
+            "stage_label": f"{run_label} (modo manual)",
             "stage_period": f"{DATES_DST[0]} -> {DATES_DST[-1]}",
             "session_roots": [output_folder],
-            "run_label": "DST 2022-2026",
+            "run_label": run_label,
             "stats_root": output_folder,
         }
         passed, failures = replay_sync.run_replay_period(
@@ -1235,11 +1298,11 @@ def main():
         progress_meta_sync = {
             "stage_index": 1,
             "stage_total": 2,
-            "stage_label": f"Sincronia X1/X10 ({len(sync_dates)} fechas)",
+            "stage_label": f"{run_label} - Sincronia X1/X10 ({len(sync_dates)} fechas)",
             "stage_period": f"{DATES_DST[0]} -> {DATES_DST[len(sync_dates) - 1]}",
             "global_target": len(sync_dates),
             "session_roots": [output_folder],
-            "run_label": "DST 2022-2026",
+            "run_label": run_label,
             "stats_root": output_folder,
         }
         passed_sync, failures_sync = replay_sync.run_replay_period(
@@ -1305,9 +1368,9 @@ def main():
         progress_meta_full = {
             "stage_index": 2,
             "stage_total": 2,
-            "stage_label": "Historia completa X10 desde 04/04/2022",
+            "stage_label": f"{run_label} - Historia X10",
             "stage_period": f"{DATES_DST[0]} -> {DATES_DST[-1]}",
-            "run_label": "DST 2022-2026",
+            "run_label": run_label,
             "stats_root": output_folder,
         }
         passed, failures = replay_sync.run_replay_period(

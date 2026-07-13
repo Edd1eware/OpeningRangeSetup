@@ -21,7 +21,7 @@ SYNC_RESULT_FOLDER = RESULTS_FOLDER / "replay_sync_results"
 TARGET_FILE = EXPORT_FOLDER / "target_trade_result_date.txt"
 REPLAY_STARTED_FILE = EXPORT_FOLDER / "replay_trade_result_started_at.txt"
 
-EXPECTED_EXPORTER_VERSION = "score-exporter-2026-06-23-v11-canonical-sync-guards"
+EXPECTED_EXPORTER_VERSION = "score-exporter-2026-07-12-v20-causal-terminal-results"
 EXPECTED_TIMELINE_VERSION = "dynamic-timeline-2026-06-23-v11-canonical-sync-guards"
 
 TERMINAL_RESULTS = {
@@ -349,6 +349,72 @@ def get_replay_controls():
     return replay, from_box, to_box, start_button, stop_button
 
 
+def replay_texts(replay):
+    values = []
+    try:
+        for text in replay.descendants(control_type="Text"):
+            value = text.window_text().strip()
+            if value:
+                values.append(value)
+        for doc in replay.descendants(control_type="Document"):
+            value = doc.window_text().strip()
+            if value:
+                values.append(value)
+    except Exception:
+        pass
+    return values
+
+
+def replay_is_connected(replay):
+    try:
+        for button in replay.descendants(control_type="Button"):
+            text = button.window_text().strip().lower()
+            if "replay is on" in text:
+                return True
+            if "replay is off" in text:
+                return False
+    except Exception:
+        pass
+
+    joined = "\n".join(replay_texts(replay)).lower()
+    if "replay is not connected" in joined:
+        return False
+    return True
+
+
+def ensure_replay_connected(replay, attempts=3):
+    for attempt in range(1, attempts + 1):
+        if replay_is_connected(replay):
+            return True
+
+        buttons = replay.descendants(control_type="Button")
+        toggle = next(
+            (
+                button
+                for button in buttons
+                if "replay is off" in button.window_text().strip().lower()
+            ),
+            None,
+        )
+        if toggle is None:
+            # ATAS can briefly expose stale "not connected" text while the toolbar
+            # already shows the connected state. Refresh before treating it as hard
+            # failure so a valid Replay window does not abort the run.
+            time.sleep(1.0)
+            if replay_is_connected(replay):
+                return True
+            raise RuntimeError("Replay esta desconectado y no encontre el boton 'The replay is off'.")
+
+        try:
+            toggle.invoke()
+        except Exception:
+            toggle.click_input()
+
+        time.sleep(2.0)
+
+    return replay_is_connected(replay)
+
+
 def get_replay_speed_text(replay):
     speed_values = []
     for text in replay.descendants(control_type="Text"):
@@ -372,9 +438,17 @@ def set_replay_speed(speed_label, wait_seconds=90):
     while time.time() - started_at <= wait_seconds:
         try:
             replay, _, _, _, _ = get_replay_controls()
+            actual_text = get_replay_speed_text(replay)
+            if actual_text == expected_text:
+                print(f"Replay ya estaba configurado en {actual_text}.")
+                return True
+
             sliders = replay.descendants(control_type="Slider")
             if not sliders:
-                last_warning = "no encontré el slider de velocidad del Replay"
+                last_warning = (
+                    "no encontré el slider de velocidad del Replay; "
+                    f"ATAS reporta {actual_text or 'velocidad desconocida'}"
+                )
                 time.sleep(2)
                 continue
 
@@ -616,11 +690,6 @@ def replay_is_playing(start_button, stop_button):
             return True
     except Exception:
         pass
-    try:
-        if stop_button is not None and stop_button.is_enabled():
-            return True
-    except Exception:
-        pass
     return False
 
 
@@ -651,6 +720,9 @@ def start_replay_with_retries(
             # Reinicio limpio: re-tomar controles y re-configurar el rango antes
             # de volver a darle Play.
             try:
+                replay, from_box, to_box, _, _ = get_replay_controls()
+                if not ensure_replay_connected(replay):
+                    raise RuntimeError("Replay desconectado en reintento.")
                 from_box, to_box = refresh_replay_date_controls()
                 configure_replay_range(
                     from_box,
@@ -750,6 +822,9 @@ def run_one_date(
 
             write_runtime_markers(date_iso)
 
+            replay, from_box, to_box, start_button, stop_button = get_replay_controls()
+            if not ensure_replay_connected(replay):
+                raise RuntimeError("No pude conectar Replay antes de iniciar la fecha.")
             replay, from_box, to_box, start_button, stop_button = get_replay_controls()
             configure_replay_range(
                 from_box,
@@ -1159,9 +1234,10 @@ def run_replay_period(
                 if speed_label != previous_speed:
                     print(f"\nConfigurando Replay en {speed_label}...")
                     if not set_replay_speed(speed_label):
-                        input(
-                            f"Configura manualmente Replay en {speed_label}. "
-                            "Confirma que ATAS cargó la DLL v11 nueva y presiona ENTER..."
+                        raise RuntimeError(
+                            f"No pude configurar Replay en {speed_label}. "
+                            "Confirma ATAS/replay speed antes de relanzar; "
+                            f"version esperada {EXPECTED_EXPORTER_VERSION}."
                         )
                     previous_speed = speed_label
                 else:

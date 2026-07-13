@@ -1,15 +1,18 @@
+import argparse
 import csv
 import json
 import math
+import os
 import re
 from datetime import datetime
 from pathlib import Path
 
 import numpy as np
 
+from causal_feature_audit import audit_feature_columns, audit_timestamp_order
+
 
 BASE_DIR = Path(__file__).resolve().parent
-RUN_DIR = Path(r"C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\visual_tests\04_run_replay_score_trade_results_dst_2025_2026_runs\X10_R1")
 OUT_DIR = BASE_DIR / "outputs" / f"edge_optimization_fast_{datetime.now():%Y%m%d_%H%M%S}"
 
 TP_GRID = np.array([20, 30, 40, 50, 60, 80, 100, 120, 150, 200], dtype=float)
@@ -22,6 +25,51 @@ MID_CONTRACTS = 3
 HIGH_CONTRACTS = 4
 LUCID_TARGET = 9000.0
 LUCID_DD = 4500.0
+
+CAUSAL_FEATURE_COLUMNS = [
+    "Side_AtEntry",
+    "Speed_Profile_AtEntry",
+    "Cvd_Label_AtEntry",
+    "Score_AtEntry",
+    "OR_Range_AtEntry",
+    "Range_OK_AtEntry",
+    "Body_OK_AtEntry",
+    "Volume_OK_AtEntry",
+    "Delta_OK_AtEntry",
+    "VWAP_OK_AtEntry",
+    "Speed_OK_AtEntry",
+    "Volume_Increasing_AtEntry",
+    "Delta_With_Side_AtEntry",
+    "Price_Accepted_After_Imbalance_AtEntry",
+    "Price_Rejected_After_Imbalance_AtEntry",
+    "APlus_Structure_AtEntry",
+    "APlus_Absorption_AtEntry",
+    "APlus_Speed_AtEntry",
+    "OR_Regime_AtEntry",
+    "Vol_Regime_AtEntry",
+]
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Causal-only edge optimizer.")
+    parser.add_argument(
+        "--causal-dir",
+        type=Path,
+        default=None,
+        help="Folder containing trade_inputs.csv and trade_results.csv.",
+    )
+    return parser.parse_args()
+
+
+def newest_causal_dir():
+    env = os.environ.get("EW_CAUSAL_DATASET_DIR")
+    if env:
+        return Path(env)
+    candidates = sorted((BASE_DIR / "outputs").glob("causal_dataset_*"), reverse=True)
+    for candidate in candidates:
+        if (candidate / "trade_inputs.csv").exists() and (candidate / "trade_results.csv").exists():
+            return candidate
+    return None
 
 
 def fnum(v, default=np.nan):
@@ -43,46 +91,94 @@ def result_ticks(v):
     return fnum(text, 0.0)
 
 
-def load_rows():
+def _first(row, *names, default=""):
+    for name in names:
+        value = row.get(name)
+        if value is not None and str(value).strip() != "":
+            return value
+    return default
+
+
+def _bool(row, *names):
+    return str(_first(row, *names, default="")).strip().upper() == "TRUE"
+
+
+def _join_key(row):
+    trade_id = str(row.get("trade_id") or "").strip()
+    if trade_id:
+        return ("trade_id", trade_id)
+    return (
+        "date_entry",
+        str(row.get("fecha") or "").strip(),
+        str(row.get("entry_timestamp") or "").strip(),
+    )
+
+
+def load_rows(causal_dir=None):
+    causal_dir = causal_dir or newest_causal_dir()
+    if causal_dir is None:
+        raise RuntimeError(
+            "No causal dataset found. Run rebuild_causal_trade_dataset.py first. "
+            "Reading legacy score_trade_result_* CSVs is disabled because they mix features and outcomes."
+        )
+
+    input_path = causal_dir / "trade_inputs.csv"
+    result_path = causal_dir / "trade_results.csv"
+    if not input_path.exists() or not result_path.exists():
+        raise RuntimeError(f"{causal_dir} must contain trade_inputs.csv and trade_results.csv")
+
+    with input_path.open("r", encoding="utf-8-sig", newline="") as fh:
+        input_rows = list(csv.DictReader(fh))
+    with result_path.open("r", encoding="utf-8-sig", newline="") as fh:
+        result_rows = list(csv.DictReader(fh))
+
+    audit_timestamp_order(input_rows)
+    audit_feature_columns(CAUSAL_FEATURE_COLUMNS)
+
+    result_by_key = {_join_key(row): row for row in result_rows}
     rows = []
-    event_count = 0
-    for path in sorted(RUN_DIR.glob("score_trade_result_*_NY.csv")):
-        event_count += 1
-        with open(path, "r", encoding="utf-8-sig", newline="") as fh:
-            row = next(csv.DictReader(fh), {})
-        date_text = row.get("fecha") or re.search(r"(\d{4}-\d{2}-\d{2})", path.name).group(1)
-        is_trade = bool(str(row.get("Side") or "").strip() and str(row.get("Entry_price") or "").strip())
-        if not is_trade:
+    for input_row in input_rows:
+        result_row = result_by_key.get(_join_key(input_row))
+        if not result_row:
+            continue
+        date_text = str(input_row.get("fecha") or "").strip()
+        if not date_text:
+            continue
+        side = str(_first(input_row, "Side_AtEntry", "Side")).strip()
+        entry_price = _first(input_row, "Entry_price")
+        if not side or str(entry_price).strip() == "":
             continue
         rows.append(
             {
                 "date": date_text,
                 "month": date_text[:7],
                 "year": int(date_text[:4]),
-                "side": str(row.get("Side") or "").strip(),
-                "speed": str(row.get("Speed_Profile") or "Unknown").strip() or "Unknown",
-                "cvd": str(row.get("Cvd_Pullback_Label") or "Unknown").strip() or "Unknown",
-                "score": fnum(row.get("score total")),
-                "or_range": fnum(row.get("range")),
-                "mfe": fnum(row.get("MFE_ticks")),
-                "mae": fnum(row.get("MAE_ticks")),
-                "actual": result_ticks(row.get("result TP SL BE")),
-                "range_ok": str(row.get("Range_OK") or "").upper() == "TRUE",
-                "body_ok": str(row.get("Body_OK") or "").upper() == "TRUE",
-                "volume_ok": str(row.get("Volume_OK") or "").upper() == "TRUE",
-                "delta_ok": str(row.get("Delta_OK") or "").upper() == "TRUE",
-                "vwap_ok": str(row.get("VWAP_OK") or "").upper() == "TRUE",
-                "speed_ok": str(row.get("Speed_OK") or "").upper() == "TRUE",
-                "volume_increasing": str(row.get("Volume_Increasing") or "").upper() == "TRUE",
-                "delta_with_side": str(row.get("Delta_With_Side") or "").upper() == "TRUE",
-                "price_accepted": str(row.get("Price_Accepted_After_Imbalance") or "").upper() == "TRUE",
-                "price_rejected": str(row.get("Price_Rejected_After_Imbalance") or "").upper() == "TRUE",
-                "aplus_structure": str(row.get("APlus_Structure") or "").upper() == "TRUE",
-                "aplus_absorption": str(row.get("APlus_Absorption") or "").upper() == "TRUE",
-                "aplus_speed": str(row.get("APlus_Speed") or "").upper() == "TRUE",
+                "side": side,
+                "speed": str(_first(input_row, "Speed_Profile_AtEntry", "Speed_Profile", default="Unknown")).strip() or "Unknown",
+                "cvd": str(input_row.get("Cvd_Label_AtEntry") or "Unknown").strip() or "Unknown",
+                "score": fnum(_first(input_row, "Score_AtEntry", "score total")),
+                "or_range": fnum(_first(input_row, "OR_Range_AtEntry", "range")),
+                "mfe": fnum(result_row.get("MFE_ticks")),
+                "mae": fnum(result_row.get("MAE_ticks")),
+                "actual": result_ticks(result_row.get("result_ticks")),
+                "range_ok": _bool(input_row, "Range_OK_AtEntry"),
+                "body_ok": _bool(input_row, "Body_OK_AtEntry"),
+                "volume_ok": _bool(input_row, "Volume_OK_AtEntry"),
+                "delta_ok": _bool(input_row, "Delta_OK_AtEntry"),
+                "vwap_ok": _bool(input_row, "VWAP_OK_AtEntry"),
+                "speed_ok": _bool(input_row, "Speed_OK_AtEntry"),
+                "volume_increasing": _bool(input_row, "Volume_Increasing_AtEntry"),
+                "delta_with_side": _bool(input_row, "Delta_With_Side_AtEntry"),
+                "price_accepted": _bool(input_row, "Price_Accepted_After_Imbalance_AtEntry"),
+                "price_rejected": _bool(input_row, "Price_Rejected_After_Imbalance_AtEntry"),
+                "aplus_structure": _bool(input_row, "APlus_Structure_AtEntry"),
+                "aplus_absorption": _bool(input_row, "APlus_Absorption_AtEntry"),
+                "aplus_speed": _bool(input_row, "APlus_Speed_AtEntry"),
             }
         )
-    return event_count, rows
+    if not rows:
+        raise RuntimeError(f"No joined trade rows found in causal dataset {causal_dir}")
+    return len(input_rows), rows, causal_dir
 
 
 def arrays(rows):
@@ -415,8 +511,9 @@ def sizing_rules(rows, mask, result):
 
 
 def main():
+    args = parse_args()
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    event_count, loaded = load_rows()
+    event_count, loaded, source_dir = load_rows(args.causal_dir)
     rows = arrays(loaded)
     masks = candidate_masks(rows)
     actual = rows["actual"].astype(float)
@@ -467,8 +564,11 @@ def main():
     report = [
         "# Edge Optimization Fast Report",
         f"Generated: {datetime.now():%Y-%m-%d %H:%M:%S}",
-        f"Source: `{RUN_DIR}`",
-        f"Events/files: {event_count}. Executed trades optimized: {len(loaded)}. No-entry/TIME_OVER excluded from TP/SL optimization: {event_count - len(loaded)}.",
+        f"Source causal dataset: `{source_dir}`",
+        f"Input rows: {event_count}. Joined executed trades optimized: {len(loaded)}.",
+        "",
+        "## Leakage Guard",
+        "`audit_feature_columns()` passed. The optimizer used only explicit causal aliases ending in `_AtEntry`; outcomes (`MFE`, `MAE`, `result_ticks`, exits, final CVD) were loaded only as labels for TP/SL replay.",
         "",
         "## Recommended Robust Candidate",
         f"`{best['setup']}`",
@@ -506,10 +606,9 @@ def main():
             json_safe(
                 {
                     "generated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "source": str(RUN_DIR),
+                    "source": str(source_dir),
                     "event_count": int(event_count),
                     "executed_trades": int(len(loaded)),
-                    "no_entry": int(event_count - len(loaded)),
                     "best": best,
                     "best_summary": best_summary,
                     "trades_per_month": trades_per_month,

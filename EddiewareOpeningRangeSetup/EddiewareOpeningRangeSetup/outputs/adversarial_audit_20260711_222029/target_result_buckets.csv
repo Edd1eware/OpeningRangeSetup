@@ -1,0 +1,6 @@
+﻿result_bucket,count,mean,sum
++100 target,1,100.0,100.0
+-40 stop,41,-40.0,-1640.0
+negative before -40,49,-20.632653061224488,-1011.0
+positive before +100,250,31.468,7867.0
+zero,1,0.0,0.0

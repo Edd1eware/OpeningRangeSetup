@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
+using ATAS.DataFeedsCore;
 using ATAS.Indicators;
 
 namespace ATAS.Indicators
@@ -44,7 +45,7 @@ namespace ATAS.Indicators
         private const int DynamicTimelineFlushRowCount = 100;
         // FROZEN — DO NOT CHANGE. Sync guards depend on this version string matching
         // persisted snapshots. Changing it invalidates all existing X1/X10 sync files.
-        private const string ExporterVersion = "score-exporter-2026-06-23-v11-canonical-sync-guards";
+        private const string ExporterVersion = "score-exporter-2026-07-12-v20-causal-terminal-results";
         private const string DynamicTimelineVersion = "dynamic-timeline-2026-06-23-v11-canonical-sync-guards";
         private static readonly JsonSerializerOptions ReplaySyncJsonOptions = new JsonSerializerOptions
         {
@@ -101,6 +102,31 @@ namespace ATAS.Indicators
             "Execution_Side_Imbalance_Count,Max_Delta_during_trade,Min_Delta_during_trade," +
             "Volume_Increased_During_Trade,Volume_Increase_Samples,Volume_Observed_Samples," +
             "Volume_Increasing_Pct_During_Trade,Max_MAE_Speed_500ms,Max_MAE_Speed_1s,Max_MAE_Speed_2s";
+        private const string TradeInputCsvFileName = "trade_inputs.csv";
+        private const string TradeResultCsvFileName = "trade_results.csv";
+        private const string TradeInputCsvHeader =
+            "Input_VERSION,fecha,decision_timestamp,feature_timestamp,entry_timestamp,EntryBar,Side,Signal_Source,Speed_Profile," +
+            "Entry_price,SL_price_AtEntry,TP_price_AtEntry,SL_ticks_AtEntry,TP_ticks_AtEntry,or_low,or_high,range," +
+            "VWAP_AtEntry,Body_AtEntry,Volume_AtEntry,Delta_AtEntry,Cumulative_Delta_AtEntry,Cumulative_Delta_Source_AtEntry," +
+            "Cvd_Current_AtEntry,Cvd_Peak_AtEntry,Cvd_Pullback_Pct_AtEntry,Cvd_Label_AtEntry,Cvd_Total_Samples_AtEntry," +
+            "Previous_Volume_AtEntry,Previous_Delta_AtEntry,Volume_Increasing_AtEntry,Delta_Change_AtEntry,Delta_With_Side_AtEntry," +
+            "Price_Accepted_After_Imbalance_AtEntry,Price_Rejected_After_Imbalance_AtEntry,BreakOut_SPEED_AtEntry," +
+            "BreakOut_TICKS_PER_SEC_AtEntry,Speed_Elapsed_SECONDS_AtEntry,Speed_Replay_Fallback_AtEntry,Speed_Timing_Source_AtEntry," +
+            "Range_OK_AtEntry,Body_OK_AtEntry,Volume_OK_AtEntry,Delta_OK_AtEntry,Time_OK_AtEntry,VWAP_OK_AtEntry,Speed_OK_AtEntry," +
+            "Score_AtEntry,Raw_Speed_Label_AtEntry,APlus_Structure_AtEntry,APlus_Absorption_AtEntry,APlus_Speed_AtEntry," +
+            "APlus_Speed_Setup_Confirmed_AtEntry,Buy_Imbalance_Count_AtEntry," +
+            "Sell_Imbalance_Count_AtEntry,Execution_Side_Imbalance_Count_AtEntry,Imbalance_Group_3_AtEntry," +
+            "Imbalance_Group_Price_AtEntry,Imbalance_Count_AtEntry,Speed_Ignored_By_Structure_AtEntry,feature_timestamp_utc,entry_timestamp_utc";
+        private const string TradeResultCsvHeader =
+            "Result_VERSION,fecha,entry_timestamp,outcome_timestamp,ExitTime_NY,Trade_Duration,EntryBar,Side,Entry_price," +
+            "Result_Label,Exit_price,result_ticks,MAE_ticks,MFE_ticks,Largest_MAE_pullback_ticks,Largest_MFE_pullup_ticks," +
+            "Number_of_Pullbacks_during_Trade,Number_of_PullUps_during_Trade,Max_Speed_MAE_during_trade,Max_Speed_MFE_during_trade," +
+            "SL_price_Final,TP_price_Final,SL_ticks_Final,TP_ticks_Final,Cvd_Current_Final,Cvd_Peak_Final,Cvd_Pullback_Pct_Final," +
+            "Cvd_Label_Final,Cvd_Worst_Label_Final,Cvd_Excelente_Count_Final,Cvd_Normal_Count_Final,Cvd_Advertencia_Count_Final," +
+            "Cvd_Riesgo_Reversion_Count_Final,Cvd_Total_Samples_Final,Cvd_Excelente_Pct_Final,Cvd_Negative_Episodes_Final," +
+            "Cvd_Label_Changes_Final,Dynamic_Alarm_Triggered,TP_And_SL_Hit_Same_Update,Result_After_Slippage_Ticks," +
+            "Volume_Increased_During_Trade,Volume_Increase_Samples,Volume_Observed_Samples,Volume_Increasing_Pct_During_Trade," +
+            "Max_Delta_during_trade,Min_Delta_during_trade";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
@@ -137,6 +163,11 @@ namespace ATAS.Indicators
         private ScoreTradeSignal? _bestRejectedScore;
         private int _bestRejectedScoreBar = -1;
         private DateTime _bestRejectedScoreNyTime = DateTime.MinValue;
+        private ScoreTradeSignal? _bestObservedScore;
+        private int _bestObservedScoreBar = -1;
+        private DateTime _bestObservedScoreNyTime = DateTime.MinValue;
+        private string _bestObservedScoreSource = "";
+        private bool _bestObservedScoreIsTradeEvent;
         private decimal _lastManagePrice;
         private DateTime _lastManageTimeUtc = DateTime.MinValue;
         private int _lastSignalReadyBar = -1;
@@ -152,6 +183,30 @@ namespace ATAS.Indicators
         private decimal _lastProcessedMarketVolume;
         private decimal _lastProcessedMarketDelta;
         private string _lastProcessedMarketSource = "";
+        private bool _firstCalculateDiagnosticWritten;
+        private bool _marketByOrderSubscriptionAttempted;
+        private bool _marketByOrderSubscriptionRequested;
+        private int _diagOnNewTradeCount;
+        private int _diagOnNewTradesBatchCount;
+        private int _diagOnNewTradesItemCount;
+        private int _diagOnCumulativeTradeCount;
+        private int _diagOnUpdateCumulativeTradeCount;
+        private int _diagOnCumulativeTradeTickCount;
+        private int _diagMarketDepthChangedCount;
+        private int _diagMarketDepthsChangedBatchCount;
+        private int _diagMarketDepthsChangedItemCount;
+        private int _diagMarketByOrdersChangedBatchCount;
+        private int _diagMarketByOrdersChangedItemCount;
+        private DateTime _diagLastTradeTimeUtc = DateTime.MinValue;
+        private decimal _diagLastTradePrice;
+        private decimal _diagLastTradeVolume;
+        private DateTime _diagLastCumulativeTradeTimeUtc = DateTime.MinValue;
+        private decimal _diagLastCumulativeTradePrice;
+        private decimal _diagLastCumulativeTradeVolume;
+        private DateTime _diagLastMarketDepthTimeUtc = DateTime.MinValue;
+        private decimal _diagLastMarketDepthPrice;
+        private decimal _diagLastMarketDepthVolume;
+        private string _diagLastMarketDepthType = "";
 
         public int MinScore { get; set; } = 5;
         public decimal MinOrRangeTicks { get; set; } = 40;
@@ -188,6 +243,7 @@ namespace ATAS.Indicators
         {
             Name = "ATAS Score Trade Result Exporter ENTRY SL TP RESULT";
             EnableCustomDrawing = false;
+            WriteLifecycleDiagnostic("constructor", -1, DateTime.Now);
         }
 
         protected override void OnRecalculate()
@@ -205,6 +261,7 @@ namespace ATAS.Indicators
         protected override void OnNewTrade(MarketDataArg trade)
         {
             base.OnNewTrade(trade);
+            RecordTradeCallback(trade, false);
 
             var bar = CurrentBar - 1;
             if (bar < 2)
@@ -213,10 +270,77 @@ namespace ATAS.Indicators
             ProcessMarketUpdate(CreateTradeMarketUpdate(bar, trade));
         }
 
+        protected override void OnNewTrades(IEnumerable<MarketDataArg> trades)
+        {
+            base.OnNewTrades(trades);
+
+            if (trades == null)
+                return;
+
+            _diagOnNewTradesBatchCount++;
+            foreach (var trade in trades)
+            {
+                RecordTradeCallback(trade, true);
+                var bar = CurrentBar - 1;
+                if (bar < 2)
+                    continue;
+
+                ProcessMarketUpdate(CreateTradeMarketUpdate(bar, trade));
+            }
+        }
+
+        protected override void OnCumulativeTrade(CumulativeTrade trade)
+        {
+            base.OnCumulativeTrade(trade);
+            RecordCumulativeTradeCallback(trade, false);
+        }
+
+        protected override void OnUpdateCumulativeTrade(CumulativeTrade trade)
+        {
+            base.OnUpdateCumulativeTrade(trade);
+            RecordCumulativeTradeCallback(trade, true);
+        }
+
+        protected override void MarketDepthChanged(MarketDataArg depth)
+        {
+            base.MarketDepthChanged(depth);
+            RecordMarketDepthCallback(depth, false);
+        }
+
+        protected override void MarketDepthsChanged(IEnumerable<MarketDataArg> depths)
+        {
+            base.MarketDepthsChanged(depths);
+
+            if (depths == null)
+                return;
+
+            _diagMarketDepthsChangedBatchCount++;
+            foreach (var depth in depths)
+                RecordMarketDepthCallback(depth, true);
+        }
+
+        protected override void OnMarketByOrdersChanged(IEnumerable<MarketByOrder> values)
+        {
+            base.OnMarketByOrdersChanged(values);
+
+            if (values == null)
+                return;
+
+            _diagMarketByOrdersChangedBatchCount++;
+            foreach (var _ in values)
+                _diagMarketByOrdersChangedItemCount++;
+        }
+
         protected override void OnCalculate(int bar, decimal value)
         {
             if (bar < 2)
                 return;
+
+            if (!_firstCalculateDiagnosticWritten)
+            {
+                WriteLifecycleDiagnostic("oncalculate", bar, DateTime.Now);
+                _firstCalculateDiagnosticWritten = true;
+            }
 
             ProcessMarketUpdate(CreateCandleMarketUpdate(bar));
         }
@@ -286,6 +410,7 @@ namespace ATAS.Indicators
                 currentSignalNyTime,
                 marketUpdateTime,
                 marketPrice);
+            TrackObservedScore(bar, currentSignalNyTime, update, score);
             var sharedSnapshot = SharedTradeSignalSnapshot.CaptureOrGet(
                 currentNyTime.Date,
                 _orLow,
@@ -435,7 +560,72 @@ namespace ATAS.Indicators
                 ImbalanceCount = Math.Max(score.BuyImbalanceCount, score.SellImbalanceCount),
                 BuyImbalanceCount = score.BuyImbalanceCount,
                 SellImbalanceCount = score.SellImbalanceCount,
-                ExecutionSideImbalanceCount = executionSideImbalanceCount
+                ExecutionSideImbalanceCount = executionSideImbalanceCount,
+                InputSnapshot = new TradeInputSnapshot
+                {
+                    Version = ExporterVersion,
+                    EntryDate = nyTime.Date,
+                    DecisionTimestampNy = nyTime,
+                    FeatureTimestampNy = nyTime,
+                    EntryTimestampNy = nyTime,
+                    FeatureTimestampUtc = entryUpdateTimeUtc,
+                    EntryTimestampUtc = entryUpdateTimeUtc,
+                    EntryBar = bar,
+                    Side = executionSide,
+                    SignalSource = score.SignalSource,
+                    SpeedProfile = GetEntryProfile(executionSide, score.SpeedLabel),
+                    EntryPrice = score.EntryPrice,
+                    SlPriceAtEntry = plan.Sl,
+                    TpPriceAtEntry = plan.Tp,
+                    SlTicksAtEntry = plan.SlTicks,
+                    TpTicksAtEntry = plan.TpTicks,
+                    OrLow = score.OrLow,
+                    OrHigh = score.OrHigh,
+                    OrRangeTicks = score.OrRangeTicks,
+                    VwapAtEntry = score.Vwap,
+                    BodyAtEntry = score.BodyBreakoutTicks,
+                    VolumeAtEntry = score.Volume,
+                    DeltaAtEntry = score.Delta,
+                    CumulativeDeltaAtEntry = score.CumulativeDelta,
+                    CumulativeDeltaSourceAtEntry = score.CumulativeDeltaSource,
+                    CvdCurrentAtEntry = score.CumulativeDelta,
+                    CvdPeakAtEntry = score.CumulativeDelta,
+                    CvdPullbackPctAtEntry = 0,
+                    CvdLabelAtEntry = "Excelente",
+                    CvdTotalSamplesAtEntry = 1,
+                    PreviousVolumeAtEntry = score.PreviousVolume,
+                    PreviousDeltaAtEntry = score.PreviousDelta,
+                    VolumeIncreasingAtEntry = score.VolumeIncreasing,
+                    DeltaChangeAtEntry = score.DeltaChange,
+                    DeltaWithSideAtEntry = score.DeltaWithSide,
+                    PriceAcceptedAfterImbalanceAtEntry = score.PriceAcceptedAfterImbalance,
+                    PriceRejectedAfterImbalanceAtEntry = score.PriceRejectedAfterImbalance,
+                    BreakoutSpeedAtEntry = score.SpeedLabel,
+                    BreakoutTicksPerSecondAtEntry = score.BreakoutSpeed,
+                    SpeedElapsedSecondsAtEntry = score.SpeedElapsedSeconds,
+                    SpeedReplayFallbackAtEntry = score.SpeedUsedReplayFallback,
+                    SpeedTimingSourceAtEntry = score.SpeedTimingSource,
+                    RangeOkAtEntry = score.RangeOk,
+                    BodyOkAtEntry = score.BodyOk,
+                    VolumeOkAtEntry = score.VolumeOk,
+                    DeltaOkAtEntry = score.DeltaOk,
+                    TimeOkAtEntry = score.TimeOk,
+                    VwapOkAtEntry = score.VwapOk,
+                    SpeedOkAtEntry = score.SpeedValid,
+                    ScoreAtEntry = score.Score,
+                    RawSpeedLabelAtEntry = score.RawSpeedLabel,
+                    APlusStructureAtEntry = hasMatchingAPlusStructure,
+                    APlusAbsorptionAtEntry = score.HasAPlusAbsorption,
+                    APlusSpeedAtEntry = score.HasAPlusSpeedThreshold,
+                    APlusSpeedSetupConfirmedAtEntry = score.HasAPlusSpeed,
+                    BuyImbalanceCountAtEntry = score.BuyImbalanceCount,
+                    SellImbalanceCountAtEntry = score.SellImbalanceCount,
+                    ExecutionSideImbalanceCountAtEntry = executionSideImbalanceCount,
+                    ImbalanceGroup3AtEntry = matchingAPlusSide,
+                    ImbalanceGroupPriceAtEntry = matchingAPlusPrice,
+                    ImbalanceCountAtEntry = Math.Max(score.BuyImbalanceCount, score.SellImbalanceCount),
+                    SpeedIgnoredByStructureAtEntry = score.SpeedIgnoredByStructure
+                }
             };
 
             UpdateIntratradeOrderFlow(bar, score.Volume, score.Delta);
@@ -482,6 +672,7 @@ namespace ATAS.Indicators
                 entryUpdateTimeUtc,
                 entryTimingSource,
                 nyTime);
+            WriteTradeInputFile(nyTime.Date);
             WriteTradeFile(nyTime.Date);
         }
 
@@ -799,6 +990,118 @@ namespace ATAS.Indicators
                 SetupTickSize);
         }
 
+        private void RecordTradeCallback(MarketDataArg trade, bool fromBatch)
+        {
+            if (trade == null)
+                return;
+
+            if (fromBatch)
+                _diagOnNewTradesItemCount++;
+            else
+                _diagOnNewTradeCount++;
+
+            _diagLastTradeTimeUtc = trade.Time;
+            _diagLastTradePrice = trade.Price;
+            _diagLastTradeVolume = trade.Volume;
+        }
+
+        private void RecordCumulativeTradeCallback(CumulativeTrade trade, bool isUpdate)
+        {
+            if (trade == null)
+                return;
+
+            if (isUpdate)
+                _diagOnUpdateCumulativeTradeCount++;
+            else
+                _diagOnCumulativeTradeCount++;
+
+            var tickCount = trade.Ticks == null ? 0 : trade.Ticks.Count;
+            _diagOnCumulativeTradeTickCount += tickCount;
+            _diagLastCumulativeTradeTimeUtc = trade.Time;
+            _diagLastCumulativeTradePrice = trade.Lastprice;
+            _diagLastCumulativeTradeVolume = trade.Volume;
+        }
+
+        private void RecordMarketDepthCallback(MarketDataArg depth, bool fromBatch)
+        {
+            if (depth == null)
+                return;
+
+            if (fromBatch)
+                _diagMarketDepthsChangedItemCount++;
+            else
+                _diagMarketDepthChangedCount++;
+
+            _diagLastMarketDepthTimeUtc = depth.Time;
+            _diagLastMarketDepthPrice = depth.Price;
+            _diagLastMarketDepthVolume = depth.Volume;
+            _diagLastMarketDepthType = depth.DataType.ToString();
+        }
+
+        private void TrySubscribeMarketByOrderDataOnce()
+        {
+            if (_marketByOrderSubscriptionAttempted)
+            {
+                UnsubscribeFromTimer(TimeSpan.FromSeconds(1), TrySubscribeMarketByOrderDataOnce);
+                return;
+            }
+
+            _marketByOrderSubscriptionAttempted = true;
+            WriteLifecycleDiagnostic("mbo_subscribe_attempt", CurrentBar, DateTime.Now);
+
+            try
+            {
+                _ = SubscribeMarketByOrderData();
+                _marketByOrderSubscriptionRequested = true;
+                WriteLifecycleDiagnostic("mbo_subscribe_called", CurrentBar, DateTime.Now);
+            }
+            catch
+            {
+                WriteLifecycleDiagnostic("mbo_subscribe_error", CurrentBar, DateTime.Now);
+            }
+
+            try
+            {
+                UnsubscribeFromTimer(TimeSpan.FromSeconds(1), TrySubscribeMarketByOrderDataOnce);
+            }
+            catch
+            {
+                // Timer cleanup is best-effort.
+            }
+        }
+
+        private void WriteLifecycleDiagnostic(string eventName, int bar, DateTime localTime)
+        {
+            try
+            {
+                if (!Directory.Exists(_exportFolder))
+                    Directory.CreateDirectory(_exportFolder);
+
+                var filePath = Path.Combine(_exportFolder, "exporter_lifecycle_diagnostics.csv");
+                var writeHeader = !File.Exists(filePath);
+                using var writer = new StreamWriter(filePath, append: true);
+
+                if (writeHeader)
+                {
+                    writer.WriteLine(string.Join(",",
+                        "Exporter_VERSION",
+                        "Event",
+                        "LocalTime",
+                        "Bar"));
+                }
+
+                writer.WriteLine(string.Join(",",
+                    ExporterVersion,
+                    eventName,
+                    localTime.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture),
+                    bar.ToString(CultureInfo.InvariantCulture)));
+            }
+            catch
+            {
+                // Lifecycle diagnostics are best-effort only.
+            }
+        }
+
         private bool TryWriteTimeOver(MarketUpdate update, DateTime nyTime)
         {
             var hasOpenTrade = _trade != null && _trade.Result == "OPEN";
@@ -812,6 +1115,8 @@ namespace ATAS.Indicators
             {
                 return false;
             }
+
+            WriteFeedDiagnosticFile(nyTime.Date, nyTime);
 
             if (TryRecoverMissedReadyTradeBeforeTimeOver(update, nyTime))
                 return false;
@@ -847,6 +1152,7 @@ namespace ATAS.Indicators
                     scanBar,
                     scanNyTime,
                     scanUpdateTime);
+                TrackObservedScore(scanBar, scanNyTime, null, score);
                 var sharedSnapshot = SharedTradeSignalSnapshot.CaptureOrGet(
                     scanNyTime.Date,
                     _orLow,
@@ -2377,6 +2683,9 @@ namespace ATAS.Indicators
                 csvRow + Environment.NewLine
             );
 
+            WriteTradeResultFile(nyDate);
+            WriteFeedDiagnosticFile(nyDate, _trade.ExitTimeNy ?? _trade.EntryTimeNy);
+
             if (_trade.Result != "OPEN")
             {
                 TelegramTradeNotifier.QueueTerminalResult(
@@ -2384,6 +2693,263 @@ namespace ATAS.Indicators
                     nyDate,
                     BuildTelegramTradeMessage());
             }
+        }
+
+        private void WriteTradeInputFile(DateTime nyDate)
+        {
+            if (_trade?.InputSnapshot == null)
+                return;
+
+            if (!Directory.Exists(_exportFolder))
+                Directory.CreateDirectory(_exportFolder);
+
+            var filePath = Path.Combine(_exportFolder, TradeInputCsvFileName);
+            UpsertCsvRow(
+                filePath,
+                TradeInputCsvHeader,
+                BuildTradeInputCsvRow(_trade.InputSnapshot),
+                1,
+                4);
+        }
+
+        private void WriteTradeResultFile(DateTime nyDate)
+        {
+            if (_trade == null)
+                return;
+
+            if (!Directory.Exists(_exportFolder))
+                Directory.CreateDirectory(_exportFolder);
+
+            var filePath = Path.Combine(_exportFolder, TradeResultCsvFileName);
+            UpsertCsvRow(
+                filePath,
+                TradeResultCsvHeader,
+                BuildTradeResultCsvRow(),
+                1,
+                2);
+        }
+
+        private static void UpsertCsvRow(
+            string filePath,
+            string header,
+            string row,
+            int keyColumnA,
+            int keyColumnB)
+        {
+            var newParts = SplitCsvRow(row);
+            if (newParts.Count <= Math.Max(keyColumnA, keyColumnB))
+                return;
+
+            var newKeyA = newParts[keyColumnA];
+            var newKeyB = newParts[keyColumnB];
+            var lines = new List<string> { header };
+            var replaced = false;
+
+            if (File.Exists(filePath))
+            {
+                var existing = File.ReadAllLines(filePath);
+                if (existing.Length > 0 && string.Equals(existing[0], header, StringComparison.Ordinal))
+                {
+                    for (var i = 1; i < existing.Length; i++)
+                    {
+                        var line = existing[i];
+                        if (string.IsNullOrWhiteSpace(line))
+                            continue;
+
+                        var parts = SplitCsvRow(line);
+                        var isSameKey =
+                            parts.Count > Math.Max(keyColumnA, keyColumnB) &&
+                            string.Equals(parts[keyColumnA], newKeyA, StringComparison.Ordinal) &&
+                            string.Equals(parts[keyColumnB], newKeyB, StringComparison.Ordinal);
+
+                        if (isSameKey)
+                        {
+                            if (!replaced)
+                            {
+                                lines.Add(row);
+                                replaced = true;
+                            }
+                        }
+                        else
+                        {
+                            lines.Add(line);
+                        }
+                    }
+                }
+            }
+
+            if (!replaced)
+                lines.Add(row);
+
+            File.WriteAllLines(filePath, lines);
+        }
+
+        private static List<string> SplitCsvRow(string row)
+        {
+            var values = new List<string>();
+            var current = "";
+            var inQuotes = false;
+
+            for (var i = 0; i < row.Length; i++)
+            {
+                var ch = row[i];
+                if (ch == '"')
+                {
+                    if (inQuotes && i + 1 < row.Length && row[i + 1] == '"')
+                    {
+                        current += '"';
+                        i++;
+                    }
+                    else
+                    {
+                        inQuotes = !inQuotes;
+                    }
+
+                    continue;
+                }
+
+                if (ch == ',' && !inQuotes)
+                {
+                    values.Add(current);
+                    current = "";
+                    continue;
+                }
+
+                current += ch;
+            }
+
+            values.Add(current);
+            return values;
+        }
+
+        private string BuildTradeInputCsvRow(TradeInputSnapshot input)
+        {
+            return string.Join(",",
+                ExporterVersion,
+                input.EntryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                input.DecisionTimestampNy.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
+                input.FeatureTimestampNy.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
+                input.EntryTimestampNy.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
+                input.EntryBar.ToString(CultureInfo.InvariantCulture),
+                EscapeCsv(input.Side),
+                EscapeCsv(input.SignalSource),
+                EscapeCsv(input.SpeedProfile),
+                FormatPrice(input.EntryPrice),
+                FormatPrice(input.SlPriceAtEntry),
+                FormatPrice(input.TpPriceAtEntry),
+                FormatTicks(input.SlTicksAtEntry),
+                FormatTicks(input.TpTicksAtEntry),
+                FormatPrice(input.OrLow),
+                FormatPrice(input.OrHigh),
+                FormatTicks(input.OrRangeTicks),
+                FormatPrice(input.VwapAtEntry),
+                FormatTicks(input.BodyAtEntry),
+                FormatTicks(input.VolumeAtEntry),
+                FormatTicks(input.DeltaAtEntry),
+                FormatTicks(input.CumulativeDeltaAtEntry),
+                EscapeCsv(input.CumulativeDeltaSourceAtEntry),
+                FormatTicks(input.CvdCurrentAtEntry),
+                FormatTicks(input.CvdPeakAtEntry),
+                FormatTicks(input.CvdPullbackPctAtEntry),
+                EscapeCsv(input.CvdLabelAtEntry),
+                input.CvdTotalSamplesAtEntry.ToString(CultureInfo.InvariantCulture),
+                FormatTicks(input.PreviousVolumeAtEntry),
+                FormatTicks(input.PreviousDeltaAtEntry),
+                FormatBool(input.VolumeIncreasingAtEntry),
+                FormatTicks(input.DeltaChangeAtEntry),
+                FormatBool(input.DeltaWithSideAtEntry),
+                FormatBool(input.PriceAcceptedAfterImbalanceAtEntry),
+                FormatBool(input.PriceRejectedAfterImbalanceAtEntry),
+                EscapeCsv(input.BreakoutSpeedAtEntry),
+                FormatTicks(input.BreakoutTicksPerSecondAtEntry),
+                FormatSeconds(input.SpeedElapsedSecondsAtEntry),
+                FormatBool(input.SpeedReplayFallbackAtEntry),
+                EscapeCsv(input.SpeedTimingSourceAtEntry),
+                FormatBool(input.RangeOkAtEntry),
+                FormatBool(input.BodyOkAtEntry),
+                FormatBool(input.VolumeOkAtEntry),
+                FormatBool(input.DeltaOkAtEntry),
+                FormatBool(input.TimeOkAtEntry),
+                FormatBool(input.VwapOkAtEntry),
+                FormatBool(input.SpeedOkAtEntry),
+                input.ScoreAtEntry.ToString(CultureInfo.InvariantCulture),
+                EscapeCsv(input.RawSpeedLabelAtEntry),
+                FormatBool(input.APlusStructureAtEntry),
+                FormatBool(input.APlusAbsorptionAtEntry),
+                FormatBool(input.APlusSpeedAtEntry),
+                FormatBool(input.APlusSpeedSetupConfirmedAtEntry),
+                input.BuyImbalanceCountAtEntry.ToString(CultureInfo.InvariantCulture),
+                input.SellImbalanceCountAtEntry.ToString(CultureInfo.InvariantCulture),
+                input.ExecutionSideImbalanceCountAtEntry.ToString(CultureInfo.InvariantCulture),
+                EscapeCsv(input.ImbalanceGroup3AtEntry),
+                FormatNullablePrice(input.ImbalanceGroupPriceAtEntry),
+                input.ImbalanceCountAtEntry.ToString(CultureInfo.InvariantCulture),
+                FormatBool(input.SpeedIgnoredByStructureAtEntry),
+                input.FeatureTimestampUtc.ToString("o", CultureInfo.InvariantCulture),
+                input.EntryTimestampUtc.ToString("o", CultureInfo.InvariantCulture));
+        }
+
+        private string BuildTradeResultCsvRow()
+        {
+            if (_trade == null)
+                return "";
+
+            var outcome = new TradeOutcome();
+            outcome.CsvFields.AddRange(new[]
+            {
+                ExporterVersion,
+                _trade.EntryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                _trade.EntryTimeNy.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
+                _trade.ExitTimeNy.HasValue
+                    ? _trade.ExitTimeNy.Value.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture)
+                    : "",
+                FormatExitTimeNy(),
+                FormatTradeDuration(),
+                _trade.EntryBar.ToString(CultureInfo.InvariantCulture),
+                EscapeCsv(_trade.Side),
+                FormatPrice(_trade.Entry),
+                EscapeCsv(_trade.Result),
+                FormatExitPrice(),
+                _trade.Result == "OPEN" ? "" : FormatSignedTicks(TradeResultTicks()),
+                FormatTicks(_trade.MaeTicks),
+                FormatTicks(_trade.MfeTicks),
+                FormatTicks(_trade.LargestMaePullbackTicks),
+                FormatTicks(_trade.LargestMfePullupTicks),
+                _trade.NumberOfPullbacksDuringTrade.ToString(CultureInfo.InvariantCulture),
+                _trade.NumberOfPullUpsDuringTrade.ToString(CultureInfo.InvariantCulture),
+                FormatSeconds(_trade.MaxSpeedMaeDuringTrade),
+                FormatSeconds(_trade.MaxSpeedMfeDuringTrade),
+                FormatPrice(_trade.Sl),
+                FormatPrice(_trade.Tp),
+                FormatTicks(_trade.SlTicks),
+                FormatTicks(_trade.TpTicks),
+                FormatTicks(_trade.CvdCurrent),
+                FormatTicks(_trade.CvdPeak),
+                FormatTicks(_trade.CvdPullbackPercent),
+                EscapeCsv(_trade.CvdPullbackLabel),
+                EscapeCsv(_trade.CvdWorstLabel),
+                _trade.CvdExcellentCount.ToString(CultureInfo.InvariantCulture),
+                _trade.CvdNormalCount.ToString(CultureInfo.InvariantCulture),
+                _trade.CvdWarningCount.ToString(CultureInfo.InvariantCulture),
+                _trade.CvdRiskReversalCount.ToString(CultureInfo.InvariantCulture),
+                _trade.CvdTotalSamples.ToString(CultureInfo.InvariantCulture),
+                FormatCvdExcellentPercent(),
+                _trade.CvdNegativeEpisodes.ToString(CultureInfo.InvariantCulture),
+                _trade.CvdLabelChanges.ToString(CultureInfo.InvariantCulture),
+                FormatBool(_trade.DynamicAlarmTriggered),
+                FormatBool(_trade.TpAndSlHitSameUpdate),
+                CalculateResultAfterSlippage().HasValue
+                    ? FormatSignedTicks(CalculateResultAfterSlippage()!.Value)
+                    : "",
+                FormatBool(_trade.VolumeIncreasedDuringTrade),
+                _trade.VolumeIncreaseSamples.ToString(CultureInfo.InvariantCulture),
+                _trade.VolumeObservedSamples.ToString(CultureInfo.InvariantCulture),
+                FormatNullableRatio(CalculateVolumeIncreasingPercent()),
+                FormatNullableTicks(_trade.MaxDeltaDuringTrade),
+                FormatNullableTicks(_trade.MinDeltaDuringTrade)
+            });
+
+            return string.Join(",", outcome.CsvFields);
         }
 
         private string BuildTradeCsvRow()
@@ -2627,6 +3193,149 @@ namespace ATAS.Indicators
             }
         }
 
+        private void WriteFeedDiagnosticFile(DateTime nyDate, DateTime sampleNyTime)
+        {
+            try
+            {
+                if (!Directory.Exists(_exportFolder))
+                    Directory.CreateDirectory(_exportFolder);
+
+                var cacheStats = ReadTradeCacheStats(nyDate);
+                var filePath = Path.Combine(
+                    _exportFolder,
+                    $"market_feed_diagnostics_{nyDate:yyyy-MM-dd}_NY.csv");
+
+                File.WriteAllText(
+                    filePath,
+                    string.Join(",",
+                        "Exporter_VERSION",
+                        "fecha",
+                        "SampleTime_NY",
+                        "OnNewTrade_Count",
+                        "OnNewTrades_Batches",
+                        "OnNewTrades_Items",
+                        "OnCumulativeTrade_Count",
+                        "OnUpdateCumulativeTrade_Count",
+                        "CumulativeTrade_Tick_Count",
+                        "MBO_Subscription_Attempted",
+                        "MBO_Subscription_Requested",
+                        "MarketDepthChanged_Count",
+                        "MarketDepthsChanged_Batches",
+                        "MarketDepthsChanged_Items",
+                        "MarketByOrdersChanged_Batches",
+                        "MarketByOrdersChanged_Items",
+                        "TradeCache_Count",
+                        "TradeCache_SignalWindow_Count",
+                        "TradeCache_First_NY",
+                        "TradeCache_Last_NY",
+                        "LastTradeCallback_NY",
+                        "LastTradeCallback_Price",
+                        "LastTradeCallback_Volume",
+                        "LastCumulativeCallback_NY",
+                        "LastCumulativeCallback_Price",
+                        "LastCumulativeCallback_Volume",
+                        "LastMarketDepthCallback_NY",
+                        "LastMarketDepthCallback_Price",
+                        "LastMarketDepthCallback_Volume",
+                        "LastMarketDepthCallback_Type") +
+                    Environment.NewLine +
+                    string.Join(",",
+                        ExporterVersion,
+                        nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                        sampleNyTime == DateTime.MinValue
+                            ? ""
+                            : sampleNyTime.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
+                        _diagOnNewTradeCount.ToString(CultureInfo.InvariantCulture),
+                        _diagOnNewTradesBatchCount.ToString(CultureInfo.InvariantCulture),
+                        _diagOnNewTradesItemCount.ToString(CultureInfo.InvariantCulture),
+                        _diagOnCumulativeTradeCount.ToString(CultureInfo.InvariantCulture),
+                        _diagOnUpdateCumulativeTradeCount.ToString(CultureInfo.InvariantCulture),
+                        _diagOnCumulativeTradeTickCount.ToString(CultureInfo.InvariantCulture),
+                        FormatBool(_marketByOrderSubscriptionAttempted),
+                        FormatBool(_marketByOrderSubscriptionRequested),
+                        _diagMarketDepthChangedCount.ToString(CultureInfo.InvariantCulture),
+                        _diagMarketDepthsChangedBatchCount.ToString(CultureInfo.InvariantCulture),
+                        _diagMarketDepthsChangedItemCount.ToString(CultureInfo.InvariantCulture),
+                        _diagMarketByOrdersChangedBatchCount.ToString(CultureInfo.InvariantCulture),
+                        _diagMarketByOrdersChangedItemCount.ToString(CultureInfo.InvariantCulture),
+                        cacheStats.TotalCount.ToString(CultureInfo.InvariantCulture),
+                        cacheStats.SignalWindowCount.ToString(CultureInfo.InvariantCulture),
+                        FormatCallbackNyTime(cacheStats.FirstTradeTimeUtc),
+                        FormatCallbackNyTime(cacheStats.LastTradeTimeUtc),
+                        FormatCallbackNyTime(_diagLastTradeTimeUtc),
+                        FormatNullablePrice(_diagLastTradePrice),
+                        FormatTicks(_diagLastTradeVolume),
+                        FormatCallbackNyTime(_diagLastCumulativeTradeTimeUtc),
+                        FormatNullablePrice(_diagLastCumulativeTradePrice),
+                        FormatTicks(_diagLastCumulativeTradeVolume),
+                        FormatCallbackNyTime(_diagLastMarketDepthTimeUtc),
+                        FormatNullablePrice(_diagLastMarketDepthPrice),
+                        FormatTicks(_diagLastMarketDepthVolume),
+                        _diagLastMarketDepthType) +
+                    Environment.NewLine);
+            }
+            catch
+            {
+                // Diagnostics must never block export or Telegram.
+            }
+        }
+
+        private FeedCacheStats ReadTradeCacheStats(DateTime nyDate)
+        {
+            var stats = new FeedCacheStats();
+
+            try
+            {
+                var cache = GetTradesCache(TimeSpan.FromMinutes(30));
+                var items = cache?.CachedItems;
+                if (items == null)
+                    return stats;
+
+                foreach (var item in items)
+                {
+                    if (item == null)
+                        continue;
+
+                    stats.TotalCount++;
+
+                    if (stats.FirstTradeTimeUtc == DateTime.MinValue ||
+                        item.Time < stats.FirstTradeTimeUtc)
+                    {
+                        stats.FirstTradeTimeUtc = item.Time;
+                    }
+
+                    if (stats.LastTradeTimeUtc == DateTime.MinValue ||
+                        item.Time > stats.LastTradeTimeUtc)
+                    {
+                        stats.LastTradeTimeUtc = item.Time;
+                    }
+
+                    var itemNyTime = ConvertToNewYorkTime(item.Time);
+                    if (itemNyTime.Date == nyDate.Date &&
+                        itemNyTime.TimeOfDay >= _openingTimeNy &&
+                        itemNyTime.TimeOfDay <= TimeOverTimeNy)
+                    {
+                        stats.SignalWindowCount++;
+                    }
+                }
+            }
+            catch
+            {
+                return stats;
+            }
+
+            return stats;
+        }
+
+        private string FormatCallbackNyTime(DateTime utcTime)
+        {
+            if (utcTime == DateTime.MinValue)
+                return "";
+
+            return ConvertToNewYorkTime(utcTime)
+                .ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
+        }
+
         private void TrackRejectedScore(int bar, DateTime nyTime, ScoreTradeSignal score)
         {
             if (!score.IsBreakout || string.IsNullOrWhiteSpace(score.Side))
@@ -2644,6 +3353,267 @@ namespace ATAS.Indicators
             WriteRejectedScoreFile(nyTime.Date);
         }
 
+        private void TrackObservedScore(int bar, DateTime nyTime, MarketUpdate? update, ScoreTradeSignal score)
+        {
+            if (score == null)
+                return;
+
+            AppendScoreCandidateDebugFile(nyTime.Date, bar, nyTime, update, score);
+
+            if (_bestObservedScore != null)
+            {
+                var currentRank = ScoreDebugRank(score, bar);
+                var bestRank = ScoreDebugRank(_bestObservedScore, _bestObservedScoreBar);
+                if (currentRank < bestRank)
+                    return;
+            }
+
+            _bestObservedScore = score;
+            _bestObservedScoreBar = bar;
+            _bestObservedScoreNyTime = nyTime;
+            _bestObservedScoreSource = update?.Source ?? "RecoveryScan";
+            _bestObservedScoreIsTradeEvent = update?.IsTradeEvent ?? false;
+            WriteObservedScoreDebugFile(nyTime.Date);
+        }
+
+        private decimal ScoreDebugRank(ScoreTradeSignal score, int bar)
+        {
+            var rank = score.Score * 1000m + bar;
+            if (score.IsReady)
+                rank += 10000000m;
+            if (score.IsBreakout && !string.IsNullOrWhiteSpace(score.Side))
+                rank += 1000000m;
+            if (score.TimeOk)
+                rank += 100000m;
+            return rank;
+        }
+
+        private void WriteObservedScoreDebugFile(DateTime nyDate)
+        {
+            if (_bestObservedScore == null)
+                return;
+
+            if (!Directory.Exists(_exportFolder))
+                Directory.CreateDirectory(_exportFolder);
+
+            var score = _bestObservedScore;
+            var filePath = Path.Combine(
+                _exportFolder,
+                $"score_rejection_debug_{nyDate:yyyy-MM-dd}_NY.csv");
+
+            File.WriteAllText(
+                filePath,
+                string.Join(",",
+                    "Exporter_VERSION",
+                    "fecha",
+                    "SignalTime_NY",
+                    "Bar",
+                    "Source",
+                    "IsTradeEvent",
+                    "IsReady",
+                    "RejectReason",
+                    "IsBreakout",
+                    "Side",
+                    "ExecutionSide",
+                    "EntryPrice",
+                    "or_low",
+                    "or_high",
+                    "range",
+                    "VWAP",
+                    "Body",
+                    "Volume",
+                    "Delta",
+                    "CumulativeDelta",
+                    "PreviousVolume",
+                    "PreviousDelta",
+                    "Range_OK",
+                    "Body_OK",
+                    "Volume_OK",
+                    "Delta_OK",
+                    "Time_OK",
+                    "VWAP_OK",
+                    "Speed_OK",
+                    "SpeedLabel",
+                    "RawSpeedLabel",
+                    "BreakOut_TICKS_PER_SEC",
+                    "Speed_Elapsed_SECONDS",
+                    "Score",
+                    "MinScore",
+                    "Signal_Source",
+                    "APlus_Structure",
+                    "APlus_Absorption",
+                    "APlus_Speed",
+                    "HasSide3_ImbalanceGroup",
+                    "HasSide3_Imbalances",
+                    "Buy_Imbalance_Count",
+                    "Sell_Imbalance_Count",
+                    "Price_Accepted_After_Imbalance",
+                    "Price_Accepted_After_Speed",
+                    "IsValueAcceptance") +
+                Environment.NewLine +
+                string.Join(",",
+                    ExporterVersion,
+                    nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    _bestObservedScoreNyTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
+                    _bestObservedScoreBar.ToString(CultureInfo.InvariantCulture),
+                    _bestObservedScoreSource,
+                    FormatBool(_bestObservedScoreIsTradeEvent),
+                    FormatBool(score.IsReady),
+                    DescribeScoreRejectReason(score),
+                    FormatBool(score.IsBreakout),
+                    score.Side,
+                    score.ExecutionSide,
+                    FormatPrice(score.EntryPrice),
+                    FormatPrice(score.OrLow),
+                    FormatPrice(score.OrHigh),
+                    FormatTicks(score.OrRangeTicks),
+                    FormatPrice(score.Vwap),
+                    FormatTicks(score.BodyBreakoutTicks),
+                    FormatTicks(score.Volume),
+                    FormatTicks(score.Delta),
+                    FormatTicks(score.CumulativeDelta),
+                    FormatTicks(score.PreviousVolume),
+                    FormatTicks(score.PreviousDelta),
+                    FormatBool(score.RangeOk),
+                    FormatBool(score.BodyOk),
+                    FormatBool(score.VolumeOk),
+                    FormatBool(score.DeltaOk),
+                    FormatBool(score.TimeOk),
+                    FormatBool(score.VwapOk),
+                    FormatBool(score.SpeedValid),
+                    score.SpeedLabel,
+                    score.RawSpeedLabel,
+                    FormatTicks(score.BreakoutSpeed),
+                    FormatSeconds(score.SpeedElapsedSeconds),
+                    score.Score.ToString(CultureInfo.InvariantCulture),
+                    MinScore.ToString(CultureInfo.InvariantCulture),
+                    score.SignalSource,
+                    FormatBool(score.HasAPlusStructure),
+                    FormatBool(score.HasAPlusAbsorption),
+                    FormatBool(score.HasAPlusSpeedThreshold),
+                    FormatBool(score.HasSide3_ImbalanceGroup),
+                    FormatBool(score.HasSide3_Imbalances),
+                    score.BuyImbalanceCount.ToString(CultureInfo.InvariantCulture),
+                    score.SellImbalanceCount.ToString(CultureInfo.InvariantCulture),
+                    FormatBool(score.PriceAcceptedAfterImbalance),
+                    FormatBool(score.PriceAcceptedAfterSpeed),
+                    FormatBool(score.IsValueAcceptance)) +
+                Environment.NewLine);
+        }
+
+        private void AppendScoreCandidateDebugFile(
+            DateTime nyDate,
+            int bar,
+            DateTime nyTime,
+            MarketUpdate? update,
+            ScoreTradeSignal score)
+        {
+            if (!score.IsBreakout || string.IsNullOrWhiteSpace(score.Side))
+                return;
+
+            if (!Directory.Exists(_exportFolder))
+                Directory.CreateDirectory(_exportFolder);
+
+            var filePath = Path.Combine(
+                _exportFolder,
+                $"score_signal_candidates_debug_{nyDate:yyyy-MM-dd}_NY.csv");
+            var writeHeader = !File.Exists(filePath);
+            using var writer = new StreamWriter(filePath, append: true);
+
+            if (writeHeader)
+            {
+                writer.WriteLine(string.Join(",",
+                    "Exporter_VERSION",
+                    "fecha",
+                    "SignalTime_NY",
+                    "Bar",
+                    "Source",
+                    "IsTradeEvent",
+                    "IsReady",
+                    "RejectReason",
+                    "Side",
+                    "EntryPrice",
+                    "Body",
+                    "Volume",
+                    "Delta",
+                    "SpeedLabel",
+                    "BreakOut_TICKS_PER_SEC",
+                    "Speed_Elapsed_SECONDS",
+                    "Speed_OK",
+                    "Score",
+                    "Buy_Imbalance_Count",
+                    "Sell_Imbalance_Count",
+                    "Signal_Source"));
+            }
+
+            writer.WriteLine(string.Join(",",
+                ExporterVersion,
+                nyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                nyTime.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
+                bar.ToString(CultureInfo.InvariantCulture),
+                update?.Source ?? "RecoveryScan",
+                FormatBool(update?.IsTradeEvent ?? false),
+                FormatBool(score.IsReady),
+                DescribeScoreRejectReason(score),
+                score.Side,
+                FormatPrice(score.EntryPrice),
+                FormatTicks(score.BodyBreakoutTicks),
+                FormatTicks(score.Volume),
+                FormatTicks(score.Delta),
+                score.SpeedLabel,
+                FormatTicks(score.BreakoutSpeed),
+                FormatSeconds(score.SpeedElapsedSeconds),
+                FormatBool(score.SpeedValid),
+                score.Score.ToString(CultureInfo.InvariantCulture),
+                score.BuyImbalanceCount.ToString(CultureInfo.InvariantCulture),
+                score.SellImbalanceCount.ToString(CultureInfo.InvariantCulture),
+                score.SignalSource));
+        }
+
+        private string DescribeScoreRejectReason(ScoreTradeSignal score)
+        {
+            var reasons = new List<string>();
+
+            if (!score.IsReady)
+            {
+                if (!score.IsBreakout)
+                    reasons.Add("NO_BREAKOUT");
+                if (string.IsNullOrWhiteSpace(score.Side))
+                    reasons.Add("NO_SIDE");
+                if (score.EntryPrice <= score.OrHigh && score.EntryPrice >= score.OrLow)
+                    reasons.Add("ENTRY_INSIDE_OR");
+                if (!score.RangeOk)
+                    reasons.Add("RANGE");
+                if (!score.TimeOk)
+                    reasons.Add("TIME");
+                if (score.Score < MinScore)
+                    reasons.Add("SCORE");
+                if (!score.SpeedValid)
+                    reasons.Add("SPEED");
+                if (score.SpeedLabel == "A+ speed" &&
+                    !score.HasAPlusStructure &&
+                    !score.PriceAcceptedAfterSpeed &&
+                    !score.HasAPlusAbsorption)
+                {
+                    reasons.Add("APLUS_CONFIRMATION");
+                }
+                if (score.SpeedLabel == "normal speed" &&
+                    !((score.Side == "BUY" && score.BuyImbalanceCount > 0) ||
+                      (score.Side == "SELL" && score.SellImbalanceCount > 0)))
+                {
+                    reasons.Add("SIDE_IMBALANCE");
+                }
+                if (!score.VolumeOk)
+                    reasons.Add("VOLUME");
+                if (RequireBodyOkForTrade && !score.BodyOk)
+                    reasons.Add("BODY");
+                if (RequireVwapOkForTrade && !score.VwapOk)
+                    reasons.Add("VWAP");
+            }
+
+            return reasons.Count == 0 ? "READY" : string.Join("|", reasons);
+        }
+
         private void WriteRejectedScoreFile(DateTime nyDate)
         {
             if (_bestRejectedScore == null)
@@ -2655,7 +3625,7 @@ namespace ATAS.Indicators
             var score = _bestRejectedScore;
             var filePath = Path.Combine(
                 _exportFolder,
-                $"score_trade_result_{nyDate:yyyy-MM-dd}_NY.csv"
+                $"score_best_rejected_{nyDate:yyyy-MM-dd}_NY.csv"
             );
 
             File.WriteAllText(
@@ -2746,6 +3716,7 @@ namespace ATAS.Indicators
         private void ResetDay(DateTime nyDate)
         {
             FlushDynamicTimelineBuffer();
+            DeleteScoreDebugFiles(nyDate);
             _currentNyDate = nyDate;
             _orHigh = 0;
             _orLow = 0;
@@ -2780,8 +3751,30 @@ namespace ATAS.Indicators
             _lastProcessedMarketVolume = 0;
             _lastProcessedMarketDelta = 0;
             _lastProcessedMarketSource = "";
+            _diagOnNewTradeCount = 0;
+            _diagOnNewTradesBatchCount = 0;
+            _diagOnNewTradesItemCount = 0;
+            _diagOnCumulativeTradeCount = 0;
+            _diagOnUpdateCumulativeTradeCount = 0;
+            _diagOnCumulativeTradeTickCount = 0;
+            _diagMarketDepthChangedCount = 0;
+            _diagMarketDepthsChangedBatchCount = 0;
+            _diagMarketDepthsChangedItemCount = 0;
+            _diagMarketByOrdersChangedBatchCount = 0;
+            _diagMarketByOrdersChangedItemCount = 0;
+            _diagLastTradeTimeUtc = DateTime.MinValue;
+            _diagLastTradePrice = 0;
+            _diagLastTradeVolume = 0;
+            _diagLastCumulativeTradeTimeUtc = DateTime.MinValue;
+            _diagLastCumulativeTradePrice = 0;
+            _diagLastCumulativeTradeVolume = 0;
+            _diagLastMarketDepthTimeUtc = DateTime.MinValue;
+            _diagLastMarketDepthPrice = 0;
+            _diagLastMarketDepthVolume = 0;
+            _diagLastMarketDepthType = "";
             ClearPendingScore();
             ClearRejectedScore();
+            ClearObservedScore();
         }
 
         private void ClearPendingScore()
@@ -2796,6 +3789,38 @@ namespace ATAS.Indicators
             _bestRejectedScore = null;
             _bestRejectedScoreBar = -1;
             _bestRejectedScoreNyTime = DateTime.MinValue;
+        }
+
+        private void ClearObservedScore()
+        {
+            _bestObservedScore = null;
+            _bestObservedScoreBar = -1;
+            _bestObservedScoreNyTime = DateTime.MinValue;
+            _bestObservedScoreSource = "";
+            _bestObservedScoreIsTradeEvent = false;
+        }
+
+        private void DeleteScoreDebugFiles(DateTime nyDate)
+        {
+            try
+            {
+                File.Delete(Path.Combine(
+                    _exportFolder,
+                    $"score_rejection_debug_{nyDate:yyyy-MM-dd}_NY.csv"));
+                File.Delete(Path.Combine(
+                    _exportFolder,
+                    $"score_signal_candidates_debug_{nyDate:yyyy-MM-dd}_NY.csv"));
+                File.Delete(Path.Combine(
+                    _exportFolder,
+                    $"score_best_rejected_{nyDate:yyyy-MM-dd}_NY.csv"));
+                File.Delete(Path.Combine(
+                    _exportFolder,
+                    $"market_feed_diagnostics_{nyDate:yyyy-MM-dd}_NY.csv"));
+            }
+            catch
+            {
+                // Diagnostic sidecars only. Do not affect replay/export flow.
+            }
         }
 
         private void UpdateAPlusStructureFromBar(int bar, dynamic candle, DateTime nyTime)
@@ -3260,6 +4285,14 @@ namespace ATAS.Indicators
             return ticks.ToString("+0.##;-0.##;0", CultureInfo.InvariantCulture);
         }
 
+        private sealed class FeedCacheStats
+        {
+            public int TotalCount { get; set; }
+            public int SignalWindowCount { get; set; }
+            public DateTime FirstTradeTimeUtc { get; set; } = DateTime.MinValue;
+            public DateTime LastTradeTimeUtc { get; set; } = DateTime.MinValue;
+        }
+
         private sealed class MarketUpdate
         {
             public MarketUpdate(
@@ -3324,8 +4357,80 @@ namespace ATAS.Indicators
             public string CsvRow { get; set; } = "";
         }
 
+        private sealed class TradeInputSnapshot
+        {
+            public string Version { get; init; } = "";
+            public DateTime EntryDate { get; init; }
+            public DateTime DecisionTimestampNy { get; init; }
+            public DateTime FeatureTimestampNy { get; init; }
+            public DateTime EntryTimestampNy { get; init; }
+            public DateTime FeatureTimestampUtc { get; init; }
+            public DateTime EntryTimestampUtc { get; init; }
+            public int EntryBar { get; init; }
+            public string Side { get; init; } = "";
+            public string SignalSource { get; init; } = "";
+            public string SpeedProfile { get; init; } = "";
+            public decimal EntryPrice { get; init; }
+            public decimal SlPriceAtEntry { get; init; }
+            public decimal TpPriceAtEntry { get; init; }
+            public decimal SlTicksAtEntry { get; init; }
+            public decimal TpTicksAtEntry { get; init; }
+            public decimal OrLow { get; init; }
+            public decimal OrHigh { get; init; }
+            public decimal OrRangeTicks { get; init; }
+            public decimal VwapAtEntry { get; init; }
+            public decimal BodyAtEntry { get; init; }
+            public decimal VolumeAtEntry { get; init; }
+            public decimal DeltaAtEntry { get; init; }
+            public decimal CumulativeDeltaAtEntry { get; init; }
+            public string CumulativeDeltaSourceAtEntry { get; init; } = "";
+            public decimal CvdCurrentAtEntry { get; init; }
+            public decimal CvdPeakAtEntry { get; init; }
+            public decimal CvdPullbackPctAtEntry { get; init; }
+            public string CvdLabelAtEntry { get; init; } = "";
+            public int CvdTotalSamplesAtEntry { get; init; }
+            public decimal PreviousVolumeAtEntry { get; init; }
+            public decimal PreviousDeltaAtEntry { get; init; }
+            public bool VolumeIncreasingAtEntry { get; init; }
+            public decimal DeltaChangeAtEntry { get; init; }
+            public bool DeltaWithSideAtEntry { get; init; }
+            public bool PriceAcceptedAfterImbalanceAtEntry { get; init; }
+            public bool PriceRejectedAfterImbalanceAtEntry { get; init; }
+            public string BreakoutSpeedAtEntry { get; init; } = "";
+            public decimal BreakoutTicksPerSecondAtEntry { get; init; }
+            public decimal SpeedElapsedSecondsAtEntry { get; init; }
+            public bool SpeedReplayFallbackAtEntry { get; init; }
+            public string SpeedTimingSourceAtEntry { get; init; } = "";
+            public bool RangeOkAtEntry { get; init; }
+            public bool BodyOkAtEntry { get; init; }
+            public bool VolumeOkAtEntry { get; init; }
+            public bool DeltaOkAtEntry { get; init; }
+            public bool TimeOkAtEntry { get; init; }
+            public bool VwapOkAtEntry { get; init; }
+            public bool SpeedOkAtEntry { get; init; }
+            public int ScoreAtEntry { get; init; }
+            public string RawSpeedLabelAtEntry { get; init; } = "";
+            public bool APlusStructureAtEntry { get; init; }
+            public bool APlusAbsorptionAtEntry { get; init; }
+            public bool APlusSpeedAtEntry { get; init; }
+            public bool APlusSpeedSetupConfirmedAtEntry { get; init; }
+            public int BuyImbalanceCountAtEntry { get; init; }
+            public int SellImbalanceCountAtEntry { get; init; }
+            public int ExecutionSideImbalanceCountAtEntry { get; init; }
+            public string ImbalanceGroup3AtEntry { get; init; } = "";
+            public decimal? ImbalanceGroupPriceAtEntry { get; init; }
+            public int ImbalanceCountAtEntry { get; init; }
+            public bool SpeedIgnoredByStructureAtEntry { get; init; }
+        }
+
+        private sealed class TradeOutcome
+        {
+            public List<string> CsvFields { get; } = new();
+        }
+
         private class TradeState
         {
+            public TradeInputSnapshot? InputSnapshot { get; set; }
             public int EntryBar { get; set; }
             public DateTime EntryDate { get; set; }
             public DateTime EntryTimeNy { get; set; }
