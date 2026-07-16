@@ -20,6 +20,7 @@ namespace ATAS.Indicators
             public string Side { get; set; } = "";
             public decimal EntryPrice { get; set; }
             public decimal SlPrice { get; set; }
+            public decimal TpPrice { get; set; }
             public bool IsAPlusSpeed { get; set; }
             public int Bar { get; set; }
         }
@@ -39,6 +40,7 @@ namespace ATAS.Indicators
                     data.Side,
                     data.EntryPrice.ToString(CultureInfo.InvariantCulture),
                     data.SlPrice.ToString(CultureInfo.InvariantCulture),
+                    data.TpPrice.ToString(CultureInfo.InvariantCulture),
                     data.IsAPlusSpeed ? "1" : "0",
                     data.Bar.ToString(CultureInfo.InvariantCulture),
                     "PENDING");
@@ -57,7 +59,9 @@ namespace ATAS.Indicators
                 var line = File.ReadAllText(FilePath).Trim();
                 var parts = line.Split(',');
                 if (parts.Length < 7) return null;
-                if (parts[6] != "PENDING") return null;
+                var legacyFormat = parts.Length == 7;
+                var statusIndex = legacyFormat ? 6 : 7;
+                if (parts[statusIndex] != "PENDING") return null;
                 if (!DateTime.TryParseExact(parts[0], "yyyy-MM-dd",
                     CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
                     return null;
@@ -69,8 +73,9 @@ namespace ATAS.Indicators
                     Side = parts[1],
                     EntryPrice = decimal.Parse(parts[2], CultureInfo.InvariantCulture),
                     SlPrice = decimal.Parse(parts[3], CultureInfo.InvariantCulture),
-                    IsAPlusSpeed = parts[4] == "1",
-                    Bar = int.Parse(parts[5], CultureInfo.InvariantCulture)
+                    TpPrice = legacyFormat ? 0 : decimal.Parse(parts[4], CultureInfo.InvariantCulture),
+                    IsAPlusSpeed = parts[legacyFormat ? 4 : 5] == "1",
+                    Bar = int.Parse(parts[legacyFormat ? 5 : 6], CultureInfo.InvariantCulture)
                 };
             }
             catch { return null; }
@@ -89,7 +94,7 @@ namespace ATAS.Indicators
                     CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
                     return;
                 if (date.Date != sessionDate.Date) return;
-                parts[6] = "CONSUMED";
+                parts[parts.Length == 7 ? 6 : 7] = "CONSUMED";
                 File.WriteAllText(FilePath, string.Join(",", parts));
             }
             catch { }

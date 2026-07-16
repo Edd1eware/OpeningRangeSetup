@@ -17,6 +17,7 @@ namespace ATAS.Indicators
             public string Side { get; set; } = "";       // BUY / SELL
             public decimal EntryPrice { get; set; }
             public decimal SlPrice { get; set; }
+            public decimal TpPrice { get; set; }
             public bool IsAPlusSpeed { get; set; }
             public string SpeedLabel { get; set; } = "";
             public decimal OrRangeTicks { get; set; }

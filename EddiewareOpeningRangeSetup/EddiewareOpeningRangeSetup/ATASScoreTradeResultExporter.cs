@@ -668,6 +668,7 @@ namespace ATAS.Indicators
                     Side = _trade.Side,
                     EntryPrice = _trade.Entry,
                     SlPrice = _trade.Sl,
+                    TpPrice = _trade.Tp,
                     IsAPlusSpeed = score.HasAPlusSpeedThreshold,
                     SpeedLabel = score.SpeedLabel,
                     OrRangeTicks = score.OrRangeTicks,
@@ -679,6 +680,7 @@ namespace ATAS.Indicators
                     Side = _trade.Side,
                     EntryPrice = _trade.Entry,
                     SlPrice = _trade.Sl,
+                    TpPrice = _trade.Tp,
                     IsAPlusSpeed = score.HasAPlusSpeedThreshold,
                     Bar = bar
                 });

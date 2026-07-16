@@ -27,6 +27,7 @@ namespace ATAS.Indicators
         private decimal _entryPrice;
         private decimal _peakFavorableTicks;
         private bool _trailActive;
+        private readonly ContractAssistant _contractAssistant = new();
 
         // Trade logging via OnCalculate position monitoring (OnNewMyTrade unreliable in Replay).
         private bool _tradeOpen;
@@ -76,6 +77,15 @@ namespace ATAS.Indicators
 
         [Display(Name = "Solo A+ Speed", Order = 50)]
         public bool OnlyAPlusSpeed { get; set; } = true;
+
+        [Display(Name = "Contract Assistant activado", Order = 51)]
+        public bool UseContractAssistant { get; set; } = true;
+
+        [Display(Name = "Contract Assistant TP fallback ticks", Order = 52)]
+        public decimal ContractAssistantTpTicks { get; set; } = 60m;
+
+        [Display(Name = "Contract Assistant BE offset ticks", Order = 53)]
+        public decimal ContractAssistantBreakevenOffsetTicks { get; set; } = 0m;
 
         [Display(Name = "Entrada desde (HH:mm NY)", Order = 60)]
         public string EntryFromNy { get; set; } = "09:30";
@@ -329,6 +339,7 @@ namespace ATAS.Indicators
                 _openSide = "";
                 _trailActive = false;
                 _peakFavorableTicks = 0;
+                CancelContractAssistantPartialTp();
                 _setupActive = false;
                 _setupSide = "";
                 _setupOutcomeRecorded = false;
@@ -386,6 +397,7 @@ namespace ATAS.Indicators
                     Flatten();
                     return;
                 }
+                ManageContractAssistant();
                 ManageTrailing(currentPrice);
                 return;
             }
@@ -395,6 +407,7 @@ namespace ATAS.Indicators
             {
                 if (_stopOrder != null && _stopOrder.State == OrderStates.Active)
                     CancelOrder(_stopOrder);
+                CancelContractAssistantPartialTp();
                 _stopOrder = null;
                 _openSide = "";
                 _trailActive = false;
@@ -421,6 +434,7 @@ namespace ATAS.Indicators
             var side       = fileSig?.Side       ?? busSig?.Side       ?? "";
             var entry      = fileSig?.EntryPrice  ?? busSig?.EntryPrice  ?? 0m;
             var sl         = fileSig?.SlPrice      ?? busSig?.SlPrice      ?? 0m;
+            var tp         = fileSig?.TpPrice      ?? busSig?.TpPrice      ?? 0m;
             var isAPlus    = fileSig?.IsAPlusSpeed ?? busSig?.IsAPlusSpeed ?? false;
             var barSignal  = fileSig?.Bar          ?? busSig?.Bar          ?? -1;
 
@@ -469,6 +483,7 @@ namespace ATAS.Indicators
                 Side         = side,
                 EntryPrice   = entry,
                 SlPrice      = sl,
+                TpPrice      = tp,
                 IsAPlusSpeed = isAPlus,
                 Bar          = barSignal
             };
@@ -512,6 +527,11 @@ namespace ATAS.Indicators
                 : isBuy
                     ? e.EntryPrice - SlTicks * Tick
                     : e.EntryPrice + SlTicks * Tick;
+            var tpPrice = e.TpPrice > 0
+                ? e.TpPrice
+                : isBuy
+                    ? e.EntryPrice + ContractAssistantTpTicks * Tick
+                    : e.EntryPrice - ContractAssistantTpTicks * Tick;
 
             var stop = new Order
             {
@@ -526,6 +546,22 @@ namespace ATAS.Indicators
             OpenOrder(stop);
 
             _stopOrder = stop;
+
+            if (UseContractAssistant)
+            {
+                var partialTp = _contractAssistant.Start(new ContractAssistant.StartRequest
+                {
+                    Portfolio = Portfolio,
+                    Security = Security,
+                    Side = e.Side,
+                    EntryPrice = e.EntryPrice,
+                    TpPrice = tpPrice,
+                    Contracts = contracts
+                });
+
+                if (partialTp != null)
+                    OpenOrder(partialTp);
+            }
         }
 
         private void Flatten()
@@ -548,9 +584,42 @@ namespace ATAS.Indicators
             }
             if (_stopOrder != null && _stopOrder.State == OrderStates.Active)
                 CancelOrder(_stopOrder);
+            CancelContractAssistantPartialTp();
             _stopOrder = null;
             _openSide = "";
             _trailActive = false;
+        }
+
+        private void ManageContractAssistant()
+        {
+            if (!UseContractAssistant || _openSide == "")
+                return;
+
+            var update = _contractAssistant.Manage(new ContractAssistant.ManageRequest
+            {
+                Portfolio = Portfolio,
+                Security = Security,
+                StopOrder = _stopOrder,
+                CurrentPosition = CurrentPosition,
+                BreakevenOffsetTicks = ContractAssistantBreakevenOffsetTicks,
+                TickSize = Tick
+            });
+
+            if (!update.MoveStopToBreakeven || update.NewStopOrder == null || _stopOrder == null)
+                return;
+
+            ModifyOrder(_stopOrder, update.NewStopOrder);
+            _stopOrder = update.NewStopOrder;
+            _activeContracts = update.ActiveContracts;
+        }
+
+        private void CancelContractAssistantPartialTp()
+        {
+            var partialTp = _contractAssistant.PartialTpOrder;
+            if (partialTp != null && partialTp.State == OrderStates.Active)
+                CancelOrder(partialTp);
+
+            _contractAssistant.Reset();
         }
 
         private void ManageTrailing(decimal currentPrice)
@@ -604,6 +673,11 @@ namespace ATAS.Indicators
             var fillDir = myTrade.OrderDirection == OrderDirections.Buy ? "BUY" : "SELL";
             if (fillDir == _openSide)
                 _entryFillPrice = myTrade.Price; // refine with actual fill
+        }
+
+        protected override void OnCurrentPositionChanged()
+        {
+            ManageContractAssistant();
         }
 
         private void LogTrade(DateTime ny, string side, decimal entryFill, decimal exitFill, decimal pnlUsd, string exitComment)
