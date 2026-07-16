@@ -383,7 +383,8 @@ namespace ATAS.Indicators
                     request.TpTicks,
                     request.SlTicks,
                     exitPrice,
-                    request.TickSize),
+                    request.TickSize,
+                    request.Side),
                 MfeTicks = mfeTicks,
                 HalfMfeExitPrice = halfMfeExit,
                 HitTp = hitTp,
@@ -840,7 +841,7 @@ namespace ATAS.Indicators
                 : high >= exit;
         }
 
-        public static decimal TradeResultTicks(string result, decimal entry, decimal tpTicks, decimal slTicks, decimal exitPrice, decimal tickSize)
+        public static decimal TradeResultTicks(string result, decimal entry, decimal tpTicks, decimal slTicks, decimal exitPrice, decimal tickSize, string side = "")
         {
             if (result == "TP")
                 return tpTicks;
@@ -849,7 +850,15 @@ namespace ATAS.Indicators
                 return -slTicks;
 
             if (result == "EXIT" && exitPrice != 0)
+            {
+                var normalizedSide = (side ?? "").Trim().ToUpperInvariant();
+                if (normalizedSide == "BUY")
+                    return RoundToTicks(exitPrice - entry, tickSize);
+                if (normalizedSide == "SELL")
+                    return RoundToTicks(entry - exitPrice, tickSize);
+
                 return RoundToTicks(System.Math.Abs(exitPrice - entry), tickSize);
+            }
 
             if (result == "BE")
                 return 0;

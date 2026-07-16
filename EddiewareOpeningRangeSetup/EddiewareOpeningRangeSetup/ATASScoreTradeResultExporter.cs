@@ -45,7 +45,7 @@ namespace ATAS.Indicators
         private const int DynamicTimelineFlushRowCount = 100;
         // FROZEN — DO NOT CHANGE. Sync guards depend on this version string matching
         // persisted snapshots. Changing it invalidates all existing X1/X10 sync files.
-        private const string ExporterVersion = "score-exporter-2026-07-12-v20-causal-terminal-results";
+        private const string ExporterVersion = "score-exporter-2026-07-13-v22-sync-snapshot-reset";
         private const string DynamicTimelineVersion = "dynamic-timeline-2026-06-23-v11-canonical-sync-guards";
         private static readonly JsonSerializerOptions ReplaySyncJsonOptions = new JsonSerializerOptions
         {
@@ -116,7 +116,12 @@ namespace ATAS.Indicators
             "Score_AtEntry,Raw_Speed_Label_AtEntry,APlus_Structure_AtEntry,APlus_Absorption_AtEntry,APlus_Speed_AtEntry," +
             "APlus_Speed_Setup_Confirmed_AtEntry,Buy_Imbalance_Count_AtEntry," +
             "Sell_Imbalance_Count_AtEntry,Execution_Side_Imbalance_Count_AtEntry,Imbalance_Group_3_AtEntry," +
-            "Imbalance_Group_Price_AtEntry,Imbalance_Count_AtEntry,Speed_Ignored_By_Structure_AtEntry,feature_timestamp_utc,entry_timestamp_utc";
+            "Imbalance_Group_Price_AtEntry,Imbalance_Count_AtEntry,Speed_Ignored_By_Structure_AtEntry," +
+            "Liquidity_Burst_AtEntry,Liquidity_Burst_ID_AtEntry,Liquidity_Burst_Side_AtEntry," +
+            "Liquidity_Burst_Delta1s_AtEntry,Liquidity_Burst_DeltaChange1s_AtEntry,Liquidity_Burst_ZScore_AtEntry," +
+            "Liquidity_Burst_Percentile_AtEntry,Liquidity_Burst_Velocity1s_AtEntry,Liquidity_Burst_Acceleration1s_AtEntry," +
+            "Liquidity_Burst_TradesPerSecond_AtEntry,Liquidity_Burst_ContractsPerSecond_AtEntry," +
+            "feature_timestamp_utc,entry_timestamp_utc";
         private const string TradeResultCsvHeader =
             "Result_VERSION,fecha,entry_timestamp,outcome_timestamp,ExitTime_NY,Trade_Duration,EntryBar,Side,Entry_price," +
             "Result_Label,Exit_price,result_ticks,MAE_ticks,MFE_ticks,Largest_MAE_pullback_ticks,Largest_MFE_pullup_ticks," +
@@ -229,7 +234,8 @@ namespace ATAS.Indicators
         public decimal FastExitAdverseSpeedTicksPerSecond { get; set; } = 6;
         public decimal SlippageTicksPerFill { get; set; } = 1;
         public int MaxExpectedLatencyMilliseconds { get; set; } = 20;
-        public TimeSpan TimeOverTimeNy { get; set; } = new TimeSpan(9, 40, 0);
+        public TimeSpan TimeOverTimeNy { get; set; } = new TimeSpan(10, 30, 0);
+        public TimeSpan NoTradeTimeOverTimeNy { get; set; } = new TimeSpan(9, 40, 0);
         public int MinTimeOverRealtimeSeconds { get; set; } = 5;
         public bool RequireBodyOkForTrade { get; set; } = false;
         public bool RequireVwapOkForTrade { get; set; } = false;
@@ -624,7 +630,18 @@ namespace ATAS.Indicators
                     ImbalanceGroup3AtEntry = matchingAPlusSide,
                     ImbalanceGroupPriceAtEntry = matchingAPlusPrice,
                     ImbalanceCountAtEntry = Math.Max(score.BuyImbalanceCount, score.SellImbalanceCount),
-                    SpeedIgnoredByStructureAtEntry = score.SpeedIgnoredByStructure
+                    SpeedIgnoredByStructureAtEntry = score.SpeedIgnoredByStructure,
+                    LiquidityBurstAtEntry = score.HasLiquidityBurst,
+                    LiquidityBurstIdAtEntry = score.LiquidityBurstId,
+                    LiquidityBurstSideAtEntry = score.LiquidityBurstSide,
+                    LiquidityBurstDelta1sAtEntry = score.LiquidityBurstDelta1s,
+                    LiquidityBurstDeltaChange1sAtEntry = score.LiquidityBurstDeltaChange1s,
+                    LiquidityBurstZScoreAtEntry = score.LiquidityBurstDeltaChangeZScore,
+                    LiquidityBurstPercentileAtEntry = score.LiquidityBurstDeltaPercentile,
+                    LiquidityBurstVelocity1sAtEntry = score.LiquidityBurstVelocity1s,
+                    LiquidityBurstAcceleration1sAtEntry = score.LiquidityBurstAcceleration1s,
+                    LiquidityBurstTradesPerSecondAtEntry = score.LiquidityBurstTradesPerSecond,
+                    LiquidityBurstContractsPerSecondAtEntry = score.LiquidityBurstContractsPerSecond
                 }
             };
 
@@ -987,7 +1004,8 @@ namespace ATAS.Indicators
                 _trade.TpTicks,
                 _trade.SlTicks,
                 _trade.ExitPrice,
-                SetupTickSize);
+                SetupTickSize,
+                _trade.Side);
         }
 
         private void RecordTradeCallback(MarketDataArg trade, bool fromBatch)
@@ -1104,26 +1122,81 @@ namespace ATAS.Indicators
 
         private bool TryWriteTimeOver(MarketUpdate update, DateTime nyTime)
         {
-            var hasOpenTrade = _trade != null && _trade.Result == "OPEN";
-
             if (_timeOverWritten ||
                 _isRecalculating ||
-                !HasReplayStartDelayElapsed() ||
-                _tradeCreated ||
-                hasOpenTrade ||
-                nyTime.TimeOfDay < TimeOverTimeNy)
+                !HasReplayStartDelayElapsed())
             {
                 return false;
             }
 
+            if (_trade != null && _trade.Result == "OPEN")
+            {
+                if (nyTime.TimeOfDay < TimeOverTimeNy)
+                    return false;
+
+                WriteFeedDiagnosticFile(nyTime.Date, nyTime);
+                _timeOverWritten = true;
+                ForceExitOpenTradeAtTimeOver(update, nyTime);
+                return true;
+            }
+
+            if (nyTime.TimeOfDay < NoTradeTimeOverTimeNy)
+                return false;
+
             WriteFeedDiagnosticFile(nyTime.Date, nyTime);
 
             if (TryRecoverMissedReadyTradeBeforeTimeOver(update, nyTime))
+            {
+                if (_trade != null && _trade.Result == "OPEN")
+                {
+                    if (nyTime.TimeOfDay >= TimeOverTimeNy)
+                    {
+                        _timeOverWritten = true;
+                        ForceExitOpenTradeAtTimeOver(update, nyTime);
+                        return true;
+                    }
+
+                    return false;
+                }
+
+                return false;
+            }
+
+            if (_tradeCreated)
                 return false;
 
             _timeOverWritten = true;
-            WriteTimeOverFile(nyTime.Date, nyTime);
+            WriteTimeOverFile(nyTime.Date, nyTime.Date + NoTradeTimeOverTimeNy);
             return true;
+        }
+
+        private void ForceExitOpenTradeAtTimeOver(MarketUpdate update, DateTime nyTime)
+        {
+            if (_trade == null || _trade.Result != "OPEN")
+                return;
+
+            var marketTimeUtc = update.MarketTimeUtc;
+            var marketPrice = update.Price;
+            var manageTimingSource = $"{update.Source}:TimeOverForcedExit";
+
+            _trade.Result = "EXIT";
+            _trade.ExitPrice = marketPrice;
+            _trade.ExitTimeNy = nyTime;
+            _lastManagePrice = marketPrice;
+            _lastManageTimeUtc = marketTimeUtc;
+
+            FinalizeDynamicAlarmAnalytics();
+            RecordDynamicTimelineSample(
+                update.Bar,
+                marketPrice,
+                marketTimeUtc,
+                manageTimingSource,
+                nyTime,
+                "EXIT_TIME_OVER",
+                true);
+            FlushDynamicTimelineBuffer();
+            TryWritePersistedTradeExit(_currentNyDate);
+            WriteTradeFile(_currentNyDate);
         }
 
         private bool TryRecoverMissedReadyTradeBeforeTimeOver(MarketUpdate currentUpdate, DateTime currentNyTime)
@@ -2628,7 +2701,14 @@ namespace ATAS.Indicators
 
                 var path = GetReplaySyncResultPath(nyDate);
                 if (File.Exists(path))
-                    return;
+                {
+                    var existing = TryReadPersistedTradeExit(nyDate);
+                    if (existing != null &&
+                        string.Equals(existing.ExporterVersion, ExporterVersion, StringComparison.Ordinal))
+                    {
+                        return;
+                    }
+                }
 
                 var snapshot = new PersistedTradeExit
                 {
@@ -2885,6 +2965,17 @@ namespace ATAS.Indicators
                 FormatNullablePrice(input.ImbalanceGroupPriceAtEntry),
                 input.ImbalanceCountAtEntry.ToString(CultureInfo.InvariantCulture),
                 FormatBool(input.SpeedIgnoredByStructureAtEntry),
+                FormatBool(input.LiquidityBurstAtEntry),
+                EscapeCsv(input.LiquidityBurstIdAtEntry),
+                EscapeCsv(input.LiquidityBurstSideAtEntry),
+                FormatTicks(input.LiquidityBurstDelta1sAtEntry),
+                FormatTicks(input.LiquidityBurstDeltaChange1sAtEntry),
+                FormatTicks(input.LiquidityBurstZScoreAtEntry),
+                FormatTicks(input.LiquidityBurstPercentileAtEntry),
+                FormatTicks(input.LiquidityBurstVelocity1sAtEntry),
+                FormatTicks(input.LiquidityBurstAcceleration1sAtEntry),
+                FormatTicks(input.LiquidityBurstTradesPerSecondAtEntry),
+                FormatTicks(input.LiquidityBurstContractsPerSecondAtEntry),
                 input.FeatureTimestampUtc.ToString("o", CultureInfo.InvariantCulture),
                 input.EntryTimestampUtc.ToString("o", CultureInfo.InvariantCulture));
         }
@@ -3831,7 +3922,7 @@ namespace ATAS.Indicators
             if (_hasBuyAPlusStructure && _hasSellAPlusStructure)
                 return;
 
-            if (nyTime.TimeOfDay < _signalStartNy || nyTime.TimeOfDay > TimeOverTimeNy)
+            if (nyTime.TimeOfDay < _signalStartNy || nyTime.TimeOfDay > _signalEndNy)
                 return;
 
             var state = ImbalanceDetector.Detect(candle, new ImbalanceDetectorRequest
@@ -4421,6 +4512,17 @@ namespace ATAS.Indicators
             public decimal? ImbalanceGroupPriceAtEntry { get; init; }
             public int ImbalanceCountAtEntry { get; init; }
             public bool SpeedIgnoredByStructureAtEntry { get; init; }
+            public bool LiquidityBurstAtEntry { get; init; }
+            public string LiquidityBurstIdAtEntry { get; init; } = "";
+            public string LiquidityBurstSideAtEntry { get; init; } = "";
+            public decimal LiquidityBurstDelta1sAtEntry { get; init; }
+            public decimal LiquidityBurstDeltaChange1sAtEntry { get; init; }
+            public decimal LiquidityBurstZScoreAtEntry { get; init; }
+            public decimal LiquidityBurstPercentileAtEntry { get; init; }
+            public decimal LiquidityBurstVelocity1sAtEntry { get; init; }
+            public decimal LiquidityBurstAcceleration1sAtEntry { get; init; }
+            public decimal LiquidityBurstTradesPerSecondAtEntry { get; init; }
+            public decimal LiquidityBurstContractsPerSecondAtEntry { get; init; }
         }
 
         private sealed class TradeOutcome

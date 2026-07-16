@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using ATAS.Indicators;
@@ -65,6 +66,7 @@ namespace ATAS.Indicators
         private decimal _lastProcessedMarketClose;
         private decimal _lastProcessedMarketVolume;
         private decimal _lastProcessedMarketDelta;
+        private readonly HashSet<string> _drawnLiquidityBurstLabels = new HashSet<string>(StringComparer.Ordinal);
 
         [DisplayName("Opening Time UTC")]
         public TimeSpan OpeningTimeUtc { get; set; } = new TimeSpan(13, 30, 0);
@@ -159,6 +161,15 @@ namespace ATAS.Indicators
         [DisplayName("Show CVD Risk Exit Debug Label")]
         public bool ShowCvdRiskExitDebugLabel { get; set; } = false;
 
+        [DisplayName("Show Liquidity Burst Labels")]
+        public bool ShowLiquidityBurstLabels { get; set; } = true;
+
+        [DisplayName("Liquidity Burst Max Age Seconds")]
+        public int LiquidityBurstMaxAgeSeconds { get; set; } = 3;
+
+        [DisplayName("Liquidity Burst Label Offset Ticks")]
+        public decimal LiquidityBurstLabelOffsetTicks { get; set; } = 18m;
+
         [DisplayName("Show A+ Imbalance Debug Lines")]
         public bool ShowAPlusImbalanceDebugLines { get; set; } = false;
 
@@ -231,6 +242,7 @@ namespace ATAS.Indicators
                 return;
 
             UpdateSpeedClock(bar, candle.Time);
+            TryDrawLiquidityBurstLabel(bar, candle, marketUpdateTime);
 
             if (_tradeDrawn)
             {
@@ -615,7 +627,7 @@ namespace ATAS.Indicators
             _tradeIsAPlusSpeed = plan.IsAPlusSpeed;
             _tradeIsNormalSpeed = plan.IsNormalSpeed;
 
-            if (_tradeIsNormalSpeed)
+            if (_tradeIsNormalSpeed || _tradeIsAPlusSpeed)
                 DrawInitialNormalScalpBracket(bar, plan);
 
             if (!_tradeIsAPlusSpeed)
@@ -642,7 +654,12 @@ namespace ATAS.Indicators
             _activeTpLine = new TrendLine(bar, _tradeTp, endBar, _tradeTp, new Pen(Color.LimeGreen, 3));
             TrendLines.Add(_activeTpLine);
 
-            DrawTradeLabel($"EW_ACTIVE_SL_{_currentDate:yyyyMMdd}", $"SL {_tradeSl:0.00} | {plan.SlTicks:0}t IMB | {plan.Contracts}C", bar + 1, _tradeSl, Color.White, Color.Red, -38);
+            var planTag = plan.IsAPlusSpeed
+                ? " A+SPD"
+                : plan.UsesImbalanceStop
+                    ? " IMB"
+                    : "";
+            DrawTradeLabel($"EW_ACTIVE_SL_{_currentDate:yyyyMMdd}", $"SL {_tradeSl:0.00} | {plan.SlTicks:0}t{planTag} | {plan.Contracts}C", bar + 1, _tradeSl, Color.White, Color.Red, -38);
             DrawTradeLabel($"EW_ACTIVE_TP_{_currentDate:yyyyMMdd}", $"TP {_tradeTp:0.00} | {plan.TpTicks:0}t", bar + 1, _tradeTp, Color.White, Color.Green, 16);
         }
 
@@ -1277,6 +1294,51 @@ namespace ATAS.Indicators
                 20);
         }
 
+        private void TryDrawLiquidityBurstLabel(int bar, dynamic candle, DateTime marketUpdateTime)
+        {
+            if (!ShowLiquidityBurstLabels)
+                return;
+
+            var burst = LiquidityBurstSignalBus.GetLatest(
+                candle.Time.Date,
+                marketUpdateTime,
+                LiquidityBurstMaxAgeSeconds);
+
+            if (burst == null)
+                return;
+
+            var burstId = burst.BurstId;
+            if (!_drawnLiquidityBurstLabels.Add(burstId))
+                return;
+
+            var tickSize = GetTickSize();
+            var isSellPosition = burst.Side == "BUY";
+            var candleHigh = Convert.ToDecimal(candle.High);
+            var candleLow = Convert.ToDecimal(candle.Low);
+            var labelPrice = isSellPosition
+                ? Math.Max(candleHigh, burst.Price) + tickSize * LiquidityBurstLabelOffsetTicks
+                : Math.Min(candleLow, burst.Price) - tickSize * LiquidityBurstLabelOffsetTicks;
+            var background = isSellPosition ? Color.Red : Color.ForestGreen;
+            var label = isSellPosition
+                ? "BUY ABSORPTION | SELL POSITION"
+                : "SELL ABSORPTION | BUY POSITION";
+
+            AddText(
+                $"EW_LIQUIDITY_BURST_{burstId}",
+                $"{label} | px {burst.Price:0.00} | d1 {burst.Delta1s:0} z {burst.DeltaChangeZScore:0.00} v {burst.Velocity1s:0.00}t/s",
+                isSellPosition,
+                bar,
+                labelPrice,
+                0,
+                0,
+                Color.White,
+                background,
+                background,
+                11,
+                DrawingText.TextAlign.Center,
+                true);
+        }
+
         private void DrawOpeningRange()
         {
             var pen = new Pen(Color.Red, 1);
@@ -1575,6 +1637,7 @@ namespace ATAS.Indicators
             _lastProcessedMarketClose = 0;
             _lastProcessedMarketVolume = 0;
             _lastProcessedMarketDelta = 0;
+            _drawnLiquidityBurstLabels.Clear();
         }
 
         private decimal RoundToTicks(decimal points)

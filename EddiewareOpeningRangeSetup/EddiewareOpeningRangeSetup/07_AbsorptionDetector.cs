@@ -80,7 +80,15 @@ namespace ATAS.Indicators
 
             if (state.HasAPlusSpeed)
             {
-                state.SignalSource = "A+ SPEED";
+                state.SignalSource = state.HasLiquidityBurst
+                    ? "LIQUIDITY BURST A+ SPEED"
+                    : "A+ SPEED";
+                return;
+            }
+
+            if (state.HasLiquidityBurst)
+            {
+                state.SignalSource = "LIQUIDITY BURST";
                 return;
             }
 

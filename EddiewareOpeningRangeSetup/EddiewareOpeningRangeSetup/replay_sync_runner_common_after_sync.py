@@ -21,7 +21,7 @@ SYNC_RESULT_FOLDER = RESULTS_FOLDER / "replay_sync_results"
 TARGET_FILE = EXPORT_FOLDER / "target_trade_result_date.txt"
 REPLAY_STARTED_FILE = EXPORT_FOLDER / "replay_trade_result_started_at.txt"
 
-EXPECTED_EXPORTER_VERSION = "score-exporter-2026-07-12-v20-causal-terminal-results"
+EXPECTED_EXPORTER_VERSION = "score-exporter-2026-07-13-v22-sync-snapshot-reset"
 EXPECTED_TIMELINE_VERSION = "dynamic-timeline-2026-06-23-v11-canonical-sync-guards"
 
 TERMINAL_RESULTS = {
@@ -33,6 +33,9 @@ TERMINAL_RESULTS = {
     "NO_TRADE",
     "HOLYDAY NO DATA",
 }
+TRADE_TERMINAL_RESULTS = {"TP", "SL", "EXIT", "BE"}
+NON_TRADE_TERMINAL_RESULTS = {"TIME_OVER", "NO_TRADE", "HOLYDAY NO DATA"}
+ZERO_RESULT_VALUES = {"0", "+0", "-0", "0.0", "+0.0", "-0.0", "0.00", "+0.00", "-0.00"}
 
 # Campos que definen la operativa (lo que afecta WR/PF y los filtros de entrada).
 # La sincronia X1/X10 se valida SOLO sobre estos. La telemetria de gestion
@@ -54,10 +57,10 @@ OPERATIVA_COMPARISON_FIELDS = [
 ]
 
 DEFAULT_REPLAY_FROM_TIME = "09:30"
-DEFAULT_REPLAY_TO_TIME = "09:50"
+DEFAULT_REPLAY_TO_TIME = "10:30"
 POLL_SECONDS = 0.05
 X1_TIMEOUT_SECONDS = 20 * 60
-X10_TIMEOUT_SECONDS = 5 * 60
+X10_TIMEOUT_SECONDS = 12 * 60
 # Auto-retry del arranque de Replay: 3 intentos de 50 s para confirmar que el
 # Replay realmente inició. Si tras los 3 no arranca, se salta a la siguiente fecha.
 REPLAY_START_RETRY_ATTEMPTS = 3
@@ -65,9 +68,13 @@ REPLAY_START_DETECT_SECONDS = 50
 # Si fallan esta cantidad de fechas REALES seguidas, se asume Replay atorado/foco
 # perdido y se avisa por Telegram para reiniciar.
 REPLAY_FAIL_ALERT_STREAK = 3
+# ATAS a veces escribe el CSV terminal unos minutos despues de que el runner
+# agota el timeout real o pulsa Stop. Esta gracia no acepta OPEN: solo permite
+# capturar un TP/SL/EXIT/BE/TIME_OVER ya estable y validado por los guardrails.
+POST_TIMEOUT_TERMINAL_GRACE_SECONDS = 8 * 60
 # Defaults de duracion por velocidad para el ETA antes de tener mediciones.
 # X1 corre a tiempo real (lento); X10 a 10x. Se refinan con la mediana medida.
-SPEED_DEFAULT_SECONDS = {"X1": 360.0, "X10": 150.0}
+SPEED_DEFAULT_SECONDS = {"X1": 360.0, "X10": 390.0}
 
 
 def estimate_speed_seconds(speed_label, durations_by_speed):
@@ -127,6 +134,13 @@ def row_has_expected_version(row):
     return str((row or {}).get("Exporter_VERSION") or "").strip() == EXPECTED_EXPORTER_VERSION
 
 
+def row_has_exit_fields(row):
+    return bool(
+        str(row.get("ExitTime_NY") or "").strip()
+        and str(row.get("Exit_price") or "").strip()
+    )
+
+
 def row_has_terminal_result(row):
     if not row:
         return False
@@ -135,15 +149,18 @@ def row_has_terminal_result(row):
     if label in {"", "OPEN"}:
         return False
 
-    if label in TERMINAL_RESULTS:
+    if label in NON_TRADE_TERMINAL_RESULTS:
         return True
 
+    if label in TRADE_TERMINAL_RESULTS:
+        return row_has_exit_fields(row)
+
     value = str(row.get("result TP SL BE") or row.get("RESULT") or "").strip().upper()
-    if value in {"", "OPEN", "0", "+0", "-0", "0.0", "+0.0", "-0.0"}:
+    if value in {"", "OPEN"} or value in ZERO_RESULT_VALUES:
         return False
 
     try:
-        return float(value.replace("+", "")) != 0
+        return float(value.replace("+", "")) != 0 and row_has_exit_fields(row)
     except ValueError:
         return False
 
@@ -607,20 +624,69 @@ def click_stop(stop_button=None):
         pass
 
 
+def terminal_result_is_stable(path, started_at, stable_seconds=1.25):
+    if not is_terminal_result(path, started_at, require_expected_version=True):
+        return False
+
+    try:
+        content_before = path.read_text(encoding="utf-8-sig")
+        stat_before = path.stat()
+    except (OSError, UnicodeDecodeError):
+        return False
+
+    time.sleep(stable_seconds)
+
+    try:
+        content_after = path.read_text(encoding="utf-8-sig")
+        stat_after = path.stat()
+    except (OSError, UnicodeDecodeError):
+        return False
+
+    if stat_before.st_size != stat_after.st_size or content_before != content_after:
+        return False
+
+    return is_terminal_result(path, started_at, require_expected_version=True)
+
+
 def wait_for_terminal_result(path, started_at, timeout_seconds, stop_button):
     wait_started = time.time()
     last_second = -1
 
     while True:
-        if is_terminal_result(path, started_at, require_expected_version=True):
-            print("\rResultado terminal detectado." + " " * 60)
-            time.sleep(0.4)
+        if terminal_result_is_stable(path, started_at):
+            print("\rResultado terminal confirmado." + " " * 60)
             return True
 
         elapsed = time.time() - wait_started
         if elapsed >= timeout_seconds:
             print("\rTimeout esperando resultado." + " " * 60)
             click_stop(stop_button)
+            grace_started = time.time()
+            last_grace_second = -1
+
+            while time.time() - grace_started <= POST_TIMEOUT_TERMINAL_GRACE_SECONDS:
+                if terminal_result_is_stable(path, started_at):
+                    print(
+                        "\rResultado terminal confirmado en gracia post-timeout."
+                        + " " * 60
+                    )
+                    return True
+
+                grace_elapsed = time.time() - grace_started
+                grace_second = int(grace_elapsed)
+                if grace_second != last_grace_second:
+                    remaining = POST_TIMEOUT_TERMINAL_GRACE_SECONDS - grace_elapsed
+                    print(
+                        "\rEsperando CSV terminal post-timeout: "
+                        f"{format_elapsed(grace_elapsed)} / resta {format_elapsed(remaining)}",
+                        end="",
+                        flush=True,
+                    )
+                    last_grace_second = grace_second
+
+                time.sleep(POLL_SECONDS)
+
+            print("\rSin terminal estable tras gracia post-timeout." + " " * 60)
             return False
 
         second = int(elapsed)
@@ -870,9 +936,48 @@ def run_one_date(
                     restore_file_state(saved_timeline)
                 return False, "TIMEOUT_OR_NO_CSV"
 
+            while not terminal_result_is_stable(source_result, started_at, stable_seconds=0.75):
+                remaining = timeout_seconds - (time.time() - started_at)
+                if remaining <= 0:
+                    print(
+                        f"CSV no terminal antes de guardar {run_name} {date_iso}; "
+                        "no copio resultado OPEN/incompleto."
+                    )
+                    if keep_global_result:
+                        restore_file_state(saved_result)
+                        restore_file_state(saved_timeline)
+                    return False, "NON_TERMINAL_CSV"
+
+                print(
+                    f"CSV terminal inestable para {run_name} {date_iso}; "
+                    "sigo esperando confirmacion estable."
+                )
+                if not wait_for_terminal_result(
+                    source_result,
+                    started_at,
+                    remaining,
+                    stop_button,
+                ):
+                    if keep_global_result:
+                        restore_file_state(saved_result)
+                        restore_file_state(saved_timeline)
+                    return False, "TIMEOUT_OR_NO_CSV"
+
             copy_with_retry(source_result, destination_result)
             if source_timeline.exists():
                 copy_with_retry(source_timeline, destination_timeline)
+
+            if not is_terminal_result(destination_result, require_expected_version=True):
+                print(
+                    f"CSV guardado no terminal para {run_name} {date_iso}; "
+                    "elimino el artefacto incompleto."
+                )
+                destination_result.unlink(missing_ok=True)
+                destination_timeline.unlink(missing_ok=True)
+                if keep_global_result:
+                    restore_file_state(saved_result)
+                    restore_file_state(saved_timeline)
+                return False, "NON_TERMINAL_CSV"
 
             row = read_csv_row(destination_result) or {}
             print(

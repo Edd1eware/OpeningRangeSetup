@@ -149,7 +149,7 @@ SYNC_CHECK_DATE_COUNT = 10
 # Replay recomendado para esta prueba: X10.
 # Ventana por dia: 09:30 a 09:50 NY. El exporter escribe TIME_OVER si no hay trade antes/de 09:40;
 # si ya hay trade abierto, dejamos correr hasta 09:50 para que resuelva TP/SL/EXIT/BE.
-REPLAY_END_TIME = "09:50"
+REPLAY_END_TIME = "10:30"
 POLL_SECONDS = 0.02
 NO_TRADE_CUTOFF_SECONDS = 10 * 60 + 15
 HOLIDAY_RETRY_COUNT = 3
@@ -500,15 +500,7 @@ def result_is_terminal(path, min_modified_time=None):
     if not row:
         return False
 
-    result_label = str(row.get("Result_Label") or row.get("RESULT") or "").strip().upper()
-    if result_label in ("TP", "SL", "EXIT", "BE", "TIME_OVER", "NO_TRADE", HOLIDAY_NO_DATA_LABEL):
-        return True
-
-    ticks = parse_result_ticks(row.get("result TP SL BE") or row.get("RESULT"))
-    if ticks is None:
-        return False
-
-    return ticks != 0
+    return replay_sync.row_has_terminal_result(row)
 
 
 def result_requires_timeline(path):
@@ -1086,6 +1078,22 @@ def reset_replay_run_state(output_folder):
         print(f"Resultados previos archivados: {archive_path}")
 
     output_path.mkdir(parents=True, exist_ok=True)
+
+    for sync_path in (replay_sync.SYNC_SIGNAL_FOLDER, replay_sync.SYNC_RESULT_FOLDER):
+        sync_path = Path(sync_path)
+        if not sync_path.exists():
+            sync_path.mkdir(parents=True, exist_ok=True)
+            continue
+
+        archive_path = sync_path.parent / f"_archive_{sync_path.name}_reset_{timestamp}"
+        suffix = 1
+        while archive_path.exists():
+            archive_path = sync_path.parent / f"_archive_{sync_path.name}_reset_{timestamp}_{suffix}"
+            suffix += 1
+
+        shutil.move(str(sync_path), str(archive_path))
+        sync_path.mkdir(parents=True, exist_ok=True)
+        print(f"Snapshots replay archivados: {archive_path}")
 
     # No tocar telegram_message_ids.txt aqui: clear_telegram_before_run lo usa
     # para borrar mensajes viejos antes de vaciarlo. El balance si debe volver a

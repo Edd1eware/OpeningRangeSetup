@@ -195,6 +195,7 @@ namespace ATAS.Indicators
                 ((state.Side == "BUY" && candle.High >= state.EntryPrice + request.APlusPriceAcceptanceTicks * request.TickSize) ||
                  (state.Side == "SELL" && candle.Low <= state.EntryPrice - request.APlusPriceAcceptanceTicks * request.TickSize));
             state.ImbalanceScore = imbalance.Score;
+            ApplyLiquidityBurstSignal(request, state, signalTime);
             AbsorptionDetector.ApplySignalSource(state);
             ApplyJudasSwingState(bar, candle, request, state);
             state.ExecutionSide = ResolveExecutionSide(state);
@@ -212,6 +213,7 @@ namespace ATAS.Indicators
             if (state.VolumeOk) state.Score += 1;
             if (state.DeltaOk) state.Score += 1;
             if (state.SpeedValid) state.Score += state.SpeedLabel == "A+ speed" ? 2 : 1;
+            if (state.HasLiquidityBurst) state.Score += request.LiquidityBurstScoreBonus;
             state.Score += state.ImbalanceScore;
 
             var isAPlusAbsorptionReady =
@@ -225,6 +227,13 @@ namespace ATAS.Indicators
                 state.VolumeOk &&
                 state.ValueAcceptanceStopPrice.HasValue &&
                 !string.IsNullOrWhiteSpace(state.ExecutionSide);
+            var isLiquidityBurstReady =
+                state.HasLiquidityBurst &&
+                state.TimeOk &&
+                state.RangeOk &&
+                state.VolumeOk &&
+                state.DeltaWithSide &&
+                !string.IsNullOrWhiteSpace(state.ExecutionSide);
             var isEntryOutsideOpeningRange =
                 state.EntryPrice > state.OrHigh ||
                 state.EntryPrice < state.OrLow;
@@ -235,12 +244,13 @@ namespace ATAS.Indicators
                 (
                 isAPlusAbsorptionReady ||
                 isValueAcceptanceReady ||
+                isLiquidityBurstReady ||
                 (
                 state.IsBreakout &&
                 state.TimeOk &&
                 state.Score >= request.MinScore &&
                 state.SpeedValid &&
-                (state.SpeedLabel != "A+ speed" || state.HasAPlusStructure || state.PriceAcceptedAfterSpeed || state.HasAPlusAbsorption) &&
+                (state.SpeedLabel != "A+ speed" || state.HasAPlusStructure || state.PriceAcceptedAfterSpeed || state.HasAPlusAbsorption || state.HasLiquidityBurst) &&
                 (state.SpeedLabel != "normal speed" || HasBreakoutSideImbalance(state)) &&
                 state.VolumeOk &&
                 (!request.RequireBodyOkForTrade || state.BodyOk) &&
@@ -249,6 +259,44 @@ namespace ATAS.Indicators
                 );
 
             return state;
+        }
+
+        private static void ApplyLiquidityBurstSignal(
+            ScoreTradeSignalRequest request,
+            ScoreTradeSignal state,
+            DateTime signalTime)
+        {
+            if (!request.UseLiquidityBurstSignals || state == null || string.IsNullOrWhiteSpace(state.Side))
+                return;
+
+            var burst = LiquidityBurstSignalBus.GetLatest(
+                request.SessionDate,
+                signalTime,
+                request.LiquidityBurstMaxAgeSeconds);
+
+            if (burst == null || burst.Side != state.Side)
+                return;
+
+            state.HasLiquidityBurst = true;
+            state.LiquidityBurstId = burst.BurstId;
+            state.LiquidityBurstSide = burst.Side;
+            state.LiquidityBurstDelta1s = burst.Delta1s;
+            state.LiquidityBurstDeltaChange1s = burst.DeltaChange1s;
+            state.LiquidityBurstDeltaChangeZScore = burst.DeltaChangeZScore;
+            state.LiquidityBurstDeltaPercentile = burst.DeltaPercentile;
+            state.LiquidityBurstVelocity1s = burst.Velocity1s;
+            state.LiquidityBurstAcceleration1s = burst.Acceleration1s;
+            state.LiquidityBurstTradesPerSecond = burst.TradesPerSecond;
+            state.LiquidityBurstContractsPerSecond = burst.ContractsPerSecond;
+
+            if (!request.LiquidityBurstCanConfirmAPlusSpeed || !state.IsBreakout)
+                return;
+
+            state.SpeedLabel = "A+ speed";
+            state.SpeedValid = true;
+            state.HasAPlusSpeedThreshold = true;
+            state.PriceAcceptedAfterSpeed = true;
+            state.SpeedTimingSource = "LIQUIDITY_BURST";
         }
 
         private void ApplyJudasSwingState(int bar, dynamic candle, ScoreTradeSignalRequest request, ScoreTradeSignal state)
@@ -622,6 +670,10 @@ namespace ATAS.Indicators
         public decimal APlusPriceAcceptanceTicks { get; set; } = 15m;
         public bool RequireBodyOkForTrade { get; set; }
         public bool RequireVwapOkForTrade { get; set; }
+        public bool UseLiquidityBurstSignals { get; set; } = true;
+        public int LiquidityBurstMaxAgeSeconds { get; set; } = 3;
+        public int LiquidityBurstScoreBonus { get; set; } = 2;
+        public bool LiquidityBurstCanConfirmAPlusSpeed { get; set; } = true;
     }
 
     internal sealed class ScoreTradeSignal
@@ -682,8 +734,19 @@ namespace ATAS.Indicators
         public bool HasAPlusSpeedThreshold { get; set; }
         public bool IsFakeBreakout { get; set; }
         public bool IsJudasSwing { get; set; }
+        public bool HasLiquidityBurst { get; set; }
         public string APlusStructureSide { get; set; } = "";
         public decimal? APlusStructurePrice { get; set; }
+        public string LiquidityBurstId { get; set; } = "";
+        public string LiquidityBurstSide { get; set; } = "";
+        public decimal LiquidityBurstDelta1s { get; set; }
+        public decimal LiquidityBurstDeltaChange1s { get; set; }
+        public decimal LiquidityBurstDeltaChangeZScore { get; set; }
+        public decimal LiquidityBurstDeltaPercentile { get; set; }
+        public decimal LiquidityBurstVelocity1s { get; set; }
+        public decimal LiquidityBurstAcceleration1s { get; set; }
+        public decimal LiquidityBurstTradesPerSecond { get; set; }
+        public decimal LiquidityBurstContractsPerSecond { get; set; }
         public string SignalSource { get; set; } = "";
         public bool SpeedIgnoredByStructure { get; set; }
         public int ImbalanceScore { get; set; }

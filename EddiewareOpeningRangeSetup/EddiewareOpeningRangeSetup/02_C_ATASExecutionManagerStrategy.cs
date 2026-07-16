@@ -507,9 +507,11 @@ namespace ATAS.Indicators
             };
             OpenOrder(entryOrder);
 
-            var slPrice = isBuy
-                ? e.EntryPrice - SlTicks * Tick
-                : e.EntryPrice + SlTicks * Tick;
+            var slPrice = e.SlPrice > 0
+                ? e.SlPrice
+                : isBuy
+                    ? e.EntryPrice - SlTicks * Tick
+                    : e.EntryPrice + SlTicks * Tick;
 
             var stop = new Order
             {
