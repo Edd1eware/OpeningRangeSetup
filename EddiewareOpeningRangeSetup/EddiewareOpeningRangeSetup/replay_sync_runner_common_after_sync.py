@@ -443,6 +443,8 @@ def get_replay_speed_text(replay):
 
 
 def set_replay_speed(speed_label, wait_seconds=90):
+    if speed_label.upper() == "X1":
+        raise ValueError("Replay X1: DESHABILITADO. Usa Historia X10 únicamente.")
     target = REPLAY_SPEED_CLICK_RATIOS.get(speed_label.upper())
     if target is None:
         print(f"WARNING: velocidad Replay no soportada por automatización: {speed_label}")
@@ -852,6 +854,8 @@ def run_one_date(
     replay_to_time=DEFAULT_REPLAY_TO_TIME,
     keep_global_result=True,
 ):
+    if run_name == "X1" or run_name.startswith("X1_"):
+        raise ValueError("Replay X1: DESHABILITADO. Usa Historia X10 únicamente.")
     source_result = result_path(date_iso)
     source_timeline = timeline_path(date_iso)
     destination_result = destination_result_path(output_folder, date_iso, run_name)
@@ -1014,7 +1018,9 @@ def build_comparison_report(output_folder, date_iso_list, run_plan, report_prefi
     output_folder.mkdir(parents=True, exist_ok=True)
     report_path = output_folder / f"{report_prefix}_comparacion.csv"
     summary_path = output_folder / f"{report_prefix}_resumen.txt"
-    baseline_name = "X1_R1"
+    if not run_plan:
+        raise ValueError("El plan X10 está vacío.")
+    baseline_name = run_plan[0][0]
     compared_names = [name for name, _, _ in run_plan if name != baseline_name]
     report_rows = []
     passed = 0
@@ -1023,6 +1029,20 @@ def build_comparison_report(output_folder, date_iso_list, run_plan, report_prefi
     for date_iso in date_iso_list:
         baseline_path = destination_result_path(output_folder, date_iso, baseline_name)
         baseline = read_csv_row(baseline_path)
+
+        if not compared_names:
+            differences = [] if baseline is not None else ["MISSING_CSV"]
+            status = "PASS" if not differences else "FAIL"
+            passed += int(status == "PASS")
+            failed += int(status == "FAIL")
+            report_rows.append({
+                "Fecha": date_iso,
+                "Baseline": baseline_name,
+                "Comparada": "TERMINAL_CSV",
+                "Estado": status,
+                "Campos_Diferentes": "|".join(differences),
+            })
+            continue
 
         for compared_name in compared_names:
             compared_path = destination_result_path(output_folder, date_iso, compared_name)
@@ -1060,7 +1080,7 @@ def build_comparison_report(output_folder, date_iso_list, run_plan, report_prefi
                 "Campos_Diferentes": "|".join(differences),
             }
             for field in comparison_fields:
-                row[f"{field}_X1"] = normalize(baseline.get(field)) if baseline else ""
+                row[f"{field}_BASELINE_X10"] = normalize(baseline.get(field)) if baseline else ""
                 row[f"{field}_COMPARADA"] = normalize(compared.get(field)) if compared else ""
             report_rows.append(row)
 
@@ -1078,7 +1098,7 @@ def build_comparison_report(output_folder, date_iso_list, run_plan, report_prefi
 
     overall = "PASS" if failed == 0 and report_rows else "FAIL"
     summary_lines = [
-        "TEST DE SINCRONICIDAD REPLAY X1/X10",
+        "TEST DE REPRODUCIBILIDAD HISTORIA X10",
         "Modo comparacion: operativa (side/entry/SL/TP/exit/result/score)",
         f"Estado general: {overall}",
         f"Comparaciones PASS: {passed}",
@@ -1108,7 +1128,7 @@ def build_run_plan(quick=True, x1_only=False, x10_only=False):
         raise ValueError("No uses --x1-only y --x10-only al mismo tiempo.")
 
     if x1_only:
-        return [("X1_R1", "X1", X1_TIMEOUT_SECONDS)]
+        raise ValueError("Replay X1: DESHABILITADO. Usa Historia X10 únicamente.")
 
     x10_repetitions = 1 if quick else 3
     x10_runs = [
@@ -1116,22 +1136,19 @@ def build_run_plan(quick=True, x1_only=False, x10_only=False):
         for index in range(1, x10_repetitions + 1)
     ]
 
-    if x10_only:
-        return x10_runs
-
-    return [("X1_R1", "X1", X1_TIMEOUT_SECONDS), *x10_runs]
+    return x10_runs
 
 
 # Layouts soportados por los contadores de sesiones:
-#   <root>/<stage>/X1_*/csv (ladder)  y  <root>/X1_*/csv (corrida unica).
-_X1_CSV_GLOB_PATTERNS = (
-    "X1_*/score_trade_result_*_NY.csv",
-    "*/X1_*/score_trade_result_*_NY.csv",
+#   <root>/<stage>/X10_*/csv (ladder) y <root>/X10_*/csv (corrida unica).
+_X10_CSV_GLOB_PATTERNS = (
+    "X10_*/score_trade_result_*_NY.csv",
+    "*/X10_*/score_trade_result_*_NY.csv",
 )
 
 
 def count_distinct_sessions(session_roots):
-    """Cuenta sesiones distintas (fechas con CSV X1 guardado) para la meta de 500.
+    """Cuenta sesiones distintas con CSV de Historia X10 guardado.
 
     No importa si la sesion tuvo trade o no: TIME_OVER / sin senal igual cuenta.
     """
@@ -1143,9 +1160,7 @@ def count_distinct_sessions(session_roots):
         root_path = Path(root)
         if not root_path.exists():
             continue
-        # Ladder roots nest per-stage (<root>/<stage>/X1_*); single-run roots
-        # (e.g. DST 2025-2026) hold X1_* directly. Support both layouts.
-        for pattern in _X1_CSV_GLOB_PATTERNS:
+        for pattern in _X10_CSV_GLOB_PATTERNS:
             for csv_path in root_path.glob(pattern):
                 match = re.search(r"(\d{4}-\d{2}-\d{2})", csv_path.name)
                 if match:
@@ -1154,38 +1169,8 @@ def count_distinct_sessions(session_roots):
 
 
 def count_synced_sessions(session_roots):
-    """Cuenta sesiones REALMENTE sincronizadas: fechas con CSV X1 y X10 que
-    coinciden en la operativa. Es la métrica real de la meta (no solo X1)."""
-    if not session_roots:
-        return None
-
-    seen = set()
-    for root in session_roots:
-        root_path = Path(root)
-        if not root_path.exists():
-            continue
-        for pattern in _X1_CSV_GLOB_PATTERNS:
-            for x1_path in root_path.glob(pattern):
-                match = re.search(r"(\d{4}-\d{2}-\d{2})", x1_path.name)
-                if not match:
-                    continue
-                date_iso = match.group(1)
-                if date_iso in seen:
-                    continue
-                x10_dir = x1_path.parent.parent / x1_path.parent.name.replace("X1", "X10", 1)
-                x10_path = x10_dir / x1_path.name
-                if not x10_path.exists():
-                    continue
-                r1 = read_csv_row(x1_path)
-                r10 = read_csv_row(x10_path)
-                if not r1 or not r10:
-                    continue
-                if all(
-                    normalize(r1.get(field)) == normalize(r10.get(field))
-                    for field in OPERATIVA_COMPARISON_FIELDS
-                ):
-                    seen.add(date_iso)
-    return len(seen)
+    """Compatibilidad: en modo X10-only, completada equivale a recolectada."""
+    return count_distinct_sessions(session_roots)
 
 
 def _send_stage_progress(progress_meta, *, done, total, passed, failed,
@@ -1281,6 +1266,8 @@ def run_replay_period(
     progress_meta=None,
     progress_every=10,
 ):
+    if any((name == "X1" or name.startswith("X1_")) or speed_label == "X1" for name, speed_label, _ in run_plan):
+        raise ValueError("Replay X1: DESHABILITADO. Usa Historia X10 únicamente.")
     output_folder.mkdir(parents=True, exist_ok=True)
     if progress_meta:
         progress_meta = dict(progress_meta)
@@ -1465,13 +1452,8 @@ def run_replay_period(
             restore_file_state(saved_target)
             restore_file_state(saved_marker)
 
-    # Comparar X1 vs X10 SOLO si ambos estan en el run_plan. Para un run de solo
-    # X10 (test de estrategia) no hay X1 que comparar -> no generar reporte falso.
-    has_x1 = any(name.startswith("X1") for name, _, _ in run_plan)
-    has_other = any(not name.startswith("X1") for name, _, _ in run_plan)
-    comparable = has_x1 and has_other
     passed = True
-    if comparable:
+    if len(run_plan) > 1:
         passed = build_comparison_report(output_folder, date_iso_list, run_plan, report_prefix)
 
     return passed, failures

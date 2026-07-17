@@ -299,6 +299,9 @@ namespace ATAS.Indicators
                 request.Side,
                 request.TickSize);
 
+            if (plan.TpTicks < plan.SlTicks)
+                plan.IsValid = false;
+
             return plan;
         }
 

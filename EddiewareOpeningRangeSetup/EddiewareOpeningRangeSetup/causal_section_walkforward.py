@@ -216,6 +216,8 @@ def choose_on_train(data, train_mask, masks):
         candidates = [("actual", "", "", actual, actual_row, quality)]
         for tp in TP_GRID:
             for sl in SL_GRID:
+                if tp < sl:
+                    continue
                 simulated = simulate_tp_sl(data, base_mask, tp, sl)
                 train_s = summary(simulated[mask], data["month"][mask])
                 train_q = monthly_quality(data, mask, simulated)

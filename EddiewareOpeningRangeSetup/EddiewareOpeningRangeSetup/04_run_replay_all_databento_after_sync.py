@@ -2,8 +2,8 @@
 Runner: replay de las 502 fechas descargadas de DataBento.
 
 Estrategia:
-  - 10 fechas de validacion (primeras cronologicamente): X1 + X10 con sync check
-  - Resto (~470 fechas): solo X10 (resultados rapidos sin sync check)
+  - 10 fechas de validación inicial en Historia X10
+  - Resto (~470 fechas): Historia X10
 
 No genera Excel. Usa los CSVs que escribe el Score Exporter directamente.
 
@@ -40,7 +40,7 @@ DATABENTO_RAW_DIR = Path(
 
 RESULTS_BASE   = replay_sync.RESULTS_FOLDER
 OUTPUT_ROOT    = RESULTS_BASE / "visual_tests" / "04_databento_runs"
-X1X10_DIR      = OUTPUT_ROOT / "x1x10_validation"
+VALIDATION_DIR = OUTPUT_ROOT / "x10_validation"
 X10_ONLY_DIR   = OUTPUT_ROOT / "x10_bulk"
 EDGE_NAUTILUS  = RESULTS_BASE / "visual_tests" / "orb_nq_databento_edge_nautilus"
 
@@ -178,7 +178,7 @@ def _check_trade_frequency(processed: int) -> tuple[bool, int, int]:
     """
     if processed < TRADE_WINDOW:
         return False, 0, 0
-    trades, window_size = _count_trades_in_window([X1X10_DIR, X10_ONLY_DIR], TRADE_WINDOW)
+    trades, window_size = _count_trades_in_window([VALIDATION_DIR, X10_ONLY_DIR], TRADE_WINDOW)
     must_stop = window_size >= TRADE_WINDOW and trades < MIN_TRADES_IN_WINDOW
     return must_stop, trades, window_size
 
@@ -267,7 +267,7 @@ def _run_batched(
                 "stage_label": stage_label,
                 "stage_period": f"{batch_start} -> {batch_end}",
                 "global_target": global_total,
-                "session_roots": [X1X10_DIR, X10_ONLY_DIR],
+                "session_roots": [VALIDATION_DIR, X10_ONLY_DIR],
                 "run_label": "DataBento 502",
                 "pnl_log_path": PNL_LOG,
             },
@@ -375,18 +375,18 @@ def _save_equity_summary(n_dates: int) -> None:
 
 def parse_args():
     p = argparse.ArgumentParser(
-        description="Replay de 502 fechas DataBento: 60 X1+X10, resto X10."
+        description="Replay DataBento exclusivamente en Historia X10."
     )
     p.add_argument("--prepare-only",   action="store_true")
     p.add_argument("--compare-only",   action="store_true")
     p.add_argument("--force",          action="store_true")
     p.add_argument("--step",           action="store_true")
     p.add_argument("--x10-only",       action="store_true",
-                   help="Salta la fase X1+X10, solo corre X10 en todas.")
+                   help="Salta la muestra de validación y corre todo en Historia X10.")
     p.add_argument("--x1x10-only",     action="store_true",
-                   help="Solo corre la fase de validacion X1+X10.")
+                   help="Compatibilidad: sólo corre la muestra de validación X10.")
     p.add_argument("--x1x10-count",    type=int, default=DEFAULT_X1X10_COUNT,
-                   help=f"Cuantas fechas validan con X1+X10 (default {DEFAULT_X1X10_COUNT}).")
+                   help=f"Cuántas fechas usa la muestra X10 (default {DEFAULT_X1X10_COUNT}).")
     return p.parse_args()
 
 
@@ -400,7 +400,7 @@ def main():
 
     validation_dates, bulk_dates = split_dates(all_dates, args.x1x10_count)
 
-    run_plan_x1x10 = replay_sync.build_run_plan(quick=True)
+    run_plan_validation = replay_sync.build_run_plan(quick=True, x10_only=True)
     run_plan_x10   = replay_sync.build_run_plan(x10_only=True)
 
     today_ny     = datetime.now(ZoneInfo("America/New_York")).date()
@@ -409,8 +409,9 @@ def main():
     bulk_dates       = [d for d in bulk_dates       if date.fromisoformat(d) <= last_allowed]
 
     print(f"\nDATAS DATABENTO: {len(all_dates)} total")
-    print(f"  Fase 1 validacion X1+X10 : {len(validation_dates)} fechas")
+    print(f"  Fase 1 validación X10     : {len(validation_dates)} fechas")
     print(f"  Fase 2 bulk X10 only     : {len(bulk_dates)} fechas")
+    print("  Replay X1                : DESHABILITADO")
     print(f"  Rango: {all_dates[0]} -> {all_dates[-1]}")
     print(f"  Ultima permitida: {last_allowed}")
     print(f"  Stop si < {MIN_TRADES_IN_WINDOW} trades en {TRADE_WINDOW} sesiones (check cada {BATCH_SIZE} fechas)")
@@ -419,11 +420,11 @@ def main():
         print("\nPREPARE-ONLY. No se inicio Replay.")
         return 0
 
-    eta_x1x10 = math.ceil(len(validation_dates) * (replay_sync.X1_TIMEOUT_SECONDS + replay_sync.X10_TIMEOUT_SECONDS) / 60)
+    eta_validation = math.ceil(len(validation_dates) * replay_sync.X10_TIMEOUT_SECONDS / 60)
     eta_x10   = math.ceil(len(bulk_dates) * replay_sync.X10_TIMEOUT_SECONDS / 60)
-    print(f"\n  ETA maximo fase 1: ~{eta_x1x10//60}h {eta_x1x10%60}m")
+    print(f"\n  ETA máximo fase 1 X10: ~{eta_validation//60}h {eta_validation%60}m")
     print(f"  ETA maximo fase 2: ~{eta_x10//60}h {eta_x10%60}m")
-    print(f"  ETA total maximo : ~{(eta_x1x10+eta_x10)//60}h {(eta_x1x10+eta_x10)%60}m")
+    print(f"  ETA total máximo : ~{(eta_validation+eta_x10)//60}h {(eta_validation+eta_x10)%60}m")
 
     if not args.compare_only:
         telegram.clear_telegram_before_run(RESULTS_BASE)
@@ -433,14 +434,14 @@ def main():
     total_processed = 0
 
     with _SleepBlocker():
-        # --- FASE 1: X1 + X10 ---
+        # --- FASE 1: muestra X10 ---
         if validation_dates and not args.x10_only:
-            X1X10_DIR.mkdir(parents=True, exist_ok=True)
-            print(f"\n=== FASE 1: {len(validation_dates)} fechas X1+X10 ===")
+            VALIDATION_DIR.mkdir(parents=True, exist_ok=True)
+            print(f"\n=== FASE 1: {len(validation_dates)} fechas X10 ===")
             passed, failures, stopped, total_processed = _run_batched(
-                validation_dates, X1X10_DIR, run_plan_x1x10, args,
+                validation_dates, VALIDATION_DIR, run_plan_validation, args,
                 stage_index=1, stage_total=2,
-                stage_label="DataBento X1+X10",
+                stage_label="DataBento validación X10",
                 processed_before=0,
                 global_total=len(validation_dates) + len(bulk_dates),
             )
@@ -451,11 +452,11 @@ def main():
             if not stopped:
                 telegram.send_equity_chart(
                     RESULTS_BASE, PNL_LOG, target=CHALLENGE_TARGET,
-                    caption=f"Fase 1 X1+X10 completada — {len(validation_dates)} fechas",
+                    caption=f"Fase 1 X10 completada — {len(validation_dates)} fechas",
                 )
             telegram.clear_telegram_before_run(RESULTS_BASE)
             if stopped or args.x1x10_only:
-                _report_end(failures_all, X1X10_DIR)
+                _report_end(failures_all, VALIDATION_DIR)
                 return 1 if stopped else (0 if passed_all else 1)
 
         # --- FASE 2: X10 solo ---

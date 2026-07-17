@@ -1,8 +1,7 @@
-"""Corre UNA sola fecha de una etapa del ladder (X1 -> X10 -> comparacion).
+"""Corre UNA sola fecha del ladder exclusivamente en Historia X10.
 
 Util para probar rapido una fecha que fallo sin re-correr toda la etapa.
-X1 se salta si ya tiene CSV + snapshot validos; X10 se re-corre si su CSV no
-existe (borralo antes para forzar el re-pareo). Requiere ATAS con Replay al frente.
+Requiere ATAS con Replay al frente.
 
 Uso:
     python run_single_date.py 2024-03-11
@@ -37,7 +36,7 @@ def main():
         print(f"No existe la carpeta de etapa: {output_folder}")
         return 2
 
-    run_plan = replay_sync.build_run_plan(quick=True)  # X1_R1, X10_R1
+    run_plan = replay_sync.build_run_plan(quick=True)  # X10_R1 únicamente
     print(f"Corriendo SOLO {date_iso} en {stage_key}")
     print("Run plan:", [name for name, _, _ in run_plan])
 
@@ -50,7 +49,7 @@ def main():
     )
 
     print("\n==============================")
-    print("RESULTADO:", "PASS (X1==X10)" if passed else "FAIL")
+    print("RESULTADO:", "PASS X10" if passed else "FAIL")
     if failures:
         for d, run, reason in failures:
             print(f"  fallo: {d} {run} -> {reason}")

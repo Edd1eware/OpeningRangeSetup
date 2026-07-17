@@ -68,7 +68,7 @@ def replay_date_is_allowed(date_ddmmyyyy):
     return replay_date <= last_replay_date
 
 
-# Replay recomendado para esta prueba: X1.
+# Modo obligatorio para esta prueba: Historia X10.
 # Ventana por dia: 09:30 a 09:50 NY. El exporter escribe TIME_OVER si no hay trade antes/de 09:40;
 # si ya hay trade abierto, dejamos correr hasta 09:50 para que resuelva TP/SL/EXIT/BE.
 REPLAY_END_TIME = "09:50"
@@ -817,15 +817,14 @@ def update_score_workbook():
 
 
 # =========================================================
-# LOOP PRINCIPAL V11 X1/X10
+# LOOP PRINCIPAL V11 HISTORIA X10 ÚNICAMENTE
 # =========================================================
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
         description=(
-            "Corre el periodo DST de 1 mes usando el flujo v11 canónico: "
-            "X1 genera la fila oficial y X10 la sincroniza."
+            "Corre el periodo DST de 1 mes exclusivamente en Historia X10."
         )
     )
     parser.add_argument(
@@ -856,23 +855,24 @@ def parse_args():
     parser.add_argument(
         "--x1-only",
         action="store_true",
-        help="Solo corre la fase X1 canónica.",
+        help="DESHABILITADO: el proceso termina sin iniciar Replay.",
     )
     parser.add_argument(
         "--x10-only",
         action="store_true",
-        help="Solo corre la fase X10; requiere snapshots v11 previos de X1.",
+        help="Compatibilidad: Historia X10 ya es el único modo permitido.",
     )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
+    if args.x1_only:
+        raise SystemExit("Replay X1: DESHABILITADO. Usa Historia X10 únicamente.")
     quick = True
     run_plan = replay_sync.build_run_plan(
         quick=quick,
-        x1_only=args.x1_only,
-        x10_only=args.x10_only,
+        x10_only=True,
     )
     date_iso_list = [replay_sync.date_iso_from_replay(date) for date in DATES_DST]
     output_folder = os.path.join(
@@ -882,12 +882,14 @@ def main():
     )
 
     print(
-        f"\nINICIANDO REPLAY DST 1 MES V11 X1/X10 "
+        f"\nINICIANDO HISTORIA X10 DST 1 MES V11 "
         f"({len(DATES_DST)} sesiones)\n"
         f"Fecha NY actual: {TODAY_NY:%d/%m/%Y} | "
         f"Ultima fecha permitida: {LAST_REPLAY_DATE:%d/%m/%Y}\n"
         f"Version esperada: {replay_sync.EXPECTED_EXPORTER_VERSION}\n"
-        f"Resultados de validacion: {output_folder}\n"
+        f"Resultados: {output_folder}\n"
+        "Modo: Historia X10 únicamente\n"
+        "Replay X1: DESHABILITADO\n"
     )
     print("Plan:")
     for run_name, speed_label, _ in run_plan:
@@ -919,7 +921,7 @@ def main():
         for failed_date, error in failed_dates:
             print(f"- {failed_date}: {error}")
 
-    send_run_summary(RESULTS_FOLDER, DATES_DST, failed_dates, "DST 1 mes v11 X1/X10")
+    send_run_summary(RESULTS_FOLDER, DATES_DST, failed_dates, "DST 1 mes v11 X10-only")
 
     print("\nTERMINO LA PRUEBA DST 1 MES V11.\n")
     return 0 if passed and not failures else 1

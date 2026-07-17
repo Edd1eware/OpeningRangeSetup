@@ -76,15 +76,10 @@ def backtest_preview(contracts):
 
     NO_TRADE = {"", "TIME_OVER", "NO_TRADE", "HOLYDAY NO DATA", "OPEN"}
     trades = {}
-    for x1 in LADDER_ROOT.glob("*/X1_R1/score_trade_result_*_NY.csv"):
-        d = re.search(r"(\d{4}-\d{2}-\d{2})", x1.name).group(1)
-        x10 = x1.parent.parent / "X10_R1" / x1.name
-        if not x10.exists():
-            continue
-        r1, r10 = row_of(x1), row_of(x10)
-        if not r1 or not r10:
-            continue
-        if not all(str(r1.get(f, "") or "").strip() == str(r10.get(f, "") or "").strip() for f in OPER):
+    for x10 in LADDER_ROOT.glob("*/X10_R1/score_trade_result_*_NY.csv"):
+        d = re.search(r"(\d{4}-\d{2}-\d{2})", x10.name).group(1)
+        r10 = row_of(x10)
+        if not r10:
             continue
         lab = (r10.get("Result_Label") or "").strip().upper()
         if lab in NO_TRADE or not (r10.get("Entry_price") or "").strip():

@@ -1,6 +1,7 @@
 {
-  "stdout": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\run_logs\\or_absortion_v23_2026_20260716_172938.out.log",
-  "stderr": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\run_logs\\or_absortion_v23_2026_20260716_172938.err.log",
-  "started": "2026-07-16T17:29:38.5186849-06:00",
-  "pid": 2516
+  "stdout": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\run_logs\\or_absortion_v23_report_regression_x10_retry_20260716_210623.out.log",
+  "pid": 5132,
+  "started": "2026-07-16T21:06:23-06:00",
+  "stderr": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\run_logs\\or_absortion_v23_report_regression_x10_retry_20260716_210623.err.log",
+  "mode": "v23_report_regression_x10_only"
 }

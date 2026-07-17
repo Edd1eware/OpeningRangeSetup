@@ -142,8 +142,7 @@ DATES_DST = [
     if datetime.strptime(replay_date, "%d/%m/%Y").date() <= LAST_REPLAY_DATE
 ]
 
-# Fase 1: primeras N fechas en X1 y luego X10 para validar sincronia X1==X10.
-# Fase 2: si la sincronia pasa, corrida completa desde 04/04/2022 SOLO en X10.
+# Historia X10 únicamente. Replay X1 está deshabilitado por diseño.
 SYNC_CHECK_DATE_COUNT = 6
 
 # Replay recomendado para esta prueba: X10.
@@ -1057,7 +1056,7 @@ def update_score_workbook():
 
 
 # =========================================================
-# LOOP PRINCIPAL V11 X1/X10
+# LOOP PRINCIPAL V23 HISTORIA X10 ÚNICAMENTE
 # =========================================================
 
 
@@ -1112,9 +1111,8 @@ def reset_replay_run_state(output_folder):
 def parse_args():
     parser = argparse.ArgumentParser(
         description=(
-            "Corre las temporadas DST 2022-2026 (desde 04/04/2022) con flujo v11: "
-            "Fase 1 valida sincronia X1/X10 en las primeras "
-            f"{SYNC_CHECK_DATE_COUNT} fechas; Fase 2 corre todo SOLO en X10."
+            "Corre las temporadas DST 2022-2026 (desde 04/04/2022) "
+            "exclusivamente en Historia X10. Replay X1 está deshabilitado."
         )
     )
     parser.add_argument(
@@ -1150,12 +1148,12 @@ def parse_args():
     parser.add_argument(
         "--x1-only",
         action="store_true",
-        help="Solo corre la fase X1 canónica.",
+        help="DESHABILITADO: el proceso termina sin iniciar Replay.",
     )
     parser.add_argument(
         "--x10-only",
         action="store_true",
-        help="Solo corre la fase X10; requiere snapshots v11 previos de X1.",
+        help="Compatibilidad: Historia X10 ya es el único modo permitido.",
     )
     parser.add_argument(
         "--limit",
@@ -1186,6 +1184,8 @@ def parse_args():
 
 def main():
     args = parse_args()
+    if args.x1_only:
+        raise SystemExit("Replay X1: DESHABILITADO. Usa Historia X10 únicamente.")
 
     global DATES_DST
     if args.from_date or args.to_date:
@@ -1230,12 +1230,6 @@ def main():
         "04_run_replay_score_trade_results_dst_2025_2026_runs",
     )
 
-    # --x1-only / --x10-only conservan el modo manual de UNA fase sobre todas
-    # las fechas. Sin flags corre el flujo de dos fases (sync 10 -> full X10).
-    single_phase = args.x1_only or args.x10_only
-
-    sync_dates = date_iso_list[:SYNC_CHECK_DATE_COUNT]
-    run_plan_sync = replay_sync.build_run_plan(quick=True)
     run_plan_x10 = replay_sync.build_run_plan(quick=True, x10_only=True)
 
     print(
@@ -1244,27 +1238,12 @@ def main():
         f"Fecha NY actual: {TODAY_NY:%d/%m/%Y} | "
         f"Ultima fecha permitida: {LAST_REPLAY_DATE:%d/%m/%Y}\n"
         f"Version esperada: {replay_sync.EXPECTED_EXPORTER_VERSION}\n"
-        f"Resultados de validacion: {output_folder}\n"
+        f"Resultados: {output_folder}\n"
+        "Modo: Historia X10 únicamente\n"
+        "Replay X1: DESHABILITADO\n"
     )
-    if single_phase:
-        run_plan_manual = replay_sync.build_run_plan(
-            quick=True,
-            x1_only=args.x1_only,
-            x10_only=args.x10_only,
-        )
-        print("Plan (modo manual, una fase):")
-        for run_name, speed_label, _ in run_plan_manual:
-            print(f"  - {run_name}: Replay {speed_label}")
-    else:
-        print("Plan:")
-        print(
-            f"  - FASE 1 (sincronia): primeras {len(sync_dates)} fechas en "
-            "X1_R1 y X10_R1; aborta si divergen."
-        )
-        print(
-            f"  - FASE 2 (historia completa): {len(date_iso_list)} fechas "
-            "desde 04/04/2022 SOLO en X10 (las ya corridas se saltan)."
-        )
+    print("Plan:")
+    print(f"  - Historia X10: {len(date_iso_list)} fechas; una pasada X10_R1.")
 
     if args.prepare_only:
         print("\nPREPARE-ONLY correcto. No se inició Replay.")
@@ -1280,118 +1259,26 @@ def main():
         print("Ejecutando limpieza unica de Telegram antes de la primera fecha...")
         clear_telegram_before_run(RESULTS_FOLDER)
 
-    if single_phase:
-        progress_meta = {
-            "stage_index": 1,
-            "stage_total": 1,
-            "stage_label": f"{run_label} (modo manual)",
-            "stage_period": f"{DATES_DST[0]} -> {DATES_DST[-1]}",
-            "session_roots": [output_folder],
-            "run_label": run_label,
-            "stats_root": output_folder,
-        }
-        passed, failures = replay_sync.run_replay_period(
-            date_iso_list,
-            output_folder=Path(output_folder),
-            run_plan=run_plan_manual,
-            report_prefix="dst_2022_2026_v11",
-            force=args.force,
-            step=args.step,
-            compare_only=args.compare_only,
-            replay_to_time=REPLAY_END_TIME,
-            progress_meta=progress_meta,
-        )
-    else:
-        # ── FASE 1: sincronia X1==X10 en las primeras fechas ──────────────
-        progress_meta_sync = {
-            "stage_index": 1,
-            "stage_total": 2,
-            "stage_label": f"{run_label} - Sincronia X1/X10 ({len(sync_dates)} fechas)",
-            "stage_period": f"{DATES_DST[0]} -> {DATES_DST[len(sync_dates) - 1]}",
-            "global_target": len(sync_dates),
-            "session_roots": [output_folder],
-            "run_label": run_label,
-            "stats_root": output_folder,
-        }
-        passed_sync, failures_sync = replay_sync.run_replay_period(
-            sync_dates,
-            output_folder=Path(output_folder),
-            run_plan=run_plan_sync,
-            report_prefix="dst_2022_2026_sync10_v11",
-            force=args.force,
-            step=args.step,
-            compare_only=args.compare_only,
-            replay_to_time=REPLAY_END_TIME,
-            progress_meta=progress_meta_sync,
-        )
-
-        phase1_synced = passed_sync and not failures_sync
-        sync_report_path = (
-            Path(output_folder) / "dst_2022_2026_sync10_v11_resumen.txt"
-        )
-        sync_message = [
-            "EW Opening Range | FASE 1 X1/X10 "
-            + ("SINCRONIZADO" if phase1_synced else "NO SINCRONIZADO"),
-            f"Fechas verificadas: {len(sync_dates)}",
-            f"Periodo: {DATES_DST[0]} -> {DATES_DST[len(sync_dates) - 1]}",
-            "Comparacion: campos operativos (entrada/SL/TP/salida/resultado/score).",
-        ]
-        if phase1_synced:
-            sync_message.append("X1_R1 y X10_R1 coinciden. Se habilita FASE 2 X10 completa.")
-        else:
-            sync_message.append("Replay detenido: revisar diferencias antes de FASE 2.")
-            if sync_report_path.exists():
-                sync_message.append(f"Reporte: {sync_report_path}")
-            if failures_sync:
-                sync_message.append("Errores:")
-                for date_iso, run_name, reason in failures_sync[:5]:
-                    sync_message.append(f"- {date_iso} {run_name}: {reason}")
-        send_text(RESULTS_FOLDER, "\n".join(sync_message))
-
-        if not passed_sync or failures_sync:
-            failed_dates = [
-                (date_iso, f"{run_name}: {reason}")
-                for date_iso, run_name, reason in failures_sync
-            ]
-            print("\nFASE 1 FALLO: sincronia X1/X10 divergente o fechas con error.")
-            for failed_date, error in failed_dates:
-                print(f"- {failed_date}: {error}")
-            send_run_summary(
-                RESULTS_FOLDER,
-                DATES_DST[: len(sync_dates)],
-                failed_dates,
-                "DST 2022-2026 FASE 1 (sincronia X1/X10) FALLO — corrida detenida",
-            )
-            print("\nCORRIDA DETENIDA: NO se inicia la fase X10 completa.\n")
-            return 1
-
-        print(
-            f"\nFASE 1 OK: {len(sync_dates)} fechas sincronizadas X1==X10. "
-            "Iniciando FASE 2 (X10 completo desde 04/04/2022)...\n"
-        )
-
-        # ── FASE 2: historia completa SOLO X10 ────────────────────────────
-        # Sin global_target/session_roots: la metrica de sincronia X1==X10 no
-        # aplica en X10-only; el avance real va en la linea de etapa (done/total).
-        progress_meta_full = {
-            "stage_index": 2,
-            "stage_total": 2,
-            "stage_label": f"{run_label} - Historia X10",
-            "stage_period": f"{DATES_DST[0]} -> {DATES_DST[-1]}",
-            "run_label": run_label,
-            "stats_root": output_folder,
-        }
-        passed, failures = replay_sync.run_replay_period(
-            date_iso_list,
-            output_folder=Path(output_folder),
-            run_plan=run_plan_x10,
-            report_prefix="dst_2022_2026_x10_full_v11",
-            force=args.force,
-            step=args.step,
-            compare_only=args.compare_only,
-            replay_to_time=REPLAY_END_TIME,
-            progress_meta=progress_meta_full,
-        )
+    progress_meta = {
+        "stage_index": 1,
+        "stage_total": 1,
+        "stage_label": f"{run_label} - Historia X10 únicamente",
+        "stage_period": f"{DATES_DST[0]} -> {DATES_DST[-1]}",
+        "session_roots": [output_folder],
+        "run_label": run_label,
+        "stats_root": output_folder,
+    }
+    passed, failures = replay_sync.run_replay_period(
+        date_iso_list,
+        output_folder=Path(output_folder),
+        run_plan=run_plan_x10,
+        report_prefix="dst_2022_2026_x10_only_v23",
+        force=args.force,
+        step=args.step,
+        compare_only=args.compare_only,
+        replay_to_time=REPLAY_END_TIME,
+        progress_meta=progress_meta,
+    )
 
     update_score_workbook()
 

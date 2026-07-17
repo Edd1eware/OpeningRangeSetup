@@ -431,6 +431,8 @@ def summarize(values, months):
 
 
 def simulate_tp_sl(results, tp=100.0, sl=40.0):
+    if tp < sl:
+        raise ValueError(f"CONFIG_INVALID_RR: initial TP {tp} < initial SL {sl}")
     actual = np.array([fnum(row.get("result_ticks"), 0.0) for row in results], dtype=float)
     mfe = np.array([fnum(row.get("MFE_ticks"), np.nan) for row in results], dtype=float)
     mae = np.array([fnum(row.get("MAE_ticks"), np.nan) for row in results], dtype=float)

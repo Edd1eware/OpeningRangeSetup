@@ -135,6 +135,8 @@ def summarize(values, months=None):
 
 
 def simulate_tp_sl(actual, mfe, mae, tp=TP, sl=SL):
+    if tp < sl:
+        raise ValueError(f"CONFIG_INVALID_RR: initial TP {tp} < initial SL {sl}")
     actual = np.asarray(actual, dtype=float)
     mfe = np.asarray(mfe, dtype=float)
     mae = np.asarray(mae, dtype=float)
@@ -434,6 +436,8 @@ def search_best_candidate(work, masks, actual, mfe, mae):
             continue
         for tp in TP_GRID:
             for sl in SL_GRID:
+                if tp < sl:
+                    continue
                 sim = simulate_tp_sl(actual, mfe, mae, tp, sl)
                 score = candidate_score(sim, months, years, mask)
                 if not score or score["trades"] < 50:
@@ -605,6 +609,7 @@ def search_best_candidate_fast(work, masks, actual, mfe, mae):
         (int(tp), int(sl)): simulate_tp_sl(actual, mfe, mae, tp, sl)
         for tp in TP_GRID
         for sl in SL_GRID
+        if tp >= sl
     }
     best = None
 

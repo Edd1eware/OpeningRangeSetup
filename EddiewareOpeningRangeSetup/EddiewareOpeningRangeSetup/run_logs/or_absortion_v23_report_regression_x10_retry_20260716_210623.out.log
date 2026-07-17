@@ -1,0 +1,26 @@
+SECCION: 89 sesiones operables 09/03/2026 -> 15/07/2026 (fines de semana y feriados USA/CME excluidos).
+
+=== PESO DE EXCELS (workbooks de score) ===
+  Score_indicator_results_updated_2022_2026.xlsx                141.5 KB
+  Score_indicator_results_updated_2025_2026.xlsx                310.6 KB
+  ------------------------------------------------------------------------------
+  Ano 2022_2026    total:     141.5 KB  (0.14 MB)
+  Ano 2025_2026    total:     310.6 KB  (0.30 MB)
+  TOTAL                      452.0 KB  (0.44 MB)
+
+INICIANDO REPLAY CAUSAL NO-LOOKAHEAD OR_ABSORTION_TEST_2026_V23_REPORT_REGRESSION (89 sesiones desde 09/03/2026)
+Fecha NY actual: 16/07/2026 | Ultima fecha permitida: 15/07/2026
+Version esperada: score-exporter-2026-07-16-v23-liquidity-burst-entry
+Resultados: C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\visual_tests\04_run_replay_score_trade_results_dst_2025_2026_runs
+Modo: Historia X10 únicamente
+Replay X1: DESHABILITADO
+
+Plan:
+  - Historia X10: 89 fechas; una pasada X10_R1.
+Ejecutando limpieza unica de Telegram antes de la primera fecha...
+Telegram limpieza: 1 borrados, 0 no borrables (>48h, limite Bot API). Historial reiniciado; la corrida continua.
+
+Configurando Replay en X10...
+Replay ya estaba configurado en 10x.
+
+[X10_R1 1/89] 2026-03-09.

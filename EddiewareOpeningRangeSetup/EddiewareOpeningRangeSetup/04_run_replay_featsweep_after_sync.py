@@ -1001,15 +1001,14 @@ def update_score_workbook():
 
 
 # =========================================================
-# LOOP PRINCIPAL V11 X1/X10
+# LOOP PRINCIPAL V11 HISTORIA X10 ÚNICAMENTE
 # =========================================================
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
         description=(
-            "Corre las temporadas DST 2025-2026 usando el flujo v11 canónico: "
-            "X1 genera la fila oficial y X10 la sincroniza."
+            "Corre las temporadas DST 2025-2026 exclusivamente en Historia X10."
         )
     )
     parser.add_argument(
@@ -1040,12 +1039,12 @@ def parse_args():
     parser.add_argument(
         "--x1-only",
         action="store_true",
-        help="Solo corre la fase X1 canónica.",
+        help="DESHABILITADO: el proceso termina sin iniciar Replay.",
     )
     parser.add_argument(
         "--x10-only",
         action="store_true",
-        help="Solo corre la fase X10; requiere snapshots v11 previos de X1.",
+        help="Compatibilidad: Historia X10 ya es el único modo permitido.",
     )
     parser.add_argument(
         "--limit",
@@ -1132,6 +1131,8 @@ def _get_replay_controls_by_handle():
 
 def main():
     args = parse_args()
+    if args.x1_only:
+        raise SystemExit("Replay X1: DESHABILITADO. Usa Historia X10 únicamente.")
 
     global DATES_DST
     if args.limit and args.limit > 0:
@@ -1150,12 +1151,9 @@ def main():
     print_excel_sizes_by_year()
 
     quick = True
-    # Default = solo X10 (X1 ya no es necesario). --x1-only sigue disponible.
-    x10_only = args.x10_only or not args.x1_only
     run_plan = replay_sync.build_run_plan(
         quick=quick,
-        x1_only=args.x1_only,
-        x10_only=x10_only,
+        x10_only=True,
     )
     date_iso_list = [replay_sync.date_iso_from_replay(date) for date in DATES_DST]
     output_folder = os.path.join(
@@ -1165,12 +1163,14 @@ def main():
     )
 
     print(
-        f"\nINICIANDO REPLAY DE TEMPORADAS DST 2025-2026 V11 X1/X10 "
+        f"\nINICIANDO HISTORIA X10 DE TEMPORADAS DST 2025-2026 V11 "
         f"({len(DATES_DST)} sesiones)\n"
         f"Fecha NY actual: {TODAY_NY:%d/%m/%Y} | "
         f"Ultima fecha permitida: {LAST_REPLAY_DATE:%d/%m/%Y}\n"
         f"Version esperada: {replay_sync.EXPECTED_EXPORTER_VERSION}\n"
-        f"Resultados de validacion: {output_folder}\n"
+        f"Resultados: {output_folder}\n"
+        "Modo: Historia X10 únicamente\n"
+        "Replay X1: DESHABILITADO\n"
     )
     print("Plan:")
     for run_name, speed_label, _ in run_plan:
@@ -1223,7 +1223,7 @@ def main():
         RESULTS_FOLDER,
         DATES_DST,
         failed_dates,
-        "Temporadas DST completas 2025-2026 v11 X1/X10",
+        "Temporadas DST completas 2025-2026 v11 X10-only",
     )
 
     print("\nTERMINO LA PRUEBA DE TEMPORADAS DST COMPLETAS 2025-2026 V11.\n")

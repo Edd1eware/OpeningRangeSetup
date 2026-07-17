@@ -41,6 +41,7 @@ namespace ATAS.Indicators
         private const double MinSpeedIntervalSeconds = 0.25d;
         private const int DynamicAlarmFieldCount = 37;
         private const int ExtendedTelemetryFieldCount = 27;
+        private const int TradeAuditFieldCount = 13;
         private const decimal DynamicTimelineSampleIntervalSeconds = 0.25m;
         private const int DynamicTimelineFlushRowCount = 100;
         // FROZEN — DO NOT CHANGE. Sync guards depend on this version string matching
@@ -101,7 +102,10 @@ namespace ATAS.Indicators
             "Buy_Imbalance_Count,Sell_Imbalance_Count," +
             "Execution_Side_Imbalance_Count,Max_Delta_during_trade,Min_Delta_during_trade," +
             "Volume_Increased_During_Trade,Volume_Increase_Samples,Volume_Observed_Samples," +
-            "Volume_Increasing_Pct_During_Trade,Max_MAE_Speed_500ms,Max_MAE_Speed_1s,Max_MAE_Speed_2s";
+            "Volume_Increasing_Pct_During_Trade,Max_MAE_Speed_500ms,Max_MAE_Speed_1s,Max_MAE_Speed_2s," +
+            "Initial_SL_price,Initial_TP_price,Initial_SL_ticks,Initial_TP_ticks,Initial_RR," +
+            "Final_SL_price,Final_TP_price,Final_SL_ticks,Final_TP_ticks,Stop_Was_Moved,Target_Was_Moved," +
+            "Target_Modification_Reason,Exit_Reason";
         private const string TradeInputCsvFileName = "trade_inputs.csv";
         private const string TradeResultCsvFileName = "trade_results.csv";
         private const string TradeInputCsvHeader =
@@ -131,7 +135,10 @@ namespace ATAS.Indicators
             "Cvd_Riesgo_Reversion_Count_Final,Cvd_Total_Samples_Final,Cvd_Excelente_Pct_Final,Cvd_Negative_Episodes_Final," +
             "Cvd_Label_Changes_Final,Dynamic_Alarm_Triggered,TP_And_SL_Hit_Same_Update,Result_After_Slippage_Ticks," +
             "Volume_Increased_During_Trade,Volume_Increase_Samples,Volume_Observed_Samples,Volume_Increasing_Pct_During_Trade," +
-            "Max_Delta_during_trade,Min_Delta_during_trade";
+            "Max_Delta_during_trade,Min_Delta_during_trade," +
+            "Initial_SL_price,Initial_TP_price,Initial_SL_ticks,Initial_TP_ticks,Initial_RR," +
+            "Final_SL_price,Final_TP_price,Final_SL_ticks,Final_TP_ticks,Stop_Was_Moved,Target_Was_Moved," +
+            "Target_Modification_Reason,Exit_Reason";
 
         private readonly TimeSpan _openingTimeNy = new TimeSpan(9, 30, 0);
         private readonly TimeSpan _signalStartNy = new TimeSpan(9, 31, 0);
@@ -481,10 +488,20 @@ namespace ATAS.Indicators
             });
 
             if (!plan.IsValid)
+            {
+                if (plan.TpTicks < plan.SlTicks)
+                    WriteInvalidInitialRiskReward(bar, nyTime, executionSide, score, plan);
                 return;
+            }
 
             if (!plan.IsNormalSpeed && !plan.IsAPlusSpeed)
                 ApplyDynamicImbalanceStop(candle, executionSide, plan);
+
+            if (plan.TpTicks < plan.SlTicks)
+            {
+                WriteInvalidInitialRiskReward(bar, nyTime, executionSide, score, plan);
+                return;
+            }
 
             var hasMatchingAPlusStructure = score.HasAPlusStructure;
             var matchingAPlusSide = score.APlusStructureSide;
@@ -865,6 +882,7 @@ namespace ATAS.Indicators
             _trade.Tp = decision.Tp;
             _trade.TpTicks = decision.TpTicks;
             _trade.CvdRiskBracketActive = true;
+            _trade.TargetModificationReason = "CVD_RISK_BRACKET_50_PERCENT";
             WriteTradeFile(_currentNyDate);
             return true;
         }
@@ -3039,7 +3057,8 @@ namespace ATAS.Indicators
                 _trade.VolumeObservedSamples.ToString(CultureInfo.InvariantCulture),
                 FormatNullableRatio(CalculateVolumeIncreasingPercent()),
                 FormatNullableTicks(_trade.MaxDeltaDuringTrade),
-                FormatNullableTicks(_trade.MinDeltaDuringTrade)
+                FormatNullableTicks(_trade.MinDeltaDuringTrade),
+                BuildTradeAuditCsvFields()
             });
 
             return string.Join(",", outcome.CsvFields);
@@ -3126,7 +3145,8 @@ namespace ATAS.Indicators
                     FormatNullablePrice(_trade.ImbalanceGroupPrice),
                     _trade.ImbalanceCount.ToString(CultureInfo.InvariantCulture),
                     FormatBool(_trade.SpeedIgnoredByStructure),
-                    BuildExtendedTelemetryCsvFields()
+                    BuildExtendedTelemetryCsvFields(),
+                    BuildTradeAuditCsvFields()
                 );
         }
 
@@ -3219,7 +3239,8 @@ namespace ATAS.Indicators
                     FormatNullablePrice(_aPlusStructurePrice),
                     _aPlusStructureCount.ToString(CultureInfo.InvariantCulture),
                     "FALSE",
-                    BuildEmptyExtendedTelemetryCsvFields()
+                    BuildEmptyExtendedTelemetryCsvFields(),
+                    BuildEmptyTradeAuditCsvFields()
                 ) + Environment.NewLine
             );
 
@@ -3243,7 +3264,11 @@ namespace ATAS.Indicators
             return string.Join(
                 Environment.NewLine,
                 $"OR ABSORTION TEST | {_trade.EntryDate:yyyy-MM-dd}",
-                $"{_trade.Result} {_trade.Side} | {_trade.EntryTimeNy:HH:mm:ss} NY ({utcLabel})",
+                $"{_trade.Side} | {_trade.EntryTimeNy:HH:mm:ss} NY ({utcLabel})",
+                $"Plan inicial: TP {InitialTpTicks():0.##} | SL {InitialSlTicks():0.##} | RR {InitialRiskReward():0.00}",
+                $"Bracket final: TP {_trade.TpTicks:0.##} | SL {_trade.SlTicks:0.##}",
+                $"Gestión: {BuildBracketManagementLabel()}",
+                $"Salida: {BuildExitReason()} {TradeResultTicks():+0.##;-0.##;0} ticks",
                 $"MAE: {_trade.MaeTicks:0.##} ticks | MFE: {_trade.MfeTicks:0.##} ticks",
                 $"PnL: {pnl:+$0;-$0} | {TelegramContracts}c",
                 $"Balance: {balance:$#,##0}",
@@ -3802,9 +3827,56 @@ namespace ATAS.Indicators
                     Math.Max(score.BuyImbalanceCount, score.SellImbalanceCount)
                         .ToString(CultureInfo.InvariantCulture),
                     FormatBool(score.SpeedIgnoredByStructure),
-                    BuildEmptyExtendedTelemetryCsvFields()
+                    BuildEmptyExtendedTelemetryCsvFields(),
+                    BuildEmptyTradeAuditCsvFields()
                 ) + Environment.NewLine
             );
+        }
+
+        private void WriteInvalidInitialRiskReward(
+            int bar,
+            DateTime nyTime,
+            string executionSide,
+            ScoreTradeSignal score,
+            TradeManagerTpSlBeExit.TradePlan plan)
+        {
+            if (!Directory.Exists(_exportFolder))
+                Directory.CreateDirectory(_exportFolder);
+
+            var path = Path.Combine(_exportFolder, "config_invalid_rr.csv");
+            const string header =
+                "Exporter_VERSION,fecha,DecisionTime_NY,EntryBar,Side,Signal_Source,Speed_Profile," +
+                "Entry_price,Initial_SL_price,Initial_TP_price,Initial_SL_ticks,Initial_TP_ticks,Initial_RR," +
+                "MinTradeTicks,MaxTradeTicks,HardMaxTradeTicks,NormalScalpMaxTradeTicks," +
+                "ValueAcceptanceMinTradeTicks,MinScore,Score,Reason";
+            var initialRr = plan.SlTicks > 0m ? plan.TpTicks / plan.SlTicks : 0m;
+            var row = string.Join(",",
+                ExporterVersion,
+                nyTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                nyTime.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
+                bar.ToString(CultureInfo.InvariantCulture),
+                EscapeCsv(executionSide),
+                EscapeCsv(score.SignalSource),
+                EscapeCsv(GetEntryProfile(executionSide, score.SpeedLabel)),
+                FormatPrice(score.EntryPrice),
+                FormatPrice(plan.Sl),
+                FormatPrice(plan.Tp),
+                FormatTicks(plan.SlTicks),
+                FormatTicks(plan.TpTicks),
+                initialRr.ToString("0.####", CultureInfo.InvariantCulture),
+                FormatTicks(MinTradeTicks),
+                FormatTicks(MaxTradeTicks),
+                FormatTicks(HardMaxTradeTicks),
+                FormatTicks(NormalScalpMaxTradeTicks),
+                FormatTicks(ValueAcceptanceMinTradeTicks),
+                MinScore.ToString(CultureInfo.InvariantCulture),
+                score.Score.ToString(CultureInfo.InvariantCulture),
+                "CONFIG_INVALID_RR");
+
+            var writeHeader = !File.Exists(path) || new FileInfo(path).Length == 0;
+            File.AppendAllText(
+                path,
+                (writeHeader ? header + Environment.NewLine : "") + row + Environment.NewLine);
         }
 
         private void ResetDay(DateTime nyDate)
@@ -4228,6 +4300,117 @@ namespace ATAS.Indicators
         private static string BuildEmptyExtendedTelemetryCsvFields()
         {
             return new string(',', ExtendedTelemetryFieldCount - 1);
+        }
+
+        private decimal InitialSlPrice()
+        {
+            return _trade?.InputSnapshot?.SlPriceAtEntry ?? _trade?.Sl ?? 0m;
+        }
+
+        private decimal InitialTpPrice()
+        {
+            return _trade?.InputSnapshot?.TpPriceAtEntry ?? _trade?.Tp ?? 0m;
+        }
+
+        private decimal InitialSlTicks()
+        {
+            return _trade?.InputSnapshot?.SlTicksAtEntry ?? _trade?.SlTicks ?? 0m;
+        }
+
+        private decimal InitialTpTicks()
+        {
+            return _trade?.InputSnapshot?.TpTicksAtEntry ?? _trade?.TpTicks ?? 0m;
+        }
+
+        private decimal InitialRiskReward()
+        {
+            var initialSlTicks = InitialSlTicks();
+            return initialSlTicks > 0m ? InitialTpTicks() / initialSlTicks : 0m;
+        }
+
+        private bool StopWasMoved()
+        {
+            return _trade != null &&
+                (InitialSlPrice() != _trade.Sl || InitialSlTicks() != _trade.SlTicks);
+        }
+
+        private bool TargetWasMoved()
+        {
+            return _trade != null &&
+                (InitialTpPrice() != _trade.Tp || InitialTpTicks() != _trade.TpTicks);
+        }
+
+        private string BuildBracketManagementLabel()
+        {
+            if (_trade == null)
+                return "N/A";
+
+            var movements = new List<string>();
+            if (StopWasMoved())
+                movements.Add("SL_MODIFICADO");
+            if (TargetWasMoved())
+            {
+                var reason = string.IsNullOrWhiteSpace(_trade.TargetModificationReason)
+                    ? "MOTIVO_NO_REGISTRADO"
+                    : _trade.TargetModificationReason;
+                movements.Add($"TP_MODIFICADO {InitialTpTicks():0.##}->{_trade.TpTicks:0.##} ({reason})");
+            }
+
+            return movements.Count == 0 ? "SIN_CAMBIOS" : string.Join(" | ", movements);
+        }
+
+        private string BuildExitReason()
+        {
+            if (_trade == null)
+                return "N/A";
+
+            if (_trade.Result == "OPEN")
+                return "OPEN";
+            if (_trade.Result == "EXIT")
+                return "EXIT_TIME_OVER";
+            if (_trade.Result == "BE")
+                return "EXIT_BREAK_EVEN";
+            if (_trade.Result == "TP")
+            {
+                if (TargetWasMoved())
+                {
+                    var reason = string.IsNullOrWhiteSpace(_trade.TargetModificationReason)
+                        ? "DYNAMIC_TARGET"
+                        : _trade.TargetModificationReason;
+                    return $"EXIT_TP_DYNAMIC_{reason}";
+                }
+                return "EXIT_TP_INITIAL";
+            }
+            if (_trade.Result == "SL")
+                return StopWasMoved() ? "EXIT_SL_DYNAMIC" : "EXIT_SL_INITIAL";
+
+            return $"EXIT_{_trade.Result}";
+        }
+
+        private string BuildTradeAuditCsvFields()
+        {
+            if (_trade == null)
+                return BuildEmptyTradeAuditCsvFields();
+
+            return string.Join(",",
+                FormatPrice(InitialSlPrice()),
+                FormatPrice(InitialTpPrice()),
+                FormatTicks(InitialSlTicks()),
+                FormatTicks(InitialTpTicks()),
+                InitialRiskReward().ToString("0.####", CultureInfo.InvariantCulture),
+                FormatPrice(_trade.Sl),
+                FormatPrice(_trade.Tp),
+                FormatTicks(_trade.SlTicks),
+                FormatTicks(_trade.TpTicks),
+                FormatBool(StopWasMoved()),
+                FormatBool(TargetWasMoved()),
+                EscapeCsv(_trade.TargetModificationReason),
+                EscapeCsv(BuildExitReason()));
+        }
+
+        private static string BuildEmptyTradeAuditCsvFields()
+        {
+            return new string(',', TradeAuditFieldCount - 1);
         }
 
         private string FormatCvdExcellentPercent()
@@ -4694,6 +4877,7 @@ namespace ATAS.Indicators
             public decimal CvdProfitLockTicks { get; set; }
             public decimal CvdProfitLockBestMfeTicks { get; set; }
             public bool CvdRiskBracketActive { get; set; }
+            public string TargetModificationReason { get; set; } = "";
             public bool APlusStructure { get; set; }
             public bool APlusAbsorption { get; set; }
             public bool APlusSpeed { get; set; }

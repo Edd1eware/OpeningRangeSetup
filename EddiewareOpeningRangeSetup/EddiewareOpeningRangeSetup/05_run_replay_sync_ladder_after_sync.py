@@ -292,11 +292,11 @@ LADDER_PLAN_STAGES = []
 
 
 def stage_saved_count(stage):
-    """Cuenta CSVs X1 ya guardados de una etapa (para el plan en el .json)."""
-    x1_folder = Path(stage["output_folder"]) / "X1_R1"
-    if not x1_folder.exists():
+    """Cuenta CSVs X10 ya guardados de una etapa (para el plan en el .json)."""
+    x10_folder = Path(stage["output_folder"]) / "X10_R1"
+    if not x10_folder.exists():
         return 0
-    return len(list(x1_folder.glob("score_trade_result_*_NY.csv")))
+    return len(list(x10_folder.glob("score_trade_result_*_NY.csv")))
 
 
 def build_ladder_plan(stages):
@@ -350,8 +350,8 @@ def write_state(status, stage=None, **extra):
 def classify_stage_outcome(stage, failures):
     """Separa el resultado de una etapa en dos categorías:
 
-    - real_divergences: desync VERDADERO de operativa (X1 != X10 en campos que
-      afectan WR/PF). Esto SÍ detiene el ladder: es lo que importa para confiar.
+    - real_divergences: divergencia entre repeticiones X10 en campos operativos.
+      Esto SÍ detiene el ladder: es lo que importa para confiar.
     - gap_dates: huecos re-corregibles (timeout, replay no arrancó, foco perdido,
       MISSING_CSV). NO detienen el ladder; se rellenan con un re-run sin --force.
     """
@@ -377,8 +377,7 @@ def classify_stage_outcome(stage, failures):
 
 
 def clean_divergent_date(stage, run_plan, date_iso):
-    """Borra los artefactos de una fecha (CSV X1/X10, timeline, snapshot, signal)
-    para forzar un re-pareo limpio X1->X10 en el reintento automatico de desync.
+    """Borra los artefactos X10 de una fecha para forzar una repetición limpia.
     """
     for run_name, _speed, _timeout in run_plan:
         replay_sync.destination_result_path(
@@ -387,8 +386,6 @@ def clean_divergent_date(stage, run_plan, date_iso):
         replay_sync.destination_timeline_path(
             stage["output_folder"], date_iso, run_name
         ).unlink(missing_ok=True)
-    replay_sync.sync_result_path(date_iso).unlink(missing_ok=True)
-    replay_sync.sync_signal_path(date_iso).unlink(missing_ok=True)
 
 
 def read_csv_rows(path):
@@ -550,7 +547,7 @@ def filter_stages(stages, start_at=None, stop_after=None, max_stages=None):
 def parse_args():
     parser = argparse.ArgumentParser(
         description=(
-            "Escalera automatica de sincronicidad X1/X10. Corre fechas "
+            "Escalera automática de reproducibilidad X10. Corre fechas "
             "conflictivas, 6 meses, 1 ano y bloques historicos de 6 meses."
         )
     )
@@ -578,7 +575,7 @@ def parse_args():
 
 
 def print_plan(stages, run_plan):
-    print("\nESCALERA DE SINCRONICIDAD X1/X10")
+    print("\nESCALERA DE REPRODUCIBILIDAD X10")
     print(f"Version esperada: {replay_sync.EXPECTED_EXPORTER_VERSION}")
     print(PRIMARY_OBJECTIVE)
     print(f"Ruta contexto Codex: {CONTEXT_FOLDER}")
@@ -607,6 +604,8 @@ def main():
     until_date = datetime.strptime(args.until_date, "%Y-%m-%d").date()
     run_id = sanitize_key(args.run_id or datetime.now().strftime("ladder_%Y%m%d_%H%M%S"))
     run_plan = replay_sync.build_run_plan(quick=not args.full_x10)
+    print("Modo: Historia X10 únicamente")
+    print("Replay X1: DESHABILITADO")
     stages = build_ladder_stages(until_date, run_id, include_one_month=args.include_one_month)
     total_stage_count = len(stages)
     # Registra el plan completo (todas las etapas) en el .json, no solo la actual.
@@ -671,7 +670,7 @@ def main():
                 "stage_period": stage_period,
                 "global_target": SESSION_TARGET,
                 "session_roots": session_roots,
-                "run_label": "Ladder X1/X10",
+                "run_label": "Ladder X10-only",
             }
 
             # Reintento automatico ante desync REAL: un desync puede ser un glitch
@@ -792,8 +791,7 @@ def main():
                     latest_archive=str(archive_path),
                 )
 
-            # META: la etapa cerro con X1+X10+comparacion. Se cuenta lo REALMENTE
-            # sincronizado (X1==X10). Si cruzamos 500, detenemos y avisamos.
+            # META: la etapa cerró con Historia X10. Si cruzamos 500, se detiene.
             global_synced = replay_sync.count_synced_sessions(session_roots)
             global_done = replay_sync.count_distinct_sessions(session_roots)
             if global_synced is not None and global_synced >= SESSION_TARGET:
@@ -814,7 +812,7 @@ def main():
                     global_done=global_done,
                     global_synced=global_synced,
                     global_target=SESSION_TARGET,
-                    run_label="Ladder X1/X10",
+                    run_label="Ladder X10-only",
                     goal=True,
                 )
                 write_state(
@@ -822,7 +820,7 @@ def main():
                     stage,
                     latest_summary=str(workbook_path),
                     sessions=global_synced,
-                    sessions_x1=global_done,
+                    sessions_x10=global_done,
                     gaps=[
                         {"stage": stage_key, "date": date_iso}
                         for stage_key, date_iso in all_gaps
@@ -830,7 +828,7 @@ def main():
                 )
                 print(
                     f"\nMETA ALCANZADA: {global_synced}/{SESSION_TARGET} sesiones "
-                    "sincronizadas X1==X10. Replay detenido. Fase 1 completa."
+                    "Historia X10 completas. Replay detenido."
                 )
                 if all_gaps:
                     print(

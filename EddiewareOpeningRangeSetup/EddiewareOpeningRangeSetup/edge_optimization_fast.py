@@ -274,6 +274,8 @@ def robust_stats(rows, mask, result):
 
 
 def simulate_tp_sl(rows, mask, tp, sl):
+    if tp < sl:
+        raise ValueError(f"CONFIG_INVALID_RR: initial TP {tp} < initial SL {sl}")
     mfe = rows["mfe"].astype(float)
     mae = rows["mae"].astype(float)
     actual = rows["actual"].astype(float)
@@ -525,6 +527,8 @@ def main():
     for name, mask in pruned:
         for tp in TP_GRID:
             for sl in SL_GRID:
+                if tp < sl:
+                    continue
                 sim = simulate_tp_sl(rows, mask, tp, sl)
                 row = eval_candidate(rows, name, mask, sim, int(tp), int(sl))
                 if row and row["trades"] >= 50:

@@ -74,14 +74,14 @@ TERMINAL_RESULTS = {
 def parse_args():
     parser = argparse.ArgumentParser(
         description=(
-            "Compara las fechas conflictivas en Replay X1 y X10 y genera "
-            "un reporte automático de sincronicidad."
+            "Repite fechas conflictivas exclusivamente en Historia X10 y genera "
+            "un reporte automático de reproducibilidad."
         )
     )
     parser.add_argument(
         "--quick",
         action="store_true",
-        help="Ejecuta X1 una vez y X10 una vez, en lugar de tres repeticiones X10.",
+        help="Ejecuta dos repeticiones X10, en lugar de tres.",
     )
     parser.add_argument(
         "--prepare-only",
@@ -439,6 +439,8 @@ def copy_with_retry(source, destination, attempts=10):
 
 
 def run_one_date(date_iso, run_name, timeout_seconds, force=False):
+    if run_name == "X1" or run_name.startswith("X1_"):
+        raise ValueError("Replay X1: DESHABILITADO. Usa Historia X10 únicamente.")
     source_result = result_path(date_iso)
     source_timeline = timeline_path(date_iso)
     destination_result = destination_result_path(date_iso, run_name)
@@ -523,7 +525,7 @@ def build_comparison_report(run_plan):
     OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
     report_path = OUTPUT_FOLDER / "test_fechas_conflictivas_comparacion.csv"
     summary_path = OUTPUT_FOLDER / "test_fechas_conflictivas_resumen.txt"
-    baseline_name = "X1_R1"
+    baseline_name = "X10_R1"
     compared_names = [name for name, _, _ in run_plan if name != baseline_name]
     report_rows = []
     passed = 0
@@ -562,7 +564,7 @@ def build_comparison_report(run_plan):
                 "Campos_Diferentes": "|".join(differences),
             }
             for field in comparison_fields:
-                row[f"{field}_X1"] = (
+                row[f"{field}_BASELINE_X10"] = (
                     normalize(baseline.get(field)) if baseline else ""
                 )
                 row[f"{field}_COMPARADA"] = (
@@ -584,7 +586,7 @@ def build_comparison_report(run_plan):
 
     overall = "PASS" if failed == 0 and report_rows else "FAIL"
     summary_lines = [
-        "TEST DE SINCRONICIDAD REPLAY X1/X10",
+        "TEST DE REPRODUCIBILIDAD HISTORIA X10",
         "Modo comparacion: CSV terminal completo",
         f"Estado general: {overall}",
         f"Comparaciones PASS: {passed}",
@@ -625,12 +627,13 @@ def print_plan(run_plan):
 
 def main():
     args = parse_args()
-    x10_repetitions = 1 if args.quick else 3
-    run_plan = [("X1_R1", "X1", X1_TIMEOUT_SECONDS)]
-    run_plan.extend(
+    x10_repetitions = 2 if args.quick else 3
+    run_plan = [
         (f"X10_R{index}", "X10", X10_TIMEOUT_SECONDS)
         for index in range(1, x10_repetitions + 1)
-    )
+    ]
+    print("Modo: Historia X10 únicamente")
+    print("Replay X1: DESHABILITADO")
     print_plan(run_plan)
     print(f"\nVersion esperada DLL/exporter: {EXPECTED_EXPORTER_VERSION}")
     if args.force:

@@ -115,7 +115,7 @@ def create_visual_workbook(test_name, rows, result_options, description):
     instructions["A3"] = description
     instructions["A3"].alignment = Alignment(wrap_text=True, vertical="top")
     instructions["A5"] = (
-        "Usa Replay X1 para inspección visual. En cada fila escribe lo observado "
+        "Usa Historia X10 para inspección visual. En cada fila escribe lo observado "
         "en la celda amarilla Resultado_visual_que_vi. El script conserva y restaura "
         "los CSV/timelines originales después de cada fecha."
     )
@@ -229,7 +229,7 @@ def run_visual_dates(test_name, rows, result_options, description):
         return
 
     os.startfile(workbook_path)
-    print("Configura Replay en X1 antes de comenzar.")
+    print("Configura Replay en X10. Replay X1 está DESHABILITADO.")
 
     for index, row in enumerate(rows, 1):
         date_iso = row["Fecha"]

@@ -29,6 +29,18 @@ def _parse_result_ticks(value):
         return None
 
 
+def _parse_number(value):
+    try:
+        text = str(value or "").strip().replace("+", "")
+        return float(text) if text else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_bool(value):
+    return str(value or "").strip().upper() in {"TRUE", "1", "YES", "SI"}
+
+
 def _read_credentials(results_folder):
     path = os.path.join(results_folder, "telegram_credentials.txt")
     if not os.path.exists(path):
@@ -51,8 +63,7 @@ def _read_credentials(results_folder):
 
 def compute_run_stats(run_root, allowed_dates=None, run_names=None):
     """Stats acumuladas de la corrida leyendo score_trade_result_*_NY.csv bajo
-    run_root (carpetas X1_*/X10_* directas o anidadas). Una fila por fecha; si
-    una fecha existe en X1 y X10 gana la de X10 (es la pasada completa).
+    run_root. Solo acepta carpetas X10_* directas o anidadas.
 
     Retorna dict con: trades, winrate, pf, tp_ticks, sl_ticks,
     max_consec_wins, max_consec_losses. None si no hay trades cerrados.
@@ -70,7 +81,7 @@ def compute_run_stats(run_root, allowed_dates=None, run_names=None):
     rows_by_date = {}
     for csv_path in sorted(root.rglob("score_trade_result_*_NY.csv")):
         parent = csv_path.parent.name
-        if not (parent.startswith("X1_") or parent.startswith("X10_")):
+        if not parent.startswith("X10_"):
             continue
         if run_names is not None and parent not in run_names:
             continue
@@ -85,14 +96,15 @@ def compute_run_stats(run_root, allowed_dates=None, run_names=None):
         date_key = match.group(1) if match else str(row.get("fecha") or "").strip() or csv_path.name
         if allowed_dates is not None and date_key not in allowed_dates:
             continue
-        is_x10 = parent.startswith("X10_")
-        if date_key in rows_by_date and not is_x10:
-            continue
         rows_by_date[date_key] = row
 
     ticks_by_date = []
     time_over_count = 0
     tp_ticks = sl_ticks = None
+    initial_brackets = {}
+    initial_rr_values = []
+    target_modification_reasons = {}
+    dynamic_target_moves = 0
     for date_key in sorted(rows_by_date):
         row = rows_by_date[date_key]
         result_ticks = _parse_result_ticks(row.get("result TP SL BE"))
@@ -101,8 +113,20 @@ def compute_run_stats(run_root, allowed_dates=None, run_names=None):
                 time_over_count += 1
             continue
         ticks_by_date.append(result_ticks)
-        tp_ticks = row.get("TP_ticks") or tp_ticks
-        sl_ticks = row.get("SL_ticks") or sl_ticks
+        initial_tp = _parse_number(row.get("Initial_TP_ticks"))
+        initial_sl = _parse_number(row.get("Initial_SL_ticks"))
+        initial_rr = _parse_number(row.get("Initial_RR"))
+        if initial_tp is not None and initial_sl is not None:
+            bracket = (initial_tp, initial_sl)
+            initial_brackets[bracket] = initial_brackets.get(bracket, 0) + 1
+            tp_ticks = initial_tp
+            sl_ticks = initial_sl
+        if initial_rr is not None:
+            initial_rr_values.append(initial_rr)
+        if _parse_bool(row.get("Target_Was_Moved")):
+            dynamic_target_moves += 1
+            reason = str(row.get("Target_Modification_Reason") or "NO_REGISTRADO").strip()
+            target_modification_reasons[reason] = target_modification_reasons.get(reason, 0) + 1
 
     if not ticks_by_date:
         return None
@@ -135,9 +159,15 @@ def compute_run_stats(run_root, allowed_dates=None, run_names=None):
         "pf": (gross_win / gross_loss) if gross_loss > 0 else None,
         "profit_ticks": sum(ticks_by_date),
         "expectancy_ticks": sum(ticks_by_date) / len(ticks_by_date),
+        "average_win_ticks": (sum(wins) / len(wins)) if wins else None,
+        "average_loss_ticks": (sum(losses) / len(losses)) if losses else None,
         "time_over": time_over_count,
         "tp_ticks": tp_ticks,
         "sl_ticks": sl_ticks,
+        "initial_brackets": initial_brackets,
+        "min_initial_rr": min(initial_rr_values) if initial_rr_values else None,
+        "dynamic_target_moves": dynamic_target_moves,
+        "target_modification_reasons": target_modification_reasons,
         "max_consec_wins": max_consec_wins,
         "max_consec_losses": max_consec_losses,
     }
@@ -147,8 +177,7 @@ def collect_daily_metrics(run_root, allowed_dates=None, run_names=None):
     """Devuelve una fila diaria X10 con MAE/MFE y WR/PF acumulados.
 
     El reporte es deliberadamente read-only: no interviene en Replay ni en la
-    seleccion/ejecucion de trades. Si una fecha existe en varias pasadas, X10
-    tiene prioridad, igual que en compute_run_stats().
+    seleccion/ejecucion de trades. Solo lee Historia X10.
     """
     root = Path(run_root)
     allowed = set(allowed_dates) if allowed_dates is not None else None
@@ -156,7 +185,7 @@ def collect_daily_metrics(run_root, allowed_dates=None, run_names=None):
     rows_by_date = {}
     for csv_path in sorted(root.rglob("score_trade_result_*_NY.csv")):
         parent = csv_path.parent.name
-        if not (parent.startswith("X1_") or parent.startswith("X10_")):
+        if not parent.startswith("X10_"):
             continue
         if names is not None and parent not in names:
             continue
@@ -173,17 +202,7 @@ def collect_daily_metrics(run_root, allowed_dates=None, run_names=None):
             continue
         if not row:
             continue
-        is_x10 = parent.startswith("X10_")
-        if date_key in rows_by_date and not is_x10:
-            continue
         rows_by_date[date_key] = row
-
-    def number(value):
-        try:
-            text = str(value or "").strip().replace("+", "")
-            return float(text) if text else None
-        except (TypeError, ValueError):
-            return None
 
     daily = []
     decided_ticks = []
@@ -202,8 +221,17 @@ def collect_daily_metrics(run_root, allowed_dates=None, run_names=None):
             "date": date_key,
             "result": str(row.get("Result_Label") or "N/A").strip() or "N/A",
             "ticks": ticks,
-            "mae": number(row.get("MAE_ticks")),
-            "mfe": number(row.get("MFE_ticks")),
+            "mae": _parse_number(row.get("MAE_ticks")),
+            "mfe": _parse_number(row.get("MFE_ticks")),
+            "initial_sl_ticks": _parse_number(row.get("Initial_SL_ticks")),
+            "initial_tp_ticks": _parse_number(row.get("Initial_TP_ticks")),
+            "initial_rr": _parse_number(row.get("Initial_RR")),
+            "final_sl_ticks": _parse_number(row.get("Final_SL_ticks")),
+            "final_tp_ticks": _parse_number(row.get("Final_TP_ticks")),
+            "stop_was_moved": _parse_bool(row.get("Stop_Was_Moved")),
+            "target_was_moved": _parse_bool(row.get("Target_Was_Moved")),
+            "target_modification_reason": str(row.get("Target_Modification_Reason") or "").strip(),
+            "exit_reason": str(row.get("Exit_Reason") or row.get("Result_Label") or "N/A").strip(),
             "wr": (100.0 * len(wins) / len(decided_ticks)) if decided_ticks else None,
             "pf": (sum(wins) / gross_loss) if gross_loss > 0 else (float("inf") if wins else None),
             "month": month,
@@ -225,8 +253,22 @@ def _send_daily_metrics_report(results_folder, credentials, daily):
         pf_value = item["pf"]
         pf = "N/A" if pf_value is None else ("INF" if pf_value == float("inf") else f"{pf_value:.2f}")
         ticks = "N/A" if item["ticks"] is None else f'{item["ticks"]:+.0f}t'
-        line = (f'{item["date"]} | {item["result"]} {ticks} | MAE {mae} | MFE {mfe} | '
-                f'WR {wr} | PF {pf} | Trades {item["month"]}: {item["month_trades"]}')
+        initial_tp = "N/A" if item["initial_tp_ticks"] is None else f'{item["initial_tp_ticks"]:.0f}'
+        initial_sl = "N/A" if item["initial_sl_ticks"] is None else f'{item["initial_sl_ticks"]:.0f}'
+        initial_rr = "N/A" if item["initial_rr"] is None else f'{item["initial_rr"]:.2f}'
+        management = ""
+        if item["target_was_moved"]:
+            final_tp = "N/A" if item["final_tp_ticks"] is None else f'{item["final_tp_ticks"]:.0f}'
+            reason = item["target_modification_reason"] or "NO_REGISTRADO"
+            management = f" | TP dinámico {initial_tp}->{final_tp} ({reason})"
+        if item["stop_was_moved"]:
+            final_sl = "N/A" if item["final_sl_ticks"] is None else f'{item["final_sl_ticks"]:.0f}'
+            management += f" | SL dinámico {initial_sl}->{final_sl}"
+        line = (
+            f'{item["date"]} | TPi {initial_tp} SLi {initial_sl} RRi {initial_rr}{management} | '
+            f'{item["exit_reason"]} {ticks} | MAE {mae} | MFE {mfe} | '
+            f'WR {wr} | PF {pf} | Trades {item["month"]}: {item["month_trades"]}'
+        )
         if sum(len(value) + 1 for value in current) + len(line) > 3800:
             chunks.append("\n".join(current))
             current = ["OR ABSORTION TEST | RESULTADOS POR FECHA (cont.)"]
@@ -300,13 +342,26 @@ def _format_stats_line(stats):
     suffix = ""
     if expectancy is not None and profit is not None:
         suffix = f" | Exp {expectancy:+.2f} ticks | Net {profit:+.0f} ticks"
+    brackets = stats.get("initial_brackets") or {}
+    bracket_text = ", ".join(
+        f"TP{tp:g}/SL{sl:g} x{count}"
+        for (tp, sl), count in sorted(brackets.items())
+    ) or "N/A"
+    min_rr = stats.get("min_initial_rr")
+    rr_text = "N/A" if min_rr is None else f"{min_rr:.2f}"
+    avg_win = stats.get("average_win_ticks")
+    avg_loss = stats.get("average_loss_ticks")
+    average_text = (
+        f" | AvgWin {avg_win:+.2f} | AvgLoss {avg_loss:+.2f}"
+        if avg_win is not None and avg_loss is not None else ""
+    )
     return (
         f"WR {stats['winrate']:.0f}% | PF {pf_text} | "
-        f"TP {stats['tp_ticks'] or '?'} ticks | SL {stats['sl_ticks'] or '?'} ticks | "
+        f"Plan inicial [{bracket_text}] | RR mínimo {rr_text} | "
         f"racha max ganadas {stats['max_consec_wins']} | "
         f"racha max perdidas {stats['max_consec_losses']} | "
         f"n={stats['trades']} trades"
-        f"{suffix}"
+        f"{suffix}{average_text}"
     )
 
 
@@ -316,10 +371,10 @@ def _date_iso_from_ddmmyyyy(date_text):
 
 
 def _find_replay_run_root(results_folder):
-    """Encuentra la carpeta de corrida que contiene X10_R1/X1_R1."""
+    """Encuentra la carpeta de corrida que contiene Historia X10."""
     root = Path(results_folder)
     direct_has_runs = any(
-        child.is_dir() and (child.name.startswith("X1_") or child.name.startswith("X10_"))
+        child.is_dir() and child.name.startswith("X10_")
         for child in root.iterdir()
     ) if root.exists() else False
     if direct_has_runs:
@@ -622,8 +677,7 @@ def send_progress_update(
     contracts=None,
     stats=None,
 ):
-    """Manda un mensaje de progreso. El avance que importa es el TOTAL hacia la
-    meta (sesiones sincronizadas X1==X10), no el parcial por etapa."""
+    """Manda un mensaje de progreso de Historia X10 únicamente."""
     credentials = _read_credentials(results_folder)
     if credentials is None:
         return False
@@ -633,10 +687,9 @@ def send_progress_update(
     if goal:
         message = "\n".join(
             [
-                f"EW Opening Range | META ALCANZADA - Fase 1 ({run_label})",
-                f"{synced}/{global_target} sesiones sincronizadas X1==X10. "
-                "Replay detenido.",
-                "Fase 1 completa -> pasar a Fase 2 (definir estrategia).",
+                f"OR ABSORTION TEST | META ALCANZADA ({run_label})",
+                f"{synced}/{global_target} sesiones Historia X10 completas. Replay detenido.",
+                "Replay X1: DESHABILITADO",
             ]
         )
         try:
@@ -661,7 +714,9 @@ def send_progress_update(
     else:
         header = "Progreso"
     lines = [
-        f"EW Opening Range | {header} ({run_label})",
+        f"OR ABSORTION TEST | {header} ({run_label})",
+        "Modo: Historia X10 únicamente",
+        "Replay X1: DESHABILITADO",
         f"Fase: ETAPA {stage_index:02d}/{stage_total:02d} - {stage_label}",
     ]
     if stage_period:
@@ -680,11 +735,11 @@ def send_progress_update(
     if global_target:
         missing = max(global_target - synced, 0)
         lines.append(
-            f"Progreso total: {synced}/{global_target} sincronizadas X1==X10 "
+            f"Progreso total: {synced}/{global_target} sesiones X10 completas "
             f"(faltan {missing})"
         )
     if global_done is not None:
-        lines.append(f"Recolectadas X1: {global_done}")
+        lines.append(f"Recolectadas X10: {global_done}")
     if pnl_usd is not None:
         line = f"PnL acumulado: ${pnl_usd:,.0f}"
         if contracts:
@@ -936,12 +991,35 @@ def send_run_summary(results_folder, dates, failed_dates=None, run_label="Replay
     lucid = simulate_lucidpro_150k(daily_metrics, contracts=contracts, tick_value=tick_value)
     maes = [item["mae"] for item in daily_metrics if item["mae"] is not None]
     mfes = [item["mfe"] for item in daily_metrics if item["mfe"] is not None]
+    expectancy = (net_ticks / results_count) if results_count else 0.0
+    average_win = run_stats.get("average_win_ticks") if run_stats else None
+    average_loss = run_stats.get("average_loss_ticks") if run_stats else None
+    bracket_counts = run_stats.get("initial_brackets", {}) if run_stats else {}
+    bracket_text = ", ".join(
+        f"TP {tp:g}/SL {sl:g} (x{count})"
+        for (tp, sl), count in sorted(bracket_counts.items())
+    ) or "N/A"
+    min_initial_rr = run_stats.get("min_initial_rr") if run_stats else None
+    rr_text = "N/A" if min_initial_rr is None else f"{min_initial_rr:.2f}"
+    dynamic_target_moves = run_stats.get("dynamic_target_moves", 0) if run_stats else 0
+    target_reasons = run_stats.get("target_modification_reasons", {}) if run_stats else {}
+    target_reason_text = ", ".join(
+        f"{reason} (x{count})" for reason, count in sorted(target_reasons.items())
+    ) or "ninguna"
     message = "\n".join(
         [
             f"OR ABSORTION TEST | Corrida terminada ({run_label})",
+            "Modo: Historia X10 únicamente",
+            "Replay X1: DESHABILITADO",
             "Resumen CRUDO X10:",
+            f"Plan inicial: {bracket_text}",
+            f"RR inicial mínimo: {rr_text}",
+            f"Targets modificados dinámicamente: {dynamic_target_moves} | {target_reason_text}",
             f"WR: {win_rate_text}",
             f"PF: {profit_factor_text}",
+            f"Expectancy: {expectancy:+.2f} ticks/trade",
+            f"Average Win: {(average_win if average_win is not None else 0):+.2f} ticks",
+            f"Average Loss: {(average_loss if average_loss is not None else 0):+.2f} ticks",
             f"Wins: {wins_count} | Losses: {losses_count} | BE: {break_evens_count}",
             f"Net ticks: {net_ticks:+.0f}",
             f"Trades: {results_count} | TIME_OVER: {time_over_count}",

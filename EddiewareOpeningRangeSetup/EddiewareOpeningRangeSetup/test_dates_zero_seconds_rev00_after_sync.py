@@ -167,7 +167,7 @@ def run_visual_dates_rev00():
         return
 
     os.startfile(workbook_path)
-    print("Configura Replay en X1 antes de comenzar.")
+    print("Configura Replay en X10. Replay X1 está DESHABILITADO.")
 
     for index, row in enumerate(rows, 1):
         date_iso = row["Fecha"]

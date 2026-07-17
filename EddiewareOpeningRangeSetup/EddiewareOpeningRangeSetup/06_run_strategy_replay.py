@@ -36,20 +36,15 @@ def _row(path):
         return None
 
 
-def synced_dates(aplus_only):
-    """Fechas sincronizadas (X1==X10). Si aplus_only, solo las A+ Speed."""
+def x10_dates(aplus_only):
+    """Fechas Historia X10. Si aplus_only, solo las A+ Speed."""
     out = []
-    for x1 in LADDER_ROOT.glob("*/X1_R1/score_trade_result_*_NY.csv"):
-        d = re.search(r"(\d{4}-\d{2}-\d{2})", x1.name).group(1)
+    for x10 in LADDER_ROOT.glob("*/X10_R1/score_trade_result_*_NY.csv"):
+        d = re.search(r"(\d{4}-\d{2}-\d{2})", x10.name).group(1)
         if d in out:
             continue
-        x10 = x1.parent.parent / "X10_R1" / x1.name
-        if not x10.exists():
-            continue
-        r1, r10 = _row(x1), _row(x10)
-        if not r1 or not r10:
-            continue
-        if not all(str(r1.get(f, "") or "").strip() == str(r10.get(f, "") or "").strip() for f in OPER):
+        r10 = _row(x10)
+        if not r10:
             continue
         if aplus_only and str(r10.get("APlus_Speed", "")).strip().upper() != "TRUE":
             continue
@@ -67,7 +62,7 @@ def main():
     if args.dates:
         dates = sorted(set(args.dates))
     else:
-        dates = synced_dates(aplus_only=not args.all)
+        dates = x10_dates(aplus_only=not args.all)
 
     print(f"Fechas a recorrer en Replay X10 (estrategia activa): {len(dates)}")
     for d in dates:

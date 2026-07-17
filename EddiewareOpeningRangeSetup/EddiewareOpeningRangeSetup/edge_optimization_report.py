@@ -299,6 +299,8 @@ def build_filter_candidates(trades):
 
 
 def simulate_tp_sl(df, tp, sl):
+    if tp < sl:
+        raise ValueError(f"CONFIG_INVALID_RR: initial TP {tp} < initial SL {sl}")
     mfe = df["MFE_ticks_num"].to_numpy(dtype=float)
     mae = df["MAE_ticks_num"].to_numpy(dtype=float)
     actual = df["actual_ticks"].to_numpy(dtype=float)
@@ -642,6 +644,8 @@ def main():
     for cand in pruned:
         for tp in TP_GRID:
             for sl in SL_GRID:
+                if tp < sl:
+                    continue
                 row, subset = evaluate_candidate(trades, cand, tp, sl)
                 if row and row["trades"] >= 50:
                     rows.append(row)
