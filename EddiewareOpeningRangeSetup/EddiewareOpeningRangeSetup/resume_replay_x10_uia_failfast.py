@@ -17,6 +17,7 @@ from pywinauto.controls.uiawrapper import UIAWrapper
 
 import replay_sync_runner_common_after_sync as replay_sync
 from telegram_run_summary_after_sync import send_text
+from windows_run_awake import prevent_sleep
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -106,22 +107,25 @@ def main() -> int:
         "mouse fisico bloqueado | fail-fast habilitado",
         flush=True,
     )
-    try:
-        return int(runner.main() or 0)
-    except ResumeAbort as exc:
-        TARGET_FILE.write_text(exc.date_iso, encoding="utf-8")
-        message = (
-            "OR ABSORTION TEST | REANUDACION X10 DETENIDA\n"
-            f"Fecha: {exc.date_iso}\n"
-            f"Motivo: {exc.reason}\n"
-            "No se avanzo a otra fecha. Balance, resultados y Telegram fueron preservados."
-        )
-        print(message, flush=True)
+    with prevent_sleep():
+        print("KEEP_AWAKE_ACTIVE: sistema y pantalla protegidos durante la corrida", flush=True)
         try:
-            send_text(RESULTS_FOLDER, message)
-        except Exception as telegram_exc:
-            print(f"WARNING: no pude enviar alerta Telegram: {telegram_exc}", flush=True)
-        return 2
+            return int(runner.main() or 0)
+        except ResumeAbort as exc:
+            TARGET_FILE.write_text(exc.date_iso, encoding="utf-8")
+            message = (
+                "OR ABSORTION TEST | REANUDACION X10 DETENIDA\n"
+                f"Fecha: {exc.date_iso}\n"
+                f"Motivo: {exc.reason}\n"
+                "No se avanzo a otra fecha. Balance, resultados y Telegram fueron preservados.\n"
+                "Timer etapa: DETENIDA"
+            )
+            print(message, flush=True)
+            try:
+                send_text(RESULTS_FOLDER, message)
+            except Exception as telegram_exc:
+                print(f"WARNING: no pude enviar alerta Telegram: {telegram_exc}", flush=True)
+            return 2
 
 
 if __name__ == "__main__":
