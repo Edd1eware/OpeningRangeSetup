@@ -37,3 +37,17 @@ Esta muestra pequeña valida el pipeline, pero no autoriza filtros ni conclusion
 - Encabezado del informe final: `ANALISIS  FAMILIAS A, B, C, ETC.`
 
 El pipeline generará catálogo, dataset causal, estadísticas, tamaños de efecto, corrección por múltiples pruebas, modelos fuera de muestra, importancia, ablación, clustering, PCA/t-SNE, auditoría de leakage, ledger, visualizaciones y reporte final. Copiará el reporte final a esta carpeta sin sobrescribir esta nota.
+
+## Hallazgo operativo de ATAS 8.0.14.392
+
+Después de un reinicio limpio, ATAS ignoró los clics físicos de pywinauto en Start y Stop aunque ambos controles estaban habilitados. La evidencia fue determinista: tres clics físicos dejaron el título en `The playback is stopped`; la llamada UIA `Invoke` cambió inmediatamente a `Loading modules...`. El mismo mecanismo ya estaba implementado y utilizado por `trace_v23_five_trade_causality_x10.py` en la auditoría causal previa.
+
+Se añadió `replay_start_ui_supervisor.py` como proceso externo y no invasivo. El supervisor:
+
+- espera 1.5 segundos después del marcador para dar prioridad al clic normal del runner;
+- invoca Start sólo si ATAS continúa detenido;
+- espera un CSV terminal v23 idéntico durante 1.25 segundos;
+- invoca Stop únicamente después de esa estabilidad terminal;
+- nunca escribe fecha, rango, velocidad, señales, outcomes ni archivos de sincronización.
+
+La secuencia observada en la corrida definitiva fue `START_INVOKED -> resultado terminal guardado -> STOP_INVOKED_AFTER_STABLE_TERMINAL -> siguiente rango aceptado`. No se modificó `replay_sync_runner_common_after_sync.py` ni ninguna línea de su lógica de Replay.
