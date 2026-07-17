@@ -1205,6 +1205,22 @@ def parse_args():
         default="",
         help="Etiqueta corta para Telegram/reportes de una corrida seccionada.",
     )
+    parser.add_argument(
+        "--preserve-telegram-history",
+        action="store_true",
+        help=(
+            "No borra los mensajes/estado previo de Telegram al reanudar una "
+            "seccion existente. No reinicia balance ni resultados."
+        ),
+    )
+    parser.add_argument(
+        "--defer-research",
+        action="store_true",
+        help=(
+            "Completa la seccion de Replay pero aplaza ANALISIS FAMILIAS hasta "
+            "que la muestra global no tenga huecos."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -1281,9 +1297,11 @@ def main():
         print("Reiniciando resultados/Telegram para corrida desde cero...")
         reset_replay_run_state(output_folder)
 
-    if not args.compare_only:
+    if not args.compare_only and not args.preserve_telegram_history:
         print("Ejecutando limpieza unica de Telegram antes de la primera fecha...")
         clear_telegram_before_run(RESULTS_FOLDER)
+    elif not args.compare_only:
+        print("Telegram preservado: reanudacion sin borrar historial ni reiniciar balance.")
 
     progress_meta = {
         "stage_index": 1,
@@ -1327,7 +1345,16 @@ def main():
     )
 
     research_ok = False
-    if passed and not failures:
+    if args.defer_research:
+        research_ok = True
+        send_text(
+            RESULTS_FOLDER,
+            "ANALISIS  FAMILIAS A, B, C, ETC.\n"
+            "DIFERIDO: la seccion X10 reanudada termino, pero el analisis global "
+            "no se publicara hasta completar los huecos historicos pendientes.",
+        )
+        print("ANALISIS FAMILIAS diferido: se preserva la causalidad de la muestra global.")
+    elif passed and not failures:
         try:
             from absorption_breakout_research import run_analysis, send_analysis_to_telegram
 
