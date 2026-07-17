@@ -1,0 +1,30 @@
+[
+  {
+    "cycle": 1,
+    "date": "2026-03-30",
+    "mode": "Historia X10 únicamente",
+    "replay_x1": "DESHABILITADO",
+    "ok": true,
+    "reason": "",
+    "duration_seconds": 50.609,
+    "capture_count": 585,
+    "uia_start_supervisor_invoked": true,
+    "uia_start_supervisor_error": "",
+    "trial_folder": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot7\\trials\\cycle_01_2026-03-30",
+    "completed_at_utc": "2026-07-17T05:59:26.831581+00:00"
+  },
+  {
+    "cycle": 1,
+    "date": "2026-04-20",
+    "mode": "Historia X10 únicamente",
+    "replay_x1": "DESHABILITADO",
+    "ok": true,
+    "reason": "",
+    "duration_seconds": 42.14,
+    "capture_count": 956,
+    "uia_start_supervisor_invoked": true,
+    "uia_start_supervisor_error": "",
+    "trial_folder": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot7\\trials\\cycle_01_2026-04-20",
+    "completed_at_utc": "2026-07-17T06:00:09.150972+00:00"
+  }
+]

@@ -1,0 +1,18 @@
+{
+  "ExporterVersion": "score-exporter-2026-07-16-v23-liquidity-burst-entry",
+  "EntryDate": "2026-04-20T00:00:00",
+  "EntryBar": 2311,
+  "EntryTimeNy": "2026-04-20T09:31:06.7048302",
+  "Entry": 26780.00,
+  "Sl": 26795.00,
+  "Tp": 26772.50,
+  "SlTicks": 60,
+  "TpTicks": 30,
+  "Side": "SELL",
+  "Result": "TP",
+  "ExitPrice": 26772.50,
+  "ExitTimeNy": "2026-04-20T09:31:21.5353877",
+  "ExitTimeUtc": "2026-04-20T13:31:21.5353877Z",
+  "TpAndSlHitSameUpdate": false,
+  "CsvRow": "score-exporter-2026-07-16-v23-liquidity-burst-entry,2026-04-20,09:31:06,09:31:21,00:14,6,2311,26796.25,26828.75,130,26711.99,65,806,-144,1282,SessionDeltaSum,1252,1252,0,Excelente,3,0,0,1,4,0.75,1,2,Riesgo de reversion,FALSE,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,5341,189,FALSE,-333,TRUE,FALSE,A\u002B speed,9.69,6.7048,FALSE,MarketTradeTime,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE,TRUE,6,SELL,BREAKOUT,POTENTIAL_RUNNER,26795.00,26780.00,26772.50,60,30,TP,26772.50,\u002B30,0,55,0,55,0,1,0,3.7217,FALSE,FALSE,TRUE,,,0,FALSE,09:31:06.704,09:31:21.535,14830.558,FALSE,20,FALSE,,,1,\u002B28,FALSE,A\u002B speed,5,FALSE,FALSE,0,0,0,-174,-144,TRUE,3,7,0.4286,0,0,0,26795.00,26765.00,60,60,1,26795.00,26772.50,60,30,FALSE,TRUE,CVD_RISK_BRACKET_50_PERCENT,EXIT_TP_DYNAMIC_CVD_RISK_BRACKET_50_PERCENT"
+}

@@ -1,0 +1,16 @@
+[
+  {
+    "cycle": 1,
+    "date": "2026-03-30",
+    "mode": "Historia X10 únicamente",
+    "replay_x1": "DESHABILITADO",
+    "ok": true,
+    "reason": "",
+    "duration_seconds": 36.375,
+    "capture_count": 557,
+    "uia_start_supervisor_invoked": true,
+    "uia_start_supervisor_error": "",
+    "trial_folder": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot6\\trials\\cycle_01_2026-03-30",
+    "completed_at_utc": "2026-07-17T05:56:55.897737+00:00"
+  }
+]

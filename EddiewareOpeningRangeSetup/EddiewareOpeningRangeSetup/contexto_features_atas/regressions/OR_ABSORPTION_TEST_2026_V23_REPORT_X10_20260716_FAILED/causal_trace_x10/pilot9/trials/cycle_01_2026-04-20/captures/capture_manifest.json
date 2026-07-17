@@ -1,0 +1,1682 @@
+[
+  {
+    "sequence": 1,
+    "captured_at_utc": "2026-07-17T06:03:42.335847+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784259816879195900,
+    "bytes": 3748,
+    "sha256": "89a89ca39857be53db71810d01a22496a214dfd5e2c6ec9502a971913f7c1859",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000001_score_result_1784268222335847400_89a89ca39857.csv"
+  },
+  {
+    "sequence": 2,
+    "captured_at_utc": "2026-07-17T06:03:42.336858+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784259816879195900,
+    "bytes": 2030,
+    "sha256": "a88fb7e0670a2bf543ea66d3e55adac7cdb5f6cb5ddf8fdff2322673c80dbc68",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000002_dynamic_timeline_1784268222336858900_a88fb7e0670a.csv"
+  },
+  {
+    "sequence": 3,
+    "captured_at_utc": "2026-07-17T06:03:42.338845+00:00",
+    "label": "trade_inputs",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_inputs.csv",
+    "source_mtime_ns": 1784268217621764700,
+    "bytes": 41318,
+    "sha256": "cd7a39f7d674c84504f0f4efde5cf97a2a495fefd2d390b56ef89963d79b8f34",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000003_trade_inputs_1784268222337846500_cd7a39f7d674.csv"
+  },
+  {
+    "sequence": 4,
+    "captured_at_utc": "2026-07-17T06:03:42.340850+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268217637330500,
+    "bytes": 19261,
+    "sha256": "01cf989d53f3086a08df989a7fca3853b7745bc9ff44330f4932ca2c09769c01",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000004_trade_results_1784268222338845900_01cf989d53f3.csv"
+  },
+  {
+    "sequence": 5,
+    "captured_at_utc": "2026-07-17T06:03:42.341846+00:00",
+    "label": "telegram_balance",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\telegram_balance.json",
+    "source_mtime_ns": 1784268217647835700,
+    "bytes": 1601,
+    "sha256": "8385d814fcee83c770716a71f2932afc923b46bd3e7cb06b183f7e86b02687a7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000005_telegram_balance_1784268222340850200_8385d814fcee.json"
+  },
+  {
+    "sequence": 6,
+    "captured_at_utc": "2026-07-17T06:04:07.485700+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268247477687700,
+    "bytes": 3674,
+    "sha256": "c8df6775f09ea3a6417e1c617a55fcfec107e77a4a6818606fe60e0e9d51be6c",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000006_score_result_1784268247485195400_c8df6775f09e.csv"
+  },
+  {
+    "sequence": 7,
+    "captured_at_utc": "2026-07-17T06:04:07.489707+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268247474665900,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000007_dynamic_timeline_1784268247488720400_1b2dec790593.csv"
+  },
+  {
+    "sequence": 8,
+    "captured_at_utc": "2026-07-17T06:04:07.492712+00:00",
+    "label": "sync_signal",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\replay_sync_signals\\score_trade_signal_snapshot_2026-04-20_NY.json",
+    "source_mtime_ns": 1784268247471140000,
+    "bytes": 2661,
+    "sha256": "7cd0af5dc514f99158a6dac48c09f95ebf8d35febdb81075e4a0b4dc2e8a3ba5",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000008_sync_signal_1784268247491710100_7cd0af5dc514.json"
+  },
+  {
+    "sequence": 9,
+    "captured_at_utc": "2026-07-17T06:04:07.502236+00:00",
+    "label": "trade_inputs",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_inputs.csv",
+    "source_mtime_ns": 1784268247476680300,
+    "bytes": 41318,
+    "sha256": "545fb36173338b24e8bc6667b0b63aa12032072914205baceb41b1ca7d13cd84",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000009_trade_inputs_1784268247501233900_545fb3617333.csv"
+  },
+  {
+    "sequence": 10,
+    "captured_at_utc": "2026-07-17T06:04:07.507754+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268247478684300,
+    "bytes": 19213,
+    "sha256": "ad261a3d6d9a5bf59ddab6033378dcf18fdc4d118671a2692caabfc4f1cf1853",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000010_trade_results_1784268247507754200_ad261a3d6d9a.csv"
+  },
+  {
+    "sequence": 11,
+    "captured_at_utc": "2026-07-17T06:04:07.548881+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268247545879600,
+    "bytes": 1259,
+    "sha256": "3d2c0e5059692a952df785868f81e53d372b84c9fdf89eba8feb66c52e99b434",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000011_dynamic_timeline_1784268247547882200_3d2c0e505969.csv"
+  },
+  {
+    "sequence": 12,
+    "captured_at_utc": "2026-07-17T06:04:07.558413+00:00",
+    "label": "trade_inputs",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_inputs.csv",
+    "source_mtime_ns": 1784268247557418700,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000012_trade_inputs_1784268247557418700_e3b0c44298fc.csv"
+  },
+  {
+    "sequence": 13,
+    "captured_at_utc": "2026-07-17T06:04:07.580447+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268247575442100,
+    "bytes": 3726,
+    "sha256": "3cd891f4828a43988466d8a9aac60cd6c4b0e976a52d7757bed31bc55e429246",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000013_score_result_1784268247580447700_3cd891f4828a.csv"
+  },
+  {
+    "sequence": 14,
+    "captured_at_utc": "2026-07-17T06:04:07.584447+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268247548881000,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000014_dynamic_timeline_1784268247583448600_1b2dec790593.csv"
+  },
+  {
+    "sequence": 15,
+    "captured_at_utc": "2026-07-17T06:04:07.595712+00:00",
+    "label": "trade_inputs",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_inputs.csv",
+    "source_mtime_ns": 1784268247557418700,
+    "bytes": 41318,
+    "sha256": "545fb36173338b24e8bc6667b0b63aa12032072914205baceb41b1ca7d13cd84",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000015_trade_inputs_1784268247594701900_545fb3617333.csv"
+  },
+  {
+    "sequence": 16,
+    "captured_at_utc": "2026-07-17T06:04:07.600715+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268247581449100,
+    "bytes": 19265,
+    "sha256": "c3b88aa0af197391b846abf45864c45fa6d110db745a10bd5cc7d4b4458d1bb6",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000016_trade_results_1784268247600715700_c3b88aa0af19.csv"
+  },
+  {
+    "sequence": 17,
+    "captured_at_utc": "2026-07-17T06:04:07.610767+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268247597711500,
+    "bytes": 3674,
+    "sha256": "c8df6775f09ea3a6417e1c617a55fcfec107e77a4a6818606fe60e0e9d51be6c",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000017_score_result_1784268247610767400_c8df6775f09e.csv"
+  },
+  {
+    "sequence": 18,
+    "captured_at_utc": "2026-07-17T06:04:07.628814+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268247600715700,
+    "bytes": 19213,
+    "sha256": "ad261a3d6d9a5bf59ddab6033378dcf18fdc4d118671a2692caabfc4f1cf1853",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000018_trade_results_1784268247628814200_ad261a3d6d9a.csv"
+  },
+  {
+    "sequence": 19,
+    "captured_at_utc": "2026-07-17T06:04:07.694496+00:00",
+    "label": "market_feed",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\market_feed_diagnostics_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268247676544300,
+    "bytes": 897,
+    "sha256": "823d3518e679c7cd04abb5d829f33f24754af1da30452d83db1a2492f64db972",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000019_market_feed_1784268247692991500_823d3518e679.csv"
+  },
+  {
+    "sequence": 20,
+    "captured_at_utc": "2026-07-17T06:04:07.707030+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268247705026600,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000020_dynamic_timeline_1784268247705026600_e3b0c44298fc.csv"
+  },
+  {
+    "sequence": 21,
+    "captured_at_utc": "2026-07-17T06:04:07.720098+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268247708039100,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000021_dynamic_timeline_1784268247720098400_1b2dec790593.csv"
+  },
+  {
+    "sequence": 22,
+    "captured_at_utc": "2026-07-17T06:04:07.749668+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268247739130700,
+    "bytes": 3808,
+    "sha256": "3664cc259f52eb1c707051f8aef7891f0cb04a6e749af7a8626b20a5e5929097",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000022_score_result_1784268247748660500_3664cc259f52.csv"
+  },
+  {
+    "sequence": 23,
+    "captured_at_utc": "2026-07-17T06:04:07.758163+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268247742134800,
+    "bytes": 19266,
+    "sha256": "e6b18fe1b00eaf7bf3007a2a5b77f358c1540952c5059f2e2fc35524a29138de",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000023_trade_results_1784268247757162300_e6b18fe1b00e.csv"
+  },
+  {
+    "sequence": 24,
+    "captured_at_utc": "2026-07-17T06:04:07.760168+00:00",
+    "label": "market_feed",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\market_feed_diagnostics_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268247733617900,
+    "bytes": 897,
+    "sha256": "e2459b7b0a3d8b78bab3ad5eba7b676d732d5d21726b12212fd3110b224c34d7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000024_market_feed_1784268247760168000_e2459b7b0a3d.csv"
+  },
+  {
+    "sequence": 25,
+    "captured_at_utc": "2026-07-17T06:04:07.768689+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268247762165000,
+    "bytes": 3762,
+    "sha256": "de89273661d0f5907b6652e6aac828ccac67776599a268ac5aa6b3c02a8e1297",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000025_dynamic_timeline_1784268247768689900_de89273661d0.csv"
+  },
+  {
+    "sequence": 26,
+    "captured_at_utc": "2026-07-17T06:04:07.784709+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268247778200200,
+    "bytes": 3674,
+    "sha256": "c8df6775f09ea3a6417e1c617a55fcfec107e77a4a6818606fe60e0e9d51be6c",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000026_score_result_1784268247783196200_c8df6775f09e.csv"
+  },
+  {
+    "sequence": 27,
+    "captured_at_utc": "2026-07-17T06:04:07.788721+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268247771691200,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000027_dynamic_timeline_1784268247787716900_1b2dec790593.csv"
+  },
+  {
+    "sequence": 28,
+    "captured_at_utc": "2026-07-17T06:04:07.802752+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268247779199200,
+    "bytes": 19213,
+    "sha256": "ad261a3d6d9a5bf59ddab6033378dcf18fdc4d118671a2692caabfc4f1cf1853",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000028_trade_results_1784268247801751100_ad261a3d6d9a.csv"
+  },
+  {
+    "sequence": 29,
+    "captured_at_utc": "2026-07-17T06:04:07.807274+00:00",
+    "label": "market_feed",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\market_feed_diagnostics_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268247788721100,
+    "bytes": 897,
+    "sha256": "58678f488408b406159e404e4839d6cbaff23aa7d69a3e3ac0ced3af89af918f",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000029_market_feed_1784268247806278600_58678f488408.csv"
+  },
+  {
+    "sequence": 30,
+    "captured_at_utc": "2026-07-17T06:04:07.814303+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268247796232100,
+    "bytes": 3841,
+    "sha256": "4c8902dfb599d6d25ec816b8239e11320a6db62d89038be932649d0a21108ad5",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000030_score_result_1784268247811796200_4c8902dfb599.csv"
+  },
+  {
+    "sequence": 31,
+    "captured_at_utc": "2026-07-17T06:04:07.823313+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268247802752000,
+    "bytes": 19268,
+    "sha256": "28f591f2b2cc67e024bf83e28b4328d118a10b3d9ba13d783c248f1441798994",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000031_trade_results_1784268247822315700_28f591f2b2cc.csv"
+  },
+  {
+    "sequence": 32,
+    "captured_at_utc": "2026-07-17T06:04:07.846887+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268247828840400,
+    "bytes": 19213,
+    "sha256": "ad261a3d6d9a5bf59ddab6033378dcf18fdc4d118671a2692caabfc4f1cf1853",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000032_trade_results_1784268247845896700_ad261a3d6d9a.csv"
+  },
+  {
+    "sequence": 33,
+    "captured_at_utc": "2026-07-17T06:04:07.859412+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268247847887400,
+    "bytes": 3674,
+    "sha256": "c8df6775f09ea3a6417e1c617a55fcfec107e77a4a6818606fe60e0e9d51be6c",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000033_score_result_1784268247859412700_c8df6775f09e.csv"
+  },
+  {
+    "sequence": 34,
+    "captured_at_utc": "2026-07-17T06:04:07.863407+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268247862403000,
+    "bytes": 2038,
+    "sha256": "499dc97c975a1aaa5c72a2ff1cfc390fe410878c60a274c717d7f4c9b9bf16fb",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000034_dynamic_timeline_1784268247862403000_499dc97c975a.csv"
+  },
+  {
+    "sequence": 35,
+    "captured_at_utc": "2026-07-17T06:04:07.897488+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268247894475700,
+    "bytes": 2043,
+    "sha256": "4fc51e6004850354d4368ce7ac27403c9bb30d55b7e549bb63be642aac048d2e",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000035_dynamic_timeline_1784268247897488800_4fc51e600485.csv"
+  },
+  {
+    "sequence": 36,
+    "captured_at_utc": "2026-07-17T06:04:07.931118+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268247900492600,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000036_dynamic_timeline_1784268247930115800_1b2dec790593.csv"
+  },
+  {
+    "sequence": 37,
+    "captured_at_utc": "2026-07-17T06:04:08.010326+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268248001289200,
+    "bytes": 19271,
+    "sha256": "448078090975c8944fdc584940d9fc8c1610fdd7abc7adc39f1e91690934820a",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000037_trade_results_1784268248008812100_448078090975.csv"
+  },
+  {
+    "sequence": 38,
+    "captured_at_utc": "2026-07-17T06:04:08.012878+00:00",
+    "label": "market_feed",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\market_feed_diagnostics_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268248011875900,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000038_market_feed_1784268248012878500_e3b0c44298fc.csv"
+  },
+  {
+    "sequence": 39,
+    "captured_at_utc": "2026-07-17T06:04:08.020411+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268247995285500,
+    "bytes": 3732,
+    "sha256": "6c02f15e14774b260f1b653e5baf60d57b0cd04e4e86dbcdab4306e79157fb8e",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000039_score_result_1784268248019403600_6c02f15e1477.csv"
+  },
+  {
+    "sequence": 40,
+    "captured_at_utc": "2026-07-17T06:04:08.035466+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268248022410200,
+    "bytes": 19213,
+    "sha256": "ad261a3d6d9a5bf59ddab6033378dcf18fdc4d118671a2692caabfc4f1cf1853",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000040_trade_results_1784268248034447900_ad261a3d6d9a.csv"
+  },
+  {
+    "sequence": 41,
+    "captured_at_utc": "2026-07-17T06:04:08.039458+00:00",
+    "label": "market_feed",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\market_feed_diagnostics_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268248030927800,
+    "bytes": 897,
+    "sha256": "846f8c813e173969ce672cb97d600bee585d0447fb41cf94b30bd20cfa908c62",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000041_market_feed_1784268248038468900_846f8c813e17.csv"
+  },
+  {
+    "sequence": 42,
+    "captured_at_utc": "2026-07-17T06:04:08.054488+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268248043461100,
+    "bytes": 3674,
+    "sha256": "c8df6775f09ea3a6417e1c617a55fcfec107e77a4a6818606fe60e0e9d51be6c",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000042_score_result_1784268248054488300_c8df6775f09e.csv"
+  },
+  {
+    "sequence": 43,
+    "captured_at_utc": "2026-07-17T06:04:08.154711+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268248153714500,
+    "bytes": 2043,
+    "sha256": "a336272552e92557797f44a777e4afe4fb7f6e9b79ea85a1a559dd18fcbe5d3d",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000043_dynamic_timeline_1784268248153714500_a336272552e9.csv"
+  },
+  {
+    "sequence": 44,
+    "captured_at_utc": "2026-07-17T06:04:08.184344+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268248160239300,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000044_dynamic_timeline_1784268248184344700_1b2dec790593.csv"
+  },
+  {
+    "sequence": 45,
+    "captured_at_utc": "2026-07-17T06:04:08.311752+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268248310743400,
+    "bytes": 2048,
+    "sha256": "be0e196464d6ead583f0b178b499784802abbdd128cae02dfc70d4542e565782",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000045_dynamic_timeline_1784268248310743400_be0e196464d6.csv"
+  },
+  {
+    "sequence": 46,
+    "captured_at_utc": "2026-07-17T06:04:08.343326+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268248316262600,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000046_dynamic_timeline_1784268248342328800_1b2dec790593.csv"
+  },
+  {
+    "sequence": 47,
+    "captured_at_utc": "2026-07-17T06:04:08.468754+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268248466755000,
+    "bytes": 2018,
+    "sha256": "34f2169b9714e5bb5d066ce124e5fe5bc3d71c14eee5be9428582908c6ba03c1",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000047_dynamic_timeline_1784268248467754000_34f2169b9714.csv"
+  },
+  {
+    "sequence": 48,
+    "captured_at_utc": "2026-07-17T06:04:08.498845+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268248474269000,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000048_dynamic_timeline_1784268248497842500_1b2dec790593.csv"
+  },
+  {
+    "sequence": 49,
+    "captured_at_utc": "2026-07-17T06:04:08.627201+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268248626195300,
+    "bytes": 2021,
+    "sha256": "834b2400d992168f0cb3de3bb6a2b650eafb22c0af1c362d8df0cb05c8b414ca",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000049_dynamic_timeline_1784268248626195300_834b2400d992.csv"
+  },
+  {
+    "sequence": 50,
+    "captured_at_utc": "2026-07-17T06:04:08.658280+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268248630205600,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000050_dynamic_timeline_1784268248655299200_1b2dec790593.csv"
+  },
+  {
+    "sequence": 51,
+    "captured_at_utc": "2026-07-17T06:04:08.816324+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268248815321400,
+    "bytes": 2413,
+    "sha256": "9dc562ee68ee80c961d5ffdfc8cd0ed5b179b840b9f3b907de6807a3d4d0b792",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000051_dynamic_timeline_1784268248815321400_9dc562ee68ee.csv"
+  },
+  {
+    "sequence": 52,
+    "captured_at_utc": "2026-07-17T06:04:08.846418+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268248821325300,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000052_dynamic_timeline_1784268248845430900_1b2dec790593.csv"
+  },
+  {
+    "sequence": 53,
+    "captured_at_utc": "2026-07-17T06:04:08.876990+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268248875989700,
+    "bytes": 2023,
+    "sha256": "500b80f90e880b91092ec7035f83110deb7b0e87d546c3947b656b0bdf952cc8",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000053_dynamic_timeline_1784268248876990900_500b80f90e88.csv"
+  },
+  {
+    "sequence": 54,
+    "captured_at_utc": "2026-07-17T06:04:08.905548+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268248880982700,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000054_dynamic_timeline_1784268248905548900_1b2dec790593.csv"
+  },
+  {
+    "sequence": 55,
+    "captured_at_utc": "2026-07-17T06:04:08.940651+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268248940651000,
+    "bytes": 1259,
+    "sha256": "3d2c0e5059692a952df785868f81e53d372b84c9fdf89eba8feb66c52e99b434",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000055_dynamic_timeline_1784268248940651000_3d2c0e505969.csv"
+  },
+  {
+    "sequence": 56,
+    "captured_at_utc": "2026-07-17T06:04:08.974726+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268248942642600,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000056_dynamic_timeline_1784268248973729300_1b2dec790593.csv"
+  },
+  {
+    "sequence": 57,
+    "captured_at_utc": "2026-07-17T06:04:09.161289+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268249161289200,
+    "bytes": 2053,
+    "sha256": "52e19c35eb1401bde3ff89762c1950dfe3cb84b5c3927010df8660b2d36c5336",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000057_dynamic_timeline_1784268249161289200_52e19c35eb14.csv"
+  },
+  {
+    "sequence": 58,
+    "captured_at_utc": "2026-07-17T06:04:09.192842+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268249167812900,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000058_dynamic_timeline_1784268249192842300_1b2dec790593.csv"
+  },
+  {
+    "sequence": 59,
+    "captured_at_utc": "2026-07-17T06:04:09.303138+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268249302144000,
+    "bytes": 1259,
+    "sha256": "3d2c0e5059692a952df785868f81e53d372b84c9fdf89eba8feb66c52e99b434",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000059_dynamic_timeline_1784268249303138900_3d2c0e505969.csv"
+  },
+  {
+    "sequence": 60,
+    "captured_at_utc": "2026-07-17T06:04:09.334266+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268249305667100,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000060_dynamic_timeline_1784268249331751500_1b2dec790593.csv"
+  },
+  {
+    "sequence": 61,
+    "captured_at_utc": "2026-07-17T06:04:09.460183+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268249459185400,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000061_dynamic_timeline_1784268249459185400_e3b0c44298fc.csv"
+  },
+  {
+    "sequence": 62,
+    "captured_at_utc": "2026-07-17T06:04:09.490787+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268249462185500,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000062_dynamic_timeline_1784268249489786200_1b2dec790593.csv"
+  },
+  {
+    "sequence": 63,
+    "captured_at_utc": "2026-07-17T06:04:09.526386+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268249525390700,
+    "bytes": 1259,
+    "sha256": "3d2c0e5059692a952df785868f81e53d372b84c9fdf89eba8feb66c52e99b434",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000063_dynamic_timeline_1784268249525390700_3d2c0e505969.csv"
+  },
+  {
+    "sequence": 64,
+    "captured_at_utc": "2026-07-17T06:04:09.557483+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268249527383100,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000064_dynamic_timeline_1784268249556488100_1b2dec790593.csv"
+  },
+  {
+    "sequence": 65,
+    "captured_at_utc": "2026-07-17T06:04:09.586601+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268249585613200,
+    "bytes": 2052,
+    "sha256": "7a8c2e19ac82ccf92a1a68020bc8b91fcf5da6a408db69425357895f85dd4c3e",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000065_dynamic_timeline_1784268249586601800_7a8c2e19ac82.csv"
+  },
+  {
+    "sequence": 66,
+    "captured_at_utc": "2026-07-17T06:04:09.620687+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268249619697000,
+    "bytes": 2052,
+    "sha256": "7ebeec628d194174c0406aaef77792cadc4e19b068ee62652d543dd0e3d7ebc9",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000066_dynamic_timeline_1784268249619697000_7ebeec628d19.csv"
+  },
+  {
+    "sequence": 67,
+    "captured_at_utc": "2026-07-17T06:04:09.650287+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268249628226500,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000067_dynamic_timeline_1784268249649286300_1b2dec790593.csv"
+  },
+  {
+    "sequence": 68,
+    "captured_at_utc": "2026-07-17T06:04:09.715031+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268249714522600,
+    "bytes": 2052,
+    "sha256": "19bbd85326cc5bddd216a7ae9e368abe26894863012ba4d367cef24b061c5af0",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000068_dynamic_timeline_1784268249715031600_19bbd85326cc.csv"
+  },
+  {
+    "sequence": 69,
+    "captured_at_utc": "2026-07-17T06:04:09.746122+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268249721036900,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000069_dynamic_timeline_1784268249745116600_1b2dec790593.csv"
+  },
+  {
+    "sequence": 70,
+    "captured_at_utc": "2026-07-17T06:04:09.778696+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268249777700700,
+    "bytes": 1259,
+    "sha256": "3d2c0e5059692a952df785868f81e53d372b84c9fdf89eba8feb66c52e99b434",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000070_dynamic_timeline_1784268249778696300_3d2c0e505969.csv"
+  },
+  {
+    "sequence": 71,
+    "captured_at_utc": "2026-07-17T06:04:09.788211+00:00",
+    "label": "trade_inputs",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_inputs.csv",
+    "source_mtime_ns": 1784268249788211800,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000071_trade_inputs_1784268249788211800_e3b0c44298fc.csv"
+  },
+  {
+    "sequence": 72,
+    "captured_at_utc": "2026-07-17T06:04:09.808762+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268249779701800,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000072_dynamic_timeline_1784268249807761000_1b2dec790593.csv"
+  },
+  {
+    "sequence": 73,
+    "captured_at_utc": "2026-07-17T06:04:09.814804+00:00",
+    "label": "trade_inputs",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_inputs.csv",
+    "source_mtime_ns": 1784268249788211800,
+    "bytes": 41318,
+    "sha256": "545fb36173338b24e8bc6667b0b63aa12032072914205baceb41b1ca7d13cd84",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000073_trade_inputs_1784268249814804800_545fb3617333.csv"
+  },
+  {
+    "sequence": 74,
+    "captured_at_utc": "2026-07-17T06:04:09.935632+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268249934619000,
+    "bytes": 1259,
+    "sha256": "3d2c0e5059692a952df785868f81e53d372b84c9fdf89eba8feb66c52e99b434",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000074_dynamic_timeline_1784268249935632400_3d2c0e505969.csv"
+  },
+  {
+    "sequence": 75,
+    "captured_at_utc": "2026-07-17T06:04:10.000580+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268249999576900,
+    "bytes": 2052,
+    "sha256": "082ad3f97bbcd2986a2422830daea12ec6d3a3db2870f55ab4745ada380dde1b",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000075_dynamic_timeline_1784268249999576900_082ad3f97bbc.csv"
+  },
+  {
+    "sequence": 76,
+    "captured_at_utc": "2026-07-17T06:04:10.028152+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268250006102200,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000076_dynamic_timeline_1784268250027154600_1b2dec790593.csv"
+  },
+  {
+    "sequence": 77,
+    "captured_at_utc": "2026-07-17T06:04:10.218137+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268250216121200,
+    "bytes": 2052,
+    "sha256": "0f751bb0160390739b59e3cadf8194d683d7b82e204a1ef24da6cbee1f33ad63",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000077_dynamic_timeline_1784268250218137400_0f751bb01603.csv"
+  },
+  {
+    "sequence": 78,
+    "captured_at_utc": "2026-07-17T06:04:10.251719+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268250250723300,
+    "bytes": 1259,
+    "sha256": "3d2c0e5059692a952df785868f81e53d372b84c9fdf89eba8feb66c52e99b434",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000078_dynamic_timeline_1784268250251719500_3d2c0e505969.csv"
+  },
+  {
+    "sequence": 79,
+    "captured_at_utc": "2026-07-17T06:04:10.277829+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268250253726500,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000079_dynamic_timeline_1784268250276823700_1b2dec790593.csv"
+  },
+  {
+    "sequence": 80,
+    "captured_at_utc": "2026-07-17T06:04:10.317473+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268250314461300,
+    "bytes": 1259,
+    "sha256": "3d2c0e5059692a952df785868f81e53d372b84c9fdf89eba8feb66c52e99b434",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000080_dynamic_timeline_1784268250315484600_3d2c0e505969.csv"
+  },
+  {
+    "sequence": 81,
+    "captured_at_utc": "2026-07-17T06:04:10.347575+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268250318482500,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000081_dynamic_timeline_1784268250346570800_1b2dec790593.csv"
+  },
+  {
+    "sequence": 82,
+    "captured_at_utc": "2026-07-17T06:04:10.569568+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268250568570000,
+    "bytes": 1259,
+    "sha256": "3d2c0e5059692a952df785868f81e53d372b84c9fdf89eba8feb66c52e99b434",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000082_dynamic_timeline_1784268250568570000_3d2c0e505969.csv"
+  },
+  {
+    "sequence": 83,
+    "captured_at_utc": "2026-07-17T06:04:10.599638+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268250571568400,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000083_dynamic_timeline_1784268250598638400_1b2dec790593.csv"
+  },
+  {
+    "sequence": 84,
+    "captured_at_utc": "2026-07-17T06:04:10.631715+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268250630207300,
+    "bytes": 2020,
+    "sha256": "cf734197158597bd9798947eacce9f2db6d3efca20d5682e1d7e6571bfb7098a",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000084_dynamic_timeline_1784268250631205100_cf7341971585.csv"
+  },
+  {
+    "sequence": 85,
+    "captured_at_utc": "2026-07-17T06:04:10.664791+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268250637232700,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000085_dynamic_timeline_1784268250664276100_1b2dec790593.csv"
+  },
+  {
+    "sequence": 86,
+    "captured_at_utc": "2026-07-17T06:04:10.712424+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268250711424900,
+    "bytes": 2023,
+    "sha256": "441e193078458ea41f84cdb27c44d5abab6d7a0de38f34571f00dafb098d5124",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000086_dynamic_timeline_1784268250712424500_441e19307845.csv"
+  },
+  {
+    "sequence": 87,
+    "captured_at_utc": "2026-07-17T06:04:10.741017+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268250716459900,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000087_dynamic_timeline_1784268250741017700_1b2dec790593.csv"
+  },
+  {
+    "sequence": 88,
+    "captured_at_utc": "2026-07-17T06:04:10.775091+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268250773578700,
+    "bytes": 2021,
+    "sha256": "d2fb42214108ee5f5cd42fd52263ad1e3f80c37b14512ecb7c22dfcafc9d887a",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000088_dynamic_timeline_1784268250775091500_d2fb42214108.csv"
+  },
+  {
+    "sequence": 89,
+    "captured_at_utc": "2026-07-17T06:04:10.805197+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268250804683100,
+    "bytes": 2411,
+    "sha256": "314bffd05189ac4795a7dc2147fda71e0e575b5eb9105b80789a725b0196ce1a",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000089_dynamic_timeline_1784268250805197500_314bffd05189.csv"
+  },
+  {
+    "sequence": 90,
+    "captured_at_utc": "2026-07-17T06:04:10.839298+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268250835296500,
+    "bytes": 2403,
+    "sha256": "38f498587f5126cfd55d6a4754964c016878f2ca96d28f869f06bfa8e0678af1",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000090_dynamic_timeline_1784268250838298300_38f498587f51.csv"
+  },
+  {
+    "sequence": 91,
+    "captured_at_utc": "2026-07-17T06:04:10.870381+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268250840821000,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000091_dynamic_timeline_1784268250870381800_1b2dec790593.csv"
+  },
+  {
+    "sequence": 92,
+    "captured_at_utc": "2026-07-17T06:04:10.933028+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268250932028100,
+    "bytes": 2412,
+    "sha256": "72fc7e53843455ddc30d79ae8dee81c83e1784092d079a6a1df93bcb81e8f771",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000092_dynamic_timeline_1784268250933028700_72fc7e538434.csv"
+  },
+  {
+    "sequence": 93,
+    "captured_at_utc": "2026-07-17T06:04:10.965112+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268250963606800,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000093_dynamic_timeline_1784268250964602200_1b2dec790593.csv"
+  },
+  {
+    "sequence": 94,
+    "captured_at_utc": "2026-07-17T06:04:10.996260+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268250995240300,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000094_dynamic_timeline_1784268250995240300_e3b0c44298fc.csv"
+  },
+  {
+    "sequence": 95,
+    "captured_at_utc": "2026-07-17T06:04:11.024301+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251023308800,
+    "bytes": 2023,
+    "sha256": "e95a1cd59d2a505efa60158bf1318b9a8a78cc9292c86cd5b9266edf7e6c9ba2",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000095_dynamic_timeline_1784268251023308800_e95a1cd59d2a.csv"
+  },
+  {
+    "sequence": 96,
+    "captured_at_utc": "2026-07-17T06:04:11.042353+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251028821000,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000096_dynamic_timeline_1784268251042353000_1b2dec790593.csv"
+  },
+  {
+    "sequence": 97,
+    "captured_at_utc": "2026-07-17T06:04:11.134640+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251133131500,
+    "bytes": 2026,
+    "sha256": "cc00e6e83c629c00b8d792c5918f6127cb66e0fe7d599d673d9bcd824f3ecc81",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000097_dynamic_timeline_1784268251133131500_cc00e6e83c62.csv"
+  },
+  {
+    "sequence": 98,
+    "captured_at_utc": "2026-07-17T06:04:11.145163+00:00",
+    "label": "trade_inputs",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_inputs.csv",
+    "source_mtime_ns": 1784268251144652200,
+    "bytes": 40960,
+    "sha256": "64b3d9b03f98e9daec20f51e113f446b1993a7852dae675bb448445a3388050c",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000098_trade_inputs_1784268251144652200_64b3d9b03f98.csv"
+  },
+  {
+    "sequence": 99,
+    "captured_at_utc": "2026-07-17T06:04:11.168435+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251137649400,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000099_dynamic_timeline_1784268251167444100_1b2dec790593.csv"
+  },
+  {
+    "sequence": 100,
+    "captured_at_utc": "2026-07-17T06:04:11.178946+00:00",
+    "label": "trade_inputs",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_inputs.csv",
+    "source_mtime_ns": 1784268251144652200,
+    "bytes": 41318,
+    "sha256": "545fb36173338b24e8bc6667b0b63aa12032072914205baceb41b1ca7d13cd84",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000100_trade_inputs_1784268251177946200_545fb3617333.csv"
+  },
+  {
+    "sequence": 101,
+    "captured_at_utc": "2026-07-17T06:04:11.233370+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251231367600,
+    "bytes": 2025,
+    "sha256": "c47743ad445f0417ac4ee16ad7217df21a3b522a122e3c480243fd5dd3f880bd",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000101_dynamic_timeline_1784268251232373300_c47743ad445f.csv"
+  },
+  {
+    "sequence": 102,
+    "captured_at_utc": "2026-07-17T06:04:11.261455+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251259456900,
+    "bytes": 1259,
+    "sha256": "3d2c0e5059692a952df785868f81e53d372b84c9fdf89eba8feb66c52e99b434",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000102_dynamic_timeline_1784268251260453000_3d2c0e505969.csv"
+  },
+  {
+    "sequence": 103,
+    "captured_at_utc": "2026-07-17T06:04:11.297547+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251296552400,
+    "bytes": 2026,
+    "sha256": "7f9955464ddf41c68474ec654175babc2c732dae6355d73b380f00f50fee8246",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000103_dynamic_timeline_1784268251296552400_7f9955464ddf.csv"
+  },
+  {
+    "sequence": 104,
+    "captured_at_utc": "2026-07-17T06:04:11.310587+00:00",
+    "label": "market_feed",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\market_feed_diagnostics_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251288026200,
+    "bytes": 898,
+    "sha256": "b4c25cf2f40060f5d36ac5928cf99adfed7c76292b5c830a1aecc85c3a58bc20",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000104_market_feed_1784268251310587700_b4c25cf2f400.csv"
+  },
+  {
+    "sequence": 105,
+    "captured_at_utc": "2026-07-17T06:04:11.387267+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251385266300,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000105_dynamic_timeline_1784268251386276300_1b2dec790593.csv"
+  },
+  {
+    "sequence": 106,
+    "captured_at_utc": "2026-07-17T06:04:11.528760+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251527760000,
+    "bytes": 1259,
+    "sha256": "3d2c0e5059692a952df785868f81e53d372b84c9fdf89eba8feb66c52e99b434",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000106_dynamic_timeline_1784268251527760000_3d2c0e505969.csv"
+  },
+  {
+    "sequence": 107,
+    "captured_at_utc": "2026-07-17T06:04:11.564839+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251562322200,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000107_dynamic_timeline_1784268251564839900_1b2dec790593.csv"
+  },
+  {
+    "sequence": 108,
+    "captured_at_utc": "2026-07-17T06:04:11.626525+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251625528300,
+    "bytes": 2026,
+    "sha256": "4504da762f6c8b6f5b9de86bbd252a7b0c07f135ee99b487a44d98723332a1d6",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000108_dynamic_timeline_1784268251626525600_4504da762f6c.csv"
+  },
+  {
+    "sequence": 109,
+    "captured_at_utc": "2026-07-17T06:04:11.658981+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251630520800,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000109_dynamic_timeline_1784268251657980700_1b2dec790593.csv"
+  },
+  {
+    "sequence": 110,
+    "captured_at_utc": "2026-07-17T06:04:11.671502+00:00",
+    "label": "market_feed",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\market_feed_diagnostics_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251657980700,
+    "bytes": 898,
+    "sha256": "568aa71741a1f008bbc1f3c8f9865996e566a0081b7da7069882fb1cf14e14e9",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000110_market_feed_1784268251670503500_568aa71741a1.csv"
+  },
+  {
+    "sequence": 111,
+    "captured_at_utc": "2026-07-17T06:04:11.685087+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251679559000,
+    "bytes": 3816,
+    "sha256": "d0d9e0e6041a12b149a6794cc27fc5de5080661ee14ce61b2daa68fcd90d49ba",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000111_score_result_1784268251685087500_d0d9e0e6041a.csv"
+  },
+  {
+    "sequence": 112,
+    "captured_at_utc": "2026-07-17T06:04:11.690101+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251679559000,
+    "bytes": 3245,
+    "sha256": "37ae0f1cca9ebee8be05d239567bcd5eb5587a7452223eca4102ccec828d6a39",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000112_dynamic_timeline_1784268251689093400_37ae0f1cca9e.csv"
+  },
+  {
+    "sequence": 113,
+    "captured_at_utc": "2026-07-17T06:04:11.692093+00:00",
+    "label": "sync_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\replay_sync_results\\score_trade_result_snapshot_2026-04-20_NY.json",
+    "source_mtime_ns": 1784268251679559000,
+    "bytes": 1276,
+    "sha256": "2949fe4ac12c47a8e236361b9e0f45a277239b02692361c236af518c56ce18e5",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000113_sync_result_1784268251691091800_2949fe4ac12c.json"
+  },
+  {
+    "sequence": 114,
+    "captured_at_utc": "2026-07-17T06:04:11.698612+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268251687094000,
+    "bytes": 19337,
+    "sha256": "c8f5692138c35f52422c4b96e5780055ae9c922729451f2ce88e4a5de086511a",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000114_trade_results_1784268251697612700_c8f5692138c3.csv"
+  },
+  {
+    "sequence": 115,
+    "captured_at_utc": "2026-07-17T06:04:11.701917+00:00",
+    "label": "market_feed",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\market_feed_diagnostics_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251677568500,
+    "bytes": 933,
+    "sha256": "2fb917cfbcb874eddea67dc38d3ace1acc1019c83780611de3c5b2e03b97a037",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000115_market_feed_1784268251700609800_2fb917cfbcb8.csv"
+  },
+  {
+    "sequence": 116,
+    "captured_at_utc": "2026-07-17T06:04:11.719606+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251710456900,
+    "bytes": 3674,
+    "sha256": "c8df6775f09ea3a6417e1c617a55fcfec107e77a4a6818606fe60e0e9d51be6c",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000116_score_result_1784268251718605500_c8df6775f09e.csv"
+  },
+  {
+    "sequence": 117,
+    "captured_at_utc": "2026-07-17T06:04:11.722621+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251708446100,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000117_dynamic_timeline_1784268251722621100_1b2dec790593.csv"
+  },
+  {
+    "sequence": 118,
+    "captured_at_utc": "2026-07-17T06:04:11.738157+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268251729647700,
+    "bytes": 19275,
+    "sha256": "6607c2e56be34b11f2b23557614bef2cc2b4f8f8f4cad4a35aae8bfcb9f520a8",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000118_trade_results_1784268251736157800_6607c2e56be3.csv"
+  },
+  {
+    "sequence": 119,
+    "captured_at_utc": "2026-07-17T06:04:11.742156+00:00",
+    "label": "market_feed",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\market_feed_diagnostics_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251738157300,
+    "bytes": 898,
+    "sha256": "b5c3b5701d556ca5a10d041b0190f2f37430c83b958abb82ead8aa6d8ed54b03",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000119_market_feed_1784268251741158900_b5c3b5701d55.csv"
+  },
+  {
+    "sequence": 120,
+    "captured_at_utc": "2026-07-17T06:04:11.744661+00:00",
+    "label": "telegram_balance",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\telegram_balance.json",
+    "source_mtime_ns": 1784268251741158900,
+    "bytes": 1600,
+    "sha256": "5c5e30acd8c4663c963678eac1d92f84301ebdd3b1c610857bb3ffe2b997de75",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000120_telegram_balance_1784268251743152200_5c5e30acd8c4.json"
+  },
+  {
+    "sequence": 121,
+    "captured_at_utc": "2026-07-17T06:04:11.765912+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251764902300,
+    "bytes": 3816,
+    "sha256": "d0d9e0e6041a12b149a6794cc27fc5de5080661ee14ce61b2daa68fcd90d49ba",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000121_score_result_1784268251764902300_d0d9e0e6041a.csv"
+  },
+  {
+    "sequence": 122,
+    "captured_at_utc": "2026-07-17T06:04:11.768908+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251763388900,
+    "bytes": 2029,
+    "sha256": "8bfa0428334425c9dbb78bfbf47318754e6514bafba10a2ef8dd9e99025a073e",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000122_dynamic_timeline_1784268251768908400_8bfa04283344.csv"
+  },
+  {
+    "sequence": 123,
+    "captured_at_utc": "2026-07-17T06:04:11.782431+00:00",
+    "label": "market_feed",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\market_feed_diagnostics_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251778430700,
+    "bytes": 898,
+    "sha256": "c6449809a0dc020d2599dea17661873b201c905d1220fb27991c2f5a7fc78208",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000123_market_feed_1784268251782431300_c6449809a0dc.csv"
+  },
+  {
+    "sequence": 124,
+    "captured_at_utc": "2026-07-17T06:04:11.796472+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251786945300,
+    "bytes": 3674,
+    "sha256": "c8df6775f09ea3a6417e1c617a55fcfec107e77a4a6818606fe60e0e9d51be6c",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000124_score_result_1784268251794462200_c8df6775f09e.csv"
+  },
+  {
+    "sequence": 125,
+    "captured_at_utc": "2026-07-17T06:04:11.799474+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251798475000,
+    "bytes": 2029,
+    "sha256": "7716319602c7591713800323276e21cd848a03171aa7d2d6c8fbf8ede0e8b366",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000125_dynamic_timeline_1784268251798475000_7716319602c7.csv"
+  },
+  {
+    "sequence": 126,
+    "captured_at_utc": "2026-07-17T06:04:11.812986+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268251803472000,
+    "bytes": 19275,
+    "sha256": "84429c5567e41365eb821fad8eae386a2f52e36a9cdb3c0232e42609e8f2780a",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000126_trade_results_1784268251811982900_84429c5567e4.csv"
+  },
+  {
+    "sequence": 127,
+    "captured_at_utc": "2026-07-17T06:04:11.816015+00:00",
+    "label": "market_feed",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\market_feed_diagnostics_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251811982900,
+    "bytes": 898,
+    "sha256": "68b336ce07aba697ebab1b567a059438d2474b0ac9c7a6124caff78e11961f36",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000127_market_feed_1784268251815503100_68b336ce07ab.csv"
+  },
+  {
+    "sequence": 128,
+    "captured_at_utc": "2026-07-17T06:04:11.831535+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251819017600,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000128_dynamic_timeline_1784268251831535200_1b2dec790593.csv"
+  },
+  {
+    "sequence": 129,
+    "captured_at_utc": "2026-07-17T06:04:11.845589+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268251839056700,
+    "bytes": 19275,
+    "sha256": "2d98de17a138aa9ebcb799a6db47b820c43840ca25cc024413b55a2f549d485b",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000129_trade_results_1784268251844576000_2d98de17a138.csv"
+  },
+  {
+    "sequence": 130,
+    "captured_at_utc": "2026-07-17T06:04:11.847588+00:00",
+    "label": "market_feed",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\market_feed_diagnostics_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251830538600,
+    "bytes": 898,
+    "sha256": "4df4c72797545a213e87b26ff1bc2cfddad9aa1ab4fd8f2abe38dea36e469020",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000130_market_feed_1784268251847588700_4df4c7279754.csv"
+  },
+  {
+    "sequence": 131,
+    "captured_at_utc": "2026-07-17T06:04:11.860113+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251832535700,
+    "bytes": 3816,
+    "sha256": "d0d9e0e6041a12b149a6794cc27fc5de5080661ee14ce61b2daa68fcd90d49ba",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000131_score_result_1784268251859116400_d0d9e0e6041a.csv"
+  },
+  {
+    "sequence": 132,
+    "captured_at_utc": "2026-07-17T06:04:11.876169+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268251863116900,
+    "bytes": 19213,
+    "sha256": "ad261a3d6d9a5bf59ddab6033378dcf18fdc4d118671a2692caabfc4f1cf1853",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000132_trade_results_1784268251876169100_ad261a3d6d9a.csv"
+  },
+  {
+    "sequence": 133,
+    "captured_at_utc": "2026-07-17T06:04:11.879170+00:00",
+    "label": "market_feed",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\market_feed_diagnostics_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251872655500,
+    "bytes": 898,
+    "sha256": "a7baee03a377562f8a6126a8198149170724d23e405e01470efa9594a8559a56",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000133_market_feed_1784268251879170000_a7baee03a377.csv"
+  },
+  {
+    "sequence": 134,
+    "captured_at_utc": "2026-07-17T06:04:11.890701+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251872655500,
+    "bytes": 2029,
+    "sha256": "9a42849591610665c8b2e1d961b3633e7b11da54d94f13c956cc694510ec2191",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000134_dynamic_timeline_1784268251889700500_9a4284959161.csv"
+  },
+  {
+    "sequence": 135,
+    "captured_at_utc": "2026-07-17T06:04:11.896226+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268251878172100,
+    "bytes": 19275,
+    "sha256": "5b9346c201a28959ca80dc5ed1530688822ed430d3b8ac0517e576ec4edf9cbc",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000135_trade_results_1784268251895224700_5b9346c201a2.csv"
+  },
+  {
+    "sequence": 136,
+    "captured_at_utc": "2026-07-17T06:04:11.906751+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251893703700,
+    "bytes": 3674,
+    "sha256": "c8df6775f09ea3a6417e1c617a55fcfec107e77a4a6818606fe60e0e9d51be6c",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000136_score_result_1784268251905751000_c8df6775f09e.csv"
+  },
+  {
+    "sequence": 137,
+    "captured_at_utc": "2026-07-17T06:04:11.907757+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251892699800,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000137_dynamic_timeline_1784268251906751100_1b2dec790593.csv"
+  },
+  {
+    "sequence": 138,
+    "captured_at_utc": "2026-07-17T06:04:11.922281+00:00",
+    "label": "market_feed",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\market_feed_diagnostics_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251907757400,
+    "bytes": 898,
+    "sha256": "ef54fe3beb3ea05ee8502293868cb843a26863fd2828e9df6092a42970192355",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000138_market_feed_1784268251921275900_ef54fe3beb3e.csv"
+  },
+  {
+    "sequence": 139,
+    "captured_at_utc": "2026-07-17T06:04:11.954672+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268251945844900,
+    "bytes": 19275,
+    "sha256": "d7d2c3d5d70cdb147b9f9e5966211f3764aa5c0adf716abea2c69804bc66a8a2",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000139_trade_results_1784268251954153500_d7d2c3d5d70c.csv"
+  },
+  {
+    "sequence": 140,
+    "captured_at_utc": "2026-07-17T06:04:11.956688+00:00",
+    "label": "market_feed",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\market_feed_diagnostics_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251956688900,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000140_market_feed_1784268251956688900_e3b0c44298fc.csv"
+  },
+  {
+    "sequence": 141,
+    "captured_at_utc": "2026-07-17T06:04:11.966193+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251941307600,
+    "bytes": 3816,
+    "sha256": "d0d9e0e6041a12b149a6794cc27fc5de5080661ee14ce61b2daa68fcd90d49ba",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000141_score_result_1784268251966193100_d0d9e0e6041a.csv"
+  },
+  {
+    "sequence": 142,
+    "captured_at_utc": "2026-07-17T06:04:11.985242+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268251983734500,
+    "bytes": 19213,
+    "sha256": "ad261a3d6d9a5bf59ddab6033378dcf18fdc4d118671a2692caabfc4f1cf1853",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000142_trade_results_1784268251983734500_ad261a3d6d9a.csv"
+  },
+  {
+    "sequence": 143,
+    "captured_at_utc": "2026-07-17T06:04:11.988246+00:00",
+    "label": "market_feed",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\market_feed_diagnostics_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268251977730300,
+    "bytes": 898,
+    "sha256": "23b84de8e7c221c9ec506cb0b1dac2c24bef70edc95a88f5cc82d54e81e23b7c",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000143_market_feed_1784268251987246600_23b84de8e7c2.csv"
+  },
+  {
+    "sequence": 144,
+    "captured_at_utc": "2026-07-17T06:04:12.035834+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268252034830100,
+    "bytes": 1259,
+    "sha256": "3d2c0e5059692a952df785868f81e53d372b84c9fdf89eba8feb66c52e99b434",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000144_dynamic_timeline_1784268252034830100_3d2c0e505969.csv"
+  },
+  {
+    "sequence": 145,
+    "captured_at_utc": "2026-07-17T06:04:12.044351+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268252021806400,
+    "bytes": 19275,
+    "sha256": "e29370eea498a8bc6b86e81ec0927fc375ffa856dc78baef6da8d5f10c0f73f2",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000145_trade_results_1784268252042843700_e29370eea498.csv"
+  },
+  {
+    "sequence": 146,
+    "captured_at_utc": "2026-07-17T06:04:12.067390+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268252055871400,
+    "bytes": 2029,
+    "sha256": "6bdf119418eb966b79e5f88bacd389455cef89ff11e6324c9a2b8b94067cea5c",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000146_dynamic_timeline_1784268252067390500_6bdf119418eb.csv"
+  },
+  {
+    "sequence": 147,
+    "captured_at_utc": "2026-07-17T06:04:12.081901+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268252059871700,
+    "bytes": 19275,
+    "sha256": "70b562da8eb9a6718fecc83aba702af1155546ba58aa82ad8bb32c82ed4ea1b6",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000147_trade_results_1784268252080902000_70b562da8eb9.csv"
+  },
+  {
+    "sequence": 148,
+    "captured_at_utc": "2026-07-17T06:04:12.092430+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268252078905300,
+    "bytes": 3674,
+    "sha256": "c8df6775f09ea3a6417e1c617a55fcfec107e77a4a6818606fe60e0e9d51be6c",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000148_score_result_1784268252091418400_c8df6775f09e.csv"
+  },
+  {
+    "sequence": 149,
+    "captured_at_utc": "2026-07-17T06:04:12.095754+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268252093426400,
+    "bytes": 2029,
+    "sha256": "14fe828909fa9ebf5410cfbbde2d9c8b4451807b0d2b73b07f21aefd48b0ac14",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000149_dynamic_timeline_1784268252094419600_14fe828909fa.csv"
+  },
+  {
+    "sequence": 150,
+    "captured_at_utc": "2026-07-17T06:04:12.107275+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268252098762300,
+    "bytes": 19275,
+    "sha256": "2d98de17a138aa9ebcb799a6db47b820c43840ca25cc024413b55a2f549d485b",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000150_trade_results_1784268252107275500_2d98de17a138.csv"
+  },
+  {
+    "sequence": 151,
+    "captured_at_utc": "2026-07-17T06:04:12.110282+00:00",
+    "label": "market_feed",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\market_feed_diagnostics_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268252107275500,
+    "bytes": 898,
+    "sha256": "6ffb487f6c927145bdaad20b2aa7f73a2ecaf438a47fb2c3fb231684806fef4b",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000151_market_feed_1784268252110282400_6ffb487f6c92.csv"
+  },
+  {
+    "sequence": 152,
+    "captured_at_utc": "2026-07-17T06:04:12.128993+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268252128000000,
+    "bytes": 2029,
+    "sha256": "df8ff2785124bc23a231d22bf2f1864ed88a71759b4e357f41bbab84f372990f",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000152_dynamic_timeline_1784268252128000000_df8ff2785124.csv"
+  },
+  {
+    "sequence": 153,
+    "captured_at_utc": "2026-07-17T06:04:12.139512+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268252135509900,
+    "bytes": 19275,
+    "sha256": "84429c5567e41365eb821fad8eae386a2f52e36a9cdb3c0232e42609e8f2780a",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000153_trade_results_1784268252139512100_84429c5567e4.csv"
+  },
+  {
+    "sequence": 154,
+    "captured_at_utc": "2026-07-17T06:04:12.142508+00:00",
+    "label": "market_feed",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\market_feed_diagnostics_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268252124981100,
+    "bytes": 898,
+    "sha256": "c9790e0417a9abfaf5e3a68ba9ae403f9503fbb5b8ada48c35aa6d17cb3bfe02",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000154_market_feed_1784268252142508700_c9790e0417a9.csv"
+  },
+  {
+    "sequence": 155,
+    "captured_at_utc": "2026-07-17T06:04:12.160544+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268252153027100,
+    "bytes": 1631,
+    "sha256": "1b2dec79059342d568db2ede04d7ce899091ce96251c2fa1aa581a1082d68db7",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000155_dynamic_timeline_1784268252160544700_1b2dec790593.csv"
+  },
+  {
+    "sequence": 156,
+    "captured_at_utc": "2026-07-17T06:04:12.177578+00:00",
+    "label": "market_feed",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\market_feed_diagnostics_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268252163546500,
+    "bytes": 898,
+    "sha256": "028ad7fd50d9b54ea196eb7956a182cbf39a88721809e4b513aed93442a2d53a",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000156_market_feed_1784268252176579300_028ad7fd50d9.csv"
+  },
+  {
+    "sequence": 157,
+    "captured_at_utc": "2026-07-17T06:04:12.189103+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268252164544200,
+    "bytes": 3816,
+    "sha256": "d0d9e0e6041a12b149a6794cc27fc5de5080661ee14ce61b2daa68fcd90d49ba",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000157_score_result_1784268252189103300_d0d9e0e6041a.csv"
+  },
+  {
+    "sequence": 158,
+    "captured_at_utc": "2026-07-17T06:04:12.205138+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268252190103700,
+    "bytes": 19213,
+    "sha256": "ad261a3d6d9a5bf59ddab6033378dcf18fdc4d118671a2692caabfc4f1cf1853",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000158_trade_results_1784268252205138900_ad261a3d6d9a.csv"
+  },
+  {
+    "sequence": 159,
+    "captured_at_utc": "2026-07-17T06:04:12.208144+00:00",
+    "label": "market_feed",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\market_feed_diagnostics_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268252199627600,
+    "bytes": 898,
+    "sha256": "11d401df2706b8c18b69fac430d74b63bd88a4ad191774eda095ee4b40594f8d",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000159_market_feed_1784268252207147100_11d401df2706.csv"
+  },
+  {
+    "sequence": 160,
+    "captured_at_utc": "2026-07-17T06:04:12.222024+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268252221023200,
+    "bytes": 1259,
+    "sha256": "3d2c0e5059692a952df785868f81e53d372b84c9fdf89eba8feb66c52e99b434",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000160_dynamic_timeline_1784268252221023200_3d2c0e505969.csv"
+  },
+  {
+    "sequence": 161,
+    "captured_at_utc": "2026-07-17T06:04:12.223022+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268252206151700,
+    "bytes": 19275,
+    "sha256": "05a81bbd40adf746d6302f7718932d9bf5613ec3a03660ebfc9e29e618f56dae",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000161_trade_results_1784268252223022000_05a81bbd40ad.csv"
+  },
+  {
+    "sequence": 162,
+    "captured_at_utc": "2026-07-17T06:04:12.236064+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268252224534800,
+    "bytes": 3674,
+    "sha256": "c8df6775f09ea3a6417e1c617a55fcfec107e77a4a6818606fe60e0e9d51be6c",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000162_score_result_1784268252235058700_c8df6775f09e.csv"
+  },
+  {
+    "sequence": 163,
+    "captured_at_utc": "2026-07-17T06:04:12.239063+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268252237067100,
+    "bytes": 2029,
+    "sha256": "9b7668b912619a03bb0cfd298411b8db98fa20525e9fcaed9a829f1801939414",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000163_dynamic_timeline_1784268252239063700_9b7668b91261.csv"
+  },
+  {
+    "sequence": 164,
+    "captured_at_utc": "2026-07-17T06:04:12.253600+00:00",
+    "label": "trade_results",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\trade_results.csv",
+    "source_mtime_ns": 1784268252242060500,
+    "bytes": 19275,
+    "sha256": "e1225881654e08caf0d39d43035d3c332d8ebf55e619ca113729d053f7f846e4",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000164_trade_results_1784268252252589200_e1225881654e.csv"
+  },
+  {
+    "sequence": 165,
+    "captured_at_utc": "2026-07-17T06:04:12.257022+00:00",
+    "label": "market_feed",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\market_feed_diagnostics_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268252251595200,
+    "bytes": 898,
+    "sha256": "46a476202d8846cc89695dc6adb611b4fc090082a18b2722878ceda6588c0a59",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000165_market_feed_1784268252256014900_46a476202d88.csv"
+  },
+  {
+    "sequence": 166,
+    "captured_at_utc": "2026-07-17T06:04:12.268532+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784268252238062700,
+    "bytes": 3816,
+    "sha256": "d0d9e0e6041a12b149a6794cc27fc5de5080661ee14ce61b2daa68fcd90d49ba",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000166_score_result_1784268252267537700_d0d9e0e6041a.csv"
+  },
+  {
+    "sequence": 167,
+    "captured_at_utc": "2026-07-17T06:04:14.974762+00:00",
+    "label": "score_result",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\score_trade_result_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784259816879195900,
+    "bytes": 3748,
+    "sha256": "89a89ca39857be53db71810d01a22496a214dfd5e2c6ec9502a971913f7c1859",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000167_score_result_1784268254974762600_89a89ca39857.csv"
+  },
+  {
+    "sequence": 168,
+    "captured_at_utc": "2026-07-17T06:04:14.978772+00:00",
+    "label": "dynamic_timeline",
+    "source_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score\\dynamic_management_timeline\\dynamic_timeline_2026-04-20_NY.csv",
+    "source_mtime_ns": 1784259816879195900,
+    "bytes": 2030,
+    "sha256": "a88fb7e0670a2bf543ea66d3e55adac7cdb5f6cb5ddf8fdff2322673c80dbc68",
+    "capture_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\regressions\\OR_ABSORPTION_TEST_2026_V23_REPORT_X10_20260716_FAILED\\causal_trace_x10\\pilot9\\trials\\cycle_01_2026-04-20\\captures\\000168_dynamic_timeline_1784268254977780000_a88fb7e0670a.csv"
+  }
+]
