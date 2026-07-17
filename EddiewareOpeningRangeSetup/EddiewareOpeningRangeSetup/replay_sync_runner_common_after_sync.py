@@ -20,6 +20,7 @@ SYNC_SIGNAL_FOLDER = RESULTS_FOLDER / "replay_sync_signals"
 SYNC_RESULT_FOLDER = RESULTS_FOLDER / "replay_sync_results"
 TARGET_FILE = EXPORT_FOLDER / "target_trade_result_date.txt"
 REPLAY_STARTED_FILE = EXPORT_FOLDER / "replay_trade_result_started_at.txt"
+TELEGRAM_RUN_ETA_FILE = RESULTS_FOLDER / "telegram_run_eta.txt"
 
 EXPECTED_EXPORTER_VERSION = "score-exporter-2026-07-16-v23-liquidity-burst-entry"
 EXPECTED_TIMELINE_VERSION = "dynamic-timeline-2026-06-23-v11-canonical-sync-guards"
@@ -267,6 +268,26 @@ def describe_saved_run(output_folder, date_iso, run_name):
 def format_elapsed(seconds):
     minutes, seconds = divmod(max(0, int(seconds)), 60)
     return f"{minutes:02d}:{seconds:02d}"
+
+
+def format_run_eta(seconds):
+    if seconds is None:
+        return "CALCULANDO"
+    seconds = max(0, int(seconds))
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
+def write_telegram_run_eta(eta_seconds, remaining, status="ACTIVA"):
+    """Publica ETA de reporte; no es consumida por Replay ni por trading."""
+
+    RESULTS_FOLDER.mkdir(parents=True, exist_ok=True)
+    line = (
+        f"Tiempo restante corrida: {format_run_eta(eta_seconds)} | "
+        f"Pendientes X10: {max(0, int(remaining or 0))} | Estado: {status}"
+    )
+    TELEGRAM_RUN_ETA_FILE.write_text(line, encoding="utf-8")
 
 
 def get_replay_controls():
@@ -1299,6 +1320,7 @@ def run_replay_period(
                 durations_by_speed,
                 force=force,
             )
+            write_telegram_run_eta(initial_eta, initial_pending, "ACTIVA")
 
             # Ping de inicio de etapa: confirmacion inmediata en Telegram sin
             # esperar a que cierre la primera fecha real.
@@ -1417,6 +1439,11 @@ def run_replay_period(
                         current_index=index,
                         force=force,
                     )
+                    write_telegram_run_eta(
+                        eta_seconds,
+                        int(round(est_remaining_real)),
+                        "ACTIVA",
+                    )
 
                     stage_done = count_stage_completed_dates(
                         output_folder,
@@ -1455,5 +1482,7 @@ def run_replay_period(
     passed = True
     if len(run_plan) > 1:
         passed = build_comparison_report(output_folder, date_iso_list, run_plan, report_prefix)
+
+    write_telegram_run_eta(0, 0, "COMPLETADA")
 
     return passed, failures

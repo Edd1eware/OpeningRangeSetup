@@ -651,6 +651,17 @@ def _format_eta(seconds):
     return "~<1m"
 
 
+def _format_global_timer(eta_seconds, final=False):
+    if final:
+        return "00:00:00"
+    if eta_seconds is None:
+        return "CALCULANDO"
+    seconds = max(0, int(eta_seconds))
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
 def send_progress_update(
     results_folder,
     *,
@@ -745,11 +756,10 @@ def send_progress_update(
         if contracts:
             line += f" | {contracts} contratos"
         lines.append(line)
-    if not final and not start and remaining and remaining > 0:
-        lines.append(
-            f"ETA etapa: {_format_eta(eta_seconds)} "
-            f"({remaining} corridas pendientes)"
-        )
+    lines.append(
+        f"Tiempo restante corrida: {_format_global_timer(eta_seconds, final=final)}"
+        + (f" ({remaining} corridas pendientes)" if remaining and remaining > 0 else "")
+    )
 
     message = "\n".join(lines)
     try:

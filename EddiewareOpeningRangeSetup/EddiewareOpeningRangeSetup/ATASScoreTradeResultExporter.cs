@@ -3248,7 +3248,7 @@ namespace ATAS.Indicators
             TelegramTradeNotifier.QueueTerminalResult(
                 _exportFolder,
                 nyDate,
-                $"OR ABSORTION TEST | {nyDate:yyyy-MM-dd}\nTIME OVER\nBalance: {timeOverBalance:$#,##0}");
+                $"OR ABSORTION TEST | {nyDate:yyyy-MM-dd}\nTIME OVER\nBalance: {timeOverBalance:$#,##0}\n{ReadTelegramRunEtaLine()}");
         }
 
         private string BuildTelegramTradeMessage()
@@ -3272,7 +3272,28 @@ namespace ATAS.Indicators
                 $"MAE: {_trade.MaeTicks:0.##} ticks | MFE: {_trade.MfeTicks:0.##} ticks",
                 $"PnL: {pnl:+$0;-$0} | {TelegramContracts}c",
                 $"Balance: {balance:$#,##0}",
-                $"Duración: {FormatTradeDuration()}");
+                $"Duración: {FormatTradeDuration()}",
+                ReadTelegramRunEtaLine());
+        }
+
+        private string ReadTelegramRunEtaLine()
+        {
+            try
+            {
+                var path = Path.Combine(_exportFolder, "telegram_run_eta.txt");
+                if (File.Exists(path))
+                {
+                    var value = File.ReadAllText(path).Trim();
+                    if (!string.IsNullOrWhiteSpace(value))
+                        return value;
+                }
+            }
+            catch
+            {
+                // Reporting only: an ETA read must never affect the trade result.
+            }
+
+            return "Tiempo restante corrida: CALCULANDO";
         }
 
         // Balance corrido persistido por fecha (idempotente: X1/X10/re-runs de la
