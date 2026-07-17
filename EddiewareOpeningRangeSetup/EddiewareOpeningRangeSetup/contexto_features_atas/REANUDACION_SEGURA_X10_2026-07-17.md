@@ -32,6 +32,9 @@ de sincronización del Replay:
 6. El historial de Telegram y el balance se preservan.
 7. El análisis global de familias queda diferido hasta completar los huecos
    históricos; no se publicarán conclusiones parciales.
+8. Un watcher independiente envía `ya termine todos mis procesos` a Telegram
+   únicamente si runner y supervisor salen con código cero, stderr está vacío y
+   el log contiene el marcador terminal de la corrida.
 
 ## Invariantes
 
