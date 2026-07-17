@@ -1107,6 +1107,32 @@ def reset_replay_run_state(output_folder):
         shutil.move(str(state_path), str(backup_path))
         print(f"Estado Telegram reiniciado; backup: {backup_path}")
 
+    # Los acumuladores observacionales deben empezar vacíos para que la muestra
+    # científica pertenezca únicamente a esta corrida. No son consumidos por el
+    # replay ni por la lógica de trading; se preservan íntegros en un archivo.
+    research_capture_names = (
+        "burst_events.csv",
+        "trade_inputs.csv",
+        "trade_results.csv",
+        "exporter_lifecycle_diagnostics.csv",
+        "latest_absorption_breakout_research.txt",
+    )
+    capture_paths = [
+        Path(RESULTS_FOLDER) / file_name
+        for file_name in research_capture_names
+        if (Path(RESULTS_FOLDER) / file_name).exists()
+    ]
+    if capture_paths:
+        archive_root = Path(RESULTS_FOLDER) / f"_archive_research_capture_reset_{timestamp}"
+        suffix = 1
+        while archive_root.exists():
+            archive_root = Path(RESULTS_FOLDER) / f"_archive_research_capture_reset_{timestamp}_{suffix}"
+            suffix += 1
+        archive_root.mkdir(parents=True)
+        for capture_path in capture_paths:
+            shutil.move(str(capture_path), str(archive_root / capture_path.name))
+        print(f"Captura observacional previa archivada: {archive_root}")
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -1300,8 +1326,39 @@ def main():
         f"OR ABSORTION TEST | {run_label}",
     )
 
+    research_ok = False
+    if passed and not failures:
+        try:
+            from absorption_breakout_research import run_analysis, send_analysis_to_telegram
+
+            analysis = run_analysis(Path(RESULTS_FOLDER))
+            research_ok = send_analysis_to_telegram(Path(RESULTS_FOLDER), analysis)
+            context_folder = Path(BASE_DIR) / "contexto_features_atas"
+            context_folder.mkdir(parents=True, exist_ok=True)
+            context_report = context_folder / (
+                "ANALISIS_FAMILIAS_ABSORCION_BREAKOUT_"
+                f"{datetime.now():%Y%m%d_%H%M%S}.md"
+            )
+            shutil.copy2(Path(analysis["output_folder"]) / "final_report.md", context_report)
+            print(f"Análisis causal guardado: {analysis['output_folder']}")
+            print(f"Hallazgos documentados: {context_report}")
+            print(f"Telegram ANALISIS FAMILIAS enviado: {research_ok}")
+        except Exception as exc:
+            print(f"ERROR EN ANALISIS FAMILIAS: {exc}")
+            send_text(
+                RESULTS_FOLDER,
+                "ANALISIS  FAMILIAS A, B, C, ETC.\n"
+                f"ERROR: la corrida X10 terminó, pero el análisis no pudo completarse: {exc}",
+            )
+    else:
+        send_text(
+            RESULTS_FOLDER,
+            "ANALISIS  FAMILIAS A, B, C, ETC.\n"
+            "NO EJECUTADO: Historia X10 terminó incompleta; no se publica una conclusión parcial.",
+        )
+
     print("\nTERMINO LA PRUEBA DE TEMPORADAS DST COMPLETAS 2022-2026 V11.\n")
-    return 0 if passed and not failures else 1
+    return 0 if passed and not failures and research_ok else 1
 
 
 if __name__ == "__main__":
