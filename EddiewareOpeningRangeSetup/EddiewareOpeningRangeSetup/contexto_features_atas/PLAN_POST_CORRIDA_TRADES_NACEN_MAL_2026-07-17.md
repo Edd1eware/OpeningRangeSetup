@@ -14,6 +14,11 @@
 8. Copiar el hallazgo a `contexto_features_atas`.
 9. Enviar `ya termine todos mis procesos` únicamente al concluir todo lo anterior.
 
+Todos los Telegram de progreso, transición, error, reporte y cierre incluyen
+`Timer etapa`. Los mensajes periódicos del Replay calculan la ETA con las
+duraciones X10 observadas; una etapa terminada muestra `00:00` y una etapa fallida
+muestra `DETENIDA`.
+
 ## Definiciones congeladas
 
 - Grupo A: ganador.
@@ -23,6 +28,20 @@
 
 MFE, MAE, resultado y duración sólo etiquetan retrospectivamente; nunca son
 predictores. La estrategia, Liquidity Burst, TP, SL y gestión permanecen intactos.
+
+## Protocolo de velocidad diagnóstica
+
+- X10 sigue siendo la única fuente oficial de outcomes, PnL y validación de la
+  estrategia.
+- Si X10 no permite medir objetivamente una feature microestructural, se autoriza
+  una captura diagnóstica separada empezando por X2 y usando X1 sólo si X2 sigue
+  siendo insuficiente.
+- Las fechas diagnósticas se pre-registran y no se eligen por su resultado.
+- X1/X2 sólo pueden aportar snapshots causales anteriores a la entrada; nunca
+  sustituyen trades X10 ni se usan para mejorar PF/WR.
+- Toda feature común debe conservar definición, timestamp y signo entre
+  velocidades; cualquier discrepancia invalida esa feature hasta explicar la
+  causa.
 
 ## Entregables automáticos
 

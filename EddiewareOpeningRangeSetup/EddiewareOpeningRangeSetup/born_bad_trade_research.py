@@ -398,11 +398,14 @@ def run_analysis(results_folder: Path, output_folder: Path | None = None) -> dic
 def send_to_telegram(results_folder: Path, analysis: dict[str, object]) -> bool:
     from telegram_run_summary_after_sync import send_photo, send_text
 
-    ok = send_text(str(results_folder), TELEGRAM_TITLE)
+    completed_timer = "\nTimer etapa: 00:00 (completada)"
+    ok = send_text(str(results_folder), TELEGRAM_TITLE + completed_timer)
     for index, chunk in enumerate(base._telegram_chunks(str(analysis["report"])), start=1):
-        ok = send_text(str(results_folder), f"[{index}] {chunk}") and ok
+        ok = send_text(str(results_folder), f"[{index}] {chunk}{completed_timer}") and ok
     for path in analysis["visuals"]:
-        ok = send_photo(str(results_folder), str(path), TELEGRAM_TITLE) and ok
+        ok = send_photo(
+            str(results_folder), str(path), TELEGRAM_TITLE + completed_timer
+        ) and ok
     return ok
 
 

@@ -33,6 +33,20 @@ INFINITE = 0xFFFFFFFF
 CREATE_NO_WINDOW = 0x08000000
 
 
+def _format_eta(seconds: float | int | None) -> str:
+    if seconds is None:
+        return "CALCULANDO"
+    seconds = max(0, int(seconds))
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
+def _timed(message: str, eta: float | int | None = None, status: str = "") -> str:
+    timer = status or _format_eta(eta)
+    return f"{message}\nTimer etapa: {timer}"
+
+
 def _open_process(pid: int):
     handle = ctypes.windll.kernel32.OpenProcess(
         SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, False, pid
@@ -159,9 +173,9 @@ def main() -> int:
     if runner_code or supervisor_code or stderr or not terminal:
         send_text(
             RESULTS_FOLDER,
-            "GRUPO D NO EJECUTADO\n"
+            _timed("GRUPO D NO EJECUTADO\n"
             f"La corrida activa no termino limpiamente: runner={runner_code}, "
-            f"supervisor={supervisor_code}, stderr_vacio={not bool(stderr)}, terminal={terminal}.",
+            f"supervisor={supervisor_code}, stderr_vacio={not bool(stderr)}, terminal={terminal}.", status="DETENIDA"),
         )
         return 2
 
@@ -170,9 +184,10 @@ def main() -> int:
     if missing:
         send_text(
             RESULTS_FOLDER,
-            "ANALISIS  FAMILIAS A, B, C, ETC.\n"
+            _timed("ANALISIS  FAMILIAS A, B, C, ETC.\n"
             f"GRUPO D EN COLA: faltan {len(missing)} sesiones X10 históricas. "
             "Se completarán sin --force y sin reiniciar balance antes de abrir el holdout.",
+            len(missing) * replay_sync.SPEED_DEFAULT_SECONDS["X10"]),
         )
         gap_runner, gap_supervisor, gap_stdout, gap_stderr = _run_gap_fill()
         print(
@@ -183,9 +198,9 @@ def main() -> int:
         if gap_runner or gap_supervisor or gap_stderr.stat().st_size:
             send_text(
                 RESULTS_FOLDER,
-                "GRUPO D NO EJECUTADO\n"
+                _timed("GRUPO D NO EJECUTADO\n"
                 "El relleno histórico X10 se detuvo en el primer fallo; no se abrió el holdout. "
-                f"Log: {gap_stdout}",
+                f"Log: {gap_stdout}", status="DETENIDA"),
             )
             return 3
 
@@ -194,11 +209,18 @@ def main() -> int:
     if remaining:
         send_text(
             RESULTS_FOLDER,
-            "GRUPO D NO EJECUTADO\n"
-            f"Persisten {len(remaining)} sesiones X10 sin terminal. No se publicará ciencia parcial.",
+            _timed("GRUPO D NO EJECUTADO\n"
+            f"Persisten {len(remaining)} sesiones X10 sin terminal. No se publicará ciencia parcial.", status="DETENIDA"),
         )
         return 4
 
+    send_text(
+        RESULTS_FOLDER,
+        _timed(
+            "ANALISIS  FAMILIAS A, B, C, ETC.\nETAPA GRUPO D INICIADA: estadística, modelos y reporte causal.",
+            15 * 60,
+        ),
+    )
     research_code, research_stdout, research_stderr = _run_research()
     print(
         f"RESEARCH_EXIT code={research_code} stdout={research_stdout} stderr={research_stderr}",
@@ -207,12 +229,12 @@ def main() -> int:
     if research_code or research_stderr.stat().st_size:
         send_text(
             RESULTS_FOLDER,
-            "GRUPO D - ERROR DE INVESTIGACION\n"
-            f"El replay quedó completo, pero el análisis falló. Log: {research_stderr}",
+            _timed("GRUPO D - ERROR DE INVESTIGACION\n"
+            f"El replay quedó completo, pero el análisis falló. Log: {research_stderr}", status="DETENIDA"),
         )
         return 5
 
-    if not send_text(RESULTS_FOLDER, "ya termine todos mis procesos"):
+    if not send_text(RESULTS_FOLDER, _timed("ya termine todos mis procesos", 0)):
         return 6
     print("ALL_POST_RUN_PROCESSES_COMPLETE", flush=True)
     return 0
