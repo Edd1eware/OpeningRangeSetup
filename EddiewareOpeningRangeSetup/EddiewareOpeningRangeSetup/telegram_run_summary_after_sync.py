@@ -143,6 +143,155 @@ def compute_run_stats(run_root, allowed_dates=None, run_names=None):
     }
 
 
+def collect_daily_metrics(run_root, allowed_dates=None, run_names=None):
+    """Devuelve una fila diaria X10 con MAE/MFE y WR/PF acumulados.
+
+    El reporte es deliberadamente read-only: no interviene en Replay ni en la
+    seleccion/ejecucion de trades. Si una fecha existe en varias pasadas, X10
+    tiene prioridad, igual que en compute_run_stats().
+    """
+    root = Path(run_root)
+    allowed = set(allowed_dates) if allowed_dates is not None else None
+    names = set(run_names) if run_names is not None else None
+    rows_by_date = {}
+    for csv_path in sorted(root.rglob("score_trade_result_*_NY.csv")):
+        parent = csv_path.parent.name
+        if not (parent.startswith("X1_") or parent.startswith("X10_")):
+            continue
+        if names is not None and parent not in names:
+            continue
+        match = re.search(r"(\d{4}-\d{2}-\d{2})", csv_path.name)
+        if not match:
+            continue
+        date_key = match.group(1)
+        if allowed is not None and date_key not in allowed:
+            continue
+        try:
+            with open(csv_path, "r", encoding="utf-8-sig", newline="") as fh:
+                row = next(iter(csv.DictReader(fh)), None)
+        except Exception:
+            continue
+        if not row:
+            continue
+        is_x10 = parent.startswith("X10_")
+        if date_key in rows_by_date and not is_x10:
+            continue
+        rows_by_date[date_key] = row
+
+    def number(value):
+        try:
+            text = str(value or "").strip().replace("+", "")
+            return float(text) if text else None
+        except (TypeError, ValueError):
+            return None
+
+    daily = []
+    decided_ticks = []
+    month_counts = {}
+    for date_key in sorted(rows_by_date):
+        row = rows_by_date[date_key]
+        ticks = _parse_result_ticks(row.get("result TP SL BE"))
+        month = date_key[:7]
+        if ticks is not None:
+            decided_ticks.append(ticks)
+            month_counts[month] = month_counts.get(month, 0) + 1
+        wins = [value for value in decided_ticks if value > 0]
+        losses = [value for value in decided_ticks if value < 0]
+        gross_loss = -sum(losses)
+        daily.append({
+            "date": date_key,
+            "result": str(row.get("Result_Label") or "N/A").strip() or "N/A",
+            "ticks": ticks,
+            "mae": number(row.get("MAE_ticks")),
+            "mfe": number(row.get("MFE_ticks")),
+            "wr": (100.0 * len(wins) / len(decided_ticks)) if decided_ticks else None,
+            "pf": (sum(wins) / gross_loss) if gross_loss > 0 else (float("inf") if wins else None),
+            "month": month,
+            "month_trades": month_counts.get(month, 0),
+        })
+    return daily
+
+
+def _send_daily_metrics_report(results_folder, credentials, daily):
+    """Envia el detalle fecha por fecha en bloques seguros para Telegram."""
+    if not daily:
+        return
+    chunks = []
+    current = ["OR ABSORTION TEST | RESULTADOS POR FECHA"]
+    for item in daily:
+        mae = "N/A" if item["mae"] is None else f'{item["mae"]:.1f}'
+        mfe = "N/A" if item["mfe"] is None else f'{item["mfe"]:.1f}'
+        wr = "N/A" if item["wr"] is None else f'{item["wr"]:.1f}%'
+        pf_value = item["pf"]
+        pf = "N/A" if pf_value is None else ("INF" if pf_value == float("inf") else f"{pf_value:.2f}")
+        ticks = "N/A" if item["ticks"] is None else f'{item["ticks"]:+.0f}t'
+        line = (f'{item["date"]} | {item["result"]} {ticks} | MAE {mae} | MFE {mfe} | '
+                f'WR {wr} | PF {pf} | Trades {item["month"]}: {item["month_trades"]}')
+        if sum(len(value) + 1 for value in current) + len(line) > 3800:
+            chunks.append("\n".join(current))
+            current = ["OR ABSORTION TEST | RESULTADOS POR FECHA (cont.)"]
+        current.append(line)
+    chunks.append("\n".join(current))
+    for message in chunks:
+        message_id = _send_message(credentials[0], credentials[1], message)
+        if message_id is not None:
+            with open(os.path.join(results_folder, TELEGRAM_MESSAGE_IDS_FILE), "a", encoding="utf-8") as fh:
+                fh.write(f"{message_id}\n")
+
+
+def simulate_lucidpro_150k(daily, contracts=6, tick_value=5.0):
+    """Simula las reglas publicadas para LucidPro Eval 150k.
+
+    MLL: trailing EOD de $4,500, bloqueado en $150,100 despues de cerrar por
+    encima de $154,600. DLL $2,700 es soft breach. El MAE aproxima el peor
+    equity intradia de cada trade, por lo que el chequeo es mas conservador
+    que usar solamente el PnL cerrado.
+    """
+    start = 150000.0
+    target = 159000.0
+    equity = start
+    peak_eod = start
+    mll_floor = start - 4500.0
+    locked = False
+    dll_hits = []
+    breach = None
+    pass_date = None
+    trading_days = 0
+    for item in daily:
+        if item["ticks"] is None:
+            continue
+        trading_days += 1
+        pnl = item["ticks"] * tick_value * contracts
+        mae_usd = (item["mae"] or 0.0) * tick_value * contracts
+        worst_intraday = equity - mae_usd
+        if worst_intraday <= mll_floor and breach is None:
+            breach = (item["date"], worst_intraday, mll_floor)
+            break
+        if pnl <= -2700.0:
+            dll_hits.append(item["date"])
+        equity += pnl
+        peak_eod = max(peak_eod, equity)
+        if peak_eod > 154600.0:
+            locked = True
+            mll_floor = 150100.0
+        elif not locked:
+            mll_floor = peak_eod - 4500.0
+        if equity >= target and pass_date is None:
+            pass_date = item["date"]
+            break
+    return {
+        "status": "BREACH" if breach else ("PASS" if pass_date else "NO PASS"),
+        "equity": equity,
+        "pnl": equity - start,
+        "mll_floor": mll_floor,
+        "breach": breach,
+        "pass_date": pass_date,
+        "dll_hits": dll_hits,
+        "trading_days": trading_days,
+        "contracts": contracts,
+    }
+
+
 def _format_stats_line(stats):
     pf = stats.get("pf")
     pf_text = f"{pf:.2f}" if pf is not None else "inf"
@@ -724,6 +873,11 @@ def send_run_summary(results_folder, dates, failed_dates=None, run_label="Replay
         allowed_dates=allowed_dates,
         run_names={"X10_R1"},
     )
+    daily_metrics = collect_daily_metrics(
+        run_root,
+        allowed_dates=allowed_dates,
+        run_names={"X10_R1"},
+    )
 
     if run_stats:
         win_rate = run_stats["winrate"]
@@ -763,19 +917,52 @@ def send_run_summary(results_folder, dates, failed_dates=None, run_label="Replay
     else:
         profit_factor_text = profit_factor or "N/A"
 
+    monthly_lines = []
+    for month in sorted({item["month"] for item in daily_metrics}):
+        month_rows = [item for item in daily_metrics if item["month"] == month and item["ticks"] is not None]
+        month_ticks = [item["ticks"] for item in month_rows]
+        month_wins = [value for value in month_ticks if value > 0]
+        month_losses = [value for value in month_ticks if value < 0]
+        month_pf = sum(month_wins) / -sum(month_losses) if month_losses else (float("inf") if month_wins else None)
+        month_wr = 100.0 * len(month_wins) / len(month_ticks) if month_ticks else None
+        pf_text = "N/A" if month_pf is None else ("INF" if month_pf == float("inf") else f"{month_pf:.2f}")
+        wr_text = "N/A" if month_wr is None else f"{month_wr:.1f}%"
+        monthly_lines.append(f"{month}: {len(month_ticks)} trades | WR {wr_text} | PF {pf_text} | Net {sum(month_ticks):+.0f}t")
+
+    tick_value = 5.0
+    contracts = 6
+    starting_balance = 150000.0
+    final_equity = starting_balance + net_ticks * tick_value * contracts
+    lucid = simulate_lucidpro_150k(daily_metrics, contracts=contracts, tick_value=tick_value)
+    maes = [item["mae"] for item in daily_metrics if item["mae"] is not None]
+    mfes = [item["mfe"] for item in daily_metrics if item["mfe"] is not None]
     message = "\n".join(
         [
-            f"EW Opening Range | Corrida terminada ({run_label})",
+            f"OR ABSORTION TEST | Corrida terminada ({run_label})",
             "Resumen CRUDO X10:",
             f"WR: {win_rate_text}",
             f"PF: {profit_factor_text}",
             f"Wins: {wins_count} | Losses: {losses_count} | BE: {break_evens_count}",
             f"Net ticks: {net_ticks:+.0f}",
             f"Trades: {results_count} | TIME_OVER: {time_over_count}",
+            f"MAE prom/max: {(sum(maes)/len(maes)) if maes else 0:.2f}/{max(maes) if maes else 0:.2f} ticks",
+            f"MFE prom/max: {(sum(mfes)/len(mfes)) if mfes else 0:.2f}/{max(mfes) if mfes else 0:.2f} ticks",
+            f"Cuenta 150k: ${starting_balance:,.0f} -> ${final_equity:,.0f} | PnL ${final_equity-starting_balance:+,.0f}",
+            f"LucidPro 150k: {lucid['status']} | equity ${lucid['equity']:,.0f} | MLL ${lucid['mll_floor']:,.0f}",
+            f"Objetivo $9,000 | MLL $4,500 EOD | DLL $2,700 | {contracts}/10 minis | dias {lucid['trading_days']}",
             f"Fechas esperadas: {len(dates)} | Errores: {failed_count}",
             f"Fuente: {run_root}",
         ]
     )
+    if monthly_lines:
+        message += "\n\nTrades por mes:\n" + "\n".join(monthly_lines)
+    if lucid["pass_date"]:
+        message += f"\n\nPASS alcanzado: {lucid['pass_date']}"
+    if lucid["breach"]:
+        date_key, worst_equity, floor = lucid["breach"]
+        message += f"\n\nBREACH MLL: {date_key} | peor equity ${worst_equity:,.0f} <= ${floor:,.0f}"
+    if lucid["dll_hits"]:
+        message += "\nDLL soft hits: " + ", ".join(lucid["dll_hits"])
     if failed_dates:
         error_lines = [
             f"- {date}: {reason}"
@@ -787,6 +974,7 @@ def send_run_summary(results_folder, dates, failed_dates=None, run_label="Replay
             message += f"\n... y {remaining_errors} más."
 
     try:
+        _send_daily_metrics_report(results_folder, credentials, daily_metrics)
         message_id = _send_message(credentials[0], credentials[1], message)
         if message_id is None:
             print("Telegram resumen: la API no confirmo el mensaje.")

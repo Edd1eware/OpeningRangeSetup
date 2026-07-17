@@ -52,6 +52,17 @@ namespace ATAS.Indicators
 
         public static void ApplySignalSource(ScoreTradeSignal state)
         {
+            // La etiqueta Liquidity Burst ya representa agresion absorbida. Se
+            // conserva como decision terminal causal para que ResolveExecutionSide
+            // ejecute el lado opuesto en el mismo snapshot de un segundo.
+            if (state.HasLiquidityBurst)
+            {
+                state.HasAPlusAbsorption = true;
+                state.APlusStructureSide = state.LiquidityBurstSide;
+                state.SignalSource = "LIQUIDITY BURST ABSORTION";
+                return;
+            }
+
             var hasAPlusSpeed = state.SpeedLabel == "A+ speed" &&
                 state.VolumeIncreasing &&
                 state.VolumeOk &&

@@ -45,7 +45,7 @@ namespace ATAS.Indicators
         private const int DynamicTimelineFlushRowCount = 100;
         // FROZEN — DO NOT CHANGE. Sync guards depend on this version string matching
         // persisted snapshots. Changing it invalidates all existing X1/X10 sync files.
-        private const string ExporterVersion = "score-exporter-2026-07-13-v22-sync-snapshot-reset";
+        private const string ExporterVersion = "score-exporter-2026-07-16-v23-liquidity-burst-entry";
         private const string DynamicTimelineVersion = "dynamic-timeline-2026-06-23-v11-canonical-sync-guards";
         private static readonly JsonSerializerOptions ReplaySyncJsonOptions = new JsonSerializerOptions
         {
@@ -3227,7 +3227,7 @@ namespace ATAS.Indicators
             TelegramTradeNotifier.QueueTerminalResult(
                 _exportFolder,
                 nyDate,
-                $"EW ORB NQ | {nyDate:yyyy-MM-dd}\nTIME OVER\nBalance: {timeOverBalance:$#,##0}");
+                $"OR ABSORTION TEST | {nyDate:yyyy-MM-dd}\nTIME OVER\nBalance: {timeOverBalance:$#,##0}");
         }
 
         private string BuildTelegramTradeMessage()
@@ -3242,8 +3242,9 @@ namespace ATAS.Indicators
 
             return string.Join(
                 Environment.NewLine,
-                $"EW ORB NQ | {_trade.EntryDate:yyyy-MM-dd}",
+                $"OR ABSORTION TEST | {_trade.EntryDate:yyyy-MM-dd}",
                 $"{_trade.Result} {_trade.Side} | {_trade.EntryTimeNy:HH:mm:ss} NY ({utcLabel})",
+                $"MAE: {_trade.MaeTicks:0.##} ticks | MFE: {_trade.MfeTicks:0.##} ticks",
                 $"PnL: {pnl:+$0;-$0} | {TelegramContracts}c",
                 $"Balance: {balance:$#,##0}",
                 $"Duración: {FormatTradeDuration()}");

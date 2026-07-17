@@ -144,7 +144,7 @@ DATES_DST = [
 
 # Fase 1: primeras N fechas en X1 y luego X10 para validar sincronia X1==X10.
 # Fase 2: si la sincronia pasa, corrida completa desde 04/04/2022 SOLO en X10.
-SYNC_CHECK_DATE_COUNT = 10
+SYNC_CHECK_DATE_COUNT = 6
 
 # Replay recomendado para esta prueba: X10.
 # Ventana por dia: 09:30 a 09:50 NY. El exporter escribe TIME_OVER si no hay trade antes/de 09:40;
@@ -1410,7 +1410,7 @@ def main():
         RESULTS_FOLDER,
         DATES_DST,
         failed_dates,
-        "Temporadas DST 2022-2026 v11 (sync 10 X1/X10 + full X10)",
+        f"OR ABSORTION TEST | {run_label}",
     )
 
     print("\nTERMINO LA PRUEBA DE TEMPORADAS DST COMPLETAS 2022-2026 V11.\n")

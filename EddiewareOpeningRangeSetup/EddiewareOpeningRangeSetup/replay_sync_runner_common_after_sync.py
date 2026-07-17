@@ -21,7 +21,7 @@ SYNC_RESULT_FOLDER = RESULTS_FOLDER / "replay_sync_results"
 TARGET_FILE = EXPORT_FOLDER / "target_trade_result_date.txt"
 REPLAY_STARTED_FILE = EXPORT_FOLDER / "replay_trade_result_started_at.txt"
 
-EXPECTED_EXPORTER_VERSION = "score-exporter-2026-07-13-v22-sync-snapshot-reset"
+EXPECTED_EXPORTER_VERSION = "score-exporter-2026-07-16-v23-liquidity-burst-entry"
 EXPECTED_TIMELINE_VERSION = "dynamic-timeline-2026-06-23-v11-canonical-sync-guards"
 
 TERMINAL_RESULTS = {

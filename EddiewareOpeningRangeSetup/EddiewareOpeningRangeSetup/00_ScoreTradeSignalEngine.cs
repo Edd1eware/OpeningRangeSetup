@@ -230,21 +230,17 @@ namespace ATAS.Indicators
             var isLiquidityBurstReady =
                 state.HasLiquidityBurst &&
                 state.TimeOk &&
-                state.RangeOk &&
-                state.VolumeOk &&
-                state.DeltaWithSide &&
                 !string.IsNullOrWhiteSpace(state.ExecutionSide);
             var isEntryOutsideOpeningRange =
                 state.EntryPrice > state.OrHigh ||
                 state.EntryPrice < state.OrLow;
 
-            state.IsReady =
-                isEntryOutsideOpeningRange &&
+            state.IsReady = isLiquidityBurstReady ||
+                (isEntryOutsideOpeningRange &&
                 state.RangeOk &&
                 (
                 isAPlusAbsorptionReady ||
                 isValueAcceptanceReady ||
-                isLiquidityBurstReady ||
                 (
                 state.IsBreakout &&
                 state.TimeOk &&
@@ -256,7 +252,7 @@ namespace ATAS.Indicators
                 (!request.RequireBodyOkForTrade || state.BodyOk) &&
                 (!request.RequireVwapOkForTrade || state.VwapOk)
                 )
-                );
+                ));
 
             return state;
         }
@@ -266,7 +262,7 @@ namespace ATAS.Indicators
             ScoreTradeSignal state,
             DateTime signalTime)
         {
-            if (!request.UseLiquidityBurstSignals || state == null || string.IsNullOrWhiteSpace(state.Side))
+            if (!request.UseLiquidityBurstSignals || state == null)
                 return;
 
             var burst = LiquidityBurstSignalBus.GetLatest(
@@ -274,9 +270,15 @@ namespace ATAS.Indicators
                 signalTime,
                 request.LiquidityBurstMaxAgeSeconds);
 
-            if (burst == null || burst.Side != state.Side)
+            if (burst == null)
                 return;
 
+            // El snapshot causal de un segundo es la propia etiqueta visual:
+            // BUY absorption ejecuta SELL; SELL absorption ejecuta BUY.
+            state.Side = burst.Side;
+            state.EntryPrice = burst.Price;
+            state.HasAPlusAbsorption = true;
+            state.APlusStructureSide = burst.Side;
             state.HasLiquidityBurst = true;
             state.LiquidityBurstId = burst.BurstId;
             state.LiquidityBurstSide = burst.Side;
