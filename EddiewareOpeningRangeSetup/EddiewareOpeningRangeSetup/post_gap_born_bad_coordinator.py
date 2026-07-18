@@ -87,7 +87,7 @@ def main() -> int:
         f"RESEARCH_EXIT code={research_code} stdout={research_stdout} stderr={research_stderr}",
         flush=True,
     )
-    if research_code or research_stderr.stat().st_size:
+    if research_code:
         send_text(
             RESULTS_FOLDER,
             _timed(

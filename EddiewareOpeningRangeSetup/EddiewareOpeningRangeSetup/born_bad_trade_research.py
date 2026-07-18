@@ -25,6 +25,7 @@ import absorption_breakout_research as base
 
 TELEGRAM_TITLE = "ANALISIS  FAMILIAS A, B, C, ETC.\nGRUPO D - TRADES QUE NACEN MAL"
 RESULT_TICKS_PATTERN = re.compile(r"[-+]?\d+(?:\.\d+)?")
+OFFICIAL_CUTOFF_DATE = pd.Timestamp("2026-07-16")
 
 
 DERIVED_FEATURES = [
@@ -41,6 +42,12 @@ DERIVED_FEATURES = [
     "signed_delta_decay_1_5",
     "execution_cvd_alignment",
 ]
+
+
+def _report_flag(value: object) -> int:
+    """Serializa flags estadisticos faltantes sin alterar el calculo."""
+    numeric = pd.to_numeric(pd.Series([value]), errors="coerce").iloc[0]
+    return 0 if pd.isna(numeric) else int(numeric)
 
 
 def _result_ticks(frame: pd.DataFrame) -> pd.Series:
@@ -289,8 +296,8 @@ def _report(
                 lines.append(
                     f"| {row['feature']} | {row.get('permutation_q_bh', np.nan):.4f} | "
                     f"{row.get('abs_cliffs_delta', np.nan):.3f} | {row.get('overlap_coefficient', np.nan):.3f} | "
-                    f"{int(row.get('direction_stable_discovery_validation_holdout', 0) or 0)} | "
-                    f"{int(row.get('robust_candidate', 0) or 0)} |"
+                    f"{_report_flag(row.get('direction_stable_discovery_validation_holdout', 0))} | "
+                    f"{_report_flag(row.get('robust_candidate', 0))} |"
                 )
     lines.extend([
         "",
@@ -338,6 +345,10 @@ def run_analysis(results_folder: Path, output_folder: Path | None = None) -> dic
     dataset, audit = base.build_dataset(results_folder)
     if dataset.empty:
         raise RuntimeError("No hay dataset causal Liquidity Burst suficiente.")
+    replay_dates = pd.to_datetime(dataset.get("fecha"), errors="coerce")
+    dataset = dataset.loc[replay_dates.le(OFFICIAL_CUTOFF_DATE)].copy()
+    if dataset.empty:
+        raise RuntimeError("No hay dataset causal anterior o igual al cutoff oficial.")
     dataset = _classify(_add_causal_features(dataset))
 
     original_names = list(base.FEATURE_NAMES)
@@ -382,6 +393,7 @@ def run_analysis(results_folder: Path, output_folder: Path | None = None) -> dic
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "mode": "Historia X10 únicamente",
         "replay_x1": "DESHABILITADO",
+        "official_cutoff_date": OFFICIAL_CUTOFF_DATE.date().isoformat(),
         "rows": len(dataset),
         "groups": counts,
         "output_folder": str(output_folder),

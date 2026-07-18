@@ -31,6 +31,7 @@ PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 WAIT_OBJECT_0 = 0
 INFINITE = 0xFFFFFFFF
 CREATE_NO_WINDOW = 0x08000000
+OFFICIAL_CUTOFF_DATE = "2026-07-16"
 
 
 def _format_eta(seconds: float | int | None) -> str:
@@ -80,7 +81,11 @@ def _all_dates() -> list[str]:
         raise RuntimeError(f"No pude cargar {NUMBERED_RUNNER}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return [replay_sync.date_iso_from_replay(value) for value in module.DATES_DST]
+    return [
+        date_iso
+        for value in module.DATES_DST
+        if (date_iso := replay_sync.date_iso_from_replay(value)) <= OFFICIAL_CUTOFF_DATE
+    ]
 
 
 def _missing_dates() -> list[str]:
@@ -226,7 +231,7 @@ def main() -> int:
         f"RESEARCH_EXIT code={research_code} stdout={research_stdout} stderr={research_stderr}",
         flush=True,
     )
-    if research_code or research_stderr.stat().st_size:
+    if research_code:
         send_text(
             RESULTS_FOLDER,
             _timed("GRUPO D - ERROR DE INVESTIGACION\n"
