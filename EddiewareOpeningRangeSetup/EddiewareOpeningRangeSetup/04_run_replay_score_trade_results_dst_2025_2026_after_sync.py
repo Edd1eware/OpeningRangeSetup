@@ -1116,6 +1116,12 @@ def reset_replay_run_state(output_folder):
         "trade_results.csv",
         "exporter_lifecycle_diagnostics.csv",
         "latest_absorption_breakout_research.txt",
+        # Estado exclusivo del monitor de Telegram. Debe empezar vacio en una
+        # corrida reiniciada para no confundir fechas historicas con mensajes
+        # ya reservados/enviados. No interviene en Replay ni en trading.
+        "telegram_eta_reserved_dates.txt",
+        "telegram_eta_terminal_sent_dates.txt",
+        "telegram_run_eta.txt",
     )
     capture_paths = [
         Path(RESULTS_FOLDER) / file_name
