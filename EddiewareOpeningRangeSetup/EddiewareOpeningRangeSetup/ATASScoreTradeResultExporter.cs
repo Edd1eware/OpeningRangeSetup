@@ -46,7 +46,7 @@ namespace ATAS.Indicators
         private const int DynamicTimelineFlushRowCount = 100;
         // FROZEN — DO NOT CHANGE. Sync guards depend on this version string matching
         // persisted snapshots. Changing it invalidates all existing X1/X10 sync files.
-        private const string ExporterVersion = "score-exporter-2026-07-16-v23-liquidity-burst-entry";
+        private const string ExporterVersion = "score-exporter-2026-07-18-v24-born-bad-context";
         private const string DynamicTimelineVersion = "dynamic-timeline-2026-06-23-v11-canonical-sync-guards";
         private static readonly JsonSerializerOptions ReplaySyncJsonOptions = new JsonSerializerOptions
         {
@@ -125,6 +125,13 @@ namespace ATAS.Indicators
             "Liquidity_Burst_Delta1s_AtEntry,Liquidity_Burst_DeltaChange1s_AtEntry,Liquidity_Burst_ZScore_AtEntry," +
             "Liquidity_Burst_Percentile_AtEntry,Liquidity_Burst_Velocity1s_AtEntry,Liquidity_Burst_Acceleration1s_AtEntry," +
             "Liquidity_Burst_TradesPerSecond_AtEntry,Liquidity_Burst_ContractsPerSecond_AtEntry," +
+            "Seconds_From_Open_AtEntry,Directional_OR_Extension_Ticks_AtEntry,Directional_VWAP_Distance_Ticks_AtEntry," +
+            "Nearest_OR_Edge_Distance_Ticks_AtEntry,Body_OR_Ratio_AtEntry,Signed_Delta_Share_AtEntry," +
+            "Signed_Previous_Delta_Share_AtEntry,Prior_Closed_ATR3_Ticks_AtEntry,Prior_Closed_ATR5_Ticks_AtEntry," +
+            "PreEntry_Directional_Efficiency3_AtEntry,PreEntry_Directional_Delta_Share3_AtEntry," +
+            "PreEntry_Range_Compression3_AtEntry,PreEntry_Volume_Climax_Ratio_AtEntry," +
+            "Nearest_OR_Edge_Retest_Count_AtEntry,Nearest_OR_Edge_Acceptance_Ratio3_AtEntry," +
+            "Directional_CLV_AtEntry," +
             "feature_timestamp_utc,entry_timestamp_utc";
         private const string TradeResultCsvHeader =
             "Result_VERSION,fecha,entry_timestamp,outcome_timestamp,ExitTime_NY,Trade_Duration,EntryBar,Side,Entry_price," +
@@ -511,6 +518,7 @@ namespace ATAS.Indicators
                 : score.SellImbalanceCount;
             var entryTimingSource = "SignalSnapshotTime";
             var entryUpdateTimeUtc = ConvertNewYorkTimeToUtc(nyTime);
+            var bornBadContext = CaptureBornBadContext(bar, candle, nyTime, executionSide, score);
 
             _trade = new TradeState
             {
@@ -658,7 +666,23 @@ namespace ATAS.Indicators
                     LiquidityBurstVelocity1sAtEntry = score.LiquidityBurstVelocity1s,
                     LiquidityBurstAcceleration1sAtEntry = score.LiquidityBurstAcceleration1s,
                     LiquidityBurstTradesPerSecondAtEntry = score.LiquidityBurstTradesPerSecond,
-                    LiquidityBurstContractsPerSecondAtEntry = score.LiquidityBurstContractsPerSecond
+                    LiquidityBurstContractsPerSecondAtEntry = score.LiquidityBurstContractsPerSecond,
+                    SecondsFromOpenAtEntry = bornBadContext.SecondsFromOpen,
+                    DirectionalOrExtensionTicksAtEntry = bornBadContext.DirectionalOrExtensionTicks,
+                    DirectionalVwapDistanceTicksAtEntry = bornBadContext.DirectionalVwapDistanceTicks,
+                    NearestOrEdgeDistanceTicksAtEntry = bornBadContext.NearestOrEdgeDistanceTicks,
+                    BodyOrRatioAtEntry = bornBadContext.BodyOrRatio,
+                    SignedDeltaShareAtEntry = bornBadContext.SignedDeltaShare,
+                    SignedPreviousDeltaShareAtEntry = bornBadContext.SignedPreviousDeltaShare,
+                    PriorClosedAtr3TicksAtEntry = bornBadContext.PriorClosedAtr3Ticks,
+                    PriorClosedAtr5TicksAtEntry = bornBadContext.PriorClosedAtr5Ticks,
+                    PreEntryDirectionalEfficiency3AtEntry = bornBadContext.PreEntryDirectionalEfficiency3,
+                    PreEntryDirectionalDeltaShare3AtEntry = bornBadContext.PreEntryDirectionalDeltaShare3,
+                    PreEntryRangeCompression3AtEntry = bornBadContext.PreEntryRangeCompression3,
+                    PreEntryVolumeClimaxRatioAtEntry = bornBadContext.PreEntryVolumeClimaxRatio,
+                    NearestOrEdgeRetestCountAtEntry = bornBadContext.NearestOrEdgeRetestCount,
+                    NearestOrEdgeAcceptanceRatio3AtEntry = bornBadContext.NearestOrEdgeAcceptanceRatio3,
+                    DirectionalClvAtEntry = bornBadContext.DirectionalClv
                 }
             };
 
@@ -710,6 +734,161 @@ namespace ATAS.Indicators
                 nyTime);
             WriteTradeInputFile(nyTime.Date);
             WriteTradeFile(nyTime.Date);
+        }
+
+        private BornBadContextSnapshot CaptureBornBadContext(
+            int entryBar,
+            dynamic candle,
+            DateTime nyTime,
+            string executionSide,
+            ScoreTradeSignal score)
+        {
+            var sideSign = string.Equals(executionSide, "BUY", StringComparison.OrdinalIgnoreCase)
+                ? 1m
+                : -1m;
+            var orRangeTicks = Math.Max(Math.Abs(score.OrRangeTicks), 1m);
+            var nearestEdge = Math.Abs(score.EntryPrice - score.OrHigh) <= Math.Abs(score.EntryPrice - score.OrLow)
+                ? score.OrHigh
+                : score.OrLow;
+            var nearestEdgeIsHigh = nearestEdge == score.OrHigh;
+            var priorAtr3 = CalculatePriorClosedAtrTicks(entryBar, 3);
+            var result = new BornBadContextSnapshot
+            {
+                SecondsFromOpen = Math.Max(0m, (decimal)(nyTime.TimeOfDay - _openingTimeNy).TotalSeconds),
+                DirectionalOrExtensionTicks = sideSign > 0
+                    ? (score.EntryPrice - score.OrHigh) / SetupTickSize
+                    : (score.OrLow - score.EntryPrice) / SetupTickSize,
+                DirectionalVwapDistanceTicks = sideSign * (score.EntryPrice - score.Vwap) / SetupTickSize,
+                NearestOrEdgeDistanceTicks = Math.Min(
+                    Math.Abs(score.EntryPrice - score.OrHigh),
+                    Math.Abs(score.EntryPrice - score.OrLow)) / SetupTickSize,
+                BodyOrRatio = SafeRatio(Math.Abs(score.BodyBreakoutTicks), orRangeTicks),
+                SignedDeltaShare = sideSign * SafeRatio(score.Delta, Math.Abs(score.Volume)),
+                SignedPreviousDeltaShare = sideSign * SafeRatio(score.PreviousDelta, Math.Abs(score.PreviousVolume)),
+                PriorClosedAtr3Ticks = priorAtr3,
+                PriorClosedAtr5Ticks = CalculatePriorClosedAtrTicks(entryBar, 5),
+                PreEntryRangeCompression3 = SafeRatio(priorAtr3, orRangeTicks),
+                DirectionalClv = CalculateDirectionalClv(candle, score.EntryPrice, sideSign)
+            };
+
+            CaptureClosedBarPathContext(
+                entryBar,
+                sideSign,
+                nearestEdge,
+                nearestEdgeIsHigh,
+                result);
+            return result;
+        }
+
+        private decimal CalculatePriorClosedAtrTicks(int entryBar, int periods)
+        {
+            var end = entryBar - 1;
+            var start = Math.Max(1, end - periods + 1);
+            if (end < start)
+                return 0m;
+
+            decimal sum = 0m;
+            var count = 0;
+            for (var i = start; i <= end; i++)
+            {
+                var current = GetCandle(i);
+                var previous = GetCandle(i - 1);
+                var high = (decimal)current.High;
+                var low = (decimal)current.Low;
+                var previousClose = (decimal)previous.Close;
+                var trueRange = Math.Max(
+                    high - low,
+                    Math.Max(Math.Abs(high - previousClose), Math.Abs(low - previousClose)));
+                sum += trueRange / SetupTickSize;
+                count++;
+            }
+
+            return count > 0 ? sum / count : 0m;
+        }
+
+        private void CaptureClosedBarPathContext(
+            int entryBar,
+            decimal sideSign,
+            decimal nearestEdge,
+            bool nearestEdgeIsHigh,
+            BornBadContextSnapshot result)
+        {
+            var end = entryBar - 1;
+            var start = Math.Max(_orBar + 1, end - 2);
+            if (end < start)
+                return;
+
+            decimal path = 0m;
+            decimal delta = 0m;
+            decimal volume = 0m;
+            var first = GetCandle(start);
+            var last = GetCandle(end);
+            for (var i = start; i <= end; i++)
+            {
+                var current = GetCandle(i);
+                path += Math.Abs((decimal)current.High - (decimal)current.Low);
+                delta += (decimal)current.Delta;
+                volume += Math.Abs((decimal)current.Volume);
+            }
+
+            result.PreEntryDirectionalEfficiency3 = SafeRatio(
+                sideSign * ((decimal)last.Close - (decimal)first.Open),
+                path);
+            result.PreEntryDirectionalDeltaShare3 = sideSign * SafeRatio(delta, volume);
+
+            var priorVolumeStart = Math.Max(_orBar + 1, end - 3);
+            decimal priorVolume = 0m;
+            var priorVolumeCount = 0;
+            for (var i = priorVolumeStart; i < end; i++)
+            {
+                priorVolume += Math.Abs((decimal)GetCandle(i).Volume);
+                priorVolumeCount++;
+            }
+            if (priorVolumeCount > 0)
+            {
+                result.PreEntryVolumeClimaxRatio = SafeRatio(
+                    Math.Abs((decimal)last.Volume),
+                    priorVolume / priorVolumeCount);
+            }
+
+            var retestBand = SetupTickSize;
+            for (var i = Math.Max(_orBar + 1, 1); i <= end; i++)
+            {
+                var closed = GetCandle(i);
+                if ((decimal)closed.Low <= nearestEdge + retestBand &&
+                    (decimal)closed.High >= nearestEdge - retestBand)
+                {
+                    result.NearestOrEdgeRetestCount++;
+                }
+            }
+
+            var accepted = 0;
+            var acceptanceCount = 0;
+            for (var i = start; i <= end; i++)
+            {
+                var close = (decimal)GetCandle(i).Close;
+                if (nearestEdgeIsHigh ? close >= nearestEdge : close <= nearestEdge)
+                    accepted++;
+                acceptanceCount++;
+            }
+            result.NearestOrEdgeAcceptanceRatio3 = acceptanceCount > 0
+                ? (decimal)accepted / acceptanceCount
+                : 0m;
+        }
+
+        private static decimal CalculateDirectionalClv(dynamic candle, decimal price, decimal sideSign)
+        {
+            var high = (decimal)candle.High;
+            var low = (decimal)candle.Low;
+            var range = high - low;
+            if (range <= 0m)
+                return 0m;
+            return Math.Clamp(sideSign * ((2m * price - high - low) / range), -1m, 1m);
+        }
+
+        private static decimal SafeRatio(decimal numerator, decimal denominator)
+        {
+            return denominator == 0m ? 0m : numerator / denominator;
         }
 
         private void ApplyDynamicImbalanceStop(dynamic candle, string executionSide, TradeManagerTpSlBeExit.TradePlan plan)
@@ -2996,6 +3175,22 @@ namespace ATAS.Indicators
                 FormatTicks(input.LiquidityBurstAcceleration1sAtEntry),
                 FormatTicks(input.LiquidityBurstTradesPerSecondAtEntry),
                 FormatTicks(input.LiquidityBurstContractsPerSecondAtEntry),
+                FormatSeconds(input.SecondsFromOpenAtEntry),
+                FormatTicks(input.DirectionalOrExtensionTicksAtEntry),
+                FormatTicks(input.DirectionalVwapDistanceTicksAtEntry),
+                FormatTicks(input.NearestOrEdgeDistanceTicksAtEntry),
+                FormatTicks(input.BodyOrRatioAtEntry),
+                FormatTicks(input.SignedDeltaShareAtEntry),
+                FormatTicks(input.SignedPreviousDeltaShareAtEntry),
+                FormatTicks(input.PriorClosedAtr3TicksAtEntry),
+                FormatTicks(input.PriorClosedAtr5TicksAtEntry),
+                FormatTicks(input.PreEntryDirectionalEfficiency3AtEntry),
+                FormatTicks(input.PreEntryDirectionalDeltaShare3AtEntry),
+                FormatTicks(input.PreEntryRangeCompression3AtEntry),
+                FormatTicks(input.PreEntryVolumeClimaxRatioAtEntry),
+                input.NearestOrEdgeRetestCountAtEntry.ToString(CultureInfo.InvariantCulture),
+                FormatTicks(input.NearestOrEdgeAcceptanceRatio3AtEntry),
+                FormatTicks(input.DirectionalClvAtEntry),
                 input.FeatureTimestampUtc.ToString("o", CultureInfo.InvariantCulture),
                 input.EntryTimestampUtc.ToString("o", CultureInfo.InvariantCulture));
         }
@@ -4730,6 +4925,42 @@ namespace ATAS.Indicators
             public decimal LiquidityBurstAcceleration1sAtEntry { get; init; }
             public decimal LiquidityBurstTradesPerSecondAtEntry { get; init; }
             public decimal LiquidityBurstContractsPerSecondAtEntry { get; init; }
+            public decimal SecondsFromOpenAtEntry { get; init; }
+            public decimal DirectionalOrExtensionTicksAtEntry { get; init; }
+            public decimal DirectionalVwapDistanceTicksAtEntry { get; init; }
+            public decimal NearestOrEdgeDistanceTicksAtEntry { get; init; }
+            public decimal BodyOrRatioAtEntry { get; init; }
+            public decimal SignedDeltaShareAtEntry { get; init; }
+            public decimal SignedPreviousDeltaShareAtEntry { get; init; }
+            public decimal PriorClosedAtr3TicksAtEntry { get; init; }
+            public decimal PriorClosedAtr5TicksAtEntry { get; init; }
+            public decimal PreEntryDirectionalEfficiency3AtEntry { get; init; }
+            public decimal PreEntryDirectionalDeltaShare3AtEntry { get; init; }
+            public decimal PreEntryRangeCompression3AtEntry { get; init; }
+            public decimal PreEntryVolumeClimaxRatioAtEntry { get; init; }
+            public int NearestOrEdgeRetestCountAtEntry { get; init; }
+            public decimal NearestOrEdgeAcceptanceRatio3AtEntry { get; init; }
+            public decimal DirectionalClvAtEntry { get; init; }
+        }
+
+        private sealed class BornBadContextSnapshot
+        {
+            public decimal SecondsFromOpen { get; set; }
+            public decimal DirectionalOrExtensionTicks { get; set; }
+            public decimal DirectionalVwapDistanceTicks { get; set; }
+            public decimal NearestOrEdgeDistanceTicks { get; set; }
+            public decimal BodyOrRatio { get; set; }
+            public decimal SignedDeltaShare { get; set; }
+            public decimal SignedPreviousDeltaShare { get; set; }
+            public decimal PriorClosedAtr3Ticks { get; set; }
+            public decimal PriorClosedAtr5Ticks { get; set; }
+            public decimal PreEntryDirectionalEfficiency3 { get; set; }
+            public decimal PreEntryDirectionalDeltaShare3 { get; set; }
+            public decimal PreEntryRangeCompression3 { get; set; }
+            public decimal PreEntryVolumeClimaxRatio { get; set; }
+            public int NearestOrEdgeRetestCount { get; set; }
+            public decimal NearestOrEdgeAcceptanceRatio3 { get; set; }
+            public decimal DirectionalClv { get; set; }
         }
 
         private sealed class TradeOutcome

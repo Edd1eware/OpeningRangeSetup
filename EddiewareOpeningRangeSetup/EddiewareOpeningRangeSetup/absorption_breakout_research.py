@@ -39,7 +39,7 @@ from sklearn.tree import DecisionTreeClassifier
 
 
 RANDOM_SEED = 20260717
-EXPECTED_EXPORTER_VERSION = "score-exporter-2026-07-16-v23-liquidity-burst-entry"
+EXPECTED_EXPORTER_VERSION = "score-exporter-2026-07-18-v24-born-bad-context"
 EXPECTED_BURST_VERSION = "liquidity-burst-detector-2026-07-14-v1"
 TELEGRAM_TITLE = "ANALISIS  FAMILIAS A, B, C, ETC."
 TICK_SIZE = 0.25
@@ -107,6 +107,22 @@ ENTRY_SPECS = [
     FeatureSpec("Score_AtEntry", "trade_inputs", "score available at prediction", "points", "Confluencia causal predefinida.", -60, 0),
     FeatureSpec("Buy_Imbalance_Count_AtEntry", "trade_inputs", "buy imbalance count", "count", "Desequilibrios compradores observados.", -60, 0),
     FeatureSpec("Sell_Imbalance_Count_AtEntry", "trade_inputs", "sell imbalance count", "count", "Desequilibrios vendedores observados.", -60, 0),
+    FeatureSpec("Seconds_From_Open_AtEntry", "trade_inputs", "entry_ny-09:30 NY", "seconds", "Régimen temporal exacto al decidir.", -600, 0),
+    FeatureSpec("Directional_OR_Extension_Ticks_AtEntry", "trade_inputs", "execution_sign*distance beyond execution-side OR edge", "ticks", "Extensión causal respecto al OR.", -600, 0),
+    FeatureSpec("Directional_VWAP_Distance_Ticks_AtEntry", "trade_inputs", "execution_sign*(entry-vwap)/tick", "ticks", "Alineación de entrada con valor negociado.", -600, 0),
+    FeatureSpec("Nearest_OR_Edge_Distance_Ticks_AtEntry", "trade_inputs", "min(abs(entry-OR high),abs(entry-OR low))/tick", "ticks", "Proximidad al borde estructural más cercano.", -600, 0),
+    FeatureSpec("Body_OR_Ratio_AtEntry", "trade_inputs", "abs(body ticks)/max(OR ticks,1)", "ratio", "Extensión del cuerpo normalizada por régimen.", -60, 0),
+    FeatureSpec("Signed_Delta_Share_AtEntry", "trade_inputs", "execution_sign*bar delta/max(bar volume,1)", "ratio", "Agresión del bar alineada con la ejecución.", -60, 0),
+    FeatureSpec("Signed_Previous_Delta_Share_AtEntry", "trade_inputs", "execution_sign*previous delta/max(previous volume,1)", "ratio", "Agresión cerrada previa alineada.", -120, -1),
+    FeatureSpec("Prior_Closed_ATR3_Ticks_AtEntry", "trade_inputs", "mean true range of prior 3 closed bars", "ticks", "Volatilidad causal inmediata.", -240, -1),
+    FeatureSpec("Prior_Closed_ATR5_Ticks_AtEntry", "trade_inputs", "mean true range of prior 5 closed bars", "ticks", "Volatilidad causal suavizada.", -360, -1),
+    FeatureSpec("PreEntry_Directional_Efficiency3_AtEntry", "trade_inputs", "execution_sign*net move/sum ranges of prior 3 closed bars", "ratio", "Eficiencia de trayectoria previa.", -240, -1),
+    FeatureSpec("PreEntry_Directional_Delta_Share3_AtEntry", "trade_inputs", "execution_sign*sum delta/sum volume prior 3 closed bars", "ratio", "Persistencia de agresión previa.", -240, -1),
+    FeatureSpec("PreEntry_Range_Compression3_AtEntry", "trade_inputs", "ATR3/max(OR range,1)", "ratio", "Compresión o expansión previa normalizada.", -240, -1),
+    FeatureSpec("PreEntry_Volume_Climax_Ratio_AtEntry", "trade_inputs", "last closed volume/mean earlier closed volumes", "ratio", "Clímax de participación antes del entry.", -300, -1),
+    FeatureSpec("Nearest_OR_Edge_Retest_Count_AtEntry", "trade_inputs", "closed bars touching nearest OR edge before entry", "count", "Desgaste causal del nivel por retests.", -600, -1),
+    FeatureSpec("Nearest_OR_Edge_Acceptance_Ratio3_AtEntry", "trade_inputs", "fraction prior 3 closed bars accepted outside nearest OR edge", "ratio", "Aceptación frente a rechazo del borde.", -240, -1),
+    FeatureSpec("Directional_CLV_AtEntry", "trade_inputs", "execution_sign*(2*entry-high-low)/(high-low)", "ratio", "Ubicación intrabar causal en dirección ejecutada.", -60, 0),
 ]
 
 ENGINEERED_SPECS = [

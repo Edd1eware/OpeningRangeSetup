@@ -129,12 +129,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--runner-log", type=Path, required=True)
     parser.add_argument("--initial-missing", type=int, required=True)
     parser.add_argument("--poll-seconds", type=float, default=0.25)
+    parser.add_argument("--from-date", default="")
+    parser.add_argument("--to-date", default="")
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    all_dates = _all_dates()
+    all_dates = [
+        date_iso
+        for date_iso in _all_dates()
+        if (not args.from_date or date_iso >= args.from_date)
+        and (not args.to_date or date_iso <= args.to_date)
+    ]
     current_missing = _current_missing(all_dates)
     reserved = _read_lines(RESERVED_DATES_FILE) | current_missing
     already_reserved = _read_lines(SENT_DATES_FILE)

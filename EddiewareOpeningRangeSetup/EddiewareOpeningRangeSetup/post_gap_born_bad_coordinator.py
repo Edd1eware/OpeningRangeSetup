@@ -8,12 +8,14 @@ from pathlib import Path
 
 from post_run_born_bad_coordinator import (
     RESULTS_FOLDER,
+    _all_dates,
     _format_eta,
-    _missing_dates,
     _run_research,
     _timed,
     _wait_existing,
 )
+import replay_sync_runner_common_after_sync as replay_sync
+from post_run_born_bad_coordinator import OUTPUT_FOLDER
 from telegram_run_summary_after_sync import send_text
 
 
@@ -24,11 +26,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gap-stdout", type=Path, required=True)
     parser.add_argument("--gap-stderr", type=Path, required=True)
     parser.add_argument("--initial-missing", type=int, required=True)
+    parser.add_argument("--from-date", default="")
+    parser.add_argument("--to-date", default="")
     return parser.parse_args()
 
 
+def _missing_dates(args: argparse.Namespace) -> list[str]:
+    return [
+        date_iso
+        for date_iso in _all_dates()
+        if (not args.from_date or date_iso >= args.from_date)
+        and (not args.to_date or date_iso <= args.to_date)
+        and not replay_sync.is_saved_run_complete(OUTPUT_FOLDER, date_iso, "X10_R1")
+    ]
+
+
 def _current_eta(args: argparse.Namespace) -> tuple[int, float]:
-    missing = len(_missing_dates())
+    missing = len(_missing_dates(args))
     completed = max(0, args.initial_missing - missing)
     elapsed = max(1.0, time.time() - args.gap_stdout.stat().st_ctime)
     seconds_per_date = elapsed / completed if completed else 390.0
@@ -63,7 +77,7 @@ def main() -> int:
         )
         return 2
 
-    remaining = _missing_dates()
+    remaining = _missing_dates(args)
     if remaining:
         send_text(
             RESULTS_FOLDER,
