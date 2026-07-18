@@ -1112,6 +1112,7 @@ def reset_replay_run_state(output_folder):
     # replay ni por la lógica de trading; se preservan íntegros en un archivo.
     research_capture_names = (
         "burst_events.csv",
+        "burst_response_events.csv",
         "trade_inputs.csv",
         "trade_results.csv",
         "exporter_lifecycle_diagnostics.csv",

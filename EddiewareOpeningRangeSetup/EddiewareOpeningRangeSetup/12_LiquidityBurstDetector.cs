@@ -13,7 +13,7 @@ namespace ATAS.Indicators
     [DisplayName("Liquidity Burst Detector")]
     public class LiquidityBurstDetector : Indicator
     {
-        private const string Version = "liquidity-burst-detector-2026-07-14-v1";
+        private const string Version = "liquidity-burst-detector-2026-07-18-v2-response-families";
         private const decimal DefaultTickSize = 0.25m;
 
         private readonly TimeZoneInfo _nyZone =
@@ -21,6 +21,7 @@ namespace ATAS.Indicators
 
         private readonly List<SecondBucket> _history = new();
         private readonly Dictionary<decimal, decimal> _volumeAtPrice = new();
+        private readonly List<PendingBurstResponse> _pendingBurstResponses = new();
 
         private SecondBucket? _activeBucket;
         private DateTime _currentNyDate = DateTime.MinValue;
@@ -40,6 +41,7 @@ namespace ATAS.Indicators
         private bool _orReady;
         private decimal _lastVelocity1s;
         private decimal _lastVelocity3s;
+        private decimal? _lastEmittedPoc;
 
         [Display(Name = "Export CSV", Order = 1, GroupName = "Output")]
         public bool ExportCsv { get; set; } = true;
@@ -266,6 +268,8 @@ namespace ATAS.Indicators
             if (ny.Date != _currentNyDate)
                 ResetSession(ny.Date);
 
+            UpdatePendingBurstResponses(bucket);
+
             var features = BuildFeatures(bucket);
             bucket.DeltaChange1s = features.DeltaChange1s;
 
@@ -369,6 +373,7 @@ namespace ATAS.Indicators
 
         private void EmitBurst(SecondBucket bucket, BurstFeatures features, string side, string label, string colorName)
         {
+            PopulatePreBurstResponseFeatures(bucket, features, side);
             _burstSequence++;
             var id = string.Format(
                 CultureInfo.InvariantCulture,
@@ -414,6 +419,9 @@ namespace ATAS.Indicators
 
             if (ExportCsv)
                 WriteBurstEvent(snapshot);
+
+            _pendingBurstResponses.Add(new PendingBurstResponse(snapshot));
+            _lastEmittedPoc = snapshot.Profile.Poc;
         }
 
         private void WriteBurstEvent(BurstSnapshot snapshot)
@@ -431,6 +439,291 @@ namespace ATAS.Indicators
             {
                 // Research export must never interrupt chart calculation.
             }
+        }
+
+        private void PopulatePreBurstResponseFeatures(
+            SecondBucket current,
+            BurstFeatures features,
+            string side)
+        {
+            var sideSign = string.Equals(side, "BUY", StringComparison.OrdinalIgnoreCase) ? 1m : -1m;
+            var recent = RecentBuckets(current, 10);
+            if (recent.Count == 0)
+                return;
+
+            var brokenLevel = sideSign > 0
+                ? (_orReady ? _orHigh : current.Close)
+                : (_orReady ? _orLow : current.Close);
+            var acceptanceStart = Math.Max(0, recent.Count - 5);
+            var accepted = 0;
+            for (var i = acceptanceStart; i < recent.Count; i++)
+            {
+                if (IsBeyond(recent[i].Close, brokenLevel, sideSign))
+                    accepted++;
+            }
+            features.PreBurstAcceptanceDwellRatio5s = SafeRatio(
+                accepted,
+                recent.Count - acceptanceStart);
+
+            var path = 0m;
+            var rotations = 0;
+            var upMoves = 0;
+            var downMoves = 0;
+            var priorDirection = 0;
+            for (var i = 1; i < recent.Count; i++)
+            {
+                var priorBeyond = IsBeyond(recent[i - 1].Close, brokenLevel, sideSign);
+                var currentBeyond = IsBeyond(recent[i].Close, brokenLevel, sideSign);
+                if (priorBeyond && !currentBeyond)
+                    features.PreBurstReclaimCount10s++;
+
+                var change = recent[i].Close - recent[i - 1].Close;
+                path += Math.Abs(change);
+                var direction = Math.Sign(change);
+                if (direction > 0) upMoves++;
+                if (direction < 0) downMoves++;
+                if (direction != 0 && priorDirection != 0 && direction != priorDirection)
+                    rotations++;
+                if (direction != 0)
+                    priorDirection = direction;
+            }
+
+            var nonZeroMoves = upMoves + downMoves;
+            features.PreBurstRotationIndex10s = nonZeroMoves > 1
+                ? SafeRatio(rotations, nonZeroMoves - 1)
+                : 0m;
+            features.PreBurstLocalEntropy10s = BinaryEntropy(upMoves, downMoves);
+            features.PreBurstPathEfficiency10s = path > 0m
+                ? Math.Clamp(
+                    sideSign * (current.Close - recent[0].Open) / path,
+                    -1m,
+                    1m)
+                : 0m;
+
+            var recent3Start = Math.Max(0, recent.Count - 3);
+            decimal delta3 = 0m;
+            decimal volume3 = 0m;
+            for (var i = recent3Start; i < recent.Count; i++)
+            {
+                delta3 += recent[i].Delta;
+                volume3 += recent[i].Volume;
+            }
+            var directionalTicks3 = Tick > 0
+                ? sideSign * (current.Close - recent[recent3Start].Open) / Tick
+                : 0m;
+            features.PreBurstEffortResultDelta3s = SafeRatio(directionalTicks3, Math.Abs(delta3));
+            features.PreBurstEffortResultVolume3s = SafeRatio(directionalTicks3, Math.Abs(volume3));
+
+            var directionalMoves = new List<decimal>();
+            for (var i = Math.Max(1, recent.Count - 5); i < recent.Count; i++)
+            {
+                var moveTicks = Tick > 0
+                    ? sideSign * (recent[i].Close - recent[i - 1].Close) / Tick
+                    : 0m;
+                directionalMoves.Add(moveTicks);
+            }
+            for (var i = directionalMoves.Count - 1; i >= 0; i--)
+            {
+                if (directionalMoves[i] <= 0m)
+                    break;
+                features.PreBurstImpulseSurvivalSeconds++;
+            }
+            features.PreBurstImpulseDecaySlope5s = LinearSlope(directionalMoves);
+        }
+
+        private List<SecondBucket> RecentBuckets(SecondBucket current, int seconds)
+        {
+            var result = new List<SecondBucket>();
+            var minimum = current.SecondUtc.AddSeconds(-Math.Max(1, seconds) + 1);
+            for (var i = _history.Count - 1; i >= 0; i--)
+            {
+                if (_history[i].SecondUtc < minimum)
+                    break;
+                result.Add(_history[i]);
+            }
+            result.Reverse();
+            result.Add(current);
+            return result;
+        }
+
+        private void UpdatePendingBurstResponses(SecondBucket current)
+        {
+            for (var i = _pendingBurstResponses.Count - 1; i >= 0; i--)
+            {
+                var pending = _pendingBurstResponses[i];
+                if (current.SecondUtc <= pending.Burst.TimestampUtc)
+                    continue;
+
+                pending.Buckets.Add(current);
+                var elapsed = (current.SecondUtc - pending.Burst.TimestampUtc).TotalSeconds;
+                foreach (var horizon in new[] { 1, 3, 5 })
+                {
+                    if (elapsed >= horizon && pending.WrittenHorizons.Add(horizon))
+                        WriteBurstResponse(BuildBurstResponse(pending, horizon));
+                }
+
+                if (elapsed >= 5)
+                    _pendingBurstResponses.RemoveAt(i);
+            }
+        }
+
+        private BurstResponseSnapshot BuildBurstResponse(PendingBurstResponse pending, int horizonSeconds)
+        {
+            var burst = pending.Burst;
+            var sideSign = string.Equals(burst.Side, "BUY", StringComparison.OrdinalIgnoreCase) ? 1m : -1m;
+            var cutoff = burst.TimestampUtc.AddSeconds(horizonSeconds);
+            var buckets = pending.Buckets.FindAll(bucket => bucket.SecondUtc <= cutoff);
+            var last = buckets.Count > 0 ? buckets[buckets.Count - 1] : null;
+            var responsePrice = last?.Close ?? burst.Price;
+            var brokenLevel = sideSign > 0
+                ? (burst.Profile.OrHigh ?? burst.Price)
+                : (burst.Profile.OrLow ?? burst.Price);
+            var result = new BurstResponseSnapshot
+            {
+                DetectorVersion = Version,
+                BurstId = burst.BurstId,
+                BurstTimestampUtc = burst.TimestampUtc,
+                BurstTimestampNy = burst.TimestampNy,
+                ResponseTimestampUtc = (last?.SecondUtc ?? cutoff).AddSeconds(1),
+                HorizonSeconds = horizonSeconds,
+                Side = burst.Side,
+                BurstPrice = burst.Price,
+                ResponsePrice = responsePrice,
+                BrokenLevel = brokenLevel
+            };
+
+            var high = burst.Price;
+            var low = burst.Price;
+            var accepted = 0;
+            var reclaims = 0;
+            var rotations = 0;
+            var upMoves = 0;
+            var downMoves = 0;
+            var priorDirection = 0;
+            var path = 0m;
+            decimal delta = 0m;
+            decimal volume = 0m;
+            decimal? previousPrice = burst.Price;
+            var previousBeyond = IsBeyond(burst.Price, brokenLevel, sideSign);
+            var directionalPositiveSeconds = 0;
+
+            foreach (var bucket in buckets)
+            {
+                high = Math.Max(high, bucket.High);
+                low = Math.Min(low, bucket.Low);
+                delta += bucket.Delta;
+                volume += bucket.Volume;
+                var beyond = IsBeyond(bucket.Close, brokenLevel, sideSign);
+                if (beyond) accepted++;
+                if (previousBeyond && !beyond) reclaims++;
+                previousBeyond = beyond;
+
+                var change = bucket.Close - previousPrice.GetValueOrDefault(bucket.Open);
+                path += Math.Abs(change);
+                var direction = Math.Sign(change);
+                if (direction > 0) upMoves++;
+                if (direction < 0) downMoves++;
+                if (direction != 0 && priorDirection != 0 && direction != priorDirection)
+                    rotations++;
+                if (direction != 0)
+                    priorDirection = direction;
+                if (sideSign * change > 0m)
+                    directionalPositiveSeconds++;
+                previousPrice = bucket.Close;
+            }
+
+            result.DirectionalDisplacementTicks = Tick > 0
+                ? sideSign * (responsePrice - burst.Price) / Tick
+                : 0m;
+            result.MfeTicks = Tick > 0
+                ? (sideSign > 0 ? high - burst.Price : burst.Price - low) / Tick
+                : 0m;
+            result.MaeTicks = Tick > 0
+                ? (sideSign > 0 ? burst.Price - low : high - burst.Price) / Tick
+                : 0m;
+            result.AcceptanceDwellRatio = SafeRatio(accepted, Math.Max(1, buckets.Count));
+            result.ReclaimCount = reclaims;
+            result.DirectionalDelta = sideSign * delta;
+            result.Volume = volume;
+            result.EffortResultDelta = SafeRatio(result.DirectionalDisplacementTicks, Math.Abs(delta));
+            result.EffortResultVolume = SafeRatio(result.DirectionalDisplacementTicks, Math.Abs(volume));
+            result.MomentumSurvivalRatio = SafeRatio(directionalPositiveSeconds, Math.Max(1, buckets.Count));
+            result.RotationIndex = upMoves + downMoves > 1
+                ? SafeRatio(rotations, upMoves + downMoves - 1)
+                : 0m;
+            result.LocalEntropy = BinaryEntropy(upMoves, downMoves);
+            result.PathEfficiency = path > 0m
+                ? Math.Clamp(sideSign * (responsePrice - burst.Price) / path, -1m, 1m)
+                : 0m;
+            result.RejectionSpeedTps = SafeRatio(result.MaeTicks, Math.Max(1, horizonSeconds));
+            var currentProfile = BuildProfileSnapshot(responsePrice);
+            result.PocMigrationTicks = Tick > 0 && burst.Profile.Poc.HasValue && currentProfile.Poc.HasValue
+                ? sideSign * (currentProfile.Poc.Value - burst.Profile.Poc.Value) / Tick
+                : null;
+            return result;
+        }
+
+        private void WriteBurstResponse(BurstResponseSnapshot response)
+        {
+            if (!ExportCsv)
+                return;
+            try
+            {
+                Directory.CreateDirectory(OutputFolder);
+                var path = Path.Combine(OutputFolder, "burst_response_events.csv");
+                var needsHeader = !File.Exists(path) || new FileInfo(path).Length == 0;
+                if (needsHeader)
+                    File.AppendAllText(path, BurstResponseSnapshot.CsvHeader + Environment.NewLine);
+                File.AppendAllText(path, response.ToCsvRow() + Environment.NewLine);
+            }
+            catch
+            {
+                // Observational research output must never interrupt replay/trading.
+            }
+        }
+
+        private static bool IsBeyond(decimal price, decimal level, decimal sideSign)
+        {
+            return sideSign > 0 ? price >= level : price <= level;
+        }
+
+        private static decimal SafeRatio(decimal numerator, decimal denominator)
+        {
+            return denominator == 0m ? 0m : numerator / denominator;
+        }
+
+        private static decimal BinaryEntropy(int positive, int negative)
+        {
+            var total = positive + negative;
+            if (total <= 0)
+                return 0m;
+            var pPositive = (double)positive / total;
+            var pNegative = (double)negative / total;
+            var entropy = 0d;
+            if (pPositive > 0) entropy -= pPositive * Math.Log(pPositive, 2d);
+            if (pNegative > 0) entropy -= pNegative * Math.Log(pNegative, 2d);
+            return (decimal)entropy;
+        }
+
+        private static decimal LinearSlope(List<decimal> values)
+        {
+            if (values.Count < 2)
+                return 0m;
+            decimal sumX = 0m;
+            decimal sumY = 0m;
+            decimal sumXy = 0m;
+            decimal sumX2 = 0m;
+            for (var i = 0; i < values.Count; i++)
+            {
+                sumX += i;
+                sumY += values[i];
+                sumXy += i * values[i];
+                sumX2 += i * i;
+            }
+            var denominator = values.Count * sumX2 - sumX * sumX;
+            return denominator == 0m
+                ? 0m
+                : (values.Count * sumXy - sumX * sumY) / denominator;
         }
 
         private bool InCooldown(string side, DateTime secondUtc)
@@ -472,6 +765,7 @@ namespace ATAS.Indicators
             _activeBucket = null;
             _history.Clear();
             _volumeAtPrice.Clear();
+            _pendingBurstResponses.Clear();
             _lastTradePrice = 0;
             _lastTradeDirection = 0;
             _buyPersistence = 0;
@@ -485,6 +779,7 @@ namespace ATAS.Indicators
             _orReady = false;
             _lastVelocity1s = 0;
             _lastVelocity3s = 0;
+            _lastEmittedPoc = null;
         }
 
         private void ResetAll()
@@ -493,6 +788,7 @@ namespace ATAS.Indicators
             _activeBucket = null;
             _history.Clear();
             _volumeAtPrice.Clear();
+            _pendingBurstResponses.Clear();
             _lastTradePrice = 0;
             _lastTradeDirection = 0;
             _lastFallbackBar = -1;
@@ -509,6 +805,7 @@ namespace ATAS.Indicators
             _orReady = false;
             _lastVelocity1s = 0;
             _lastVelocity3s = 0;
+            _lastEmittedPoc = null;
         }
 
         private void UpdateSessionContext(DateTime ny, decimal price, decimal volume)
@@ -682,6 +979,62 @@ namespace ATAS.Indicators
             }
 
             snapshot.Poc = prices[pocIndex];
+            if (totalVolume > 0m)
+            {
+                decimal weightedPrice = 0m;
+                decimal cumulativeBelow = 0m;
+                for (var i = 0; i < prices.Count; i++)
+                {
+                    var volume = _volumeAtPrice[prices[i]];
+                    weightedPrice += prices[i] * volume;
+                    if (prices[i] <= currentPrice)
+                        cumulativeBelow += volume;
+                }
+
+                var mean = weightedPrice / totalVolume;
+                decimal variance = 0m;
+                decimal thirdMoment = 0m;
+                decimal fourthMoment = 0m;
+                double entropy = 0d;
+                var localMaxima = 0;
+                for (var i = 0; i < prices.Count; i++)
+                {
+                    var volume = _volumeAtPrice[prices[i]];
+                    var probability = (double)(volume / totalVolume);
+                    if (probability > 0)
+                        entropy -= probability * Math.Log(probability);
+                    var deviation = prices[i] - mean;
+                    variance += volume * deviation * deviation;
+                    thirdMoment += volume * deviation * deviation * deviation;
+                    fourthMoment += volume * deviation * deviation * deviation * deviation;
+
+                    var left = i > 0 ? _volumeAtPrice[prices[i - 1]] : decimal.MinValue;
+                    var right = i < prices.Count - 1 ? _volumeAtPrice[prices[i + 1]] : decimal.MinValue;
+                    if (volume >= left && volume >= right)
+                        localMaxima++;
+                }
+
+                variance /= totalVolume;
+                var std = variance > 0m ? (decimal)Math.Sqrt((double)variance) : 0m;
+                snapshot.ProfileStdTicks = Tick > 0 ? std / Tick : null;
+                snapshot.ProfileSkewness = std > 0m
+                    ? thirdMoment / totalVolume / (std * std * std)
+                    : 0m;
+                snapshot.ProfileExcessKurtosis = variance > 0m
+                    ? fourthMoment / totalVolume / (variance * variance) - 3m
+                    : 0m;
+                snapshot.ProfileEntropy = (decimal)entropy;
+                snapshot.ProfileNormalizedEntropy = prices.Count > 1
+                    ? (decimal)(entropy / Math.Log(prices.Count))
+                    : 0m;
+                snapshot.ProfileConcentration = _volumeAtPrice[prices[pocIndex]] / totalVolume;
+                snapshot.ProfileEffectiveNodes = (decimal)Math.Exp(entropy);
+                snapshot.ProfileLocalMaximaCount = localMaxima;
+                snapshot.ProfilePositionPercentile = cumulativeBelow / totalVolume;
+                snapshot.PocMigrationTicks = Tick > 0 && _lastEmittedPoc.HasValue
+                    ? (snapshot.Poc.Value - _lastEmittedPoc.Value) / Tick
+                    : null;
+            }
 
             var target = totalVolume * Math.Clamp(ProfileValueAreaPercent, 0.10m, 0.95m);
             var lo = pocIndex;
@@ -992,6 +1345,15 @@ namespace ATAS.Indicators
             public decimal Acceleration3s { get; set; }
             public decimal TicksPerSecond { get; set; }
             public decimal CumulativeDelta { get; set; }
+            public decimal PreBurstAcceptanceDwellRatio5s { get; set; }
+            public int PreBurstReclaimCount10s { get; set; }
+            public decimal PreBurstRotationIndex10s { get; set; }
+            public decimal PreBurstLocalEntropy10s { get; set; }
+            public decimal PreBurstPathEfficiency10s { get; set; }
+            public decimal PreBurstEffortResultDelta3s { get; set; }
+            public decimal PreBurstEffortResultVolume3s { get; set; }
+            public int PreBurstImpulseSurvivalSeconds { get; set; }
+            public decimal PreBurstImpulseDecaySlope5s { get; set; }
         }
 
         private sealed class ProfileSnapshot
@@ -1013,18 +1375,134 @@ namespace ATAS.Indicators
             public decimal? DistanceToValTicks { get; set; }
             public decimal? DistanceToHvnTicks { get; set; }
             public decimal? DistanceToLvnTicks { get; set; }
+            public decimal? ProfileStdTicks { get; set; }
+            public decimal? ProfileSkewness { get; set; }
+            public decimal? ProfileExcessKurtosis { get; set; }
+            public decimal? ProfileEntropy { get; set; }
+            public decimal? ProfileNormalizedEntropy { get; set; }
+            public decimal? ProfileConcentration { get; set; }
+            public decimal? ProfileEffectiveNodes { get; set; }
+            public int ProfileLocalMaximaCount { get; set; }
+            public decimal? ProfilePositionPercentile { get; set; }
+            public decimal? PocMigrationTicks { get; set; }
+        }
+
+        private sealed class PendingBurstResponse
+        {
+            public PendingBurstResponse(BurstSnapshot burst)
+            {
+                Burst = burst;
+            }
+
+            public BurstSnapshot Burst { get; }
+            public List<SecondBucket> Buckets { get; } = new();
+            public HashSet<int> WrittenHorizons { get; } = new();
+        }
+
+        private sealed class BurstResponseSnapshot
+        {
+            public const string CsvHeader =
+                "Detector_VERSION,BurstId,Burst_Timestamp_UTC,Burst_Feature_Available_Timestamp_UTC," +
+                "Burst_Timestamp_NY,Response_Available_Timestamp_UTC," +
+                "Response_Horizon_Seconds,Side,Burst_Price,Response_Price,Broken_Level," +
+                "Directional_Displacement_Ticks,Response_MFE_Ticks,Response_MAE_Ticks," +
+                "Acceptance_Dwell_Ratio,Reclaim_Count,Rejection_Speed_TPS,Directional_Delta,Response_Volume," +
+                "Effort_Result_Delta,Effort_Result_Volume,Momentum_Survival_Ratio,Rotation_Index,Local_Entropy," +
+                "Path_Efficiency,Response_POC_Migration_Ticks,AvailableBeforeEntry,Model_Eligibility";
+
+            public string DetectorVersion { get; set; } = "";
+            public string BurstId { get; set; } = "";
+            public DateTime BurstTimestampUtc { get; set; }
+            public DateTime BurstTimestampNy { get; set; }
+            public DateTime ResponseTimestampUtc { get; set; }
+            public int HorizonSeconds { get; set; }
+            public string Side { get; set; } = "";
+            public decimal BurstPrice { get; set; }
+            public decimal ResponsePrice { get; set; }
+            public decimal BrokenLevel { get; set; }
+            public decimal DirectionalDisplacementTicks { get; set; }
+            public decimal MfeTicks { get; set; }
+            public decimal MaeTicks { get; set; }
+            public decimal AcceptanceDwellRatio { get; set; }
+            public int ReclaimCount { get; set; }
+            public decimal RejectionSpeedTps { get; set; }
+            public decimal DirectionalDelta { get; set; }
+            public decimal Volume { get; set; }
+            public decimal EffortResultDelta { get; set; }
+            public decimal EffortResultVolume { get; set; }
+            public decimal MomentumSurvivalRatio { get; set; }
+            public decimal RotationIndex { get; set; }
+            public decimal LocalEntropy { get; set; }
+            public decimal PathEfficiency { get; set; }
+            public decimal? PocMigrationTicks { get; set; }
+
+            public string ToCsvRow()
+            {
+                return string.Join(",",
+                    Csv(DetectorVersion),
+                    Csv(BurstId),
+                    Csv(BurstTimestampUtc.ToString("O", CultureInfo.InvariantCulture)),
+                    Csv(BurstTimestampUtc.AddSeconds(1).ToString("O", CultureInfo.InvariantCulture)),
+                    Csv(BurstTimestampNy.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
+                    Csv(ResponseTimestampUtc.ToString("O", CultureInfo.InvariantCulture)),
+                    HorizonSeconds.ToString(CultureInfo.InvariantCulture),
+                    Csv(Side),
+                    Num(BurstPrice),
+                    Num(ResponsePrice),
+                    Num(BrokenLevel),
+                    Num(DirectionalDisplacementTicks),
+                    Num(MfeTicks),
+                    Num(MaeTicks),
+                    Num(AcceptanceDwellRatio),
+                    ReclaimCount.ToString(CultureInfo.InvariantCulture),
+                    Num(RejectionSpeedTps),
+                    Num(DirectionalDelta),
+                    Num(Volume),
+                    Num(EffortResultDelta),
+                    Num(EffortResultVolume),
+                    Num(MomentumSurvivalRatio),
+                    Num(RotationIndex),
+                    Num(LocalEntropy),
+                    Num(PathEfficiency),
+                    Num(PocMigrationTicks),
+                    "0",
+                    Csv("POST_BURST_ONLY"));
+            }
+
+            private static string Csv(string value)
+            {
+                value ??= "";
+                if (value.IndexOfAny(new[] { ',', '"', '\r', '\n' }) < 0)
+                    return value;
+                return "\"" + value.Replace("\"", "\"\"") + "\"";
+            }
+
+            private static string Num(decimal value)
+            {
+                return value.ToString("0.###############", CultureInfo.InvariantCulture);
+            }
+
+            private static string Num(decimal? value)
+            {
+                return value.HasValue ? Num(value.Value) : "";
+            }
         }
 
         private sealed class BurstSnapshot
         {
             public const string CsvHeader =
-                "Detector_VERSION,BurstId,Timestamp_UTC,Timestamp_NY,Bar,Side,AggressionLabel,LabelColor,Price," +
+                "Detector_VERSION,BurstId,Timestamp_UTC,Feature_Available_Timestamp_UTC,Timestamp_NY,Bar,Side,AggressionLabel,LabelColor,Price," +
                 "Delta1s,Delta2s,Delta3s,Delta5s,Delta10s,PeakPositiveDelta,PeakNegativeDelta,DeltaChange1s," +
                 "DeltaChangeZScore,DeltaPercentile,BuySellRatio,TradesPerSecond,ContractsPerSecond,Velocity1s," +
                 "Velocity3s,Velocity5s,Acceleration1s,Acceleration3s,TicksPerSecond,CumulativeDeltaWindow," +
+                "PreBurst_Acceptance_Dwell_Ratio_5s,PreBurst_Reclaim_Count_10s,PreBurst_Rotation_Index_10s," +
+                "PreBurst_Local_Entropy_10s,PreBurst_Path_Efficiency_10s,PreBurst_Price_Per_Delta_3s," +
+                "PreBurst_Price_Per_Volume_3s,PreBurst_Impulse_Survival_Seconds,PreBurst_Impulse_Decay_Slope_5s," +
                 "OR_High,OR_Low,OR_WidthTicks,VWAP,POC,VAH,VAL,Nearest_HVN,Nearest_LVN,Dist_OR_High_Ticks," +
                 "Dist_OR_Low_Ticks,Dist_VWAP_Ticks,Dist_POC_Ticks,Dist_VAH_Ticks,Dist_VAL_Ticks,Dist_HVN_Ticks," +
-                "Dist_LVN_Ticks,Source,Window,AvailableBeforeEntry";
+                "Dist_LVN_Ticks,Profile_Std_Ticks,Profile_Skewness,Profile_Excess_Kurtosis,Profile_Entropy," +
+                "Profile_Normalized_Entropy,Profile_Concentration,Profile_Effective_Nodes,Profile_Local_Maxima_Count," +
+                "Profile_Position_Percentile,POC_Migration_Ticks,Source,Window,AvailableBeforeEntry";
 
             public BurstSnapshot(
                 string burstId,
@@ -1073,6 +1551,7 @@ namespace ATAS.Indicators
                     Csv(DetectorVersion),
                     Csv(BurstId),
                     Csv(TimestampUtc.ToString("O", CultureInfo.InvariantCulture)),
+                    Csv(TimestampUtc.AddSeconds(1).ToString("O", CultureInfo.InvariantCulture)),
                     Csv(TimestampNy.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
                     Bar.ToString(CultureInfo.InvariantCulture),
                     Csv(Side),
@@ -1099,6 +1578,15 @@ namespace ATAS.Indicators
                     Num(Features.Acceleration3s),
                     Num(Features.TicksPerSecond),
                     Num(Features.CumulativeDelta),
+                    Num(Features.PreBurstAcceptanceDwellRatio5s),
+                    Features.PreBurstReclaimCount10s.ToString(CultureInfo.InvariantCulture),
+                    Num(Features.PreBurstRotationIndex10s),
+                    Num(Features.PreBurstLocalEntropy10s),
+                    Num(Features.PreBurstPathEfficiency10s),
+                    Num(Features.PreBurstEffortResultDelta3s),
+                    Num(Features.PreBurstEffortResultVolume3s),
+                    Features.PreBurstImpulseSurvivalSeconds.ToString(CultureInfo.InvariantCulture),
+                    Num(Features.PreBurstImpulseDecaySlope5s),
                     Num(Profile.OrHigh),
                     Num(Profile.OrLow),
                     Num(Profile.OrWidthTicks),
@@ -1116,6 +1604,16 @@ namespace ATAS.Indicators
                     Num(Profile.DistanceToValTicks),
                     Num(Profile.DistanceToHvnTicks),
                     Num(Profile.DistanceToLvnTicks),
+                    Num(Profile.ProfileStdTicks),
+                    Num(Profile.ProfileSkewness),
+                    Num(Profile.ProfileExcessKurtosis),
+                    Num(Profile.ProfileEntropy),
+                    Num(Profile.ProfileNormalizedEntropy),
+                    Num(Profile.ProfileConcentration),
+                    Num(Profile.ProfileEffectiveNodes),
+                    Profile.ProfileLocalMaximaCount.ToString(CultureInfo.InvariantCulture),
+                    Num(Profile.ProfilePositionPercentile),
+                    Num(Profile.PocMigrationTicks),
                     Csv(Source),
                     Csv("1s causal snapshot"),
                     "1");

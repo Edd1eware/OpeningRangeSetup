@@ -22,7 +22,7 @@ TARGET_FILE = EXPORT_FOLDER / "target_trade_result_date.txt"
 REPLAY_STARTED_FILE = EXPORT_FOLDER / "replay_trade_result_started_at.txt"
 TELEGRAM_RUN_ETA_FILE = RESULTS_FOLDER / "telegram_run_eta.txt"
 
-EXPECTED_EXPORTER_VERSION = "score-exporter-2026-07-18-v24-born-bad-context"
+EXPECTED_EXPORTER_VERSION = "score-exporter-2026-07-18-v25-response-families"
 EXPECTED_TIMELINE_VERSION = "dynamic-timeline-2026-06-23-v11-canonical-sync-guards"
 
 TERMINAL_RESULTS = {

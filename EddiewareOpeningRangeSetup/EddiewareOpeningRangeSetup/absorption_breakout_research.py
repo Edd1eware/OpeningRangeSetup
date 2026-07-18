@@ -39,8 +39,8 @@ from sklearn.tree import DecisionTreeClassifier
 
 
 RANDOM_SEED = 20260717
-EXPECTED_EXPORTER_VERSION = "score-exporter-2026-07-18-v24-born-bad-context"
-EXPECTED_BURST_VERSION = "liquidity-burst-detector-2026-07-14-v1"
+EXPECTED_EXPORTER_VERSION = "score-exporter-2026-07-18-v25-response-families"
+EXPECTED_BURST_VERSION = "liquidity-burst-detector-2026-07-18-v2-response-families"
 TELEGRAM_TITLE = "ANALISIS  FAMILIAS A, B, C, ETC."
 TICK_SIZE = 0.25
 
@@ -92,6 +92,24 @@ BURST_SPECS = [
     FeatureSpec("Dist_VAL_Ticks", "burst_events", "(price-val)/tick", "ticks", "Ubicación respecto al VAL causal.", -1800, 0),
     FeatureSpec("Dist_HVN_Ticks", "burst_events", "(price-nearest_hvn)/tick", "ticks", "Distancia a nodo de alto volumen.", -1800, 0),
     FeatureSpec("Dist_LVN_Ticks", "burst_events", "(price-nearest_lvn)/tick", "ticks", "Distancia a nodo de bajo volumen.", -1800, 0),
+    FeatureSpec("PreBurst_Acceptance_Dwell_Ratio_5s", "burst_events", "seconds accepted beyond broken OR edge / observed seconds", "ratio", "Aceptación causal previa al burst.", -5, 0),
+    FeatureSpec("PreBurst_Reclaim_Count_10s", "burst_events", "crossings from accepted to reclaimed side", "count", "Reclaims causales antes del burst.", -10, 0),
+    FeatureSpec("PreBurst_Rotation_Index_10s", "burst_events", "direction changes/nonzero price changes", "ratio", "Rotación local de la subasta.", -10, 0),
+    FeatureSpec("PreBurst_Local_Entropy_10s", "burst_events", "binary entropy(up,down)", "bits", "Complejidad de la secuencia previa.", -10, 0),
+    FeatureSpec("PreBurst_Path_Efficiency_10s", "burst_events", "directional net move/absolute path", "ratio", "Eficiencia de trayectoria previa.", -10, 0),
+    FeatureSpec("PreBurst_Price_Per_Delta_3s", "burst_events", "directional ticks/abs(delta)", "ticks/contract", "Resultado de precio por agresión.", -3, 0),
+    FeatureSpec("PreBurst_Price_Per_Volume_3s", "burst_events", "directional ticks/volume", "ticks/contract", "Resultado de precio por volumen.", -3, 0),
+    FeatureSpec("PreBurst_Impulse_Survival_Seconds", "burst_events", "consecutive directional seconds ending at burst", "seconds", "Supervivencia causal del impulso.", -5, 0),
+    FeatureSpec("PreBurst_Impulse_Decay_Slope_5s", "burst_events", "OLS slope of directional one-second moves", "ticks/s2", "Decaimiento o expansión del impulso.", -5, 0),
+    FeatureSpec("Profile_Std_Ticks", "burst_events", "volume-weighted profile standard deviation", "ticks", "Dispersión matemática del perfil.", -1800, 0),
+    FeatureSpec("Profile_Skewness", "burst_events", "volume-weighted third standardized moment", "ratio", "Asimetría matemática del perfil.", -1800, 0),
+    FeatureSpec("Profile_Excess_Kurtosis", "burst_events", "volume-weighted fourth standardized moment-3", "ratio", "Colas/concentración del perfil.", -1800, 0),
+    FeatureSpec("Profile_Normalized_Entropy", "burst_events", "profile entropy/log(number of price nodes)", "ratio", "Dispersión de volumen entre niveles.", -1800, 0),
+    FeatureSpec("Profile_Concentration", "burst_events", "POC volume/total profile volume", "ratio", "Concentración modal sin etiqueta manual.", -1800, 0),
+    FeatureSpec("Profile_Effective_Nodes", "burst_events", "exp(profile entropy)", "count", "Número efectivo de niveles negociados.", -1800, 0),
+    FeatureSpec("Profile_Local_Maxima_Count", "burst_events", "count(local maxima in volume profile)", "count", "Multimodalidad matemática.", -1800, 0),
+    FeatureSpec("Profile_Position_Percentile", "burst_events", "cumulative profile volume below price/total volume", "ratio", "Posición relativa dentro de la subasta.", -1800, 0),
+    FeatureSpec("POC_Migration_Ticks", "burst_events", "current POC-prior emitted POC", "ticks", "Migración causal del centro de valor.", -1800, 0),
 ]
 
 ENTRY_SPECS = [
@@ -122,7 +140,15 @@ ENTRY_SPECS = [
     FeatureSpec("PreEntry_Volume_Climax_Ratio_AtEntry", "trade_inputs", "last closed volume/mean earlier closed volumes", "ratio", "Clímax de participación antes del entry.", -300, -1),
     FeatureSpec("Nearest_OR_Edge_Retest_Count_AtEntry", "trade_inputs", "closed bars touching nearest OR edge before entry", "count", "Desgaste causal del nivel por retests.", -600, -1),
     FeatureSpec("Nearest_OR_Edge_Acceptance_Ratio3_AtEntry", "trade_inputs", "fraction prior 3 closed bars accepted outside nearest OR edge", "ratio", "Aceptación frente a rechazo del borde.", -240, -1),
-    FeatureSpec("Directional_CLV_AtEntry", "trade_inputs", "execution_sign*(2*entry-high-low)/(high-low)", "ratio", "Ubicación intrabar causal en dirección ejecutada.", -60, 0),
+    FeatureSpec("Directional_CLV_AtEntry", "trade_inputs", "execution_sign*(2*entry-causal_high-causal_low)/(causal_high-causal_low)", "ratio", "CLV construido sólo con precios observados hasta la señal.", -60, 0),
+    FeatureSpec("PreEntry_Acceptance_Dwell_Ratio_AtEntry", "trade_inputs", "time beyond broken OR edge/time since first break", "ratio", "Aceptación causal antes de la entrada.", -60, 0),
+    FeatureSpec("PreEntry_Reclaim_Count_AtEntry", "trade_inputs", "accepted-to-reclaimed crossings before signal", "count", "Número de reclaims antes de entrar.", -60, 0),
+    FeatureSpec("PreEntry_Rejection_Speed_TPS_AtEntry", "trade_inputs", "max adverse ticks inside level/time since break", "ticks/s", "Velocidad causal de rechazo.", -60, 0),
+    FeatureSpec("PreEntry_Rotation_Index_AtEntry", "trade_inputs", "direction changes/nonzero observed price changes", "ratio", "Rotación de la secuencia observada.", -60, 0),
+    FeatureSpec("PreEntry_Local_Entropy_AtEntry", "trade_inputs", "binary entropy(up,down)", "bits", "Complejidad local de la secuencia.", -60, 0),
+    FeatureSpec("PreEntry_Path_Efficiency_AtEntry", "trade_inputs", "directional net move/absolute observed path", "ratio", "Eficiencia direccional de trayectoria.", -60, 0),
+    FeatureSpec("PreEntry_Price_Per_Delta_AtEntry", "trade_inputs", "directional ticks/abs(entry delta)", "ticks/contract", "Resultado por unidad de agresión.", -60, 0),
+    FeatureSpec("PreEntry_Price_Per_Volume_AtEntry", "trade_inputs", "directional ticks/entry volume", "ticks/contract", "Resultado por unidad de volumen.", -60, 0),
 ]
 
 ENGINEERED_SPECS = [
@@ -174,8 +200,10 @@ def _load_inputs(results_folder: Path) -> pd.DataFrame:
     frame = pd.read_csv(path, low_memory=False)
     if "Input_VERSION" in frame:
         expected = frame["Input_VERSION"].astype(str).eq(EXPECTED_EXPORTER_VERSION)
-        if expected.any():
-            frame = frame.loc[expected].copy()
+        frame = frame.loc[expected].copy()
+    if "Directional_CLV_AtEntry" in frame and "CLV_Causality_Status_AtEntry" in frame:
+        causal_clv = frame["CLV_Causality_Status_AtEntry"].astype(str).eq("CAUSAL_EVENT_RANGE")
+        frame.loc[~causal_clv, "Directional_CLV_AtEntry"] = np.nan
     if "Liquidity_Burst_AtEntry" not in frame:
         return pd.DataFrame()
     frame = frame.loc[_to_bool(frame["Liquidity_Burst_AtEntry"])].copy()
@@ -194,9 +222,16 @@ def _load_bursts(results_folder: Path) -> pd.DataFrame:
     frame = pd.read_csv(path, low_memory=False)
     if "Detector_VERSION" in frame:
         expected = frame["Detector_VERSION"].astype(str).eq(EXPECTED_BURST_VERSION)
-        if expected.any():
-            frame = frame.loc[expected].copy()
-    frame["burst_timestamp"] = pd.to_datetime(frame["Timestamp_UTC"], utc=True, errors="coerce")
+        frame = frame.loc[expected].copy()
+    frame["burst_event_timestamp"] = pd.to_datetime(
+        frame["Timestamp_UTC"], utc=True, errors="coerce"
+    )
+    available_column = "Feature_Available_Timestamp_UTC"
+    if available_column not in frame:
+        return pd.DataFrame()
+    frame["burst_timestamp"] = pd.to_datetime(
+        frame[available_column], utc=True, errors="coerce"
+    )
     frame = frame.sort_values(["BurstId", "burst_timestamp"], kind="stable")
     return frame.drop_duplicates("BurstId", keep="last").reset_index(drop=True)
 
@@ -218,8 +253,7 @@ def _canonical_outcomes(results_folder: Path) -> pd.DataFrame:
     frame = pd.DataFrame(rows)
     if "Exporter_VERSION" in frame:
         expected = frame["Exporter_VERSION"].astype(str).eq(EXPECTED_EXPORTER_VERSION)
-        if expected.any():
-            frame = frame.loc[expected].copy()
+        frame = frame.loc[expected].copy()
     return frame.drop_duplicates("fecha", keep="last").reset_index(drop=True)
 
 
@@ -1002,7 +1036,7 @@ def run_analysis(results_folder: Path, output_folder: Path | None = None) -> dic
     clusters = _cluster(dataset, rankings) if not dataset.empty else pd.DataFrame()
 
     identity = [
-        "fecha", "BurstId", "prediction_timestamp", "burst_timestamp", "split", "family", "family_reason",
+        "fecha", "BurstId", "prediction_timestamp", "burst_event_timestamp", "burst_timestamp", "split", "family", "family_reason",
         "ExecutionSide", "BurstSide", "Entry_price", "Initial_SL_ticks", "Initial_TP_ticks",
         "Result_Label", "result TP SL BE", "MAE_ticks", "MFE_ticks", "ExitTime_NY_Milliseconds",
         "causal_row_flag", "canonical_source_file",

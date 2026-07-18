@@ -46,7 +46,7 @@ namespace ATAS.Indicators
         private const int DynamicTimelineFlushRowCount = 100;
         // FROZEN — DO NOT CHANGE. Sync guards depend on this version string matching
         // persisted snapshots. Changing it invalidates all existing X1/X10 sync files.
-        private const string ExporterVersion = "score-exporter-2026-07-18-v24-born-bad-context";
+        private const string ExporterVersion = "score-exporter-2026-07-18-v25-response-families";
         private const string DynamicTimelineVersion = "dynamic-timeline-2026-06-23-v11-canonical-sync-guards";
         private static readonly JsonSerializerOptions ReplaySyncJsonOptions = new JsonSerializerOptions
         {
@@ -131,7 +131,14 @@ namespace ATAS.Indicators
             "PreEntry_Directional_Efficiency3_AtEntry,PreEntry_Directional_Delta_Share3_AtEntry," +
             "PreEntry_Range_Compression3_AtEntry,PreEntry_Volume_Climax_Ratio_AtEntry," +
             "Nearest_OR_Edge_Retest_Count_AtEntry,Nearest_OR_Edge_Acceptance_Ratio3_AtEntry," +
-            "Directional_CLV_AtEntry," +
+            "Directional_CLV_AtEntry,Causal_Entry_High_AtEntry,Causal_Entry_Low_AtEntry,Causal_Entry_Range_Ticks_AtEntry," +
+            "Causal_Entry_Observation_Count_AtEntry,Causal_Entry_First_Timestamp_UTC,Causal_Entry_Last_Timestamp_UTC," +
+            "Causal_Entry_Source_AtEntry,CLV_Causality_Status_AtEntry,Platform_Candle_High_AtEntry," +
+            "Platform_Candle_Low_AtEntry,Platform_Directional_CLV_AtEntry,Platform_vs_Causal_CLV_Diff_AtEntry," +
+            "PreEntry_Acceptance_Dwell_Ratio_AtEntry,PreEntry_Reclaim_Count_AtEntry," +
+            "PreEntry_Rejection_Speed_TPS_AtEntry,PreEntry_Rotation_Index_AtEntry," +
+            "PreEntry_Local_Entropy_AtEntry,PreEntry_Path_Efficiency_AtEntry," +
+            "PreEntry_Price_Per_Delta_AtEntry,PreEntry_Price_Per_Volume_AtEntry," +
             "feature_timestamp_utc,entry_timestamp_utc";
         private const string TradeResultCsvHeader =
             "Result_VERSION,fecha,entry_timestamp,outcome_timestamp,ExitTime_NY,Trade_Duration,EntryBar,Side,Entry_price," +
@@ -202,6 +209,8 @@ namespace ATAS.Indicators
         private decimal _lastProcessedMarketVolume;
         private decimal _lastProcessedMarketDelta;
         private string _lastProcessedMarketSource = "";
+        private readonly List<CausalPriceObservation> _causalBarPrices = new();
+        private int _causalPriceBar = -1;
         private bool _firstCalculateDiagnosticWritten;
         private bool _marketByOrderSubscriptionAttempted;
         private bool _marketByOrderSubscriptionRequested;
@@ -405,6 +414,8 @@ namespace ATAS.Indicators
             if (currentNyTime.Date != targetDate.Value.Date)
                 return;
 
+            ObserveCausalPrice(update);
+
             TryEnsureOpeningRangeReady(bar, currentNyTime.Date);
 
             UpdateTradeResult(update);
@@ -454,7 +465,12 @@ namespace ATAS.Indicators
             ClearPendingScore();
             var snapshotCandle = GetCandle(sharedSnapshot.Bar);
             var snapshotNyTime = ConvertToNewYorkTime(sharedSnapshot.SignalTime);
-            CreateTrade(sharedSnapshot.Bar, snapshotCandle, snapshotNyTime, sharedSnapshot.Signal);
+            CreateTrade(
+                sharedSnapshot.Bar,
+                snapshotCandle,
+                snapshotNyTime,
+                sharedSnapshot.SignalTime,
+                sharedSnapshot.Signal);
             UpdateTradeResult(CreateSnapshotMarketUpdate(sharedSnapshot, snapshotCandle));
 
             if (update.Bar > sharedSnapshot.Bar ||
@@ -465,7 +481,12 @@ namespace ATAS.Indicators
             }
         }
 
-        private void CreateTrade(int bar, dynamic candle, DateTime nyTime, ScoreTradeSignal score)
+        private void CreateTrade(
+            int bar,
+            dynamic candle,
+            DateTime nyTime,
+            DateTime signalTimeUtc,
+            ScoreTradeSignal score)
         {
             if (!ScoreTradeSignalEngine.IsSpeedValidForSignalTime(score.SpeedLabel, nyTime.TimeOfDay, _normalSpeedAllowedUntilNy))
                 return;
@@ -518,7 +539,13 @@ namespace ATAS.Indicators
                 : score.SellImbalanceCount;
             var entryTimingSource = "SignalSnapshotTime";
             var entryUpdateTimeUtc = ConvertNewYorkTimeToUtc(nyTime);
-            var bornBadContext = CaptureBornBadContext(bar, candle, nyTime, executionSide, score);
+            var bornBadContext = CaptureBornBadContext(
+                bar,
+                candle,
+                nyTime,
+                signalTimeUtc,
+                executionSide,
+                score);
 
             _trade = new TradeState
             {
@@ -682,7 +709,27 @@ namespace ATAS.Indicators
                     PreEntryVolumeClimaxRatioAtEntry = bornBadContext.PreEntryVolumeClimaxRatio,
                     NearestOrEdgeRetestCountAtEntry = bornBadContext.NearestOrEdgeRetestCount,
                     NearestOrEdgeAcceptanceRatio3AtEntry = bornBadContext.NearestOrEdgeAcceptanceRatio3,
-                    DirectionalClvAtEntry = bornBadContext.DirectionalClv
+                    DirectionalClvAtEntry = bornBadContext.DirectionalClv,
+                    CausalEntryHighAtEntry = bornBadContext.CausalEntryHigh,
+                    CausalEntryLowAtEntry = bornBadContext.CausalEntryLow,
+                    CausalEntryRangeTicksAtEntry = bornBadContext.CausalEntryRangeTicks,
+                    CausalEntryObservationCountAtEntry = bornBadContext.CausalEntryObservationCount,
+                    CausalEntryFirstTimestampUtc = bornBadContext.CausalEntryFirstTimestampUtc,
+                    CausalEntryLastTimestampUtc = bornBadContext.CausalEntryLastTimestampUtc,
+                    CausalEntrySourceAtEntry = bornBadContext.CausalEntrySource,
+                    ClvCausalityStatusAtEntry = bornBadContext.ClvCausalityStatus,
+                    PlatformCandleHighAtEntry = bornBadContext.PlatformCandleHigh,
+                    PlatformCandleLowAtEntry = bornBadContext.PlatformCandleLow,
+                    PlatformDirectionalClvAtEntry = bornBadContext.PlatformDirectionalClv,
+                    PlatformVsCausalClvDiffAtEntry = bornBadContext.PlatformVsCausalClvDiff,
+                    PreEntryAcceptanceDwellRatioAtEntry = bornBadContext.PreEntryAcceptanceDwellRatio,
+                    PreEntryReclaimCountAtEntry = bornBadContext.PreEntryReclaimCount,
+                    PreEntryRejectionSpeedTpsAtEntry = bornBadContext.PreEntryRejectionSpeedTps,
+                    PreEntryRotationIndexAtEntry = bornBadContext.PreEntryRotationIndex,
+                    PreEntryLocalEntropyAtEntry = bornBadContext.PreEntryLocalEntropy,
+                    PreEntryPathEfficiencyAtEntry = bornBadContext.PreEntryPathEfficiency,
+                    PreEntryEffortResultDeltaAtEntry = bornBadContext.PreEntryEffortResultDelta,
+                    PreEntryEffortResultVolumeAtEntry = bornBadContext.PreEntryEffortResultVolume
                 }
             };
 
@@ -740,6 +787,7 @@ namespace ATAS.Indicators
             int entryBar,
             dynamic candle,
             DateTime nyTime,
+            DateTime signalTimeUtc,
             string executionSide,
             ScoreTradeSignal score)
         {
@@ -752,6 +800,22 @@ namespace ATAS.Indicators
                 : score.OrLow;
             var nearestEdgeIsHigh = nearestEdge == score.OrHigh;
             var priorAtr3 = CalculatePriorClosedAtrTicks(entryBar, 3);
+            var brokenLevel = sideSign > 0 ? score.OrHigh : score.OrLow;
+            var causalEntry = CaptureCausalEntryContext(
+                entryBar,
+                signalTimeUtc,
+                score.EntryPrice,
+                sideSign,
+                brokenLevel,
+                score.Delta,
+                score.Volume);
+            var platformHigh = (decimal)candle.High;
+            var platformLow = (decimal)candle.Low;
+            var platformClv = CalculateDirectionalClv(
+                platformHigh,
+                platformLow,
+                score.EntryPrice,
+                sideSign);
             var result = new BornBadContextSnapshot
             {
                 SecondsFromOpen = Math.Max(0m, (decimal)(nyTime.TimeOfDay - _openingTimeNy).TotalSeconds),
@@ -768,7 +832,27 @@ namespace ATAS.Indicators
                 PriorClosedAtr3Ticks = priorAtr3,
                 PriorClosedAtr5Ticks = CalculatePriorClosedAtrTicks(entryBar, 5),
                 PreEntryRangeCompression3 = SafeRatio(priorAtr3, orRangeTicks),
-                DirectionalClv = CalculateDirectionalClv(candle, score.EntryPrice, sideSign)
+                DirectionalClv = causalEntry.DirectionalClv,
+                CausalEntryHigh = causalEntry.High,
+                CausalEntryLow = causalEntry.Low,
+                CausalEntryRangeTicks = causalEntry.RangeTicks,
+                CausalEntryObservationCount = causalEntry.ObservationCount,
+                CausalEntryFirstTimestampUtc = causalEntry.FirstTimestampUtc,
+                CausalEntryLastTimestampUtc = causalEntry.LastTimestampUtc,
+                CausalEntrySource = causalEntry.Source,
+                ClvCausalityStatus = causalEntry.CausalityStatus,
+                PlatformCandleHigh = platformHigh,
+                PlatformCandleLow = platformLow,
+                PlatformDirectionalClv = platformClv,
+                PlatformVsCausalClvDiff = platformClv - causalEntry.DirectionalClv,
+                PreEntryAcceptanceDwellRatio = causalEntry.AcceptanceDwellRatio,
+                PreEntryReclaimCount = causalEntry.ReclaimCount,
+                PreEntryRejectionSpeedTps = causalEntry.RejectionSpeedTps,
+                PreEntryRotationIndex = causalEntry.RotationIndex,
+                PreEntryLocalEntropy = causalEntry.LocalEntropy,
+                PreEntryPathEfficiency = causalEntry.PathEfficiency,
+                PreEntryEffortResultDelta = causalEntry.EffortResultDelta,
+                PreEntryEffortResultVolume = causalEntry.EffortResultVolume
             };
 
             CaptureClosedBarPathContext(
@@ -876,10 +960,192 @@ namespace ATAS.Indicators
                 : 0m;
         }
 
-        private static decimal CalculateDirectionalClv(dynamic candle, decimal price, decimal sideSign)
+        private void ObserveCausalPrice(MarketUpdate update)
         {
-            var high = (decimal)candle.High;
-            var low = (decimal)candle.Low;
+            if (update.Bar != _causalPriceBar)
+            {
+                _causalPriceBar = update.Bar;
+                _causalBarPrices.Clear();
+            }
+
+            if (_causalBarPrices.Count > 0)
+            {
+                var last = _causalBarPrices[_causalBarPrices.Count - 1];
+                if (update.MarketTimeUtc < last.TimestampUtc)
+                    return;
+                if (update.MarketTimeUtc == last.TimestampUtc &&
+                    update.Price == last.Price &&
+                    string.Equals(update.Source, last.Source, StringComparison.Ordinal))
+                {
+                    return;
+                }
+            }
+
+            _causalBarPrices.Add(new CausalPriceObservation
+            {
+                Bar = update.Bar,
+                TimestampUtc = update.MarketTimeUtc,
+                Price = update.Price,
+                Source = update.Source,
+                IsTradeEvent = update.IsTradeEvent
+            });
+        }
+
+        private CausalEntryContext CaptureCausalEntryContext(
+            int entryBar,
+            DateTime signalTimeUtc,
+            decimal entryPrice,
+            decimal sideSign,
+            decimal brokenLevel,
+            decimal delta,
+            decimal volume)
+        {
+            var observations = new List<CausalPriceObservation>();
+            foreach (var observation in _causalBarPrices)
+            {
+                if (observation.Bar == entryBar &&
+                    observation.IsTradeEvent &&
+                    observation.TimestampUtc <= signalTimeUtc)
+                {
+                    observations.Add(observation);
+                }
+            }
+
+            var appendedSignalSnapshot = observations.Count == 0 ||
+                observations[observations.Count - 1].Price != entryPrice;
+            if (appendedSignalSnapshot)
+            {
+                observations.Add(new CausalPriceObservation
+                {
+                    Bar = entryBar,
+                    TimestampUtc = signalTimeUtc,
+                    Price = entryPrice,
+                    Source = "SignalSnapshotPrice",
+                    IsTradeEvent = false
+                });
+            }
+
+            observations.Sort((left, right) => left.TimestampUtc.CompareTo(right.TimestampUtc));
+            var result = new CausalEntryContext
+            {
+                High = entryPrice,
+                Low = entryPrice,
+                ObservationCount = observations.Count,
+                FirstTimestampUtc = observations[0].TimestampUtc,
+                LastTimestampUtc = observations[observations.Count - 1].TimestampUtc,
+                Source = appendedSignalSnapshot
+                    ? "MARKET_TRADE_EVENTS_PLUS_SIGNAL_SNAPSHOT"
+                    : "MARKET_TRADE_EVENTS"
+            };
+
+            decimal path = 0m;
+            var upMoves = 0;
+            var downMoves = 0;
+            var rotations = 0;
+            var previousDirection = 0;
+            var firstBreakTime = DateTime.MinValue;
+            var acceptedSeconds = 0m;
+            var maxAdverseTicks = 0m;
+
+            for (var i = 0; i < observations.Count; i++)
+            {
+                var current = observations[i];
+                result.High = Math.Max(result.High, current.Price);
+                result.Low = Math.Min(result.Low, current.Price);
+
+                var beyond = sideSign > 0
+                    ? current.Price >= brokenLevel
+                    : current.Price <= brokenLevel;
+                if (firstBreakTime == DateTime.MinValue && beyond)
+                    firstBreakTime = current.TimestampUtc;
+
+                if (firstBreakTime != DateTime.MinValue)
+                {
+                    var adverseTicks = sideSign > 0
+                        ? Math.Max(0m, brokenLevel - current.Price) / SetupTickSize
+                        : Math.Max(0m, current.Price - brokenLevel) / SetupTickSize;
+                    maxAdverseTicks = Math.Max(maxAdverseTicks, adverseTicks);
+                }
+
+                if (i == 0)
+                    continue;
+
+                var previous = observations[i - 1];
+                var change = current.Price - previous.Price;
+                path += Math.Abs(change);
+                var direction = Math.Sign(change);
+                if (direction > 0) upMoves++;
+                if (direction < 0) downMoves++;
+                if (direction != 0 && previousDirection != 0 && direction != previousDirection)
+                    rotations++;
+                if (direction != 0)
+                    previousDirection = direction;
+
+                if (firstBreakTime != DateTime.MinValue && previous.TimestampUtc >= firstBreakTime)
+                {
+                    var previousBeyond = sideSign > 0
+                        ? previous.Price >= brokenLevel
+                        : previous.Price <= brokenLevel;
+                    var elapsed = Math.Max(0d, (current.TimestampUtc - previous.TimestampUtc).TotalSeconds);
+                    if (previousBeyond)
+                        acceptedSeconds += (decimal)elapsed;
+                    if (previousBeyond && !beyond)
+                        result.ReclaimCount++;
+                }
+            }
+
+            result.RangeTicks = (result.High - result.Low) / SetupTickSize;
+            result.DirectionalClv = CalculateDirectionalClv(
+                result.High,
+                result.Low,
+                entryPrice,
+                sideSign);
+            result.CausalityStatus = result.ObservationCount >= 2 && result.RangeTicks > 0m
+                ? "CAUSAL_EVENT_RANGE"
+                : "INSUFFICIENT_CAUSAL_RANGE";
+
+            if (firstBreakTime != DateTime.MinValue)
+            {
+                var totalSeconds = Math.Max(0d, (signalTimeUtc - firstBreakTime).TotalSeconds);
+                if (totalSeconds > 0)
+                {
+                    result.AcceptanceDwellRatio = Math.Clamp(
+                        acceptedSeconds / (decimal)totalSeconds,
+                        0m,
+                        1m);
+                    result.RejectionSpeedTps = maxAdverseTicks / (decimal)totalSeconds;
+                }
+            }
+
+            var nonZeroMoves = upMoves + downMoves;
+            result.RotationIndex = nonZeroMoves > 1
+                ? (decimal)rotations / (nonZeroMoves - 1)
+                : 0m;
+            if (nonZeroMoves > 0)
+            {
+                var pUp = (double)upMoves / nonZeroMoves;
+                var pDown = (double)downMoves / nonZeroMoves;
+                var entropy = 0d;
+                if (pUp > 0) entropy -= pUp * Math.Log(pUp, 2d);
+                if (pDown > 0) entropy -= pDown * Math.Log(pDown, 2d);
+                result.LocalEntropy = (decimal)entropy;
+            }
+
+            var directionalTicks = sideSign * (entryPrice - observations[0].Price) / SetupTickSize;
+            result.PathEfficiency = path > 0m
+                ? Math.Clamp(sideSign * (entryPrice - observations[0].Price) / path, -1m, 1m)
+                : 0m;
+            result.EffortResultDelta = SafeRatio(directionalTicks, Math.Abs(delta));
+            result.EffortResultVolume = SafeRatio(directionalTicks, Math.Abs(volume));
+            return result;
+        }
+
+        private static decimal CalculateDirectionalClv(
+            decimal high,
+            decimal low,
+            decimal price,
+            decimal sideSign)
+        {
             var range = high - low;
             if (range <= 0m)
                 return 0m;
@@ -1443,7 +1709,12 @@ namespace ATAS.Indicators
 
                 _lastSignalReadyBar = sharedSnapshot.Bar;
                 ClearPendingScore();
-                CreateTrade(sharedSnapshot.Bar, snapshotCandle, signalNyTime, sharedSnapshot.Signal);
+                CreateTrade(
+                    sharedSnapshot.Bar,
+                    snapshotCandle,
+                    signalNyTime,
+                    sharedSnapshot.SignalTime,
+                    sharedSnapshot.Signal);
 
                 if (_trade == null)
                     return false;
@@ -3191,6 +3462,30 @@ namespace ATAS.Indicators
                 input.NearestOrEdgeRetestCountAtEntry.ToString(CultureInfo.InvariantCulture),
                 FormatTicks(input.NearestOrEdgeAcceptanceRatio3AtEntry),
                 FormatTicks(input.DirectionalClvAtEntry),
+                FormatPrice(input.CausalEntryHighAtEntry),
+                FormatPrice(input.CausalEntryLowAtEntry),
+                FormatTicks(input.CausalEntryRangeTicksAtEntry),
+                input.CausalEntryObservationCountAtEntry.ToString(CultureInfo.InvariantCulture),
+                input.CausalEntryFirstTimestampUtc == DateTime.MinValue
+                    ? ""
+                    : input.CausalEntryFirstTimestampUtc.ToString("o", CultureInfo.InvariantCulture),
+                input.CausalEntryLastTimestampUtc == DateTime.MinValue
+                    ? ""
+                    : input.CausalEntryLastTimestampUtc.ToString("o", CultureInfo.InvariantCulture),
+                EscapeCsv(input.CausalEntrySourceAtEntry),
+                EscapeCsv(input.ClvCausalityStatusAtEntry),
+                FormatPrice(input.PlatformCandleHighAtEntry),
+                FormatPrice(input.PlatformCandleLowAtEntry),
+                FormatTicks(input.PlatformDirectionalClvAtEntry),
+                FormatTicks(input.PlatformVsCausalClvDiffAtEntry),
+                FormatTicks(input.PreEntryAcceptanceDwellRatioAtEntry),
+                input.PreEntryReclaimCountAtEntry.ToString(CultureInfo.InvariantCulture),
+                FormatTicks(input.PreEntryRejectionSpeedTpsAtEntry),
+                FormatTicks(input.PreEntryRotationIndexAtEntry),
+                FormatTicks(input.PreEntryLocalEntropyAtEntry),
+                FormatTicks(input.PreEntryPathEfficiencyAtEntry),
+                FormatTicks(input.PreEntryEffortResultDeltaAtEntry),
+                FormatTicks(input.PreEntryEffortResultVolumeAtEntry),
                 input.FeatureTimestampUtc.ToString("o", CultureInfo.InvariantCulture),
                 input.EntryTimestampUtc.ToString("o", CultureInfo.InvariantCulture));
         }
@@ -4133,6 +4428,8 @@ namespace ATAS.Indicators
             _lastProcessedMarketVolume = 0;
             _lastProcessedMarketDelta = 0;
             _lastProcessedMarketSource = "";
+            _causalBarPrices.Clear();
+            _causalPriceBar = -1;
             _diagOnNewTradeCount = 0;
             _diagOnNewTradesBatchCount = 0;
             _diagOnNewTradesItemCount = 0;
@@ -4305,7 +4602,12 @@ namespace ATAS.Indicators
             var pendingScore = _pendingScore;
             var pendingScoreNyTime = _pendingScoreNyTime;
 
-            CreateTrade(entryBar, entryCandle, pendingScoreNyTime, pendingScore);
+            CreateTrade(
+                entryBar,
+                entryCandle,
+                pendingScoreNyTime,
+                ConvertNewYorkTimeToUtc(pendingScoreNyTime),
+                pendingScore);
             ClearPendingScore();
 
             if (_trade == null)
@@ -4941,6 +5243,26 @@ namespace ATAS.Indicators
             public int NearestOrEdgeRetestCountAtEntry { get; init; }
             public decimal NearestOrEdgeAcceptanceRatio3AtEntry { get; init; }
             public decimal DirectionalClvAtEntry { get; init; }
+            public decimal CausalEntryHighAtEntry { get; init; }
+            public decimal CausalEntryLowAtEntry { get; init; }
+            public decimal CausalEntryRangeTicksAtEntry { get; init; }
+            public int CausalEntryObservationCountAtEntry { get; init; }
+            public DateTime CausalEntryFirstTimestampUtc { get; init; }
+            public DateTime CausalEntryLastTimestampUtc { get; init; }
+            public string CausalEntrySourceAtEntry { get; init; } = "";
+            public string ClvCausalityStatusAtEntry { get; init; } = "";
+            public decimal PlatformCandleHighAtEntry { get; init; }
+            public decimal PlatformCandleLowAtEntry { get; init; }
+            public decimal PlatformDirectionalClvAtEntry { get; init; }
+            public decimal PlatformVsCausalClvDiffAtEntry { get; init; }
+            public decimal PreEntryAcceptanceDwellRatioAtEntry { get; init; }
+            public int PreEntryReclaimCountAtEntry { get; init; }
+            public decimal PreEntryRejectionSpeedTpsAtEntry { get; init; }
+            public decimal PreEntryRotationIndexAtEntry { get; init; }
+            public decimal PreEntryLocalEntropyAtEntry { get; init; }
+            public decimal PreEntryPathEfficiencyAtEntry { get; init; }
+            public decimal PreEntryEffortResultDeltaAtEntry { get; init; }
+            public decimal PreEntryEffortResultVolumeAtEntry { get; init; }
         }
 
         private sealed class BornBadContextSnapshot
@@ -4961,6 +5283,56 @@ namespace ATAS.Indicators
             public int NearestOrEdgeRetestCount { get; set; }
             public decimal NearestOrEdgeAcceptanceRatio3 { get; set; }
             public decimal DirectionalClv { get; set; }
+            public decimal CausalEntryHigh { get; set; }
+            public decimal CausalEntryLow { get; set; }
+            public decimal CausalEntryRangeTicks { get; set; }
+            public int CausalEntryObservationCount { get; set; }
+            public DateTime CausalEntryFirstTimestampUtc { get; set; }
+            public DateTime CausalEntryLastTimestampUtc { get; set; }
+            public string CausalEntrySource { get; set; } = "";
+            public string ClvCausalityStatus { get; set; } = "";
+            public decimal PlatformCandleHigh { get; set; }
+            public decimal PlatformCandleLow { get; set; }
+            public decimal PlatformDirectionalClv { get; set; }
+            public decimal PlatformVsCausalClvDiff { get; set; }
+            public decimal PreEntryAcceptanceDwellRatio { get; set; }
+            public int PreEntryReclaimCount { get; set; }
+            public decimal PreEntryRejectionSpeedTps { get; set; }
+            public decimal PreEntryRotationIndex { get; set; }
+            public decimal PreEntryLocalEntropy { get; set; }
+            public decimal PreEntryPathEfficiency { get; set; }
+            public decimal PreEntryEffortResultDelta { get; set; }
+            public decimal PreEntryEffortResultVolume { get; set; }
+        }
+
+        private sealed class CausalPriceObservation
+        {
+            public int Bar { get; init; }
+            public DateTime TimestampUtc { get; init; }
+            public decimal Price { get; init; }
+            public string Source { get; init; } = "";
+            public bool IsTradeEvent { get; init; }
+        }
+
+        private sealed class CausalEntryContext
+        {
+            public decimal High { get; set; }
+            public decimal Low { get; set; }
+            public decimal RangeTicks { get; set; }
+            public int ObservationCount { get; set; }
+            public DateTime FirstTimestampUtc { get; set; }
+            public DateTime LastTimestampUtc { get; set; }
+            public string Source { get; set; } = "";
+            public string CausalityStatus { get; set; } = "";
+            public decimal DirectionalClv { get; set; }
+            public decimal AcceptanceDwellRatio { get; set; }
+            public int ReclaimCount { get; set; }
+            public decimal RejectionSpeedTps { get; set; }
+            public decimal RotationIndex { get; set; }
+            public decimal LocalEntropy { get; set; }
+            public decimal PathEfficiency { get; set; }
+            public decimal EffortResultDelta { get; set; }
+            public decimal EffortResultVolume { get; set; }
         }
 
         private sealed class TradeOutcome
