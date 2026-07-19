@@ -1,0 +1,17 @@
+feature,formula,market_mechanism,expected_impact,implementation,overfit_risk,recommendation
+seconds_from_open,(entry_ny - 09:30 NY).total_seconds,Régimen temporal de apertura,HIGH,EASY,LOW,AVAILABLE_NOW
+or_position_fraction,"(price-OR_low)/max(OR_width,1 tick)",Entrada extendida o dentro del balance,HIGH,EASY,LOW,AVAILABLE_NOW
+execution_cvd_alignment,side_sign*sign(session_CVD_at_entry),Conflicto con agresión acumulada,HIGH,EASY,LOW,AVAILABLE_NOW
+velocity_decay_1_5,side_sign*(velocity_1s-velocity_5s),Impulso que se extingue al disparar,HIGH,EASY,MEDIUM,AVAILABLE_NOW
+delta_decay_1_5,side_sign*(delta_1s-delta_5s/5),Agresión instantánea sin persistencia,HIGH,EASY,MEDIUM,AVAILABLE_NOW
+nearest_profile_reference,"min(|dPOC|,|dVAH|,|dVAL|,|dHVN|,|dLVN|)",Choque inmediato contra liquidez estructural,HIGH,EASY,LOW,AVAILABLE_NOW
+prior_atr_ticks,ATR_N de barras cerradas antes de entry,Normaliza SL/OR por volatilidad,HIGH,MEDIUM,LOW,ADD_EXPORTER_NEXT
+overnight_range_ticks,(ON_high-ON_low)/tick hasta 09:29:59,Compresión/expansión previa,HIGH,MEDIUM,LOW,ADD_EXPORTER_NEXT
+opening_gap_atr,(RTH_open-prior_settle)/prior_ATR,Inventario overnight y repricing,HIGH,MEDIUM,LOW,ADD_EXPORTER_NEXT
+vwap_slope_ticks_per_min,OLS slope VWAP causal en últimos N minutos,Dirección/curvatura del valor negociado,HIGH,MEDIUM,MEDIUM,ADD_EXPORTER_NEXT
+poc_migration_ticks_per_min,(POC_now-POC_Nmin_ago)/(N*min*tick),Migración del valor contra la entrada,HIGH,HARD,MEDIUM,ADD_EXPORTER_NEXT
+profile_shape_moments,"skew,kurtosis,modes de volumen por precio causal",P/b/D/B/doble distribución sin etiqueta subjetiva,MEDIUM,HARD,MEDIUM,ADD_EXPORTER_LATER
+acceptance_dwell_ratio,time_inside_level_band/window_before_entry,Acceptance frente a rechazo instantáneo,HIGH,HARD,MEDIUM,ADD_EXPORTER_NEXT
+level_retest_count,count(cross/retest causal de OR/VA/POC),Nivel debilitado por pruebas repetidas,MEDIUM,MEDIUM,LOW,ADD_EXPORTER_NEXT
+refill_after_sweep_ratio,added_size/consumed_size antes de entry,Absorción real frente a vacío de liquidez,HIGH,HARD,HIGH,REQUIRES_REPLAYABLE_BOOK
+book_imbalance_multilevel,sum_bid_depth_L/sum_ask_depth_L,Asimetría de profundidad preentrada,MEDIUM,HARD,HIGH,REQUIRES_REPLAYABLE_BOOK

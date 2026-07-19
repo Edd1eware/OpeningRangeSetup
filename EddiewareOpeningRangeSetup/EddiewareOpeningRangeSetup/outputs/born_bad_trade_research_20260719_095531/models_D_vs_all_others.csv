@@ -1,0 +1,9 @@
+model,split,status,n,balanced_accuracy,roc_auc,confusion_matrix
+logistic,validation,OK,26,0.5769230769230769,0.6035502958579881,"[[7, 6], [5, 8]]"
+logistic,holdout,OK,28,0.38541666666666663,0.44270833333333326,"[[4, 8], [9, 7]]"
+decision_tree,validation,OK,26,0.5769230769230769,0.6331360946745561,"[[8, 5], [6, 7]]"
+decision_tree,holdout,OK,28,0.6041666666666667,0.5260416666666666,"[[7, 5], [6, 10]]"
+random_forest,validation,OK,26,0.5384615384615384,0.5029585798816567,"[[11, 2], [10, 3]]"
+random_forest,holdout,OK,28,0.4479166666666667,0.5052083333333333,"[[7, 5], [11, 5]]"
+catboost,validation,OK,26,0.5,0.6331360946745561,"[[11, 2], [11, 2]]"
+catboost,holdout,OK,28,0.4791666666666667,0.4166666666666667,"[[10, 2], [14, 2]]"

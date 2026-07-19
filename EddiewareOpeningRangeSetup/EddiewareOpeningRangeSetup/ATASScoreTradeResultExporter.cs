@@ -46,7 +46,7 @@ namespace ATAS.Indicators
         private const int DynamicTimelineFlushRowCount = 100;
         // FROZEN — DO NOT CHANGE. Sync guards depend on this version string matching
         // persisted snapshots. Changing it invalidates all existing X1/X10 sync files.
-        private const string ExporterVersion = "score-exporter-2026-07-18-v25-response-families";
+        private const string ExporterVersion = "score-exporter-2026-07-19-v26-phase1-auction-context";
         private const string DynamicTimelineVersion = "dynamic-timeline-2026-06-23-v11-canonical-sync-guards";
         private static readonly JsonSerializerOptions ReplaySyncJsonOptions = new JsonSerializerOptions
         {
@@ -126,6 +126,11 @@ namespace ATAS.Indicators
             "Liquidity_Burst_Percentile_AtEntry,Liquidity_Burst_Velocity1s_AtEntry,Liquidity_Burst_Acceleration1s_AtEntry," +
             "Liquidity_Burst_TradesPerSecond_AtEntry,Liquidity_Burst_ContractsPerSecond_AtEntry," +
             "Seconds_From_Open_AtEntry,Directional_OR_Extension_Ticks_AtEntry,Directional_VWAP_Distance_Ticks_AtEntry," +
+            "OR_Position_Fraction_AtEntry,Directional_Execution_CVD_AtEntry,Execution_CVD_Aligned_AtEntry," +
+            "Prior_Closed_ATR14_Ticks_AtEntry,Overnight_Range_Ticks_AtEntry,Overnight_Range_ATR_AtEntry," +
+            "Opening_Gap_Ticks_AtEntry,Opening_Gap_ATR_AtEntry,Directional_Opening_Gap_ATR_AtEntry," +
+            "VWAP_Slope_1Bar_Ticks_AtEntry,VWAP_Slope_3Bar_Ticks_Per_Bar_AtEntry,VWAP_Slope_5Bar_Ticks_Per_Bar_AtEntry," +
+            "Auction_Context_Validity_AtEntry,Auction_Context_Exclusion_Reason_AtEntry," +
             "Nearest_OR_Edge_Distance_Ticks_AtEntry,Body_OR_Ratio_AtEntry,Signed_Delta_Share_AtEntry," +
             "Signed_Previous_Delta_Share_AtEntry,Prior_Closed_ATR3_Ticks_AtEntry,Prior_Closed_ATR5_Ticks_AtEntry," +
             "PreEntry_Directional_Efficiency3_AtEntry,PreEntry_Directional_Delta_Share3_AtEntry," +
@@ -697,6 +702,20 @@ namespace ATAS.Indicators
                     SecondsFromOpenAtEntry = bornBadContext.SecondsFromOpen,
                     DirectionalOrExtensionTicksAtEntry = bornBadContext.DirectionalOrExtensionTicks,
                     DirectionalVwapDistanceTicksAtEntry = bornBadContext.DirectionalVwapDistanceTicks,
+                    OrPositionFractionAtEntry = bornBadContext.OrPositionFraction,
+                    DirectionalExecutionCvdAtEntry = bornBadContext.DirectionalExecutionCvd,
+                    ExecutionCvdAlignedAtEntry = bornBadContext.ExecutionCvdAligned,
+                    PriorClosedAtr14TicksAtEntry = bornBadContext.PriorClosedAtr14Ticks,
+                    OvernightRangeTicksAtEntry = bornBadContext.OvernightRangeTicks,
+                    OvernightRangeAtrAtEntry = bornBadContext.OvernightRangeAtr,
+                    OpeningGapTicksAtEntry = bornBadContext.OpeningGapTicks,
+                    OpeningGapAtrAtEntry = bornBadContext.OpeningGapAtr,
+                    DirectionalOpeningGapAtrAtEntry = bornBadContext.DirectionalOpeningGapAtr,
+                    VwapSlope1BarTicksAtEntry = bornBadContext.VwapSlope1BarTicks,
+                    VwapSlope3BarTicksPerBarAtEntry = bornBadContext.VwapSlope3BarTicksPerBar,
+                    VwapSlope5BarTicksPerBarAtEntry = bornBadContext.VwapSlope5BarTicksPerBar,
+                    AuctionContextValidityAtEntry = bornBadContext.AuctionContextValidity,
+                    AuctionContextExclusionReasonAtEntry = bornBadContext.AuctionContextExclusionReason,
                     NearestOrEdgeDistanceTicksAtEntry = bornBadContext.NearestOrEdgeDistanceTicks,
                     BodyOrRatioAtEntry = bornBadContext.BodyOrRatio,
                     SignedDeltaShareAtEntry = bornBadContext.SignedDeltaShare,
@@ -800,6 +819,8 @@ namespace ATAS.Indicators
                 : score.OrLow;
             var nearestEdgeIsHigh = nearestEdge == score.OrHigh;
             var priorAtr3 = CalculatePriorClosedAtrTicks(entryBar, 3);
+            var priorAtr14 = CalculatePriorClosedAtrTicks(entryBar, 14);
+            var auctionContext = CaptureAuctionContext(entryBar, nyTime.Date, score.EntryPrice, priorAtr14);
             var brokenLevel = sideSign > 0 ? score.OrHigh : score.OrLow;
             var causalEntry = CaptureCausalEntryContext(
                 entryBar,
@@ -823,6 +844,20 @@ namespace ATAS.Indicators
                     ? (score.EntryPrice - score.OrHigh) / SetupTickSize
                     : (score.OrLow - score.EntryPrice) / SetupTickSize,
                 DirectionalVwapDistanceTicks = sideSign * (score.EntryPrice - score.Vwap) / SetupTickSize,
+                OrPositionFraction = SafeRatio(score.EntryPrice - score.OrLow, score.OrHigh - score.OrLow),
+                DirectionalExecutionCvd = sideSign * score.CumulativeDelta,
+                ExecutionCvdAligned = sideSign * score.CumulativeDelta > 0m,
+                PriorClosedAtr14Ticks = priorAtr14,
+                OvernightRangeTicks = auctionContext.OvernightRangeTicks,
+                OvernightRangeAtr = auctionContext.OvernightRangeAtr,
+                OpeningGapTicks = auctionContext.OpeningGapTicks,
+                OpeningGapAtr = auctionContext.OpeningGapAtr,
+                DirectionalOpeningGapAtr = sideSign * auctionContext.OpeningGapAtr,
+                VwapSlope1BarTicks = CalculateCausalVwapSlope(entryBar, nyTime.Date, 1),
+                VwapSlope3BarTicksPerBar = CalculateCausalVwapSlope(entryBar, nyTime.Date, 3),
+                VwapSlope5BarTicksPerBar = CalculateCausalVwapSlope(entryBar, nyTime.Date, 5),
+                AuctionContextValidity = auctionContext.Validity,
+                AuctionContextExclusionReason = auctionContext.ExclusionReason,
                 NearestOrEdgeDistanceTicks = Math.Min(
                     Math.Abs(score.EntryPrice - score.OrHigh),
                     Math.Abs(score.EntryPrice - score.OrLow)) / SetupTickSize,
@@ -888,6 +923,105 @@ namespace ATAS.Indicators
             }
 
             return count > 0 ? sum / count : 0m;
+        }
+
+        private AuctionContextSnapshot CaptureAuctionContext(
+            int entryBar,
+            DateTime sessionDate,
+            decimal rthOpenFallback,
+            decimal priorAtr14Ticks)
+        {
+            decimal? overnightHigh = null;
+            decimal? overnightLow = null;
+            decimal? rthOpen = null;
+            decimal? previousRthClose = null;
+
+            for (var i = entryBar; i >= 0; i--)
+            {
+                var candle = GetCandle(i);
+                var ny = ConvertToNewYorkTime(candle.Time);
+                if (ny.Date == sessionDate)
+                {
+                    if (ny.TimeOfDay < _openingTimeNy)
+                    {
+                        var high = (decimal)candle.High;
+                        var low = (decimal)candle.Low;
+                        overnightHigh = !overnightHigh.HasValue ? high : Math.Max(overnightHigh.Value, high);
+                        overnightLow = !overnightLow.HasValue ? low : Math.Min(overnightLow.Value, low);
+                    }
+                    else
+                    {
+                        rthOpen = (decimal)candle.Open;
+                    }
+                    continue;
+                }
+
+                if (ny.Date < sessionDate &&
+                    ny.TimeOfDay >= _openingTimeNy &&
+                    ny.TimeOfDay < new TimeSpan(16, 0, 0))
+                {
+                    previousRthClose = (decimal)candle.Close;
+                    break;
+                }
+            }
+
+            var missing = new List<string>();
+            if (!overnightHigh.HasValue || !overnightLow.HasValue)
+                missing.Add("OVERNIGHT_WINDOW_UNAVAILABLE");
+            if (!previousRthClose.HasValue)
+                missing.Add("PREVIOUS_RTH_CLOSE_UNAVAILABLE");
+            if (priorAtr14Ticks <= 0m)
+                missing.Add("PRIOR_ATR14_UNAVAILABLE");
+
+            var overnightRangeTicks = overnightHigh.HasValue && overnightLow.HasValue
+                ? (overnightHigh.Value - overnightLow.Value) / SetupTickSize
+                : 0m;
+            var open = rthOpen ?? rthOpenFallback;
+            var gapTicks = previousRthClose.HasValue
+                ? (open - previousRthClose.Value) / SetupTickSize
+                : 0m;
+
+            return new AuctionContextSnapshot
+            {
+                OvernightRangeTicks = overnightRangeTicks,
+                OvernightRangeAtr = priorAtr14Ticks > 0m ? overnightRangeTicks / priorAtr14Ticks : 0m,
+                OpeningGapTicks = gapTicks,
+                OpeningGapAtr = priorAtr14Ticks > 0m ? gapTicks / priorAtr14Ticks : 0m,
+                Validity = missing.Count == 0 ? "VALID" : "EXCLUDED",
+                ExclusionReason = string.Join("|", missing)
+            };
+        }
+
+        private decimal CalculateCausalVwapSlope(int entryBar, DateTime sessionDate, int barsBack)
+        {
+            var end = entryBar - 1;
+            var start = end - Math.Max(1, barsBack);
+            if (start < 0)
+                return 0m;
+
+            var endVwap = CalculateSessionVwapThroughBar(end, sessionDate);
+            var startVwap = CalculateSessionVwapThroughBar(start, sessionDate);
+            return (endVwap - startVwap) / SetupTickSize / Math.Max(1, barsBack);
+        }
+
+        private decimal CalculateSessionVwapThroughBar(int endBar, DateTime sessionDate)
+        {
+            decimal priceVolume = 0m;
+            decimal volume = 0m;
+            for (var i = endBar; i >= 0; i--)
+            {
+                var candle = GetCandle(i);
+                var ny = ConvertToNewYorkTime(candle.Time);
+                if (ny.Date != sessionDate)
+                    break;
+                if (ny.TimeOfDay < _openingTimeNy)
+                    continue;
+                var barVolume = Math.Abs((decimal)candle.Volume);
+                var typical = ((decimal)candle.High + (decimal)candle.Low + (decimal)candle.Close) / 3m;
+                priceVolume += typical * barVolume;
+                volume += barVolume;
+            }
+            return volume > 0m ? priceVolume / volume : 0m;
         }
 
         private void CaptureClosedBarPathContext(
@@ -3449,6 +3583,20 @@ namespace ATAS.Indicators
                 FormatSeconds(input.SecondsFromOpenAtEntry),
                 FormatTicks(input.DirectionalOrExtensionTicksAtEntry),
                 FormatTicks(input.DirectionalVwapDistanceTicksAtEntry),
+                FormatTicks(input.OrPositionFractionAtEntry),
+                FormatTicks(input.DirectionalExecutionCvdAtEntry),
+                FormatBool(input.ExecutionCvdAlignedAtEntry),
+                FormatTicks(input.PriorClosedAtr14TicksAtEntry),
+                FormatTicks(input.OvernightRangeTicksAtEntry),
+                FormatTicks(input.OvernightRangeAtrAtEntry),
+                FormatTicks(input.OpeningGapTicksAtEntry),
+                FormatTicks(input.OpeningGapAtrAtEntry),
+                FormatTicks(input.DirectionalOpeningGapAtrAtEntry),
+                FormatTicks(input.VwapSlope1BarTicksAtEntry),
+                FormatTicks(input.VwapSlope3BarTicksPerBarAtEntry),
+                FormatTicks(input.VwapSlope5BarTicksPerBarAtEntry),
+                EscapeCsv(input.AuctionContextValidityAtEntry),
+                EscapeCsv(input.AuctionContextExclusionReasonAtEntry),
                 FormatTicks(input.NearestOrEdgeDistanceTicksAtEntry),
                 FormatTicks(input.BodyOrRatioAtEntry),
                 FormatTicks(input.SignedDeltaShareAtEntry),
@@ -5230,6 +5378,20 @@ namespace ATAS.Indicators
             public decimal SecondsFromOpenAtEntry { get; init; }
             public decimal DirectionalOrExtensionTicksAtEntry { get; init; }
             public decimal DirectionalVwapDistanceTicksAtEntry { get; init; }
+            public decimal OrPositionFractionAtEntry { get; init; }
+            public decimal DirectionalExecutionCvdAtEntry { get; init; }
+            public bool ExecutionCvdAlignedAtEntry { get; init; }
+            public decimal PriorClosedAtr14TicksAtEntry { get; init; }
+            public decimal OvernightRangeTicksAtEntry { get; init; }
+            public decimal OvernightRangeAtrAtEntry { get; init; }
+            public decimal OpeningGapTicksAtEntry { get; init; }
+            public decimal OpeningGapAtrAtEntry { get; init; }
+            public decimal DirectionalOpeningGapAtrAtEntry { get; init; }
+            public decimal VwapSlope1BarTicksAtEntry { get; init; }
+            public decimal VwapSlope3BarTicksPerBarAtEntry { get; init; }
+            public decimal VwapSlope5BarTicksPerBarAtEntry { get; init; }
+            public string AuctionContextValidityAtEntry { get; init; } = "";
+            public string AuctionContextExclusionReasonAtEntry { get; init; } = "";
             public decimal NearestOrEdgeDistanceTicksAtEntry { get; init; }
             public decimal BodyOrRatioAtEntry { get; init; }
             public decimal SignedDeltaShareAtEntry { get; init; }
@@ -5270,6 +5432,20 @@ namespace ATAS.Indicators
             public decimal SecondsFromOpen { get; set; }
             public decimal DirectionalOrExtensionTicks { get; set; }
             public decimal DirectionalVwapDistanceTicks { get; set; }
+            public decimal OrPositionFraction { get; set; }
+            public decimal DirectionalExecutionCvd { get; set; }
+            public bool ExecutionCvdAligned { get; set; }
+            public decimal PriorClosedAtr14Ticks { get; set; }
+            public decimal OvernightRangeTicks { get; set; }
+            public decimal OvernightRangeAtr { get; set; }
+            public decimal OpeningGapTicks { get; set; }
+            public decimal OpeningGapAtr { get; set; }
+            public decimal DirectionalOpeningGapAtr { get; set; }
+            public decimal VwapSlope1BarTicks { get; set; }
+            public decimal VwapSlope3BarTicksPerBar { get; set; }
+            public decimal VwapSlope5BarTicksPerBar { get; set; }
+            public string AuctionContextValidity { get; set; } = "";
+            public string AuctionContextExclusionReason { get; set; } = "";
             public decimal NearestOrEdgeDistanceTicks { get; set; }
             public decimal BodyOrRatio { get; set; }
             public decimal SignedDeltaShare { get; set; }
@@ -5303,6 +5479,16 @@ namespace ATAS.Indicators
             public decimal PreEntryPathEfficiency { get; set; }
             public decimal PreEntryEffortResultDelta { get; set; }
             public decimal PreEntryEffortResultVolume { get; set; }
+        }
+
+        private sealed class AuctionContextSnapshot
+        {
+            public decimal OvernightRangeTicks { get; init; }
+            public decimal OvernightRangeAtr { get; init; }
+            public decimal OpeningGapTicks { get; init; }
+            public decimal OpeningGapAtr { get; init; }
+            public string Validity { get; init; } = "";
+            public string ExclusionReason { get; init; } = "";
         }
 
         private sealed class CausalPriceObservation
