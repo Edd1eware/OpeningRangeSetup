@@ -1,0 +1,22 @@
+{
+  "created_at_utc": "2026-07-20T16:19:09.497505+00:00",
+  "selection_policy": "DISCOVERY_ONLY_BALANCED_AB_SIDE_YEAR_EVENLY_SPACED",
+  "request_rows": 30,
+  "unique_dates": 30,
+  "families": {
+    "A_TRUE_ABSORPTION": 15,
+    "B_CLEAN_BREAKOUT": 15
+  },
+  "years": {
+    "2022": 10,
+    "2023": 10,
+    "2024": 10
+  },
+  "directions": {
+    "BUY": 15,
+    "SELL": 15
+  },
+  "validation_dates_used": 0,
+  "data_downloaded_by_this_script": false,
+  "output_csv": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\DATABENTO_MBO_PILOTO_VIABILIDAD_30_AB_20260720.csv"
+}

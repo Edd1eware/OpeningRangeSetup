@@ -22,7 +22,7 @@ TARGET_FILE = EXPORT_FOLDER / "target_trade_result_date.txt"
 REPLAY_STARTED_FILE = EXPORT_FOLDER / "replay_trade_result_started_at.txt"
 TELEGRAM_RUN_ETA_FILE = RESULTS_FOLDER / "telegram_run_eta.txt"
 
-EXPECTED_EXPORTER_VERSION = "score-exporter-2026-07-19-v26-phase1-auction-context"
+EXPECTED_EXPORTER_VERSION = "score-exporter-2026-07-19-v27-final-causal-publish-guard"
 EXPECTED_TIMELINE_VERSION = "dynamic-timeline-2026-06-23-v11-canonical-sync-guards"
 
 TERMINAL_RESULTS = {
@@ -757,6 +757,32 @@ def copy_with_retry(source, destination, attempts=5):
             time.sleep(0.2)
 
 
+def copy_terminal_result_with_retry(
+    source,
+    destination,
+    started_at,
+    attempts=20,
+    retry_seconds=0.25,
+):
+    """Copy a terminal CSV without accepting a concurrent partial rewrite.
+
+    ATAS has more than one lifecycle writer.  A row can be terminal and stable
+    for the normal guard interval, then be atomically rewritten while copy2 is
+    reading it.  Validate the *destination* and, if needed, read the latest
+    source again instead of turning a valid day into NON_TERMINAL_CSV.
+    """
+    for attempt in range(1, attempts + 1):
+        if is_terminal_result(source, started_at, require_expected_version=True):
+            copy_with_retry(source, destination)
+            if is_terminal_result(destination, require_expected_version=True):
+                if attempt > 1:
+                    print(f"CSV terminal copiado tras reintento {attempt}/{attempts}.")
+                return True
+        if attempt < attempts:
+            time.sleep(retry_seconds)
+    return False
+
+
 def write_runtime_markers(date_iso):
     EXPORT_FOLDER.mkdir(parents=True, exist_ok=True)
     TARGET_FILE.write_text(date_iso, encoding="utf-8")
@@ -961,6 +987,10 @@ def run_one_date(
                     restore_file_state(saved_timeline)
                 return False, "TIMEOUT_OR_NO_CSV"
 
+            # Freeze Replay before the final copy.  This prevents a later
+            # lifecycle callback from rewriting the row while copy2 reads it.
+            click_stop(stop_button)
+
             while not terminal_result_is_stable(source_result, started_at, stable_seconds=0.75):
                 remaining = timeout_seconds - (time.time() - started_at)
                 if remaining <= 0:
@@ -988,14 +1018,18 @@ def run_one_date(
                         restore_file_state(saved_timeline)
                     return False, "TIMEOUT_OR_NO_CSV"
 
-            copy_with_retry(source_result, destination_result)
+            copied_terminal = copy_terminal_result_with_retry(
+                source_result,
+                destination_result,
+                started_at,
+            )
             if source_timeline.exists():
                 copy_with_retry(source_timeline, destination_timeline)
 
-            if not is_terminal_result(destination_result, require_expected_version=True):
+            if not copied_terminal:
                 print(
-                    f"CSV guardado no terminal para {run_name} {date_iso}; "
-                    "elimino el artefacto incompleto."
+                    f"CSV no pudo congelarse terminal para {run_name} {date_iso} "
+                    "tras reintentos; elimino el artefacto incompleto."
                 )
                 destination_result.unlink(missing_ok=True)
                 destination_timeline.unlink(missing_ok=True)

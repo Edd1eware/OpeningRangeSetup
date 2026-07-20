@@ -290,6 +290,11 @@ namespace ATAS.Indicators
             state.LiquidityBurstAcceleration1s = burst.Acceleration1s;
             state.LiquidityBurstTradesPerSecond = burst.TradesPerSecond;
             state.LiquidityBurstContractsPerSecond = burst.ContractsPerSecond;
+            state.LiquidityBurstTimestampUtc = burst.TimestampUtc;
+            state.LiquidityBurstDetectorPublishTimestampUtc = burst.DetectorPublishTimestampUtc;
+            state.LiquidityBurstEpisodeId = burst.EpisodeId;
+            state.LiquidityBurstIndexInEpisode = burst.BurstIndexInEpisode;
+            state.LiquidityBurstSecondsSincePriorBurst = burst.SecondsSincePriorBurst;
 
             if (!request.LiquidityBurstCanConfirmAPlusSpeed || !state.IsBreakout)
                 return;
@@ -749,6 +754,11 @@ namespace ATAS.Indicators
         public decimal LiquidityBurstAcceleration1s { get; set; }
         public decimal LiquidityBurstTradesPerSecond { get; set; }
         public decimal LiquidityBurstContractsPerSecond { get; set; }
+        public DateTime LiquidityBurstTimestampUtc { get; set; }
+        public DateTime LiquidityBurstDetectorPublishTimestampUtc { get; set; }
+        public string LiquidityBurstEpisodeId { get; set; } = "";
+        public int LiquidityBurstIndexInEpisode { get; set; }
+        public decimal? LiquidityBurstSecondsSincePriorBurst { get; set; }
         public string SignalSource { get; set; } = "";
         public bool SpeedIgnoredByStructure { get; set; }
         public int ImbalanceScore { get; set; }

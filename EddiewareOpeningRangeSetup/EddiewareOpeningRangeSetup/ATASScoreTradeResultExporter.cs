@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using ATAS.DataFeedsCore;
 using ATAS.Indicators;
@@ -46,7 +47,7 @@ namespace ATAS.Indicators
         private const int DynamicTimelineFlushRowCount = 100;
         // FROZEN — DO NOT CHANGE. Sync guards depend on this version string matching
         // persisted snapshots. Changing it invalidates all existing X1/X10 sync files.
-        private const string ExporterVersion = "score-exporter-2026-07-19-v26-phase1-auction-context";
+        private const string ExporterVersion = "score-exporter-2026-07-19-v27-final-causal-publish-guard";
         private const string DynamicTimelineVersion = "dynamic-timeline-2026-06-23-v11-canonical-sync-guards";
         private static readonly JsonSerializerOptions ReplaySyncJsonOptions = new JsonSerializerOptions
         {
@@ -125,6 +126,11 @@ namespace ATAS.Indicators
             "Liquidity_Burst_Delta1s_AtEntry,Liquidity_Burst_DeltaChange1s_AtEntry,Liquidity_Burst_ZScore_AtEntry," +
             "Liquidity_Burst_Percentile_AtEntry,Liquidity_Burst_Velocity1s_AtEntry,Liquidity_Burst_Acceleration1s_AtEntry," +
             "Liquidity_Burst_TradesPerSecond_AtEntry,Liquidity_Burst_ContractsPerSecond_AtEntry," +
+            "Liquidity_Burst_Timestamp_UTC,Liquidity_Burst_Available_Timestamp_UTC,Liquidity_Burst_Detector_Publish_Timestamp_UTC," +
+            "Detector_Publish_Delay_Milliseconds,Signal_To_Entry_Latency_Milliseconds,Detector_Publish_To_Entry_Latency_Milliseconds," +
+            "Signal_Entry_Causality_Strict_Valid,Signal_Entry_Within_50ms_Tolerance,Signal_Entry_Causality_Status," +
+            "Liquidity_Burst_Episode_ID,Liquidity_Burst_Index_In_Episode," +
+            "Liquidity_Burst_Seconds_Since_Prior_Burst," +
             "Seconds_From_Open_AtEntry,Directional_OR_Extension_Ticks_AtEntry,Directional_VWAP_Distance_Ticks_AtEntry," +
             "OR_Position_Fraction_AtEntry,Directional_Execution_CVD_AtEntry,Execution_CVD_Aligned_AtEntry," +
             "Prior_Closed_ATR14_Ticks_AtEntry,Overnight_Range_Ticks_AtEntry,Overnight_Range_ATR_AtEntry," +
@@ -544,6 +550,34 @@ namespace ATAS.Indicators
                 : score.SellImbalanceCount;
             var entryTimingSource = "SignalSnapshotTime";
             var entryUpdateTimeUtc = ConvertNewYorkTimeToUtc(nyTime);
+            var burstNominalAvailableUtc = score.LiquidityBurstTimestampUtc == DateTime.MinValue
+                ? DateTime.MinValue
+                : score.LiquidityBurstTimestampUtc.AddSeconds(1);
+            var burstDetectorPublishUtc = score.LiquidityBurstDetectorPublishTimestampUtc == DateTime.MinValue
+                ? burstNominalAvailableUtc
+                : score.LiquidityBurstDetectorPublishTimestampUtc;
+            var detectorPublishDelayMilliseconds = burstNominalAvailableUtc == DateTime.MinValue
+                ? 0m
+                : (decimal)(burstDetectorPublishUtc - burstNominalAvailableUtc).TotalMilliseconds;
+            var signalToEntryLatencyMilliseconds = burstNominalAvailableUtc == DateTime.MinValue
+                ? 0m
+                : (decimal)(entryUpdateTimeUtc - burstNominalAvailableUtc).TotalMilliseconds;
+            var detectorPublishToEntryLatencyMilliseconds = burstDetectorPublishUtc == DateTime.MinValue
+                ? 0m
+                : (decimal)(entryUpdateTimeUtc - burstDetectorPublishUtc).TotalMilliseconds;
+            var signalEntryStrictValid = burstNominalAvailableUtc != DateTime.MinValue &&
+                signalToEntryLatencyMilliseconds >= 0m &&
+                detectorPublishToEntryLatencyMilliseconds >= 0m;
+            var signalEntryWithin50msTolerance = burstNominalAvailableUtc != DateTime.MinValue &&
+                signalToEntryLatencyMilliseconds >= -50m &&
+                detectorPublishToEntryLatencyMilliseconds >= -50m;
+            var signalEntryCausalityStatus = burstNominalAvailableUtc == DateTime.MinValue
+                ? "NOT_LIQUIDITY_BURST"
+                : signalEntryStrictValid
+                    ? "STRICT_VALID"
+                    : signalEntryWithin50msTolerance
+                        ? "CLOCK_BOUNDARY_JITTER_LE_50MS"
+                        : "INVALID_NEGATIVE_LATENCY";
             var bornBadContext = CaptureBornBadContext(
                 bar,
                 candle,
@@ -699,6 +733,18 @@ namespace ATAS.Indicators
                     LiquidityBurstAcceleration1sAtEntry = score.LiquidityBurstAcceleration1s,
                     LiquidityBurstTradesPerSecondAtEntry = score.LiquidityBurstTradesPerSecond,
                     LiquidityBurstContractsPerSecondAtEntry = score.LiquidityBurstContractsPerSecond,
+                    LiquidityBurstTimestampUtc = score.LiquidityBurstTimestampUtc,
+                    LiquidityBurstAvailableTimestampUtc = burstNominalAvailableUtc,
+                    LiquidityBurstDetectorPublishTimestampUtc = burstDetectorPublishUtc,
+                    DetectorPublishDelayMilliseconds = detectorPublishDelayMilliseconds,
+                    SignalToEntryLatencyMilliseconds = signalToEntryLatencyMilliseconds,
+                    DetectorPublishToEntryLatencyMilliseconds = detectorPublishToEntryLatencyMilliseconds,
+                    SignalEntryCausalityStrictValid = signalEntryStrictValid,
+                    SignalEntryWithin50msTolerance = signalEntryWithin50msTolerance,
+                    SignalEntryCausalityStatus = signalEntryCausalityStatus,
+                    LiquidityBurstEpisodeIdAtEntry = score.LiquidityBurstEpisodeId,
+                    LiquidityBurstIndexInEpisodeAtEntry = score.LiquidityBurstIndexInEpisode,
+                    LiquidityBurstSecondsSincePriorBurstAtEntry = score.LiquidityBurstSecondsSincePriorBurst,
                     SecondsFromOpenAtEntry = bornBadContext.SecondsFromOpen,
                     DirectionalOrExtensionTicksAtEntry = bornBadContext.DirectionalOrExtensionTicks,
                     DirectionalVwapDistanceTicksAtEntry = bornBadContext.DirectionalVwapDistanceTicks,
@@ -819,7 +865,7 @@ namespace ATAS.Indicators
                 : score.OrLow;
             var nearestEdgeIsHigh = nearestEdge == score.OrHigh;
             var priorAtr3 = CalculatePriorClosedAtrTicks(entryBar, 3);
-            var priorAtr14 = CalculatePriorClosedAtrTicks(entryBar, 14);
+            var priorAtr14 = CalculatePriorDailyAtrTicks(entryBar, nyTime.Date, 14);
             var auctionContext = CaptureAuctionContext(entryBar, nyTime.Date, score.EntryPrice, priorAtr14);
             var brokenLevel = sideSign > 0 ? score.OrHigh : score.OrLow;
             var causalEntry = CaptureCausalEntryContext(
@@ -935,24 +981,26 @@ namespace ATAS.Indicators
             decimal? overnightLow = null;
             decimal? rthOpen = null;
             decimal? previousRthClose = null;
+            var overnightStartDate = sessionDate.AddDays(-1);
 
             for (var i = entryBar; i >= 0; i--)
             {
                 var candle = GetCandle(i);
                 var ny = ConvertToNewYorkTime(candle.Time);
-                if (ny.Date == sessionDate)
+                var inOvernightWindow =
+                    (ny.Date == overnightStartDate && ny.TimeOfDay >= new TimeSpan(18, 0, 0)) ||
+                    (ny.Date == sessionDate && ny.TimeOfDay < _openingTimeNy);
+                if (inOvernightWindow)
                 {
-                    if (ny.TimeOfDay < _openingTimeNy)
-                    {
-                        var high = (decimal)candle.High;
-                        var low = (decimal)candle.Low;
-                        overnightHigh = !overnightHigh.HasValue ? high : Math.Max(overnightHigh.Value, high);
-                        overnightLow = !overnightLow.HasValue ? low : Math.Min(overnightLow.Value, low);
-                    }
-                    else
-                    {
-                        rthOpen = (decimal)candle.Open;
-                    }
+                    var high = (decimal)candle.High;
+                    var low = (decimal)candle.Low;
+                    overnightHigh = !overnightHigh.HasValue ? high : Math.Max(overnightHigh.Value, high);
+                    overnightLow = !overnightLow.HasValue ? low : Math.Min(overnightLow.Value, low);
+                    continue;
+                }
+                if (ny.Date == sessionDate && ny.TimeOfDay >= _openingTimeNy)
+                {
+                    rthOpen = (decimal)candle.Open;
                     continue;
                 }
 
@@ -980,6 +1028,12 @@ namespace ATAS.Indicators
             var gapTicks = previousRthClose.HasValue
                 ? (open - previousRthClose.Value) / SetupTickSize
                 : 0m;
+            if (priorAtr14Ticks > 0m && Math.Abs(gapTicks) > priorAtr14Ticks * 5m)
+                missing.Add("OPENING_GAP_OUTLIER_GT_5_ATR");
+            if (!TryCalculateCausalVwapSlope(entryBar, sessionDate, 1, out _) ||
+                !TryCalculateCausalVwapSlope(entryBar, sessionDate, 3, out _) ||
+                !TryCalculateCausalVwapSlope(entryBar, sessionDate, 5, out _))
+                missing.Add("VWAP_SLOPE_WINDOW_UNAVAILABLE");
 
             return new AuctionContextSnapshot
             {
@@ -992,16 +1046,79 @@ namespace ATAS.Indicators
             };
         }
 
+        private decimal CalculatePriorDailyAtrTicks(int entryBar, DateTime sessionDate, int periods)
+        {
+            var sessions = new SortedDictionary<DateTime, DailyRthSummary>();
+            for (var i = 0; i < entryBar; i++)
+            {
+                var candle = GetCandle(i);
+                var ny = ConvertToNewYorkTime(candle.Time);
+                if (ny.Date >= sessionDate || ny.TimeOfDay < _openingTimeNy || ny.TimeOfDay >= new TimeSpan(16, 0, 0))
+                    continue;
+                var high = (decimal)candle.High;
+                var low = (decimal)candle.Low;
+                var close = (decimal)candle.Close;
+                if (!sessions.TryGetValue(ny.Date, out var daily))
+                {
+                    daily = new DailyRthSummary { High = high, Low = low, Close = close };
+                    sessions[ny.Date] = daily;
+                }
+                else
+                {
+                    daily.High = Math.Max(daily.High, high);
+                    daily.Low = Math.Min(daily.Low, low);
+                    daily.Close = close;
+                }
+            }
+
+            var trueRanges = new List<decimal>();
+            decimal? previousClose = null;
+            foreach (var daily in sessions.Values)
+            {
+                if (previousClose.HasValue)
+                {
+                    var tr = Math.Max(
+                        daily.High - daily.Low,
+                        Math.Max(Math.Abs(daily.High - previousClose.Value), Math.Abs(daily.Low - previousClose.Value)));
+                    trueRanges.Add(tr / SetupTickSize);
+                }
+                previousClose = daily.Close;
+            }
+            var take = Math.Min(Math.Max(1, periods), trueRanges.Count);
+            return take > 0 ? trueRanges.GetRange(trueRanges.Count - take, take).Average() : 0m;
+        }
+
         private decimal CalculateCausalVwapSlope(int entryBar, DateTime sessionDate, int barsBack)
         {
+            return TryCalculateCausalVwapSlope(entryBar, sessionDate, barsBack, out var slope)
+                ? slope
+                : 0m;
+        }
+
+        private bool TryCalculateCausalVwapSlope(
+            int entryBar,
+            DateTime sessionDate,
+            int barsBack,
+            out decimal slope)
+        {
+            slope = 0m;
             var end = entryBar - 1;
             var start = end - Math.Max(1, barsBack);
             if (start < 0)
-                return 0m;
+                return false;
+
+            var startNy = ConvertToNewYorkTime(GetCandle(start).Time);
+            var endNy = ConvertToNewYorkTime(GetCandle(end).Time);
+            if (startNy.Date != sessionDate || endNy.Date != sessionDate ||
+                startNy.TimeOfDay < _openingTimeNy || endNy.TimeOfDay < _openingTimeNy)
+                return false;
 
             var endVwap = CalculateSessionVwapThroughBar(end, sessionDate);
             var startVwap = CalculateSessionVwapThroughBar(start, sessionDate);
-            return (endVwap - startVwap) / SetupTickSize / Math.Max(1, barsBack);
+            if (endVwap <= 0m || startVwap <= 0m)
+                return false;
+            slope = (endVwap - startVwap) / SetupTickSize / Math.Max(1, barsBack);
+            return true;
         }
 
         private decimal CalculateSessionVwapThroughBar(int endBar, DateTime sessionDate)
@@ -3580,6 +3697,20 @@ namespace ATAS.Indicators
                 FormatTicks(input.LiquidityBurstAcceleration1sAtEntry),
                 FormatTicks(input.LiquidityBurstTradesPerSecondAtEntry),
                 FormatTicks(input.LiquidityBurstContractsPerSecondAtEntry),
+                FormatOptionalTimestamp(input.LiquidityBurstTimestampUtc),
+                FormatOptionalTimestamp(input.LiquidityBurstAvailableTimestampUtc),
+                FormatOptionalTimestamp(input.LiquidityBurstDetectorPublishTimestampUtc),
+                input.LiquidityBurstAtEntry ? FormatTicks(input.DetectorPublishDelayMilliseconds) : "",
+                input.LiquidityBurstAtEntry ? FormatTicks(input.SignalToEntryLatencyMilliseconds) : "",
+                input.LiquidityBurstAtEntry ? FormatTicks(input.DetectorPublishToEntryLatencyMilliseconds) : "",
+                input.LiquidityBurstAtEntry ? FormatBool(input.SignalEntryCausalityStrictValid) : "",
+                input.LiquidityBurstAtEntry ? FormatBool(input.SignalEntryWithin50msTolerance) : "",
+                EscapeCsv(input.SignalEntryCausalityStatus),
+                EscapeCsv(input.LiquidityBurstEpisodeIdAtEntry),
+                input.LiquidityBurstIndexInEpisodeAtEntry.ToString(CultureInfo.InvariantCulture),
+                input.LiquidityBurstSecondsSincePriorBurstAtEntry.HasValue
+                    ? FormatSeconds(input.LiquidityBurstSecondsSincePriorBurstAtEntry.Value)
+                    : "",
                 FormatSeconds(input.SecondsFromOpenAtEntry),
                 FormatTicks(input.DirectionalOrExtensionTicksAtEntry),
                 FormatTicks(input.DirectionalVwapDistanceTicksAtEntry),
@@ -3908,10 +4039,42 @@ namespace ATAS.Indicators
                 $"Gestión: {BuildBracketManagementLabel()}",
                 $"Salida: {BuildExitReason()} {TradeResultTicks():+0.##;-0.##;0} ticks",
                 $"MAE: {_trade.MaeTicks:0.##} ticks | MFE: {_trade.MfeTicks:0.##} ticks",
+                BuildTelegramMechanismLine(),
+                BuildTelegramAuctionContextLine(),
                 $"PnL: {pnl:+$0;-$0} | {TelegramContracts}c",
                 $"Balance: {balance:$#,##0}",
                 $"Duración: {FormatTradeDuration()}",
                 ReadTelegramRunEtaLine());
+        }
+
+        private string BuildTelegramMechanismLine()
+        {
+            var input = _trade?.InputSnapshot;
+            if (input == null || !input.LiquidityBurstAtEntry)
+                return "Mecanismo LB: N/A";
+            var prior = input.LiquidityBurstSecondsSincePriorBurstAtEntry.HasValue
+                ? $"{input.LiquidityBurstSecondsSincePriorBurstAtEntry.Value:0.##}s"
+                : "primero";
+            return $"Mecanismo LB: {input.LiquidityBurstEpisodeIdAtEntry} #{input.LiquidityBurstIndexInEpisodeAtEntry} | " +
+                   $"burst {input.LiquidityBurstIdAtEntry} | previo {prior} | " +
+                   $"delta1s {input.LiquidityBurstDelta1sAtEntry:0.##} | vel {input.LiquidityBurstVelocity1sAtEntry:0.##} t/s | " +
+                   $"vol {input.LiquidityBurstContractsPerSecondAtEntry:0.##} c/s | " +
+                   $"lat nom {input.SignalToEntryLatencyMilliseconds:0.##} ms | " +
+                   $"pub→entrada {input.DetectorPublishToEntryLatencyMilliseconds:0.##} ms | " +
+                   $"causalidad {input.SignalEntryCausalityStatus}";
+        }
+
+        private string BuildTelegramAuctionContextLine()
+        {
+            var input = _trade?.InputSnapshot;
+            if (input == null)
+                return "Contexto causal: N/A";
+            return $"Contexto causal: OR pos {input.OrPositionFractionAtEntry:0.###} | " +
+                   $"CVD dir {input.DirectionalExecutionCvdAtEntry:0.##} ({(input.ExecutionCvdAlignedAtEntry ? "alineado" : "conflicto")}) | " +
+                   $"{input.AuctionContextValidityAtEntry}" +
+                   (string.IsNullOrWhiteSpace(input.AuctionContextExclusionReasonAtEntry)
+                       ? ""
+                       : $" [{input.AuctionContextExclusionReasonAtEntry}]");
         }
 
         private string ReadTelegramRunEtaLine()
@@ -5228,6 +5391,13 @@ namespace ATAS.Indicators
             return ticks.ToString("+0.##;-0.##;0", CultureInfo.InvariantCulture);
         }
 
+        private static string FormatOptionalTimestamp(DateTime value)
+        {
+            return value == DateTime.MinValue
+                ? ""
+                : value.ToString("O", CultureInfo.InvariantCulture);
+        }
+
         private sealed class FeedCacheStats
         {
             public int TotalCount { get; set; }
@@ -5375,6 +5545,18 @@ namespace ATAS.Indicators
             public decimal LiquidityBurstAcceleration1sAtEntry { get; init; }
             public decimal LiquidityBurstTradesPerSecondAtEntry { get; init; }
             public decimal LiquidityBurstContractsPerSecondAtEntry { get; init; }
+            public DateTime LiquidityBurstTimestampUtc { get; init; }
+            public DateTime LiquidityBurstAvailableTimestampUtc { get; init; }
+            public DateTime LiquidityBurstDetectorPublishTimestampUtc { get; init; }
+            public decimal DetectorPublishDelayMilliseconds { get; init; }
+            public decimal SignalToEntryLatencyMilliseconds { get; init; }
+            public decimal DetectorPublishToEntryLatencyMilliseconds { get; init; }
+            public bool SignalEntryCausalityStrictValid { get; init; }
+            public bool SignalEntryWithin50msTolerance { get; init; }
+            public string SignalEntryCausalityStatus { get; init; } = "";
+            public string LiquidityBurstEpisodeIdAtEntry { get; init; } = "";
+            public int LiquidityBurstIndexInEpisodeAtEntry { get; init; }
+            public decimal? LiquidityBurstSecondsSincePriorBurstAtEntry { get; init; }
             public decimal SecondsFromOpenAtEntry { get; init; }
             public decimal DirectionalOrExtensionTicksAtEntry { get; init; }
             public decimal DirectionalVwapDistanceTicksAtEntry { get; init; }
@@ -5489,6 +5671,13 @@ namespace ATAS.Indicators
             public decimal OpeningGapAtr { get; init; }
             public string Validity { get; init; } = "";
             public string ExclusionReason { get; init; } = "";
+        }
+
+        private sealed class DailyRthSummary
+        {
+            public decimal High { get; set; }
+            public decimal Low { get; set; }
+            public decimal Close { get; set; }
         }
 
         private sealed class CausalPriceObservation

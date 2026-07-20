@@ -1,0 +1,10 @@
+variable,reason,decision
+MFE_ticks,Outcome posterior; solo etiqueta retrospectiva.,REJECT_FROM_FEATURES
+MAE_ticks,Outcome posterior; solo etiqueta retrospectiva.,REJECT_FROM_FEATURES
+Result_Label/result_ticks,Resultado terminal.,REJECT_FROM_FEATURES
+ExitTime/ExitPrice,Información futura.,REJECT_FROM_FEATURES
+Cvd_*_Final,Estado intratrade/final.,REJECT_FROM_FEATURES
+Dynamic_Alarm_*,Gestión posterior a entrada.,REJECT_FROM_FEATURES
+Price_Accepted_After_Imbalance_AtEntry,Nombre semánticamente ambiguo; excluida hasta demostrar timestamp causal propio.,REJECT_CONSERVATIVE
+Price_Rejected_After_Imbalance_AtEntry,Nombre semánticamente ambiguo; excluida hasta demostrar timestamp causal propio.,REJECT_CONSERVATIVE
+refill/order-book,Stream MBO/MBP no disponible en la configuración replay actual.,REJECT_UNAVAILABLE

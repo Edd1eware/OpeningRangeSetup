@@ -1,0 +1,7 @@
+# Rejected features
+
+| feature | reason | evidence | revisit |
+| --- | --- | --- | --- |
+| refill/depth/book imbalance | Historia X10 no ha demostrado un stream Level 2 reproducible. | No se aproxima ni simula order book. | Sólo tras prueba determinista add/modify/cancel. |
+| actual fill slippage | El exporter actual registra entrada simulada al precio de señal. | Signal_To_Entry_Directional_Drift_Ticks no representa un fill real. | Con fills reales de la estrategia y timestamps comparables. |
+| post-burst response as same-entry predictor | Disponible después de la decisión. | burst_response_events.csv está marcado POST_BURST_ONLY. | En una estrategia futura de confirmación retrasada. |

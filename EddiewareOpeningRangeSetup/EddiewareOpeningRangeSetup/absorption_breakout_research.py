@@ -39,8 +39,8 @@ from sklearn.tree import DecisionTreeClassifier
 
 
 RANDOM_SEED = 20260717
-EXPECTED_EXPORTER_VERSION = "score-exporter-2026-07-18-v25-response-families"
-EXPECTED_BURST_VERSION = "liquidity-burst-detector-2026-07-18-v2-response-families"
+EXPECTED_EXPORTER_VERSION = "score-exporter-2026-07-19-v27-final-causal-publish-guard"
+EXPECTED_BURST_VERSION = "liquidity-burst-detector-2026-07-19-v4-publish-clock-audit"
 TELEGRAM_TITLE = "ANALISIS  FAMILIAS A, B, C, ETC."
 TICK_SIZE = 0.25
 
@@ -110,6 +110,40 @@ BURST_SPECS = [
     FeatureSpec("Profile_Local_Maxima_Count", "burst_events", "count(local maxima in volume profile)", "count", "Multimodalidad matemática.", -1800, 0),
     FeatureSpec("Profile_Position_Percentile", "burst_events", "cumulative profile volume below price/total volume", "ratio", "Posición relativa dentro de la subasta.", -1800, 0),
     FeatureSpec("POC_Migration_Ticks", "burst_events", "current POC-prior emitted POC", "ticks", "Migración causal del centro de valor.", -1800, 0),
+    FeatureSpec("Flow_0_1_DirectionalNetDelta", "burst_events", "side_sign*(buy-sell), segment [0,1]s", "contracts", "Agresión neta inmediata sin ventanas superpuestas.", -1, 0),
+    FeatureSpec("Flow_1_3_DirectionalNetDelta", "burst_events", "side_sign*(buy-sell), segment [1,3]s", "contracts", "Persistencia previa independiente del segundo del burst.", -3, -1),
+    FeatureSpec("Flow_3_5_DirectionalNetDelta", "burst_events", "side_sign*(buy-sell), segment [3,5]s", "contracts", "Régimen de flujo anterior no superpuesto.", -5, -3),
+    FeatureSpec("Flow_0_1_GrossAggressive", "burst_events", "raw_buy+raw_sell [0,1]s", "contracts", "Esfuerzo agresivo bruto inmediato.", -1, 0),
+    FeatureSpec("Flow_1_3_GrossAggressive", "burst_events", "raw_buy+raw_sell [1,3]s", "contracts", "Esfuerzo bruto previo independiente.", -3, -1),
+    FeatureSpec("Flow_3_5_GrossAggressive", "burst_events", "raw_buy+raw_sell [3,5]s", "contracts", "Esfuerzo bruto de contexto.", -5, -3),
+    FeatureSpec("Flow_0_1_CounterflowShare", "burst_events", "contra_volume/gross_volume [0,1]s", "ratio", "Conflicto agresivo oculto por el delta neto.", -1, 0),
+    FeatureSpec("Flow_1_3_CounterflowShare", "burst_events", "contra_volume/gross_volume [1,3]s", "ratio", "Contra-agresión previa al burst.", -3, -1),
+    FeatureSpec("Flow_3_5_CounterflowShare", "burst_events", "contra_volume/gross_volume [3,5]s", "ratio", "Contra-agresión del contexto inmediato.", -5, -3),
+    FeatureSpec("Flow_0_1_DirectionalVelocityTPS", "burst_events", "directional ticks/[0,1]s", "ticks/s", "Resultado de precio inmediato.", -1, 0),
+    FeatureSpec("Flow_1_3_DirectionalVelocityTPS", "burst_events", "directional ticks/2s [1,3]", "ticks/s", "Persistencia de desplazamiento no superpuesta.", -3, -1),
+    FeatureSpec("Flow_3_5_DirectionalVelocityTPS", "burst_events", "directional ticks/2s [3,5]", "ticks/s", "Desplazamiento anterior independiente.", -5, -3),
+    FeatureSpec("Flow_0_1_TicksPerAggressiveContract", "burst_events", "directional_ticks/gross_aggressive", "ticks/contract", "Esfuerzo versus resultado con denominador auditable.", -1, 0),
+    FeatureSpec("Velocity_Retention_1_3", "burst_events", "velocity[1,3]/abs(velocity[0,1])", "ratio", "Persistencia de velocidad sin solapamiento.", -3, 0),
+    FeatureSpec("Velocity_Retention_3_5", "burst_events", "velocity[3,5]/abs(velocity[1,3])", "ratio", "Extinción o continuación del impulso.", -5, -1),
+    FeatureSpec("Delta_Retention_1_3", "burst_events", "delta[1,3]/abs(delta[0,1])", "ratio", "Persistencia de agresión sin solapamiento.", -3, 0),
+    FeatureSpec("Delta_Retention_3_5", "burst_events", "delta[3,5]/abs(delta[1,3])", "ratio", "Extinción previa de agresión.", -5, -1),
+    FeatureSpec("Prior_Level_Touches_60s", "burst_events", "count(seconds touching fixed 1-tick level band)", "count", "Memoria y desgaste del nivel antes del burst.", -60, 0),
+    FeatureSpec("Prior_Full_Crosses_60s", "burst_events", "count complete side changes across frozen level", "count", "Chop frente a nivel fresco.", -60, 0),
+    FeatureSpec("Prior_Volume_At_Level_Band_60s", "burst_events", "sum volume in fixed 1-tick level band", "contracts", "Esfuerzo acumulado negociado en el nivel.", -60, 0),
+    FeatureSpec("Pre_Approach_Distance_Ticks", "burst_events", "side_sign*(level-price_start_5s)/tick", "ticks", "Distancia recorrida antes del cruce.", -5, 0),
+    FeatureSpec("Pre_Approach_Velocity_TPS", "burst_events", "directional displacement/observed seconds", "ticks/s", "Velocidad de aproximación al nivel.", -5, 0),
+    FeatureSpec("Pre_Approach_Pause_Seconds", "burst_events", "count one-second buckets with movement <1 tick", "seconds", "Pausa o compresión inmediatamente antes del cruce.", -5, 0),
+    FeatureSpec("Time_Since_Last_Prior_Level_Touch_Seconds", "burst_events", "seconds since last prior touch of frozen level band", "seconds", "Frescura del nivel sin contar el burst actual.", -60, 0),
+    FeatureSpec("Realized_Volatility_10s_Ticks", "burst_events", "sqrt(sum(one-second return_ticks^2))", "ticks", "Volatilidad realizada corta previa.", -10, 0),
+    FeatureSpec("Realized_Volatility_30s_Ticks", "burst_events", "sqrt(sum(one-second return_ticks^2))", "ticks", "Volatilidad realizada media previa.", -30, 0),
+    FeatureSpec("Realized_Volatility_60s_Ticks", "burst_events", "sqrt(sum(one-second return_ticks^2))", "ticks", "Régimen de volatilidad previo.", -60, 0),
+    FeatureSpec("Short_Long_Volatility_Ratio", "burst_events", "RV10/sqrt(10) divided by RV60/sqrt(60)", "ratio", "Expansión o compresión de volatilidad antes del burst.", -60, 0),
+    FeatureSpec("Flow_Aligned_Segment_Count", "burst_events", "count non-overlap segments with directional delta and price >0", "count", "Alineación multihorizonte del esfuerzo y resultado.", -5, 0),
+    FeatureSpec("Flow_Conflict_Segment_Count", "burst_events", "count segments where delta and price have opposite signs", "count", "Conflicto multihorizonte compatible con absorción.", -5, 0),
+    FeatureSpec("Observation_Coverage_60", "burst_events", "observed one-second buckets/60", "ratio", "Calidad y completitud causal del stream.", -60, 0),
+    FeatureSpec("GapFill_Seconds_60", "burst_events", "count synthetic carry-forward gap buckets", "count", "Advertencia de datos irregulares, no señal de mercado.", -60, 0),
+    FeatureSpec("Burst_Index_In_Episode", "burst_events", "ordinal burst within 30s episode", "count", "Dependencia entre eventos del mismo episodio.", -30, 0),
+    FeatureSpec("Seconds_Since_Prior_Burst", "burst_events", "timestamp-current minus prior burst", "seconds", "Separación temporal entre eventos correlacionados.", -300, 0),
 ]
 
 ENTRY_SPECS = [
@@ -149,6 +183,11 @@ ENTRY_SPECS = [
     FeatureSpec("PreEntry_Path_Efficiency_AtEntry", "trade_inputs", "directional net move/absolute observed path", "ratio", "Eficiencia direccional de trayectoria.", -60, 0),
     FeatureSpec("PreEntry_Price_Per_Delta_AtEntry", "trade_inputs", "directional ticks/abs(entry delta)", "ticks/contract", "Resultado por unidad de agresión.", -60, 0),
     FeatureSpec("PreEntry_Price_Per_Volume_AtEntry", "trade_inputs", "directional ticks/entry volume", "ticks/contract", "Resultado por unidad de volumen.", -60, 0),
+    FeatureSpec("Detector_Publish_Delay_Milliseconds", "trade_inputs", "detector publish timestamp-nominal second-close availability", "milliseconds", "Diagnóstico de scheduling y jitter del detector; no es predictor económico.", 0, 0),
+    FeatureSpec("Signal_To_Entry_Latency_Milliseconds", "trade_inputs", "entry timestamp-burst availability timestamp", "milliseconds", "Demora causal entre disponibilidad y entrada simulada.", 0, 0),
+    FeatureSpec("Detector_Publish_To_Entry_Latency_Milliseconds", "trade_inputs", "entry timestamp-detector publish timestamp", "milliseconds", "Audita que la entrada no preceda a la publicación efectiva.", 0, 0),
+    FeatureSpec("Liquidity_Burst_Index_In_Episode", "trade_inputs", "ordinal burst in frozen 30s episode", "count", "Dependencia del evento que originó la entrada.", -30, 0),
+    FeatureSpec("Liquidity_Burst_Seconds_Since_Prior_Burst", "trade_inputs", "seconds from previous burst", "seconds", "Frescura causal del evento.", -300, 0),
 ]
 
 ENGINEERED_SPECS = [
@@ -186,6 +225,16 @@ def _numeric(frame: pd.DataFrame, columns: Iterable[str]) -> None:
     for column in columns:
         if column in frame.columns:
             frame[column] = pd.to_numeric(frame[column], errors="coerce")
+
+
+def _safe_int(value: object, default: int = 0) -> int:
+    """Format optional scalar statistics without failing on pandas/NumPy NaN."""
+    try:
+        if pd.isna(value):
+            return default
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def _safe_div(a: pd.Series, b: pd.Series, floor: float = 1.0) -> pd.Series:
@@ -342,10 +391,13 @@ def build_dataset(results_folder: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
         merged["feature_timestamp_utc"], utc=True, errors="coerce"
     ).le(merged["prediction_timestamp"])
     merged["available_before_entry"] = pd.to_numeric(merged["AvailableBeforeEntry"], errors="coerce").eq(1)
+    strict_latency = merged.get("Signal_Entry_Causality_Strict_Valid", pd.Series(False, index=merged.index))
+    merged["strict_signal_entry_causality"] = strict_latency.astype(str).str.upper().eq("TRUE")
     merged["causal_row_flag"] = (
         merged["burst_before_prediction"] &
         merged["entry_feature_before_prediction"] &
         merged["available_before_entry"] &
+        merged["strict_signal_entry_causality"] &
         merged["prediction_timestamp"].notna()
     )
     merged = _engineer(merged)
@@ -528,6 +580,12 @@ def _statistical_tests(dataset: pd.DataFrame) -> pd.DataFrame:
             row["anova_p"] = stats.f_oneway(a, b).pvalue
             row["permutation_p"] = _permutation_p(a, b, rng)
             row["mean_diff_bootstrap_ci_low"], row["mean_diff_bootstrap_ci_high"] = _bootstrap_diff(a, b, rng)
+        for metric in (
+            "cohens_d_A_minus_B", "cliffs_delta_A_minus_B", "overlap_coefficient",
+            "mann_whitney_p", "ks_p", "welch_t_p", "anova_p", "permutation_p",
+            "mean_diff_bootstrap_ci_low", "mean_diff_bootstrap_ci_high",
+        ):
+            row.setdefault(metric, np.nan)
         rows.append(row)
     frame = pd.DataFrame(rows)
     if not frame.empty:
@@ -880,6 +938,37 @@ def _visualizations(dataset: pd.DataFrame, rankings: pd.DataFrame, output: Path)
             fig.savefig(path, dpi=160)
             plt.close(fig)
             paths.append(path)
+    v27_features = [feature for feature in FEATURE_NAMES if feature in dataset]
+    if v27_features:
+        coverage = dataset[v27_features].apply(pd.to_numeric, errors="coerce").notna().mean().mul(100)
+        coverage_frame = pd.DataFrame({"feature": coverage.index, "coverage": coverage.values})
+        coverage_frame["mechanism_family"] = coverage_frame["feature"].map(_mechanism_family)
+        family_coverage = coverage_frame.groupby("mechanism_family")["coverage"].mean().sort_values()
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.barh(family_coverage.index, family_coverage.values, color="#0f766e")
+        ax.set_xlim(0, 100)
+        ax.set_xlabel("Cobertura causal media (%)")
+        ax.set_title("Cobertura por familia física — v27")
+        fig.tight_layout()
+        path = output / "mechanism_family_coverage.png"
+        fig.savefig(path, dpi=160)
+        plt.close(fig)
+        paths.append(path)
+
+        new_prefixes = ("Flow_", "Velocity_Retention", "Delta_Retention", "Prior_Level", "Pre_Approach", "Realized_Volatility", "Short_Long", "Burst_Index", "Seconds_Since", "Observation_Coverage", "GapFill")
+        new_features = [feature for feature in v27_features if feature.startswith(new_prefixes)]
+        if new_features:
+            top_coverage = coverage.loc[new_features].sort_values().tail(25)
+            fig, ax = plt.subplots(figsize=(11, 8))
+            ax.barh(top_coverage.index, top_coverage.values, color="#2563eb")
+            ax.set_xlim(0, 100)
+            ax.set_xlabel("Filas disponibles (%)")
+            ax.set_title("Cobertura de variables nuevas — v27")
+            fig.tight_layout()
+            path = output / "v27_feature_coverage.png"
+            fig.savefig(path, dpi=160)
+            plt.close(fig)
+            paths.append(path)
     return paths
 
 
@@ -941,7 +1030,8 @@ def _final_report(
             lines.append(
                 f"| {row['feature']} | {row.get('permutation_q_bh', np.nan):.4f} | "
                 f"{row.get('cliffs_delta_A_minus_B', np.nan):.3f} | {row.get('overlap_coefficient', np.nan):.3f} | "
-                f"{int(row.get('direction_stable_discovery_validation_holdout', 0) or 0)} | {int(row.get('robust_candidate', 0))} |"
+                f"{_safe_int(row.get('direction_stable_discovery_validation_holdout', 0))} | "
+                f"{_safe_int(row.get('robust_candidate', 0))} |"
             )
     lines.extend([
         "",
@@ -955,7 +1045,7 @@ def _final_report(
     else:
         for _, row in model_metrics.iterrows():
             lines.append(
-                f"| {row.get('model','')} | {row.get('split','')} | {int(row.get('n',0) or 0)} | "
+                f"| {row.get('model','')} | {row.get('split','')} | {_safe_int(row.get('n', 0))} | "
                 f"{row.get('balanced_accuracy', np.nan):.3f} | {row.get('roc_auc', np.nan):.3f} | {row.get('status','')} |"
             )
     lines.extend([
@@ -1016,6 +1106,125 @@ def _research_ledger(output: Path, dataset: pd.DataFrame) -> str:
 """
 
 
+def _mechanism_family(feature: str) -> str:
+    name = feature.lower()
+    if "flow_" in name or "delta_retention" in name or "velocity_retention" in name or "counterflow" in name:
+        return "FLOW_PERSISTENCE"
+    if "ticksperaggressive" in name or "price_per" in name or "effort" in name:
+        return "EFFORT_RESULT"
+    if "touch" in name or "cross" in name or "level_band" in name or "retest" in name:
+        return "LEVEL_MEMORY"
+    if "approach" in name:
+        return "CROSSING_ANATOMY"
+    if "episode" in name or "prior_burst" in name:
+        return "EVENT_DEPENDENCE"
+    if "latency" in name or "drift" in name:
+        return "EXECUTION_QUALITY"
+    if any(token in name for token in ("or_", "vwap", "poc", "profile", "atr", "overnight", "gap")):
+        return "AUCTION_CONTEXT"
+    if "accept" in name or "reclaim" in name or "reject" in name:
+        return "ACCEPTANCE_REJECTION"
+    return "BURST_INTENSITY"
+
+
+def _frame_to_markdown(frame: pd.DataFrame) -> str:
+    if frame.empty:
+        return "Sin filas suficientes."
+    columns = [str(column) for column in frame.columns]
+    lines = [
+        "| " + " | ".join(columns) + " |",
+        "| " + " | ".join("---" for _ in columns) + " |",
+    ]
+    for values in frame.itertuples(index=False, name=None):
+        lines.append("| " + " | ".join(str(value).replace("|", "/") for value in values) + " |")
+    return "\n".join(lines)
+
+
+def _write_v27_artifacts(
+    output_folder: Path,
+    dataset: pd.DataFrame,
+    catalog: pd.DataFrame,
+    rankings: pd.DataFrame,
+    model_metrics: pd.DataFrame,
+) -> None:
+    dictionary_lines = [
+        "# Feature dictionary — v27 mechanism audit",
+        "",
+        "Todas las ventanas terminan como máximo en el timestamp de decisión. Las respuestas posteriores permanecen `POST_BURST_ONLY`.",
+        "",
+        "| Feature | Familia | Fuente | Fórmula | Unidad | Ventana | Mecanismo / riesgo |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for row in catalog.to_dict("records"):
+        feature = str(row.get("feature", ""))
+        dictionary_lines.append(
+            f"| {feature} | {_mechanism_family(feature)} | {row.get('source', '')} | "
+            f"{str(row.get('formula', '')).replace('|', '/')} | {row.get('units', '')} | "
+            f"{row.get('feature_timestamp_start_offset_seconds', '')}s..{row.get('feature_timestamp_end_offset_seconds', '')}s | "
+            f"{str(row.get('interpretation', '')).replace('|', '/')} |"
+        )
+    (output_folder / "feature_dictionary.md").write_text("\n".join(dictionary_lines) + "\n", encoding="utf-8")
+
+    identity = [c for c in ("fecha", "BurstId", "family", "split") if c in dataset]
+    feature_columns = [f for f in FEATURE_NAMES if f in dataset]
+    coverage_rows = []
+    for _, row in dataset[identity + feature_columns].iterrows():
+        base = {key: row.get(key) for key in identity}
+        for feature in feature_columns:
+            value = pd.to_numeric(pd.Series([row.get(feature)]), errors="coerce").iloc[0]
+            coverage_rows.append({
+                **base,
+                "feature": feature,
+                "family_name": _mechanism_family(feature),
+                "available": int(pd.notna(value)),
+                "exclusion_reason": "" if pd.notna(value) else "MISSING_OR_INVALID_CAUSAL_SOURCE",
+            })
+    coverage = pd.DataFrame(coverage_rows)
+    _write_csv(coverage, output_folder / "feature_coverage_matrix.csv")
+
+    rank_lookup = rankings.set_index("feature") if not rankings.empty and "feature" in rankings else pd.DataFrame()
+    family_rows = []
+    for family, features in pd.Series(feature_columns).groupby(pd.Series(feature_columns).map(_mechanism_family)):
+        feature_list = features.tolist()
+        available = dataset[feature_list].apply(pd.to_numeric, errors="coerce").notna().mean().mean() if feature_list else 0.0
+        ranked = rank_lookup.loc[rank_lookup.index.intersection(feature_list)] if not rank_lookup.empty else pd.DataFrame()
+        family_rows.append({
+            "family": family,
+            "variables": "|".join(feature_list),
+            "variable_count": len(feature_list),
+            "mean_coverage_pct": float(available * 100),
+            "best_abs_cliffs_delta": float(ranked["abs_cliffs_delta"].max()) if not ranked.empty and "abs_cliffs_delta" in ranked else np.nan,
+            "robust_candidate_count": int(ranked["robust_candidate"].fillna(0).sum()) if not ranked.empty and "robust_candidate" in ranked else 0,
+        })
+    family_summary = pd.DataFrame(family_rows)
+    _write_csv(family_summary, output_folder / "family_summary.csv")
+
+    incremental_lines = [
+        "# Incremental information report — v27",
+        "",
+        "Baseline: intensidad del burst, delta, velocidad, aceleración, eficiencia y perfil existentes.",
+        "",
+        "Las familias nuevas se evalúan sólo fuera de muestra. Este archivo no autoriza filtros ni thresholds.",
+        "",
+        "## Cobertura por familia",
+        "",
+        _frame_to_markdown(family_summary),
+        "",
+        "## Métricas de modelos auditados",
+        "",
+        _frame_to_markdown(model_metrics),
+    ]
+    (output_folder / "incremental_information_report.md").write_text("\n".join(incremental_lines) + "\n", encoding="utf-8")
+
+    rejected = pd.DataFrame([
+        {"feature": "refill/depth/book imbalance", "reason": "Historia X10 no ha demostrado un stream Level 2 reproducible.", "evidence": "No se aproxima ni simula order book.", "revisit": "Sólo tras prueba determinista add/modify/cancel."},
+        {"feature": "actual fill slippage", "reason": "El exporter actual registra entrada simulada al precio de señal.", "evidence": "Signal_To_Entry_Directional_Drift_Ticks no representa un fill real.", "revisit": "Con fills reales de la estrategia y timestamps comparables."},
+        {"feature": "post-burst response as same-entry predictor", "reason": "Disponible después de la decisión.", "evidence": "burst_response_events.csv está marcado POST_BURST_ONLY.", "revisit": "En una estrategia futura de confirmación retrasada."},
+    ])
+    _write_csv(rejected, output_folder / "rejected_features.csv")
+    (output_folder / "rejected_features.md").write_text("# Rejected features\n\n" + _frame_to_markdown(rejected) + "\n", encoding="utf-8")
+
+
 def run_analysis(results_folder: Path, output_folder: Path | None = None) -> dict[str, object]:
     results_folder = Path(results_folder)
     if output_folder is None:
@@ -1057,6 +1266,7 @@ def run_analysis(results_folder: Path, output_folder: Path | None = None) -> dic
     _write_csv(leakage, output_folder / "leakage_rejections.csv")
     _write_csv(dataset_audit, output_folder / "dataset_audit.csv")
     _write_csv(model_metrics, output_folder / "model_metrics.csv")
+    _write_v27_artifacts(output_folder, dataset, catalog, rankings, model_metrics)
     visuals = _visualizations(dataset, rankings, visual_folder) if not dataset.empty else []
     report = _final_report(dataset, rankings, validation, model_metrics, causality, leakage, output_folder)
     (output_folder / "final_report.md").write_text(report, encoding="utf-8")

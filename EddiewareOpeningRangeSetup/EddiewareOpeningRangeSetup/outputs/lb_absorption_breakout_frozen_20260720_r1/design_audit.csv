@@ -1,0 +1,21 @@
+check,evidence,passed
+PACKAGE_SHA256,Frozen model hash matches sealed spec,True
+LABEL_SOURCE_SHA256,A/B/C labeling implementation matches frozen spec,True
+TRAINING_ROWS,70 expected; observed 70,True
+TRAINING_YEARS,Observed 2022-2024,True
+HOLDOUT_NOT_OPENED,Frozen spec validation years: [],True
+REPLAY_SCOPE,256 dates; 2025-03-10 -> 2026-07-17,True
+CORE_FEATURE_ORDER,10 frozen predictors,True
+FEATURE_TIMING,Every frozen predictor has window_end_seconds <= 0,True
+NO_OUTCOME_PREDICTORS,No response/MAE/MFE/result/exit/future predictor,True
+TRADE_EXPORT_HEADERS,All entry-side frozen predictors exist in trade_inputs,True
+REGIME_EXPORT_HEADERS,VWAP-distance and RV60 are exported before entry,True
+DISCOVERY_CAUSAL_ROWS,Causal rows 70/70,True
+PUBLISH_PRECEDES_DECISION,Publish-to-decision latency min=0.000 ms,True
+MIXED_ABSTAINS,C_MIXED_PATH is abstention and is excluded from A/B metrics,True
+NO_MBO_DEPENDENCY,MBO and incremental MBP/tape excluded,True
+EXPORTER_VERSION,score-exporter-2026-07-19-v27-final-causal-publish-guard,True
+DETECTOR_VERSION,liquidity-burst-detector-2026-07-19-v4-publish-clock-audit,True
+X10_ONLY,Run plan rejects X1 and uses X10_R1 only,True
+POST_RESPONSE_LABEL_ONLY,1/3/5s response is excluded from same-entry predictors,True
+TRADING_UNCHANGED,Observational runner and frozen offline evaluator only,True

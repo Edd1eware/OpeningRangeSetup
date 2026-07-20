@@ -1,0 +1,21 @@
+{
+  "created_at_utc": "2026-07-20T15:58:42.649046+00:00",
+  "network_requests_performed": false,
+  "data_downloaded": false,
+  "billable_action_performed": false,
+  "databento_account_status_observed": "LOCKED_403_AT_LAST_METADATA_CHECK",
+  "dataset": "GLBX.MDP3",
+  "schema": "mbo",
+  "symbol": "NQ.v.0",
+  "stype_in": "continuous",
+  "stype_out": "raw_symbol",
+  "request_rows": 184,
+  "unique_dates": 184,
+  "total_requested_seconds": 1840.1840000000002,
+  "total_requested_minutes": 30.669733333333337,
+  "lookback_seconds_per_event": 10,
+  "end_padding_milliseconds": 1,
+  "mandatory_local_filter": "ts_event <= causal_cutoff_utc_inclusive",
+  "warning": "Estimate cost with metadata.get_cost after the Databento account is unlocked; do not download before reviewing the estimate.",
+  "manifest_csv": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_features_atas\\DATABENTO_MBO_VENTANAS_CAUSALES_LIQUIDITY_BURST_20260720.csv"
+}

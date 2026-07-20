@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using ATAS.DataFeedsCore;
 
 namespace ATAS.Indicators
@@ -13,7 +14,7 @@ namespace ATAS.Indicators
     [DisplayName("Liquidity Burst Detector")]
     public class LiquidityBurstDetector : Indicator
     {
-        private const string Version = "liquidity-burst-detector-2026-07-18-v2-response-families";
+        private const string Version = "liquidity-burst-detector-2026-07-19-v4-publish-clock-audit";
         private const decimal DefaultTickSize = 0.25m;
 
         private readonly TimeZoneInfo _nyZone =
@@ -42,6 +43,9 @@ namespace ATAS.Indicators
         private decimal _lastVelocity1s;
         private decimal _lastVelocity3s;
         private decimal? _lastEmittedPoc;
+        private DateTime _lastBurstAnyUtc = DateTime.MinValue;
+        private int _episodeSequence;
+        private int _episodeBurstCount;
 
         [Display(Name = "Export CSV", Order = 1, GroupName = "Output")]
         public bool ExportCsv { get; set; } = true;
@@ -203,7 +207,7 @@ namespace ATAS.Indicators
             }
             else if (secondUtc > _activeBucket.SecondUtc)
             {
-                AdvanceToSecond(secondUtc, bar, price);
+                AdvanceToSecond(secondUtc, bar, price, timeUtc);
             }
 
             var direction = ResolveTradeDirection(trade, price);
@@ -231,28 +235,32 @@ namespace ATAS.Indicators
             UpdateSessionContext(ny, close, volume);
 
             if (_activeBucket != null && secondUtc > _activeBucket.SecondUtc)
-                AdvanceToSecond(secondUtc, bar, close);
+                AdvanceToSecond(secondUtc, bar, close, secondUtc);
             else if (_activeBucket == null || secondUtc < _activeBucket.SecondUtc)
                 _activeBucket = new SecondBucket(secondUtc, bar, close);
 
             _activeBucket.ApplyAggregate(close, high, low, volume, delta, bar, source);
-            AdvanceToSecond(secondUtc.AddSeconds(1), bar, close);
+            AdvanceToSecond(secondUtc.AddSeconds(1), bar, close, secondUtc.AddSeconds(1));
         }
 
-        private void AdvanceToSecond(DateTime targetSecondUtc, int bar, decimal carryPrice)
+        private void AdvanceToSecond(
+            DateTime targetSecondUtc,
+            int bar,
+            decimal carryPrice,
+            DateTime detectorPublishTimestampUtc)
         {
             if (_activeBucket == null)
                 return;
 
             var finished = _activeBucket;
-            FinalizeSecond(finished);
+            FinalizeSecond(finished, detectorPublishTimestampUtc);
 
             var nextSecond = finished.SecondUtc.AddSeconds(1);
             var gapCount = 0;
             while (nextSecond < targetSecondUtc && gapCount < Math.Max(0, MaxGapFillSeconds))
             {
                 var gap = SecondBucket.Empty(nextSecond, bar, carryPrice);
-                FinalizeSecond(gap);
+                FinalizeSecond(gap, detectorPublishTimestampUtc);
                 nextSecond = nextSecond.AddSeconds(1);
                 gapCount++;
             }
@@ -260,7 +268,7 @@ namespace ATAS.Indicators
             _activeBucket = new SecondBucket(targetSecondUtc, bar, carryPrice);
         }
 
-        private void FinalizeSecond(SecondBucket bucket)
+        private void FinalizeSecond(SecondBucket bucket, DateTime detectorPublishTimestampUtc)
         {
             var ny = ToNy(bucket.SecondUtc);
             bucket.NyTime = ny;
@@ -274,7 +282,7 @@ namespace ATAS.Indicators
             bucket.DeltaChange1s = features.DeltaChange1s;
 
             if (IsDetectionWindow(ny) && bucket.Trades > 0)
-                TryEmitBurst(bucket, features);
+                TryEmitBurst(bucket, features, detectorPublishTimestampUtc);
 
             _lastVelocity1s = features.Velocity1s;
             _lastVelocity3s = features.Velocity3s;
@@ -327,7 +335,10 @@ namespace ATAS.Indicators
             };
         }
 
-        private void TryEmitBurst(SecondBucket bucket, BurstFeatures features)
+        private void TryEmitBurst(
+            SecondBucket bucket,
+            BurstFeatures features,
+            DateTime detectorPublishTimestampUtc)
         {
             var baselineReady = _history.Count >= Math.Max(1, MinBaselineSeconds);
             var percentilePass = !RequirePercentile || features.DeltaPercentile >= DeltaPercentileThreshold;
@@ -365,16 +376,35 @@ namespace ATAS.Indicators
 
             var persistence = Math.Max(1, PersistenceSeconds);
             if (_buyPersistence >= persistence && !InCooldown("BUY", bucket.SecondUtc))
-                EmitBurst(bucket, features, "BUY", "HIGH BUY AGGRESSION", "GREEN");
+                EmitBurst(bucket, features, detectorPublishTimestampUtc, "BUY", "HIGH BUY AGGRESSION", "GREEN");
 
             if (_sellPersistence >= persistence && !InCooldown("SELL", bucket.SecondUtc))
-                EmitBurst(bucket, features, "SELL", "HIGH SELL AGGRESSION", "RED");
+                EmitBurst(bucket, features, detectorPublishTimestampUtc, "SELL", "HIGH SELL AGGRESSION", "RED");
         }
 
-        private void EmitBurst(SecondBucket bucket, BurstFeatures features, string side, string label, string colorName)
+        private void EmitBurst(
+            SecondBucket bucket,
+            BurstFeatures features,
+            DateTime detectorPublishTimestampUtc,
+            string side,
+            string label,
+            string colorName)
         {
             PopulatePreBurstResponseFeatures(bucket, features, side);
+            PopulateMechanismFeatures(bucket, features, side);
             _burstSequence++;
+            var secondsSincePriorBurst = _lastBurstAnyUtc == DateTime.MinValue
+                ? (decimal?)null
+                : (decimal)(bucket.SecondUtc - _lastBurstAnyUtc).TotalSeconds;
+            if (!secondsSincePriorBurst.HasValue || secondsSincePriorBurst.Value > 30m)
+            {
+                _episodeSequence++;
+                _episodeBurstCount = 0;
+            }
+            _episodeBurstCount++;
+            features.EpisodeId = $"LBE_{bucket.NyTime:yyyyMMdd}_{_episodeSequence:0000}";
+            features.BurstIndexInEpisode = _episodeBurstCount;
+            features.SecondsSincePriorBurst = secondsSincePriorBurst;
             var id = string.Format(
                 CultureInfo.InvariantCulture,
                 "LB_{0:yyyyMMdd_HHmmss}_{1}_{2:0000}",
@@ -385,6 +415,7 @@ namespace ATAS.Indicators
             var snapshot = new BurstSnapshot(
                 id,
                 bucket.SecondUtc,
+                detectorPublishTimestampUtc,
                 bucket.NyTime,
                 bucket.Bar,
                 side,
@@ -400,11 +431,13 @@ namespace ATAS.Indicators
                 _lastBuyBurstUtc = bucket.SecondUtc;
             else
                 _lastSellBurstUtc = bucket.SecondUtc;
+            _lastBurstAnyUtc = bucket.SecondUtc;
 
             LiquidityBurstSignalBus.Publish(new LiquidityBurstSignalSnapshot(
                 snapshot.BurstId,
                 snapshot.TimestampNy.Date,
                 snapshot.TimestampUtc,
+                snapshot.DetectorPublishTimestampUtc,
                 snapshot.TimestampNy,
                 snapshot.Side,
                 snapshot.Price,
@@ -415,13 +448,153 @@ namespace ATAS.Indicators
                 snapshot.Features.Velocity1s,
                 snapshot.Features.Acceleration1s,
                 snapshot.Features.TradesPerSecond,
-                snapshot.Features.ContractsPerSecond));
+                snapshot.Features.ContractsPerSecond,
+                snapshot.Features.EpisodeId,
+                snapshot.Features.BurstIndexInEpisode,
+                snapshot.Features.SecondsSincePriorBurst));
 
             if (ExportCsv)
                 WriteBurstEvent(snapshot);
 
             _pendingBurstResponses.Add(new PendingBurstResponse(snapshot));
             _lastEmittedPoc = snapshot.Profile.Poc;
+        }
+
+        private void PopulateMechanismFeatures(SecondBucket current, BurstFeatures features, string side)
+        {
+            var sideSign = string.Equals(side, "BUY", StringComparison.OrdinalIgnoreCase) ? 1m : -1m;
+            var brokenLevel = sideSign > 0
+                ? (_orReady ? _orHigh : current.Close)
+                : (_orReady ? _orLow : current.Close);
+            features.BrokenReferenceLevel = brokenLevel;
+            features.ReferenceType = _orReady ? (sideSign > 0 ? "OR_HIGH" : "OR_LOW") : "BURST_PRICE_FALLBACK";
+
+            PopulateSegment(current, features.Flow01, sideSign, 0, 1);
+            PopulateSegment(current, features.Flow13, sideSign, 1, 3);
+            PopulateSegment(current, features.Flow35, sideSign, 3, 5);
+            features.VelocityRetention13 = RatioOrNull(features.Flow13.DirectionalVelocityTps, Math.Abs(features.Flow01.DirectionalVelocityTps));
+            features.VelocityRetention35 = RatioOrNull(features.Flow35.DirectionalVelocityTps, Math.Abs(features.Flow13.DirectionalVelocityTps));
+            features.DeltaRetention13 = RatioOrNull(features.Flow13.DirectionalNetDelta, Math.Abs(features.Flow01.DirectionalNetDelta));
+            features.DeltaRetention35 = RatioOrNull(features.Flow35.DirectionalNetDelta, Math.Abs(features.Flow13.DirectionalNetDelta));
+
+            var recent = RecentBuckets(current, 60);
+            var band = Tick > 0 ? Tick : DefaultTickSize;
+            var wasBeyond = recent.Count > 0 && IsBeyond(recent[0].Close, brokenLevel, sideSign);
+            for (var i = 0; i < recent.Count; i++)
+            {
+                var bucket = recent[i];
+                var inBand = bucket.High >= brokenLevel - band && bucket.Low <= brokenLevel + band;
+                if (inBand)
+                {
+                    features.PriorLevelTouches60s++;
+                    features.PriorVolumeAtLevelBand60s += bucket.Volume;
+                    if (i < recent.Count - 1)
+                        features.TimeSinceLastPriorLevelTouchSeconds = (decimal)(current.SecondUtc - bucket.SecondUtc).TotalSeconds;
+                }
+                var beyond = IsBeyond(bucket.Close, brokenLevel, sideSign);
+                if (i > 0 && beyond != wasBeyond)
+                    features.PriorFullCrosses60s++;
+                wasBeyond = beyond;
+            }
+
+            var approach = RecentBuckets(current, 5);
+            if (approach.Count > 0 && Tick > 0)
+            {
+                features.PreApproachDistanceTicks = sideSign * (brokenLevel - approach[0].Open) / Tick;
+                features.PreApproachVelocityTps = sideSign * (current.Close - approach[0].Open) / Tick / Math.Max(1, approach.Count);
+                features.PreApproachObservationSeconds = approach.Count;
+                features.PreApproachPauseSeconds = approach.Count(bucket => Math.Abs(bucket.Close - bucket.Open) < Tick);
+            }
+            features.RealizedVolatility10sTicks = CalculateRealizedVolatility(current, 10);
+            features.RealizedVolatility30sTicks = CalculateRealizedVolatility(current, 30);
+            features.RealizedVolatility60sTicks = CalculateRealizedVolatility(current, 60);
+            features.ShortLongVolatilityRatio = features.RealizedVolatility60sTicks > 0m
+                ? (features.RealizedVolatility10sTicks / (decimal)Math.Sqrt(10d)) /
+                  (features.RealizedVolatility60sTicks / (decimal)Math.Sqrt(60d))
+                : null;
+            foreach (var segment in new[] { features.Flow01, features.Flow13, features.Flow35 })
+            {
+                if (segment.DirectionalNetDelta > 0m && segment.DirectionalVelocityTps > 0m)
+                    features.FlowAlignedSegmentCount++;
+                if (Math.Sign(segment.DirectionalNetDelta) != 0 && Math.Sign(segment.DirectionalVelocityTps) != 0 &&
+                    Math.Sign(segment.DirectionalNetDelta) != Math.Sign(segment.DirectionalVelocityTps))
+                    features.FlowConflictSegmentCount++;
+            }
+            features.FlowAlignmentMask = string.Join("|", new[] { features.Flow01, features.Flow13, features.Flow35 }
+                .Select(segment => segment.DirectionalNetDelta > 0m && segment.DirectionalVelocityTps > 0m
+                    ? "ALIGNED"
+                    : Math.Sign(segment.DirectionalNetDelta) != 0 && Math.Sign(segment.DirectionalVelocityTps) != 0 &&
+                      Math.Sign(segment.DirectionalNetDelta) != Math.Sign(segment.DirectionalVelocityTps)
+                        ? "CONFLICT"
+                        : "NEUTRAL"));
+            features.ObservationSeconds60 = recent.Count;
+            features.GapFillSeconds60 = recent.Count(bucket => bucket.Source == "GapFill");
+            features.TapeSeconds60 = recent.Count(bucket => bucket.Source == "Tape");
+            features.ObservationCoverage60 = Math.Min(1m, SafeRatio(recent.Count, 60m));
+            var invalidReasons = new List<string>();
+            if (current.Source != "Tape") invalidReasons.Add("NON_TAPE_SOURCE");
+            if (!features.Flow01.Valid) invalidReasons.Add("FLOW_0_1_INCOMPLETE");
+            if (!features.Flow13.Valid) invalidReasons.Add("FLOW_1_3_INCOMPLETE");
+            if (!features.Flow35.Valid) invalidReasons.Add("FLOW_3_5_INCOMPLETE");
+            if (features.ObservationCoverage60 < 0.80m) invalidReasons.Add("COVERAGE_60S_LT_80PCT");
+            features.MechanismValidity = invalidReasons.Count == 0 ? "VALID" : "LIMITED";
+            features.MechanismExclusionReason = string.Join("|", invalidReasons);
+        }
+
+        private decimal CalculateRealizedVolatility(SecondBucket current, int seconds)
+        {
+            if (Tick <= 0m)
+                return 0m;
+            var recent = RecentBuckets(current, seconds);
+            if (recent.Count < 2)
+                return 0m;
+            decimal sumSquares = 0m;
+            for (var i = 1; i < recent.Count; i++)
+            {
+                var changeTicks = (recent[i].Close - recent[i - 1].Close) / Tick;
+                sumSquares += changeTicks * changeTicks;
+            }
+            return (decimal)Math.Sqrt((double)sumSquares);
+        }
+
+        private void PopulateSegment(
+            SecondBucket current,
+            FlowSegment segment,
+            decimal sideSign,
+            int ageStartInclusive,
+            int ageEndExclusive)
+        {
+            var buckets = RecentBuckets(current, Math.Max(1, ageEndExclusive));
+            var selected = buckets.FindAll(bucket =>
+            {
+                var age = (current.SecondUtc - bucket.SecondUtc).TotalSeconds;
+                return age >= ageStartInclusive && age < ageEndExclusive;
+            });
+            segment.ExpectedSeconds = Math.Max(1, ageEndExclusive - ageStartInclusive);
+            segment.ObservedSeconds = selected.Count;
+            segment.Valid = selected.Count == segment.ExpectedSeconds;
+            if (selected.Count == 0)
+                return;
+            segment.RawBuyVolume = selected.Sum(bucket => bucket.BuyVolume);
+            segment.RawSellVolume = selected.Sum(bucket => bucket.SellVolume);
+            segment.GrossAggressiveVolume = segment.RawBuyVolume + segment.RawSellVolume;
+            segment.RawNetDelta = segment.RawBuyVolume - segment.RawSellVolume;
+            segment.DirectionalNetDelta = sideSign * segment.RawNetDelta;
+            segment.CounterflowShare = segment.GrossAggressiveVolume > 0m
+                ? (sideSign > 0m ? segment.RawSellVolume : segment.RawBuyVolume) / segment.GrossAggressiveVolume
+                : null;
+            segment.DirectionalPriceTicks = Tick > 0m
+                ? sideSign * (selected[selected.Count - 1].Close - selected[0].Open) / Tick
+                : 0m;
+            segment.DirectionalVelocityTps = segment.DirectionalPriceTicks / segment.ExpectedSeconds;
+            segment.TicksPerAggressiveContract = segment.GrossAggressiveVolume > 0m
+                ? segment.DirectionalPriceTicks / segment.GrossAggressiveVolume
+                : null;
+        }
+
+        private static decimal? RatioOrNull(decimal numerator, decimal denominator)
+        {
+            return denominator > 0m ? numerator / denominator : null;
         }
 
         private void WriteBurstEvent(BurstSnapshot snapshot)
@@ -583,6 +756,7 @@ namespace ATAS.Indicators
                 DetectorVersion = Version,
                 BurstId = burst.BurstId,
                 BurstTimestampUtc = burst.TimestampUtc,
+                DetectorPublishTimestampUtc = burst.DetectorPublishTimestampUtc,
                 BurstTimestampNy = burst.TimestampNy,
                 ResponseTimestampUtc = (last?.SecondUtc ?? cutoff).AddSeconds(1),
                 HorizonSeconds = horizonSeconds,
@@ -595,6 +769,8 @@ namespace ATAS.Indicators
             var high = burst.Price;
             var low = burst.Price;
             var accepted = 0;
+            var inLevelBand = 0;
+            var rejected = 0;
             var reclaims = 0;
             var rotations = 0;
             var upMoves = 0;
@@ -603,6 +779,8 @@ namespace ATAS.Indicators
             var path = 0m;
             decimal delta = 0m;
             decimal volume = 0m;
+            decimal buyVolume = 0m;
+            decimal sellVolume = 0m;
             decimal? previousPrice = burst.Price;
             var previousBeyond = IsBeyond(burst.Price, brokenLevel, sideSign);
             var directionalPositiveSeconds = 0;
@@ -613,8 +791,13 @@ namespace ATAS.Indicators
                 low = Math.Min(low, bucket.Low);
                 delta += bucket.Delta;
                 volume += bucket.Volume;
-                var beyond = IsBeyond(bucket.Close, brokenLevel, sideSign);
+                buyVolume += bucket.BuyVolume;
+                sellVolume += bucket.SellVolume;
+                var signedDistance = sideSign * (bucket.Close - brokenLevel);
+                var beyond = signedDistance > Tick;
                 if (beyond) accepted++;
+                else if (Math.Abs(bucket.Close - brokenLevel) <= Tick) inLevelBand++;
+                else rejected++;
                 if (previousBeyond && !beyond) reclaims++;
                 previousBeyond = beyond;
 
@@ -642,9 +825,18 @@ namespace ATAS.Indicators
                 ? (sideSign > 0 ? burst.Price - low : high - burst.Price) / Tick
                 : 0m;
             result.AcceptanceDwellRatio = SafeRatio(accepted, Math.Max(1, buckets.Count));
+            result.LevelBandDwellRatio = SafeRatio(inLevelBand, Math.Max(1, buckets.Count));
+            result.RejectedSideDwellRatio = SafeRatio(rejected, Math.Max(1, buckets.Count));
             result.ReclaimCount = reclaims;
             result.DirectionalDelta = sideSign * delta;
             result.Volume = volume;
+            result.RawBuyVolume = buyVolume;
+            result.RawSellVolume = sellVolume;
+            result.GrossAggressiveVolume = buyVolume + sellVolume;
+            result.CounterflowShare = result.GrossAggressiveVolume > 0m
+                ? (sideSign > 0m ? sellVolume : buyVolume) / result.GrossAggressiveVolume
+                : null;
+            result.EffortDenominatorValid = Math.Abs(delta) > 0m && volume > 0m;
             result.EffortResultDelta = SafeRatio(result.DirectionalDisplacementTicks, Math.Abs(delta));
             result.EffortResultVolume = SafeRatio(result.DirectionalDisplacementTicks, Math.Abs(volume));
             result.MomentumSurvivalRatio = SafeRatio(directionalPositiveSeconds, Math.Max(1, buckets.Count));
@@ -780,6 +972,9 @@ namespace ATAS.Indicators
             _lastVelocity1s = 0;
             _lastVelocity3s = 0;
             _lastEmittedPoc = null;
+            _lastBurstAnyUtc = DateTime.MinValue;
+            _episodeSequence = 0;
+            _episodeBurstCount = 0;
         }
 
         private void ResetAll()
@@ -806,6 +1001,9 @@ namespace ATAS.Indicators
             _lastVelocity1s = 0;
             _lastVelocity3s = 0;
             _lastEmittedPoc = null;
+            _lastBurstAnyUtc = DateTime.MinValue;
+            _episodeSequence = 0;
+            _episodeBurstCount = 0;
         }
 
         private void UpdateSessionContext(DateTime ny, decimal price, decimal volume)
@@ -1354,6 +1552,55 @@ namespace ATAS.Indicators
             public decimal PreBurstEffortResultVolume3s { get; set; }
             public int PreBurstImpulseSurvivalSeconds { get; set; }
             public decimal PreBurstImpulseDecaySlope5s { get; set; }
+            public FlowSegment Flow01 { get; } = new();
+            public FlowSegment Flow13 { get; } = new();
+            public FlowSegment Flow35 { get; } = new();
+            public decimal? VelocityRetention13 { get; set; }
+            public decimal? VelocityRetention35 { get; set; }
+            public decimal? DeltaRetention13 { get; set; }
+            public decimal? DeltaRetention35 { get; set; }
+            public decimal BrokenReferenceLevel { get; set; }
+            public string ReferenceType { get; set; } = "";
+            public int PriorLevelTouches60s { get; set; }
+            public int PriorFullCrosses60s { get; set; }
+            public decimal PriorVolumeAtLevelBand60s { get; set; }
+            public decimal? TimeSinceLastPriorLevelTouchSeconds { get; set; }
+            public decimal PreApproachDistanceTicks { get; set; }
+            public decimal PreApproachVelocityTps { get; set; }
+            public int PreApproachObservationSeconds { get; set; }
+            public int PreApproachPauseSeconds { get; set; }
+            public decimal RealizedVolatility10sTicks { get; set; }
+            public decimal RealizedVolatility30sTicks { get; set; }
+            public decimal RealizedVolatility60sTicks { get; set; }
+            public decimal? ShortLongVolatilityRatio { get; set; }
+            public int FlowAlignedSegmentCount { get; set; }
+            public int FlowConflictSegmentCount { get; set; }
+            public string FlowAlignmentMask { get; set; } = "";
+            public int ObservationSeconds60 { get; set; }
+            public int GapFillSeconds60 { get; set; }
+            public int TapeSeconds60 { get; set; }
+            public decimal ObservationCoverage60 { get; set; }
+            public string EpisodeId { get; set; } = "";
+            public int BurstIndexInEpisode { get; set; }
+            public decimal? SecondsSincePriorBurst { get; set; }
+            public string MechanismValidity { get; set; } = "";
+            public string MechanismExclusionReason { get; set; } = "";
+        }
+
+        private sealed class FlowSegment
+        {
+            public int ExpectedSeconds { get; set; }
+            public int ObservedSeconds { get; set; }
+            public bool Valid { get; set; }
+            public decimal RawBuyVolume { get; set; }
+            public decimal RawSellVolume { get; set; }
+            public decimal GrossAggressiveVolume { get; set; }
+            public decimal RawNetDelta { get; set; }
+            public decimal DirectionalNetDelta { get; set; }
+            public decimal? CounterflowShare { get; set; }
+            public decimal DirectionalPriceTicks { get; set; }
+            public decimal DirectionalVelocityTps { get; set; }
+            public decimal? TicksPerAggressiveContract { get; set; }
         }
 
         private sealed class ProfileSnapshot
@@ -1402,17 +1649,20 @@ namespace ATAS.Indicators
         private sealed class BurstResponseSnapshot
         {
             public const string CsvHeader =
-                "Detector_VERSION,BurstId,Burst_Timestamp_UTC,Burst_Feature_Available_Timestamp_UTC," +
+                "Detector_VERSION,BurstId,Burst_Timestamp_UTC,Burst_Feature_Available_Timestamp_UTC,Detector_Publish_Timestamp_UTC," +
                 "Burst_Timestamp_NY,Response_Available_Timestamp_UTC," +
                 "Response_Horizon_Seconds,Side,Burst_Price,Response_Price,Broken_Level," +
                 "Directional_Displacement_Ticks,Response_MFE_Ticks,Response_MAE_Ticks," +
-                "Acceptance_Dwell_Ratio,Reclaim_Count,Rejection_Speed_TPS,Directional_Delta,Response_Volume," +
+                "Acceptance_Dwell_Ratio,Level_Band_Dwell_Ratio,Rejected_Side_Dwell_Ratio,Reclaim_Count,Rejection_Speed_TPS," +
+                "Directional_Delta,Response_Volume,Raw_Buy_Volume,Raw_Sell_Volume,Gross_Aggressive_Volume," +
+                "Counterflow_Share,Effort_Denominator_Valid," +
                 "Effort_Result_Delta,Effort_Result_Volume,Momentum_Survival_Ratio,Rotation_Index,Local_Entropy," +
                 "Path_Efficiency,Response_POC_Migration_Ticks,AvailableBeforeEntry,Model_Eligibility";
 
             public string DetectorVersion { get; set; } = "";
             public string BurstId { get; set; } = "";
             public DateTime BurstTimestampUtc { get; set; }
+            public DateTime DetectorPublishTimestampUtc { get; set; }
             public DateTime BurstTimestampNy { get; set; }
             public DateTime ResponseTimestampUtc { get; set; }
             public int HorizonSeconds { get; set; }
@@ -1424,10 +1674,17 @@ namespace ATAS.Indicators
             public decimal MfeTicks { get; set; }
             public decimal MaeTicks { get; set; }
             public decimal AcceptanceDwellRatio { get; set; }
+            public decimal LevelBandDwellRatio { get; set; }
+            public decimal RejectedSideDwellRatio { get; set; }
             public int ReclaimCount { get; set; }
             public decimal RejectionSpeedTps { get; set; }
             public decimal DirectionalDelta { get; set; }
             public decimal Volume { get; set; }
+            public decimal RawBuyVolume { get; set; }
+            public decimal RawSellVolume { get; set; }
+            public decimal GrossAggressiveVolume { get; set; }
+            public decimal? CounterflowShare { get; set; }
+            public bool EffortDenominatorValid { get; set; }
             public decimal EffortResultDelta { get; set; }
             public decimal EffortResultVolume { get; set; }
             public decimal MomentumSurvivalRatio { get; set; }
@@ -1443,6 +1700,7 @@ namespace ATAS.Indicators
                     Csv(BurstId),
                     Csv(BurstTimestampUtc.ToString("O", CultureInfo.InvariantCulture)),
                     Csv(BurstTimestampUtc.AddSeconds(1).ToString("O", CultureInfo.InvariantCulture)),
+                    Csv(DetectorPublishTimestampUtc.ToString("O", CultureInfo.InvariantCulture)),
                     Csv(BurstTimestampNy.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
                     Csv(ResponseTimestampUtc.ToString("O", CultureInfo.InvariantCulture)),
                     HorizonSeconds.ToString(CultureInfo.InvariantCulture),
@@ -1454,10 +1712,17 @@ namespace ATAS.Indicators
                     Num(MfeTicks),
                     Num(MaeTicks),
                     Num(AcceptanceDwellRatio),
+                    Num(LevelBandDwellRatio),
+                    Num(RejectedSideDwellRatio),
                     ReclaimCount.ToString(CultureInfo.InvariantCulture),
                     Num(RejectionSpeedTps),
                     Num(DirectionalDelta),
                     Num(Volume),
+                    Num(RawBuyVolume),
+                    Num(RawSellVolume),
+                    Num(GrossAggressiveVolume),
+                    Num(CounterflowShare),
+                    EffortDenominatorValid ? "1" : "0",
                     Num(EffortResultDelta),
                     Num(EffortResultVolume),
                     Num(MomentumSurvivalRatio),
@@ -1491,13 +1756,31 @@ namespace ATAS.Indicators
         private sealed class BurstSnapshot
         {
             public const string CsvHeader =
-                "Detector_VERSION,BurstId,Timestamp_UTC,Feature_Available_Timestamp_UTC,Timestamp_NY,Bar,Side,AggressionLabel,LabelColor,Price," +
+                "Detector_VERSION,BurstId,Timestamp_UTC,Feature_Available_Timestamp_UTC,Detector_Publish_Timestamp_UTC,Timestamp_NY,Bar,Side,AggressionLabel,LabelColor,Price," +
                 "Delta1s,Delta2s,Delta3s,Delta5s,Delta10s,PeakPositiveDelta,PeakNegativeDelta,DeltaChange1s," +
                 "DeltaChangeZScore,DeltaPercentile,BuySellRatio,TradesPerSecond,ContractsPerSecond,Velocity1s," +
                 "Velocity3s,Velocity5s,Acceleration1s,Acceleration3s,TicksPerSecond,CumulativeDeltaWindow," +
                 "PreBurst_Acceptance_Dwell_Ratio_5s,PreBurst_Reclaim_Count_10s,PreBurst_Rotation_Index_10s," +
                 "PreBurst_Local_Entropy_10s,PreBurst_Path_Efficiency_10s,PreBurst_Price_Per_Delta_3s," +
                 "PreBurst_Price_Per_Volume_3s,PreBurst_Impulse_Survival_Seconds,PreBurst_Impulse_Decay_Slope_5s," +
+                "Flow_0_1_ExpectedSec,Flow_0_1_ObservedSec,Flow_0_1_Valid,Flow_0_1_RawBuy,Flow_0_1_RawSell,Flow_0_1_GrossAggressive," +
+                "Flow_0_1_RawNetDelta,Flow_0_1_DirectionalNetDelta,Flow_0_1_CounterflowShare,Flow_0_1_DirectionalPriceTicks," +
+                "Flow_0_1_DirectionalVelocityTPS,Flow_0_1_TicksPerAggressiveContract," +
+                "Flow_1_3_ExpectedSec,Flow_1_3_ObservedSec,Flow_1_3_Valid,Flow_1_3_RawBuy,Flow_1_3_RawSell,Flow_1_3_GrossAggressive," +
+                "Flow_1_3_RawNetDelta,Flow_1_3_DirectionalNetDelta,Flow_1_3_CounterflowShare,Flow_1_3_DirectionalPriceTicks," +
+                "Flow_1_3_DirectionalVelocityTPS,Flow_1_3_TicksPerAggressiveContract," +
+                "Flow_3_5_ExpectedSec,Flow_3_5_ObservedSec,Flow_3_5_Valid,Flow_3_5_RawBuy,Flow_3_5_RawSell,Flow_3_5_GrossAggressive," +
+                "Flow_3_5_RawNetDelta,Flow_3_5_DirectionalNetDelta,Flow_3_5_CounterflowShare,Flow_3_5_DirectionalPriceTicks," +
+                "Flow_3_5_DirectionalVelocityTPS,Flow_3_5_TicksPerAggressiveContract," +
+                "Velocity_Retention_1_3,Velocity_Retention_3_5,Delta_Retention_1_3,Delta_Retention_3_5," +
+                "Broken_Reference_Level,Reference_Type,Prior_Level_Touches_60s,Prior_Full_Crosses_60s," +
+                "Prior_Volume_At_Level_Band_60s,Time_Since_Last_Prior_Level_Touch_Seconds," +
+                "Pre_Approach_Distance_Ticks,Pre_Approach_Velocity_TPS,Pre_Approach_Observation_Seconds,Pre_Approach_Pause_Seconds," +
+                "Realized_Volatility_10s_Ticks,Realized_Volatility_30s_Ticks,Realized_Volatility_60s_Ticks," +
+                "Short_Long_Volatility_Ratio,Flow_Aligned_Segment_Count,Flow_Conflict_Segment_Count,Flow_Alignment_Mask," +
+                "Observation_Seconds_60,GapFill_Seconds_60,Tape_Seconds_60,Observation_Coverage_60," +
+                "Episode_ID,Burst_Index_In_Episode,Seconds_Since_Prior_Burst," +
+                "Mechanism_Validity,Mechanism_Exclusion_Reason," +
                 "OR_High,OR_Low,OR_WidthTicks,VWAP,POC,VAH,VAL,Nearest_HVN,Nearest_LVN,Dist_OR_High_Ticks," +
                 "Dist_OR_Low_Ticks,Dist_VWAP_Ticks,Dist_POC_Ticks,Dist_VAH_Ticks,Dist_VAL_Ticks,Dist_HVN_Ticks," +
                 "Dist_LVN_Ticks,Profile_Std_Ticks,Profile_Skewness,Profile_Excess_Kurtosis,Profile_Entropy," +
@@ -1507,6 +1790,7 @@ namespace ATAS.Indicators
             public BurstSnapshot(
                 string burstId,
                 DateTime timestampUtc,
+                DateTime detectorPublishTimestampUtc,
                 DateTime timestampNy,
                 int bar,
                 string side,
@@ -1520,6 +1804,7 @@ namespace ATAS.Indicators
             {
                 BurstId = burstId;
                 TimestampUtc = timestampUtc;
+                DetectorPublishTimestampUtc = detectorPublishTimestampUtc;
                 TimestampNy = timestampNy;
                 Bar = bar;
                 Side = side;
@@ -1534,6 +1819,7 @@ namespace ATAS.Indicators
 
             public string BurstId { get; }
             public DateTime TimestampUtc { get; }
+            public DateTime DetectorPublishTimestampUtc { get; }
             public DateTime TimestampNy { get; }
             public int Bar { get; }
             public string Side { get; }
@@ -1552,6 +1838,7 @@ namespace ATAS.Indicators
                     Csv(BurstId),
                     Csv(TimestampUtc.ToString("O", CultureInfo.InvariantCulture)),
                     Csv(TimestampUtc.AddSeconds(1).ToString("O", CultureInfo.InvariantCulture)),
+                    Csv(DetectorPublishTimestampUtc.ToString("O", CultureInfo.InvariantCulture)),
                     Csv(TimestampNy.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
                     Bar.ToString(CultureInfo.InvariantCulture),
                     Csv(Side),
@@ -1587,6 +1874,72 @@ namespace ATAS.Indicators
                     Num(Features.PreBurstEffortResultVolume3s),
                     Features.PreBurstImpulseSurvivalSeconds.ToString(CultureInfo.InvariantCulture),
                     Num(Features.PreBurstImpulseDecaySlope5s),
+                    Features.Flow01.ExpectedSeconds.ToString(CultureInfo.InvariantCulture),
+                    Features.Flow01.ObservedSeconds.ToString(CultureInfo.InvariantCulture),
+                    Features.Flow01.Valid ? "1" : "0",
+                    Num(Features.Flow01.RawBuyVolume),
+                    Num(Features.Flow01.RawSellVolume),
+                    Num(Features.Flow01.GrossAggressiveVolume),
+                    Num(Features.Flow01.RawNetDelta),
+                    Num(Features.Flow01.DirectionalNetDelta),
+                    Num(Features.Flow01.CounterflowShare),
+                    Num(Features.Flow01.DirectionalPriceTicks),
+                    Num(Features.Flow01.DirectionalVelocityTps),
+                    Num(Features.Flow01.TicksPerAggressiveContract),
+                    Features.Flow13.ExpectedSeconds.ToString(CultureInfo.InvariantCulture),
+                    Features.Flow13.ObservedSeconds.ToString(CultureInfo.InvariantCulture),
+                    Features.Flow13.Valid ? "1" : "0",
+                    Num(Features.Flow13.RawBuyVolume),
+                    Num(Features.Flow13.RawSellVolume),
+                    Num(Features.Flow13.GrossAggressiveVolume),
+                    Num(Features.Flow13.RawNetDelta),
+                    Num(Features.Flow13.DirectionalNetDelta),
+                    Num(Features.Flow13.CounterflowShare),
+                    Num(Features.Flow13.DirectionalPriceTicks),
+                    Num(Features.Flow13.DirectionalVelocityTps),
+                    Num(Features.Flow13.TicksPerAggressiveContract),
+                    Features.Flow35.ExpectedSeconds.ToString(CultureInfo.InvariantCulture),
+                    Features.Flow35.ObservedSeconds.ToString(CultureInfo.InvariantCulture),
+                    Features.Flow35.Valid ? "1" : "0",
+                    Num(Features.Flow35.RawBuyVolume),
+                    Num(Features.Flow35.RawSellVolume),
+                    Num(Features.Flow35.GrossAggressiveVolume),
+                    Num(Features.Flow35.RawNetDelta),
+                    Num(Features.Flow35.DirectionalNetDelta),
+                    Num(Features.Flow35.CounterflowShare),
+                    Num(Features.Flow35.DirectionalPriceTicks),
+                    Num(Features.Flow35.DirectionalVelocityTps),
+                    Num(Features.Flow35.TicksPerAggressiveContract),
+                    Num(Features.VelocityRetention13),
+                    Num(Features.VelocityRetention35),
+                    Num(Features.DeltaRetention13),
+                    Num(Features.DeltaRetention35),
+                    Num(Features.BrokenReferenceLevel),
+                    Csv(Features.ReferenceType),
+                    Features.PriorLevelTouches60s.ToString(CultureInfo.InvariantCulture),
+                    Features.PriorFullCrosses60s.ToString(CultureInfo.InvariantCulture),
+                    Num(Features.PriorVolumeAtLevelBand60s),
+                    Num(Features.TimeSinceLastPriorLevelTouchSeconds),
+                    Num(Features.PreApproachDistanceTicks),
+                    Num(Features.PreApproachVelocityTps),
+                    Features.PreApproachObservationSeconds.ToString(CultureInfo.InvariantCulture),
+                    Features.PreApproachPauseSeconds.ToString(CultureInfo.InvariantCulture),
+                    Num(Features.RealizedVolatility10sTicks),
+                    Num(Features.RealizedVolatility30sTicks),
+                    Num(Features.RealizedVolatility60sTicks),
+                    Num(Features.ShortLongVolatilityRatio),
+                    Features.FlowAlignedSegmentCount.ToString(CultureInfo.InvariantCulture),
+                    Features.FlowConflictSegmentCount.ToString(CultureInfo.InvariantCulture),
+                    Csv(Features.FlowAlignmentMask),
+                    Features.ObservationSeconds60.ToString(CultureInfo.InvariantCulture),
+                    Features.GapFillSeconds60.ToString(CultureInfo.InvariantCulture),
+                    Features.TapeSeconds60.ToString(CultureInfo.InvariantCulture),
+                    Num(Features.ObservationCoverage60),
+                    Csv(Features.EpisodeId),
+                    Features.BurstIndexInEpisode.ToString(CultureInfo.InvariantCulture),
+                    Num(Features.SecondsSincePriorBurst),
+                    Csv(Features.MechanismValidity),
+                    Csv(Features.MechanismExclusionReason),
                     Num(Profile.OrHigh),
                     Num(Profile.OrLow),
                     Num(Profile.OrWidthTicks),

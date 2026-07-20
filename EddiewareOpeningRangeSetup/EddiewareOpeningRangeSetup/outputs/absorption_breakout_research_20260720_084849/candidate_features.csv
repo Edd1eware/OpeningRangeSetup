@@ -1,0 +1,24 @@
+feature,hypothesis,formula,pre_registered_before_full_run,status,rejection_condition
+signed_delta_1s,Agresión en dirección del burst.,burst_sign*Delta1s,1,TEST_WITHOUT_TRADING_FILTER,causal violation; unstable sign; q>=0.10; |Cliff delta|<0.33
+signed_delta_change_1s,Aceleración de agresión dirigida.,burst_sign*DeltaChange1s,1,TEST_WITHOUT_TRADING_FILTER,causal violation; unstable sign; q>=0.10; |Cliff delta|<0.33
+signed_velocity_1s,Velocidad en dirección del burst.,burst_sign*Velocity1s,1,TEST_WITHOUT_TRADING_FILTER,causal violation; unstable sign; q>=0.10; |Cliff delta|<0.33
+signed_velocity_3s,Persistencia de velocidad dirigida.,burst_sign*Velocity3s,1,TEST_WITHOUT_TRADING_FILTER,causal violation; unstable sign; q>=0.10; |Cliff delta|<0.33
+signed_acceleration_1s,Aceleración dirigida del precio.,burst_sign*Acceleration1s,1,TEST_WITHOUT_TRADING_FILTER,causal violation; unstable sign; q>=0.10; |Cliff delta|<0.33
+price_impact_per_100_contracts,Eficiencia de impacto del flujo.,"100*abs(Velocity1s)/max(ContractsPerSecond,1)",1,TEST_WITHOUT_TRADING_FILTER,causal violation; unstable sign; q>=0.10; |Cliff delta|<0.33
+absorption_pressure_1s,Agresión que no logra desplazar precio.,"abs(Delta1s)/max(abs(Velocity1s),0.25)",1,TEST_WITHOUT_TRADING_FILTER,causal violation; unstable sign; q>=0.10; |Cliff delta|<0.33
+delta_share_of_volume,Fracción direccional del volumen.,"abs(Delta1s)/max(ContractsPerSecond,1)",1,TEST_WITHOUT_TRADING_FILTER,causal violation; unstable sign; q>=0.10; |Cliff delta|<0.33
+mean_trade_size,Tamaño medio de ejecución.,"ContractsPerSecond/max(TradesPerSecond,1)",1,TEST_WITHOUT_TRADING_FILTER,causal violation; unstable sign; q>=0.10; |Cliff delta|<0.33
+delta_persistence_1_3,Persistencia normalizada de agresión.,"abs(Delta3s)/(3*max(abs(Delta1s),1))",1,TEST_WITHOUT_TRADING_FILTER,causal violation; unstable sign; q>=0.10; |Cliff delta|<0.33
+delta_persistence_3_5,Persistencia de 3 a 5 segundos.,"3*abs(Delta5s)/(5*max(abs(Delta3s),1))",1,TEST_WITHOUT_TRADING_FILTER,causal violation; unstable sign; q>=0.10; |Cliff delta|<0.33
+direction_consistency,Consistencia temporal de agresión.,mean(sign(Delta1/3/5)==burst_sign),1,TEST_WITHOUT_TRADING_FILTER,causal violation; unstable sign; q>=0.10; |Cliff delta|<0.33
+velocity_consistency,Consistencia temporal de desplazamiento.,mean(sign(Velocity1/3/5)==burst_sign),1,TEST_WITHOUT_TRADING_FILTER,causal violation; unstable sign; q>=0.10; |Cliff delta|<0.33
+flow_price_alignment,Alineación entre agresión y precio.,sign(Delta1s)*sign(Velocity1s),1,TEST_WITHOUT_TRADING_FILTER,causal violation; unstable sign; q>=0.10; |Cliff delta|<0.33
+acceleration_velocity_ratio,Cambio relativo del impacto.,"signed_acceleration/max(abs(signed_velocity),0.25)",1,TEST_WITHOUT_TRADING_FILTER,causal violation; unstable sign; q>=0.10; |Cliff delta|<0.33
+directional_vwap_distance,Posición respecto a VWAP en dirección del burst.,burst_sign*Dist_VWAP_Ticks,1,TEST_WITHOUT_TRADING_FILTER,causal violation; unstable sign; q>=0.10; |Cliff delta|<0.33
+directional_poc_distance,Posición respecto a POC en dirección del burst.,burst_sign*Dist_POC_Ticks,1,TEST_WITHOUT_TRADING_FILTER,causal violation; unstable sign; q>=0.10; |Cliff delta|<0.33
+profile_confluence_4t,Confluencia de niveles cerca del burst.,count(abs(dist POC/VAH/VAL/HVN/LVN)<=4),1,TEST_WITHOUT_TRADING_FILTER,causal violation; unstable sign; q>=0.10; |Cliff delta|<0.33
+burst_efficiency_score,Eficiencia direccional: breakout limpio alto.,"signed_velocity_1s/max(abs(signed_delta_1s),1)",1,TEST_WITHOUT_TRADING_FILTER,causal violation; unstable sign; q>=0.10; |Cliff delta|<0.33
+liquidity_absorption_score,Presión alta con bajo desplazamiento.,"absorption_pressure_1s*(1-min(abs(signed_velocity_1s)/10,1))",1,TEST_WITHOUT_TRADING_FILTER,causal violation; unstable sign; q>=0.10; |Cliff delta|<0.33
+refill_ratio,Reposición del libro tras agresión.,added_size_at_level/consumed_size,1,REJECTED_UNAVAILABLE_IN_CURRENT_REPLAY,MBO/MBP no está presente en el workspace ni en Historia X10 actual.
+refill_speed,Velocidad de reconstrucción del nivel.,refilled_contracts/seconds,1,REJECTED_UNAVAILABLE_IN_CURRENT_REPLAY,Sin stream de libro causal reproducible.
+book_embedding,Estado no lineal del libro.,embedding(MBO/MBP sequence),1,REJECTED_UNAVAILABLE_IN_CURRENT_REPLAY,No inventar datos de libro ausentes.

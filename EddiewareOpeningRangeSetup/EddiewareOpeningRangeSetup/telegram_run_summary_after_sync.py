@@ -129,7 +129,29 @@ def compute_run_stats(run_root, allowed_dates=None, run_names=None):
             target_modification_reasons[reason] = target_modification_reasons.get(reason, 0) + 1
 
     if not ticks_by_date:
-        return None
+        if not rows_by_date:
+            return None
+        return {
+            "trades": 0,
+            "wins": 0,
+            "losses": 0,
+            "break_evens": 0,
+            "winrate": None,
+            "pf": None,
+            "profit_ticks": 0.0,
+            "expectancy_ticks": 0.0,
+            "average_win_ticks": None,
+            "average_loss_ticks": None,
+            "time_over": time_over_count,
+            "tp_ticks": None,
+            "sl_ticks": None,
+            "initial_brackets": {},
+            "min_initial_rr": None,
+            "dynamic_target_moves": 0,
+            "target_modification_reasons": {},
+            "max_consec_wins": 0,
+            "max_consec_losses": 0,
+        }
 
     wins = [t for t in ticks_by_date if t > 0]
     losses = [t for t in ticks_by_date if t < 0]

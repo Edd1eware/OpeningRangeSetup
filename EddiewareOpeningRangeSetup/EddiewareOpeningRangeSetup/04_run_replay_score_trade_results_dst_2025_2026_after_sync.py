@@ -156,6 +156,29 @@ HOLIDAY_NORMAL_WAIT_SECONDS = 2 * 60
 HOLIDAY_FINAL_WAIT_SECONDS = 3 * 60
 HOLIDAY_NO_DATA_LABEL = "HOLYDAY NO DATA"
 REQUIRED_TIMELINE_VERSION = replay_sync.EXPECTED_TIMELINE_VERSION
+RESEARCH_OBJECTIVE = (
+    "V27 | AUDITORIA DE MECANISMOS LIQUIDITY BURST. "
+    "Estrategia, entradas, TP/SL, CVD y gestion permanecen congelados."
+)
+RESEARCH_FIRST_TELEGRAM_MESSAGE = """ANALISIS  FAMILIAS A, B, C, ETC.
+PROPUESTO POR CODEX — V27 AUDITORIA DE MECANISMOS
+
+QUE SE MIDE:
+1) Flujo no superpuesto [0,1], [1,3] y [3,5] segundos: buy/sell bruto, delta direccional, contra-flujo, velocidad e impacto por contrato.
+2) Persistencia/extincion: retention de delta y velocidad sin mezclar ventanas.
+3) Anatomia del cruce: nivel congelado, distancia y velocidad de aproximacion, pausas, contactos, cruces, volumen en el nivel y tiempo desde el ultimo toque.
+4) Regimen previo: volatilidad realizada 10/30/60s, expansion/compresion y conflicto precio-delta entre horizontes.
+5) Dependencia: episodio, indice del burst y segundos desde el burst anterior.
+6) Calidad causal: fuente Tape, segundos observados, gap-fill, cobertura, timestamps, validez y motivo de exclusion.
+7) Entrada: OR position, CVD alineado, disponibilidad nominal, publicacion real del detector, latencias y validez causal estricta/tolerancia de 50 ms.
+8) Respuesta 1/3/5s: acceptance/level-band/rejection y esfuerzo/resultado, siempre POST_BURST_ONLY; nunca predictor de la misma entrada.
+
+POR QUE:
+Buscamos distinguir absorcion verdadera, breakout limpio y evento debil mediante respuesta fisica, persistencia, esfuerzo/resultado y contexto; no encontrar filtros por PnL.
+
+LIMITES:
+Order book/refill, fills reales, ATR diario, overnight/gap o VWAP se excluyen cuando Historia X10 no los reproduce. No se rellenan ni simulan datos.
+Los mecanismos primarios del burst son deterministas; timestamps y contexto exacto de entrada pueden variar subsegundo por callbacks/multiples escritores X10 y se auditan por separado."""
 
 EXPORT_FOLDER = r"C:\Users\k_99_\Desktop\codding\data_footprint_generator"
 RESULTS_FOLDER = os.path.join(EXPORT_FOLDER, "trade_results_score")
@@ -1291,6 +1314,7 @@ def main():
         "Modo: Historia X10 únicamente\n"
         "Replay X1: DESHABILITADO\n"
     )
+    print(f"Objetivo de investigacion: {RESEARCH_OBJECTIVE}")
     print("Plan:")
     print(f"  - Historia X10: {len(date_iso_list)} fechas; una pasada X10_R1.")
 
@@ -1309,6 +1333,14 @@ def main():
         clear_telegram_before_run(RESULTS_FOLDER)
     elif not args.compare_only:
         print("Telegram preservado: reanudacion sin borrar historial ni reiniciar balance.")
+
+    if not args.compare_only and not args.preserve_telegram_history:
+        send_text(
+            RESULTS_FOLDER,
+            f"{RESEARCH_FIRST_TELEGRAM_MESSAGE}\n"
+            f"Version: {replay_sync.EXPECTED_EXPORTER_VERSION}\n"
+            f"Muestra: {DATES_DST[0]} -> {DATES_DST[-1]} | Historia X10.",
+        )
 
     progress_meta = {
         "stage_index": 1,

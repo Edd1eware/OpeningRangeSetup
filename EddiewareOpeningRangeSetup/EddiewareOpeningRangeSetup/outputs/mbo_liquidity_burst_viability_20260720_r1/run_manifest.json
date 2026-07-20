@@ -1,0 +1,31 @@
+{
+  "created_at_utc": "2026-07-20T16:53:32.671903+00:00",
+  "rows": 30,
+  "families": {
+    "A_TRUE_ABSORPTION": 15,
+    "B_CLEAN_BREAKOUT": 15
+  },
+  "years": {
+    "2022": 10,
+    "2023": 10,
+    "2024": 10
+  },
+  "directions": {
+    "BUY": 15,
+    "SELL": 15
+  },
+  "causal_rows": 360492,
+  "post_cutoff_rows_excluded": 203,
+  "all_causal_max_ok": true,
+  "permutations": 1000,
+  "gate_passed": false,
+  "additional_purchase_authorized_by_gate": false,
+  "validation_dates_opened": 0,
+  "atas_replay_launched": false,
+  "plots": [
+    "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\outputs\\mbo_liquidity_burst_viability_20260720_r1\\visualizations\\mbo_compact_feature_effects.png",
+    "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\outputs\\mbo_liquidity_burst_viability_20260720_r1\\visualizations\\loyo_auc_stability.png",
+    "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\outputs\\mbo_liquidity_burst_viability_20260720_r1\\visualizations\\loyo_roc.png"
+  ],
+  "output": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\outputs\\mbo_liquidity_burst_viability_20260720_r1"
+}

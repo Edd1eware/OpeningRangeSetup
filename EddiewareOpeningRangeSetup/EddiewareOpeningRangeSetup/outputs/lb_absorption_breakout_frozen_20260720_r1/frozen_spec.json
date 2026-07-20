@@ -1,0 +1,99 @@
+{
+  "schema_version": "lb-a-vs-b-frozen-validation-2026-07-20-r1",
+  "created_at_utc": "2026-07-20T17:34:11.617598+00:00",
+  "objective": "After Liquidity Burst detection, classify at the original causal decision callback whether the path will be true absorption A or clean breakout B.",
+  "prediction_cutoff": "feature_timestamp_utc (same callback as original entry decision)",
+  "outcome_positive": "A_TRUE_ABSORPTION",
+  "outcome_negative": "B_CLEAN_BREAKOUT",
+  "mixed_policy": "C_MIXED_PATH is abstention and is excluded from A/B metrics",
+  "other_exit_policy": "D_OTHER_EXIT is reported and excluded from A/B metrics",
+  "model": "median imputer + standard scaler + logistic regression C=0.2 class_weight=balanced",
+  "features": [
+    "Profile_Local_Maxima_Count",
+    "Previous_Delta_AtEntry",
+    "Pre_Approach_Pause_Seconds",
+    "Prior_Closed_ATR3_Ticks_AtEntry",
+    "Prior_Closed_ATR5_Ticks_AtEntry",
+    "Flow_3_5_DirectionalNetDelta",
+    "Flow_3_5_GrossAggressive",
+    "BuySellRatio",
+    "Directional_VWAP_Distance_Ticks_AtEntry",
+    "Signal_To_Entry_Latency_Milliseconds"
+  ],
+  "classification_threshold": 0.5,
+  "regime_rules": {
+    "VWAP_FAR": {
+      "feature": "Directional_VWAP_Distance_Ticks_AtEntry",
+      "transform": "absolute",
+      "operator": ">",
+      "threshold": 136.565
+    },
+    "RV60_HIGH": {
+      "feature": "Realized_Volatility_60s_Ticks",
+      "transform": "identity",
+      "operator": ">",
+      "threshold": 11.8109928443754
+    }
+  },
+  "regime_selection_policy": "Only VWAP_FAR and RV60_HIGH are retained because both were candidates or stable under the pre-registered existing and minimal baseline representations. They are validation strata, not live filters.",
+  "primary_validation_gate": {
+    "minimum_A": 10,
+    "minimum_B": 10,
+    "auc_global_min": 0.65,
+    "permutation_p_max": 0.05,
+    "bootstrap_auc_lower_95_min": 0.5,
+    "eligible_year_auc_min": 0.55,
+    "eligible_side_auc_min": 0.55,
+    "eligible_subgroup_minimum_each_class": 3
+  },
+  "regime_support_gate": {
+    "coverage_pct_min": 35.0,
+    "minimum_A": 8,
+    "minimum_B": 8,
+    "auc_min": 0.7,
+    "auc_improvement_vs_complement_min": 0.1,
+    "eligible_year_auc_min": 0.55,
+    "eligible_side_auc_min": 0.55,
+    "eligible_subgroup_minimum_each_class": 3
+  },
+  "training": {
+    "manifest_rows": 70,
+    "analysis_rows": 70,
+    "analysis_year_min": 2022,
+    "analysis_year_max": 2024,
+    "rows_2025_2026_selected": 0,
+    "families": {
+      "A_TRUE_ABSORPTION": 29,
+      "B_CLEAN_BREAKOUT": 41
+    },
+    "years": {
+      "2022": 22,
+      "2023": 30,
+      "2024": 18
+    },
+    "directions": {
+      "BUY": 33,
+      "SELL": 37
+    },
+    "source_2025_2026_labels_used": false,
+    "allowed_years": [
+      2022,
+      2023,
+      2024
+    ],
+    "validation_years_opened": [],
+    "model_sha256": "f2f41cf3e0803f962d86f7e8d10dfec51a97179dd3524b6c07d5177f9a67e632",
+    "frozen_rows_sha256": "b954c77f56d82cdac31c6030bfe676e27096d793b94e01441dd33c6f894e1f24",
+    "discovery_source_sha256": "e2389a0517ffec9b064a9d9469f1774913b09dde285a51807b410b129badb617",
+    "oof_source_sha256": "ffe15ed3f80b1d127a45d7dc55142f3830f8ba983f5c4d367547f4bd59de4933",
+    "label_source_sha256": "44ff636d2cbad315449ef5d9cdb9436075f13261a27dfe3e65fda6992dd84252"
+  },
+  "excluded_from_predictors": [
+    "burst_response_events 1s/3s/5s",
+    "MAE/MFE/result/exit/future fields",
+    "MBO",
+    "12 MBP/tape incremental features"
+  ],
+  "trading_logic_changed": false,
+  "model_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\outputs\\lb_absorption_breakout_frozen_20260720_r1\\frozen_core_baseline.joblib"
+}
