@@ -1,0 +1,75 @@
+                  check                                                                                                                                                                             evidence  passed
+       DETECTOR_VERSION                                                                                                                              liquidity-burst-detector-2026-07-22-v7-postburst-matrix    True
+   POST_LB_EXPORT_BOUND                                                                                                                                                        start=max(configured,t_burst)    True
+  DECISION_EXPORT_BOUND                                                                                                                                                                    event<=t_decision    True
+  ANALYSIS_CAUSAL_BOUND                                                                                                                                                           t_burst<=event<=t_decision    True
+  PHYSICAL_100MS_STATES                                                                                                                                                                  100 ms macro states    True
+         PATTERN_MINING                                                                                                                                              bigrams/trigrams/length4 + bifurcations    True
+OUTCOMES_AFTER_FEATURES                                                                                                                                               labels joined after state construction    True
+  NO_OUTCOME_IN_TRADING                                                                                                                                         matrix files never enter exporter/signal bus    True
+    TEMPORAL_VALIDATION                                                                                                                                                         discovery/validation/holdout    True
+     PERMUTATION_AND_CI                                                                                                                                                           permutation + bootstrap CI    True
+             ABSTENTION                                                                                                                                                     NO_DECISION at frozen confidence    True
+         TELEGRAM_LABEL                                                                                                                                                           MATRIX CLASSIFICATION TEST    True
+     WORKSPACE_DETECTOR                                                                                                                                                      LiquidityBurstDetector attached    True
+          DLL_INSTALLED                                                                                                                                                   installed DLL equals current build    True
+               X10_ONLY                                                                                                                                                                          X10_R1 only    True
+              DST_SCOPE                                                                                                                                                     256 dates 2025-03-10->2026-07-17    True
+         TECHNICAL_GATE                                                                                                           known burst dates=['10/03/2025', '18/03/2025', '27/03/2025', '03/04/2025']    True
+          ISOLATED_ROOT                                                                                                                                                                    R5 root new/owned    True
+       PROTOCOL_PRESENT C:\Users\k_99_\Desktop\codding\OpeningRangeSetup\EddiewareOpeningRangeSetup\EddiewareOpeningRangeSetup\contexto_features_atas\PROTOCOLO_MATRIX_CLASSIFICATION_POST_LB_R5_20260722.md    True
+AUDIT=PASS | C:\Users\k_99_\Desktop\codding\OpeningRangeSetup\EddiewareOpeningRangeSetup\EddiewareOpeningRangeSetup\contexto_features_atas\AUDITORIA_DISENO_MATRIX_CLASSIFICATION_TEST_R5_20260722.md
+DATES=256 | 10/03/2025 -> 17/07/2026
+Snapshots replay archivados: C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\_archive_replay_sync_signals_reset_20260722_081500
+Snapshots replay archivados: C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\_archive_replay_sync_results_reset_20260722_081500
+Estado Telegram reiniciado; backup: C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_balance_backup_20260722_081500.json
+Captura observacional previa archivada: C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\_archive_research_capture_reset_20260722_081500
+Telegram limpieza: 301 borrados, 0 no borrables (>48h, limite Bot API). Historial reiniciado; la corrida continua.
+
+Configurando Replay en X10...
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+Esperando poder configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.
+WARNING: no pude configurar Replay 10x: Abre y deja visible la ventana Replay de ATAS.

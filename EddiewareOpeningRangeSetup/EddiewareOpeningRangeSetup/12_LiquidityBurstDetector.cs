@@ -14,8 +14,12 @@ namespace ATAS.Indicators
     [DisplayName("Liquidity Burst Detector")]
     public class LiquidityBurstDetector : Indicator
     {
-        private const string Version = "liquidity-burst-detector-2026-07-19-v4-publish-clock-audit";
+        private const string Version = "liquidity-burst-detector-2026-07-22-v7-postburst-matrix";
         private const decimal DefaultTickSize = 0.25m;
+        private const int DomDepthLevels = 5;
+        private const int DomHistorySeconds = 5;
+        private const int MaxCausalTimelineEvents = 200000;
+        private const int TimelineBookSnapshotResolutionMilliseconds = 100;
 
         private readonly TimeZoneInfo _nyZone =
             TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
@@ -23,6 +27,11 @@ namespace ATAS.Indicators
         private readonly List<SecondBucket> _history = new();
         private readonly Dictionary<decimal, decimal> _volumeAtPrice = new();
         private readonly List<PendingBurstResponse> _pendingBurstResponses = new();
+        private readonly object _domSync = new();
+        private readonly Dictionary<decimal, decimal> _domBidDepth = new();
+        private readonly Dictionary<decimal, decimal> _domAskDepth = new();
+        private readonly List<DomUpdateEvent> _domUpdates = new();
+        private readonly List<CausalTimelineEvent> _causalTimeline = new();
 
         private SecondBucket? _activeBucket;
         private DateTime _currentNyDate = DateTime.MinValue;
@@ -46,6 +55,10 @@ namespace ATAS.Indicators
         private DateTime _lastBurstAnyUtc = DateTime.MinValue;
         private int _episodeSequence;
         private int _episodeBurstCount;
+        private DateTime _lastMarketTradeUtc = DateTime.MinValue;
+        private long _causalArrivalSequence;
+        private long _timelineBookSnapshotBin = long.MinValue;
+        private TimelineBookSnapshot? _cachedTimelineBookSnapshot;
 
         [Display(Name = "Export CSV", Order = 1, GroupName = "Output")]
         public bool ExportCsv { get; set; } = true;
@@ -60,6 +73,14 @@ namespace ATAS.Indicators
         [Display(Name = "Use candle fallback", Order = 4, GroupName = "Output",
             Description = "Use only when tape callbacks are unavailable and the chart is 1-second.")]
         public bool UseCandleFallback { get; set; } = false;
+
+        [Display(Name = "Export causal DOM+tape timeline", Order = 5, GroupName = "Output",
+            Description = "Writes only events from the Liquidity Burst through its decision timestamp.")]
+        public bool ExportCausalTimeline { get; set; } = true;
+
+        [Range(1, 10)]
+        [Display(Name = "Causal timeline lookback seconds", Order = 6, GroupName = "Output")]
+        public int CausalTimelineLookbackSeconds { get; set; } = 5;
 
         [Display(Name = "Opening time NY", Order = 10, GroupName = "Session")]
         public string OpeningTimeNy { get; set; } = "09:30:00";
@@ -187,7 +208,84 @@ namespace ATAS.Indicators
             if (volume <= 0)
                 return;
 
+            _lastMarketTradeUtc = timeUtc;
             ProcessTrade(timeUtc, ny, bar, price, volume, trade);
+        }
+
+        // DOM/MBP state is consumed only as it is delivered by ATAS.  The
+        // detector never reconstructs a future snapshot from the recorder.
+        protected override void MarketDepthChanged(MarketDataArg depth)
+        {
+            base.MarketDepthChanged(depth);
+            if (depth == null)
+                return;
+
+            var eventUtc = ToUtc(depth.Time);
+            var ny = ToNy(eventUtc);
+            if (!IsEligibleDate(ny.Date))
+                return;
+
+            EnsureSession(ny.Date);
+            var side = Convert.ToString(depth.DataType, CultureInfo.InvariantCulture) ?? "";
+            var isBid = side.IndexOf("Bid", StringComparison.OrdinalIgnoreCase) >= 0;
+            var isAsk = side.IndexOf("Ask", StringComparison.OrdinalIgnoreCase) >= 0;
+            if (!isBid && !isAsk)
+                return;
+
+            var price = depth.Price;
+            var newVolume = Math.Max(0m, depth.Volume);
+            if (price <= 0m)
+                return;
+
+            // depth.Time is not monotonic in historical replay.  The latest
+            // processed trade is a monotonic causal market clock for arrival
+            // order; before the first trade we only seed the snapshot and do
+            // not count updates as pull/stack activity.
+            var hasTradeClock = _lastMarketTradeUtc != DateTime.MinValue;
+            var causalClockUtc = hasTradeClock ? _lastMarketTradeUtc : eventUtc;
+            lock (_domSync)
+            {
+                var book = isBid ? _domBidDepth : _domAskDepth;
+                var hadLevel = book.TryGetValue(price, out var oldVolume);
+                if (newVolume > 0m)
+                    book[price] = newVolume;
+                else
+                    book.Remove(price);
+
+                if (hasTradeClock && (hadLevel || newVolume > 0m))
+                {
+                    _domUpdates.Add(new DomUpdateEvent(
+                        causalClockUtc,
+                        isBid ? "Bid" : "Ask",
+                        price,
+                        oldVolume,
+                        newVolume));
+                    var cutoff = causalClockUtc.AddSeconds(-DomHistorySeconds);
+                    _domUpdates.RemoveAll(update => update.ClockUtc < cutoff);
+                    if (_domUpdates.Count > 100000)
+                        _domUpdates.RemoveRange(0, _domUpdates.Count - 100000);
+
+                    if (newVolume != oldVolume)
+                    {
+                        _causalArrivalSequence++;
+                        _causalTimeline.Add(BuildCausalTimelineEventLocked(
+                            _causalArrivalSequence,
+                            eventUtc,
+                            causalClockUtc,
+                            newVolume > oldVolume ? "DEPTH_INCREASE" : "DEPTH_DECREASE",
+                            isBid ? "Bid" : "Ask",
+                            price,
+                            oldVolume,
+                            newVolume,
+                            null,
+                            0,
+                            _lastTradePrice,
+                            _lastTradePrice,
+                            "LAST_TRADE_CAUSAL_CLOCK"));
+                        TrimCausalTimelineLocked(causalClockUtc);
+                    }
+                }
+            }
         }
 
         private void ProcessTrade(DateTime timeUtc, DateTime ny, int bar, decimal price, decimal volume, MarketDataArg trade)
@@ -210,11 +308,32 @@ namespace ATAS.Indicators
                 AdvanceToSecond(secondUtc, bar, price, timeUtc);
             }
 
+            var priorTradePrice = _lastTradePrice;
             var direction = ResolveTradeDirection(trade, price);
             _activeBucket.ApplyTrade(price, volume, direction, bar, "Tape");
             _lastTradePrice = price;
             if (direction != 0)
                 _lastTradeDirection = direction;
+
+            lock (_domSync)
+            {
+                _causalArrivalSequence++;
+                _causalTimeline.Add(BuildCausalTimelineEventLocked(
+                    _causalArrivalSequence,
+                    timeUtc,
+                    timeUtc,
+                    direction > 0 ? "TAPE_BUY" : direction < 0 ? "TAPE_SELL" : "TAPE_UNKNOWN",
+                    "",
+                    price,
+                    null,
+                    null,
+                    volume,
+                    direction,
+                    priorTradePrice,
+                    price,
+                    "TRADE_TIMESTAMP"));
+                TrimCausalTimelineLocked(timeUtc);
+            }
         }
 
         private void ProcessAggregateSample(
@@ -392,6 +511,7 @@ namespace ATAS.Indicators
         {
             PopulatePreBurstResponseFeatures(bucket, features, side);
             PopulateMechanismFeatures(bucket, features, side);
+            PopulateDomFeatures(features, side, bucket.Close, detectorPublishTimestampUtc);
             _burstSequence++;
             var secondsSincePriorBurst = _lastBurstAnyUtc == DateTime.MinValue
                 ? (decimal?)null
@@ -454,7 +574,11 @@ namespace ATAS.Indicators
                 snapshot.Features.SecondsSincePriorBurst));
 
             if (ExportCsv)
+            {
                 WriteBurstEvent(snapshot);
+                if (ExportCausalTimeline)
+                    WriteCausalTimeline(snapshot);
+            }
 
             _pendingBurstResponses.Add(new PendingBurstResponse(snapshot));
             _lastEmittedPoc = snapshot.Profile.Poc;
@@ -595,6 +719,298 @@ namespace ATAS.Indicators
         private static decimal? RatioOrNull(decimal numerator, decimal denominator)
         {
             return denominator > 0m ? numerator / denominator : null;
+        }
+
+        private void PopulateDomFeatures(
+            BurstFeatures features,
+            string burstSide,
+            decimal referencePrice,
+            DateTime detectorPublishTimestampUtc)
+        {
+            List<KeyValuePair<decimal, decimal>> bids;
+            List<KeyValuePair<decimal, decimal>> asks;
+            List<DomUpdateEvent> updates;
+            lock (_domSync)
+            {
+                // Restrict the snapshot to the executable side of the last
+                // trade.  This prevents stale crossed levels from becoming a
+                // false best bid/ask during historical replay.
+                bids = _domBidDepth
+                    .Where(level => level.Value > 0m && level.Key <= referencePrice)
+                    .OrderByDescending(level => level.Key)
+                    .Take(DomDepthLevels)
+                    .ToList();
+                asks = _domAskDepth
+                    .Where(level => level.Value > 0m && level.Key >= referencePrice)
+                    .OrderBy(level => level.Key)
+                    .Take(DomDepthLevels)
+                    .ToList();
+                var cutoff = detectorPublishTimestampUtc.AddSeconds(-DomHistorySeconds);
+                updates = _domUpdates
+                    .Where(update => update.ClockUtc >= cutoff && update.ClockUtc <= detectorPublishTimestampUtc)
+                    .ToList();
+            }
+
+            features.DomBidLevelCount = bids.Count;
+            features.DomAskLevelCount = asks.Count;
+            if (bids.Count < DomDepthLevels || asks.Count < DomDepthLevels || Tick <= 0m)
+            {
+                features.DomSnapshotValid = false;
+                features.DomExclusionReason = "DOM_INSUFFICIENT_LEVELS";
+                return;
+            }
+
+            var bestBid = bids[0].Key;
+            var bestAsk = asks[0].Key;
+            var spreadTicks = (bestAsk - bestBid) / Tick;
+            var midpoint = (bestBid + bestAsk) / 2m;
+            if (bestBid >= bestAsk || spreadTicks < 1m || spreadTicks > 4m ||
+                Math.Abs(referencePrice - midpoint) / Tick > 4m)
+            {
+                features.DomSnapshotValid = false;
+                features.DomExclusionReason = "DOM_CROSSED_OR_STALE_TOUCH";
+                return;
+            }
+
+            features.DomSnapshotValid = true;
+            features.DomExclusionReason = "";
+            features.DomBestBid = bestBid;
+            features.DomBestAsk = bestAsk;
+            features.DomSpreadTicks = spreadTicks;
+
+            var sideSign = string.Equals(burstSide, "BUY", StringComparison.OrdinalIgnoreCase) ? 1m : -1m;
+            var bid1 = bids[0].Value;
+            var ask1 = asks[0].Value;
+            var microprice = (bestAsk * bid1 + bestBid * ask1) / Math.Max(1m, bid1 + ask1);
+            features.DomDirectionalMicropriceTicks = sideSign * (microprice - midpoint) / Tick;
+
+            features.DomDirectionalDepthImbalanceL1 = DirectionalDepthImbalance(bids, asks, 1, sideSign);
+            features.DomDirectionalDepthImbalanceL3 = DirectionalDepthImbalance(bids, asks, 3, sideSign);
+            features.DomDirectionalDepthImbalanceL5 = DirectionalDepthImbalance(bids, asks, 5, sideSign);
+
+            var ahead = sideSign > 0m ? asks : bids;
+            var behind = sideSign > 0m ? bids : asks;
+            var aheadDepth3 = ahead.Take(3).Sum(level => level.Value);
+            var behindDepth3 = behind.Take(3).Sum(level => level.Value);
+            var aheadDepth5 = ahead.Sum(level => level.Value);
+            features.DomAheadDepthL3 = aheadDepth3;
+            features.DomBehindDepthL3 = behindDepth3;
+            features.DomAheadDepthPerAggressiveL3 = aheadDepth3 / Math.Max(1m, features.Flow01.GrossAggressiveVolume);
+            features.DomAheadL1ConcentrationL5 = aheadDepth5 > 0m ? ahead[0].Value / aheadDepth5 : null;
+
+            var nearBidPrices = new HashSet<decimal>(bids.Select(level => level.Key));
+            var nearAskPrices = new HashSet<decimal>(asks.Select(level => level.Key));
+            var oneSecond = CalculateDomDynamics(
+                updates,
+                detectorPublishTimestampUtc.AddSeconds(-1),
+                sideSign,
+                nearBidPrices,
+                nearAskPrices,
+                features.Flow01.GrossAggressiveVolume);
+            var threeSeconds = CalculateDomDynamics(
+                updates,
+                detectorPublishTimestampUtc.AddSeconds(-3),
+                sideSign,
+                nearBidPrices,
+                nearAskPrices,
+                features.Flow01.GrossAggressiveVolume + features.Flow13.GrossAggressiveVolume);
+            features.DomDirectionalPullStack1s = oneSecond.DirectionalPullStack;
+            features.DomDirectionalPullStack3s = threeSeconds.DirectionalPullStack;
+            features.DomAheadStackShare1s = oneSecond.AheadStackShare;
+            features.DomNearChurnPerAggressive1s = oneSecond.ChurnPerAggressive;
+            features.DomNearUpdateCount1s = oneSecond.UpdateCount;
+            features.DomNearUpdateCount3s = threeSeconds.UpdateCount;
+        }
+
+        private static decimal? DirectionalDepthImbalance(
+            List<KeyValuePair<decimal, decimal>> bids,
+            List<KeyValuePair<decimal, decimal>> asks,
+            int levels,
+            decimal sideSign)
+        {
+            var bidDepth = bids.Take(levels).Sum(level => level.Value);
+            var askDepth = asks.Take(levels).Sum(level => level.Value);
+            return RatioOrNull(sideSign * (bidDepth - askDepth), bidDepth + askDepth);
+        }
+
+        private static DomWindowMetrics CalculateDomDynamics(
+            List<DomUpdateEvent> updates,
+            DateTime startUtc,
+            decimal sideSign,
+            HashSet<decimal> nearBidPrices,
+            HashSet<decimal> nearAskPrices,
+            decimal aggressiveVolume)
+        {
+            var result = new DomWindowMetrics();
+            var aheadSide = sideSign > 0m ? "Ask" : "Bid";
+            foreach (var update in updates)
+            {
+                if (update.ClockUtc < startUtc)
+                    continue;
+                var isNear = string.Equals(update.Side, "Bid", StringComparison.OrdinalIgnoreCase)
+                    ? nearBidPrices.Contains(update.Price)
+                    : nearAskPrices.Contains(update.Price);
+                if (!isNear || update.Delta == 0m)
+                    continue;
+
+                result.UpdateCount++;
+                result.GrossChange += Math.Abs(update.Delta);
+                if (string.Equals(update.Side, aheadSide, StringComparison.OrdinalIgnoreCase))
+                {
+                    result.DirectionalPressure -= update.Delta;
+                    if (update.Delta > 0m)
+                        result.AheadAdds += update.Delta;
+                    else
+                        result.AheadRemoves -= update.Delta;
+                }
+                else
+                {
+                    result.DirectionalPressure += update.Delta;
+                }
+            }
+
+            result.DirectionalPullStack = RatioOrNull(result.DirectionalPressure, result.GrossChange);
+            result.AheadStackShare = RatioOrNull(result.AheadAdds, result.AheadAdds + result.AheadRemoves);
+            result.ChurnPerAggressive = RatioOrNull(result.GrossChange, Math.Max(1m, aggressiveVolume));
+            return result;
+        }
+
+        private CausalTimelineEvent BuildCausalTimelineEventLocked(
+            long arrivalSequence,
+            DateTime sourceTimestampUtc,
+            DateTime causalTimestampUtc,
+            string eventType,
+            string bookSide,
+            decimal price,
+            decimal? oldDepth,
+            decimal? newDepth,
+            decimal? tradeVolume,
+            int tradeDirection,
+            decimal priorTradePrice,
+            decimal lastTradePrice,
+            string clockQuality)
+        {
+            var bookSnapshot = GetTimelineBookSnapshotLocked(causalTimestampUtc);
+            return new CausalTimelineEvent(
+                arrivalSequence,
+                sourceTimestampUtc,
+                causalTimestampUtc,
+                eventType,
+                bookSide,
+                price,
+                oldDepth,
+                newDepth,
+                tradeVolume,
+                tradeDirection,
+                priorTradePrice,
+                lastTradePrice,
+                bookSnapshot.TimestampUtc,
+                bookSnapshot.BestBid,
+                bookSnapshot.BestAsk,
+                bookSnapshot.Microprice,
+                bookSnapshot.BidDepthL1,
+                bookSnapshot.BidDepthL3,
+                bookSnapshot.BidDepthL5,
+                bookSnapshot.AskDepthL1,
+                bookSnapshot.AskDepthL3,
+                bookSnapshot.AskDepthL5,
+                bookSnapshot.BidLevelCount,
+                bookSnapshot.AskLevelCount,
+                clockQuality);
+        }
+
+        private TimelineBookSnapshot GetTimelineBookSnapshotLocked(DateTime causalTimestampUtc)
+        {
+            var bin = causalTimestampUtc.Ticks /
+                (TimeSpan.TicksPerMillisecond * TimelineBookSnapshotResolutionMilliseconds);
+            if (_cachedTimelineBookSnapshot != null && bin == _timelineBookSnapshotBin)
+                return _cachedTimelineBookSnapshot;
+
+            var bids = _domBidDepth
+                .Where(level => level.Value > 0m)
+                .OrderByDescending(level => level.Key)
+                .Take(DomDepthLevels)
+                .ToList();
+            var asks = _domAskDepth
+                .Where(level => level.Value > 0m)
+                .OrderBy(level => level.Key)
+                .Take(DomDepthLevels)
+                .ToList();
+            var bestBid = bids.Count > 0 ? bids[0].Key : (decimal?)null;
+            var bestAsk = asks.Count > 0 ? asks[0].Key : (decimal?)null;
+            decimal? microprice = null;
+            if (bestBid.HasValue && bestAsk.HasValue)
+            {
+                var bid1 = bids[0].Value;
+                var ask1 = asks[0].Value;
+                microprice = (bestAsk.Value * bid1 + bestBid.Value * ask1) /
+                    Math.Max(1m, bid1 + ask1);
+            }
+
+            _timelineBookSnapshotBin = bin;
+            _cachedTimelineBookSnapshot = new TimelineBookSnapshot(
+                causalTimestampUtc,
+                bestBid,
+                bestAsk,
+                microprice,
+                bids.Take(1).Sum(level => level.Value),
+                bids.Take(3).Sum(level => level.Value),
+                bids.Sum(level => level.Value),
+                asks.Take(1).Sum(level => level.Value),
+                asks.Take(3).Sum(level => level.Value),
+                asks.Sum(level => level.Value),
+                bids.Count,
+                asks.Count);
+            return _cachedTimelineBookSnapshot;
+        }
+
+        private void TrimCausalTimelineLocked(DateTime causalClockUtc)
+        {
+            var retention = Math.Clamp(CausalTimelineLookbackSeconds + 2, 3, 12);
+            var cutoff = causalClockUtc.AddSeconds(-retention);
+            _causalTimeline.RemoveAll(item => item.CausalTimestampUtc < cutoff);
+            if (_causalTimeline.Count > MaxCausalTimelineEvents)
+                _causalTimeline.RemoveRange(0, _causalTimeline.Count - MaxCausalTimelineEvents);
+        }
+
+        private void WriteCausalTimeline(BurstSnapshot snapshot)
+        {
+            try
+            {
+                List<CausalTimelineEvent> events;
+                var decisionTimestampUtc = snapshot.DetectorPublishTimestampUtc;
+                var configuredStartTimestampUtc = decisionTimestampUtc.AddSeconds(-Math.Clamp(CausalTimelineLookbackSeconds, 1, 10));
+                // The classification path starts at LB. Pre-burst observations remain in
+                // burst_events.csv as context, but never enter the post-burst sequence.
+                var startTimestampUtc = snapshot.TimestampUtc > configuredStartTimestampUtc
+                    ? snapshot.TimestampUtc
+                    : configuredStartTimestampUtc;
+                lock (_domSync)
+                {
+                    events = _causalTimeline
+                        .Where(item =>
+                            item.CausalTimestampUtc >= startTimestampUtc &&
+                            item.CausalTimestampUtc <= decisionTimestampUtc)
+                        .OrderBy(item => item.ArrivalSequence)
+                        .ToList();
+                }
+
+                if (events.Count == 0)
+                    return;
+
+                Directory.CreateDirectory(OutputFolder);
+                var path = Path.Combine(OutputFolder, "burst_causal_timeline.csv");
+                var needsHeader = !File.Exists(path) || new FileInfo(path).Length == 0;
+                using var writer = new StreamWriter(path, append: true);
+                if (needsHeader)
+                    writer.WriteLine(CausalTimelineEvent.CsvHeader);
+                for (var index = 0; index < events.Count; index++)
+                    writer.WriteLine(events[index].ToCsvRow(snapshot, index + 1, Tick));
+            }
+            catch
+            {
+                // Research export is observational and must never affect the signal.
+            }
         }
 
         private void WriteBurstEvent(BurstSnapshot snapshot)
@@ -975,6 +1391,17 @@ namespace ATAS.Indicators
             _lastBurstAnyUtc = DateTime.MinValue;
             _episodeSequence = 0;
             _episodeBurstCount = 0;
+            _lastMarketTradeUtc = DateTime.MinValue;
+            lock (_domSync)
+            {
+                _domBidDepth.Clear();
+                _domAskDepth.Clear();
+                _domUpdates.Clear();
+                _causalTimeline.Clear();
+                _causalArrivalSequence = 0;
+                _timelineBookSnapshotBin = long.MinValue;
+                _cachedTimelineBookSnapshot = null;
+            }
         }
 
         private void ResetAll()
@@ -1004,6 +1431,17 @@ namespace ATAS.Indicators
             _lastBurstAnyUtc = DateTime.MinValue;
             _episodeSequence = 0;
             _episodeBurstCount = 0;
+            _lastMarketTradeUtc = DateTime.MinValue;
+            lock (_domSync)
+            {
+                _domBidDepth.Clear();
+                _domAskDepth.Clear();
+                _domUpdates.Clear();
+                _causalTimeline.Clear();
+                _causalArrivalSequence = 0;
+                _timelineBookSnapshotBin = long.MinValue;
+                _cachedTimelineBookSnapshot = null;
+            }
         }
 
         private void UpdateSessionContext(DateTime ny, decimal price, decimal volume)
@@ -1521,6 +1959,305 @@ namespace ATAS.Indicators
             }
         }
 
+        private sealed class TimelineBookSnapshot
+        {
+            public TimelineBookSnapshot(
+                DateTime timestampUtc,
+                decimal? bestBid,
+                decimal? bestAsk,
+                decimal? microprice,
+                decimal bidDepthL1,
+                decimal bidDepthL3,
+                decimal bidDepthL5,
+                decimal askDepthL1,
+                decimal askDepthL3,
+                decimal askDepthL5,
+                int bidLevelCount,
+                int askLevelCount)
+            {
+                TimestampUtc = timestampUtc;
+                BestBid = bestBid;
+                BestAsk = bestAsk;
+                Microprice = microprice;
+                BidDepthL1 = bidDepthL1;
+                BidDepthL3 = bidDepthL3;
+                BidDepthL5 = bidDepthL5;
+                AskDepthL1 = askDepthL1;
+                AskDepthL3 = askDepthL3;
+                AskDepthL5 = askDepthL5;
+                BidLevelCount = bidLevelCount;
+                AskLevelCount = askLevelCount;
+            }
+
+            public DateTime TimestampUtc { get; }
+            public decimal? BestBid { get; }
+            public decimal? BestAsk { get; }
+            public decimal? Microprice { get; }
+            public decimal BidDepthL1 { get; }
+            public decimal BidDepthL3 { get; }
+            public decimal BidDepthL5 { get; }
+            public decimal AskDepthL1 { get; }
+            public decimal AskDepthL3 { get; }
+            public decimal AskDepthL5 { get; }
+            public int BidLevelCount { get; }
+            public int AskLevelCount { get; }
+        }
+
+        private sealed class CausalTimelineEvent
+        {
+            public const string CsvHeader =
+                "Detector_VERSION,BurstId,Burst_Side,Burst_Timestamp_UTC,Decision_Timestamp_UTC," +
+                "Decision_Latency_From_Burst_Milliseconds,Event_Sequence_In_Burst,Global_Arrival_Sequence," +
+                "Event_Source_Timestamp_UTC,Event_Causal_Timestamp_UTC,Event_Available_Timestamp_UTC," +
+                "Offset_To_Decision_Milliseconds,Event_Type,Event_State,Book_Side,Ahead_Behind,Trade_Alignment," +
+                "Price,Price_From_Burst_Ticks,Directional_Price_From_Burst_Ticks,Prior_Trade_Price,Last_Trade_Price," +
+                "Directional_Trade_Price_Change_Ticks,Old_Depth,New_Depth,Depth_Delta,Trade_Volume,Trade_Direction," +
+                "Book_Snapshot_Timestamp_UTC,Book_Snapshot_Age_Milliseconds,Book_Snapshot_Resolution_Milliseconds," +
+                "Best_Bid,Best_Ask,Spread_Ticks,Microprice,Directional_Microprice_Ticks," +
+                "Bid_Depth_L1,Bid_Depth_L3,Bid_Depth_L5,Ask_Depth_L1,Ask_Depth_L3,Ask_Depth_L5," +
+                "Directional_Depth_Imbalance_L1,Directional_Depth_Imbalance_L3,Directional_Depth_Imbalance_L5," +
+                "Bid_Level_Count,Ask_Level_Count,Book_Snapshot_Valid,Clock_Quality,Raw_Source_After_Decision," +
+                "Available_Before_Decision,Causal_Flag,Model_Eligibility";
+
+            public CausalTimelineEvent(
+                long arrivalSequence,
+                DateTime sourceTimestampUtc,
+                DateTime causalTimestampUtc,
+                string eventType,
+                string bookSide,
+                decimal price,
+                decimal? oldDepth,
+                decimal? newDepth,
+                decimal? tradeVolume,
+                int tradeDirection,
+                decimal priorTradePrice,
+                decimal lastTradePrice,
+                DateTime bookSnapshotTimestampUtc,
+                decimal? bestBid,
+                decimal? bestAsk,
+                decimal? microprice,
+                decimal bidDepthL1,
+                decimal bidDepthL3,
+                decimal bidDepthL5,
+                decimal askDepthL1,
+                decimal askDepthL3,
+                decimal askDepthL5,
+                int bidLevelCount,
+                int askLevelCount,
+                string clockQuality)
+            {
+                ArrivalSequence = arrivalSequence;
+                SourceTimestampUtc = sourceTimestampUtc;
+                CausalTimestampUtc = causalTimestampUtc;
+                EventType = eventType;
+                BookSide = bookSide;
+                Price = price;
+                OldDepth = oldDepth;
+                NewDepth = newDepth;
+                TradeVolume = tradeVolume;
+                TradeDirection = tradeDirection;
+                PriorTradePrice = priorTradePrice;
+                LastTradePrice = lastTradePrice;
+                BookSnapshotTimestampUtc = bookSnapshotTimestampUtc;
+                BestBid = bestBid;
+                BestAsk = bestAsk;
+                Microprice = microprice;
+                BidDepthL1 = bidDepthL1;
+                BidDepthL3 = bidDepthL3;
+                BidDepthL5 = bidDepthL5;
+                AskDepthL1 = askDepthL1;
+                AskDepthL3 = askDepthL3;
+                AskDepthL5 = askDepthL5;
+                BidLevelCount = bidLevelCount;
+                AskLevelCount = askLevelCount;
+                ClockQuality = clockQuality;
+            }
+
+            public long ArrivalSequence { get; }
+            public DateTime SourceTimestampUtc { get; }
+            public DateTime CausalTimestampUtc { get; }
+            public string EventType { get; }
+            public string BookSide { get; }
+            public decimal Price { get; }
+            public decimal? OldDepth { get; }
+            public decimal? NewDepth { get; }
+            public decimal? TradeVolume { get; }
+            public int TradeDirection { get; }
+            public decimal PriorTradePrice { get; }
+            public decimal LastTradePrice { get; }
+            public DateTime BookSnapshotTimestampUtc { get; }
+            public decimal? BestBid { get; }
+            public decimal? BestAsk { get; }
+            public decimal? Microprice { get; }
+            public decimal BidDepthL1 { get; }
+            public decimal BidDepthL3 { get; }
+            public decimal BidDepthL5 { get; }
+            public decimal AskDepthL1 { get; }
+            public decimal AskDepthL3 { get; }
+            public decimal AskDepthL5 { get; }
+            public int BidLevelCount { get; }
+            public int AskLevelCount { get; }
+            public string ClockQuality { get; }
+
+            public string ToCsvRow(BurstSnapshot burst, int sequenceInBurst, decimal tick)
+            {
+                var sideSign = string.Equals(burst.Side, "BUY", StringComparison.OrdinalIgnoreCase) ? 1m : -1m;
+                var aheadSide = sideSign > 0m ? "Ask" : "Bid";
+                var behindSide = sideSign > 0m ? "Bid" : "Ask";
+                var aheadBehind = string.Equals(BookSide, aheadSide, StringComparison.OrdinalIgnoreCase)
+                    ? "AHEAD"
+                    : string.Equals(BookSide, behindSide, StringComparison.OrdinalIgnoreCase)
+                        ? "BEHIND"
+                        : "NA";
+                var tradeAlignment = TradeDirection == 0
+                    ? "NA"
+                    : TradeDirection == (int)sideSign ? "ALIGNED" : "COUNTER";
+                var depthDelta = OldDepth.HasValue && NewDepth.HasValue
+                    ? NewDepth.Value - OldDepth.Value
+                    : (decimal?)null;
+                var directionalTradeChange = tick > 0m && PriorTradePrice > 0m
+                    ? sideSign * (LastTradePrice - PriorTradePrice) / tick
+                    : (decimal?)null;
+                var eventState = EventType.StartsWith("DEPTH_", StringComparison.Ordinal)
+                    ? aheadBehind == "AHEAD"
+                        ? depthDelta.GetValueOrDefault() > 0m ? "DEPTH_REPLENISHMENT_AHEAD" : "DEPTH_DEPLETION_AHEAD"
+                        : aheadBehind == "BEHIND"
+                            ? depthDelta.GetValueOrDefault() > 0m ? "DEPTH_REPLENISHMENT_BEHIND" : "DEPTH_DEPLETION_BEHIND"
+                            : "DEPTH_CHANGE_OTHER"
+                    : tradeAlignment == "ALIGNED"
+                        ? !directionalTradeChange.HasValue ? "AGGRESSION_PULSE"
+                            : directionalTradeChange.Value > 0m ? "AGGRESSION_PROGRESS" : "AGGRESSION_STALL"
+                        : tradeAlignment == "COUNTER" ? "COUNTERFLOW" : "TAPE_UNKNOWN";
+
+                var spreadTicks = tick > 0m && BestBid.HasValue && BestAsk.HasValue
+                    ? (BestAsk.Value - BestBid.Value) / tick
+                    : (decimal?)null;
+                var midpoint = BestBid.HasValue && BestAsk.HasValue
+                    ? (BestBid.Value + BestAsk.Value) / 2m
+                    : (decimal?)null;
+                var directionalMicroprice = tick > 0m && Microprice.HasValue && midpoint.HasValue
+                    ? sideSign * (Microprice.Value - midpoint.Value) / tick
+                    : (decimal?)null;
+                var bookValid = BidLevelCount >= DomDepthLevels && AskLevelCount >= DomDepthLevels &&
+                    spreadTicks.HasValue && spreadTicks.Value >= 1m && spreadTicks.Value <= 4m;
+                var offsetMilliseconds = (CausalTimestampUtc - burst.DetectorPublishTimestampUtc).TotalMilliseconds;
+                var decisionLatencyMilliseconds =
+                    (burst.DetectorPublishTimestampUtc - burst.TimestampUtc).TotalMilliseconds;
+                var sourceAfterDecision = SourceTimestampUtc > burst.DetectorPublishTimestampUtc;
+                var availableBeforeDecision = CausalTimestampUtc <= burst.DetectorPublishTimestampUtc;
+
+                return string.Join(",",
+                    Csv(burst.DetectorVersion),
+                    Csv(burst.BurstId),
+                    Csv(burst.Side),
+                    Csv(burst.TimestampUtc.ToString("O", CultureInfo.InvariantCulture)),
+                    Csv(burst.DetectorPublishTimestampUtc.ToString("O", CultureInfo.InvariantCulture)),
+                    Num(decisionLatencyMilliseconds),
+                    sequenceInBurst.ToString(CultureInfo.InvariantCulture),
+                    ArrivalSequence.ToString(CultureInfo.InvariantCulture),
+                    Csv(SourceTimestampUtc.ToString("O", CultureInfo.InvariantCulture)),
+                    Csv(CausalTimestampUtc.ToString("O", CultureInfo.InvariantCulture)),
+                    Csv(CausalTimestampUtc.ToString("O", CultureInfo.InvariantCulture)),
+                    Num(offsetMilliseconds),
+                    Csv(EventType),
+                    Csv(eventState),
+                    Csv(BookSide),
+                    Csv(aheadBehind),
+                    Csv(tradeAlignment),
+                    Num(Price),
+                    Num(tick > 0m ? (Price - burst.Price) / tick : null),
+                    Num(tick > 0m ? sideSign * (Price - burst.Price) / tick : null),
+                    Num(PriorTradePrice > 0m ? PriorTradePrice : null),
+                    Num(LastTradePrice > 0m ? LastTradePrice : null),
+                    Num(directionalTradeChange),
+                    Num(OldDepth),
+                    Num(NewDepth),
+                    Num(depthDelta),
+                    Num(TradeVolume),
+                    TradeDirection.ToString(CultureInfo.InvariantCulture),
+                    Csv(BookSnapshotTimestampUtc.ToString("O", CultureInfo.InvariantCulture)),
+                    Num((CausalTimestampUtc - BookSnapshotTimestampUtc).TotalMilliseconds),
+                    TimelineBookSnapshotResolutionMilliseconds.ToString(CultureInfo.InvariantCulture),
+                    Num(BestBid),
+                    Num(BestAsk),
+                    Num(spreadTicks),
+                    Num(Microprice),
+                    Num(directionalMicroprice),
+                    Num(BidDepthL1),
+                    Num(BidDepthL3),
+                    Num(BidDepthL5),
+                    Num(AskDepthL1),
+                    Num(AskDepthL3),
+                    Num(AskDepthL5),
+                    Num(DirectionalImbalance(BidDepthL1, AskDepthL1, sideSign)),
+                    Num(DirectionalImbalance(BidDepthL3, AskDepthL3, sideSign)),
+                    Num(DirectionalImbalance(BidDepthL5, AskDepthL5, sideSign)),
+                    BidLevelCount.ToString(CultureInfo.InvariantCulture),
+                    AskLevelCount.ToString(CultureInfo.InvariantCulture),
+                    bookValid ? "1" : "0",
+                    Csv(ClockQuality),
+                    sourceAfterDecision ? "1" : "0",
+                    availableBeforeDecision ? "1" : "0",
+                    availableBeforeDecision ? "1" : "0",
+                    Csv(availableBeforeDecision ? "CAUSAL_PRE_DECISION" : "REJECT_POST_DECISION"));
+            }
+
+            private static decimal? DirectionalImbalance(decimal bid, decimal ask, decimal sideSign)
+            {
+                var total = bid + ask;
+                return total > 0m ? sideSign * (bid - ask) / total : null;
+            }
+
+            private static string Csv(string value)
+            {
+                value ??= "";
+                if (value.IndexOfAny(new[] { ',', '"', '\r', '\n' }) < 0)
+                    return value;
+                return "\"" + value.Replace("\"", "\"\"") + "\"";
+            }
+
+            private static string Num(decimal value) =>
+                value.ToString("0.###############", CultureInfo.InvariantCulture);
+
+            private static string Num(decimal? value) => value.HasValue ? Num(value.Value) : "";
+
+            private static string Num(double value) =>
+                value.ToString("0.###", CultureInfo.InvariantCulture);
+        }
+
+        private sealed class DomUpdateEvent
+        {
+            public DomUpdateEvent(
+                DateTime clockUtc,
+                string side,
+                decimal price,
+                decimal oldVolume,
+                decimal newVolume)
+            {
+                ClockUtc = clockUtc;
+                Side = side;
+                Price = price;
+                Delta = newVolume - oldVolume;
+            }
+
+            public DateTime ClockUtc { get; }
+            public string Side { get; }
+            public decimal Price { get; }
+            public decimal Delta { get; }
+        }
+
+        private sealed class DomWindowMetrics
+        {
+            public int UpdateCount { get; set; }
+            public decimal GrossChange { get; set; }
+            public decimal DirectionalPressure { get; set; }
+            public decimal AheadAdds { get; set; }
+            public decimal AheadRemoves { get; set; }
+            public decimal? DirectionalPullStack { get; set; }
+            public decimal? AheadStackShare { get; set; }
+            public decimal? ChurnPerAggressive { get; set; }
+        }
+
         private sealed class BurstFeatures
         {
             public decimal Delta1s { get; set; }
@@ -1585,6 +2322,27 @@ namespace ATAS.Indicators
             public decimal? SecondsSincePriorBurst { get; set; }
             public string MechanismValidity { get; set; } = "";
             public string MechanismExclusionReason { get; set; } = "";
+            public bool DomSnapshotValid { get; set; }
+            public string DomExclusionReason { get; set; } = "";
+            public int DomBidLevelCount { get; set; }
+            public int DomAskLevelCount { get; set; }
+            public decimal? DomBestBid { get; set; }
+            public decimal? DomBestAsk { get; set; }
+            public decimal? DomSpreadTicks { get; set; }
+            public decimal? DomDirectionalMicropriceTicks { get; set; }
+            public decimal? DomDirectionalDepthImbalanceL1 { get; set; }
+            public decimal? DomDirectionalDepthImbalanceL3 { get; set; }
+            public decimal? DomDirectionalDepthImbalanceL5 { get; set; }
+            public decimal? DomAheadDepthL3 { get; set; }
+            public decimal? DomBehindDepthL3 { get; set; }
+            public decimal? DomAheadDepthPerAggressiveL3 { get; set; }
+            public decimal? DomAheadL1ConcentrationL5 { get; set; }
+            public decimal? DomDirectionalPullStack1s { get; set; }
+            public decimal? DomDirectionalPullStack3s { get; set; }
+            public decimal? DomAheadStackShare1s { get; set; }
+            public decimal? DomNearChurnPerAggressive1s { get; set; }
+            public int DomNearUpdateCount1s { get; set; }
+            public int DomNearUpdateCount3s { get; set; }
         }
 
         private sealed class FlowSegment
@@ -1699,7 +2457,7 @@ namespace ATAS.Indicators
                     Csv(DetectorVersion),
                     Csv(BurstId),
                     Csv(BurstTimestampUtc.ToString("O", CultureInfo.InvariantCulture)),
-                    Csv(BurstTimestampUtc.AddSeconds(1).ToString("O", CultureInfo.InvariantCulture)),
+                    Csv(DetectorPublishTimestampUtc.ToString("O", CultureInfo.InvariantCulture)),
                     Csv(DetectorPublishTimestampUtc.ToString("O", CultureInfo.InvariantCulture)),
                     Csv(BurstTimestampNy.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
                     Csv(ResponseTimestampUtc.ToString("O", CultureInfo.InvariantCulture)),
@@ -1781,6 +2539,12 @@ namespace ATAS.Indicators
                 "Observation_Seconds_60,GapFill_Seconds_60,Tape_Seconds_60,Observation_Coverage_60," +
                 "Episode_ID,Burst_Index_In_Episode,Seconds_Since_Prior_Burst," +
                 "Mechanism_Validity,Mechanism_Exclusion_Reason," +
+                "DOM_Snapshot_Valid,DOM_Exclusion_Reason,DOM_Bid_Level_Count,DOM_Ask_Level_Count,DOM_Best_Bid,DOM_Best_Ask," +
+                "DOM_Spread_Ticks,DOM_Directional_Microprice_Ticks,DOM_Directional_Depth_Imbalance_L1," +
+                "DOM_Directional_Depth_Imbalance_L3,DOM_Directional_Depth_Imbalance_L5," +
+                "DOM_Ahead_Depth_L3,DOM_Behind_Depth_L3,DOM_Ahead_Depth_Per_Aggressive_L3,DOM_Ahead_L1_Concentration_L5," +
+                "DOM_Directional_PullStack_1s,DOM_Directional_PullStack_3s,DOM_Ahead_Stack_Share_1s," +
+                "DOM_Near_Churn_Per_Aggressive_1s,DOM_Near_Update_Count_1s,DOM_Near_Update_Count_3s," +
                 "OR_High,OR_Low,OR_WidthTicks,VWAP,POC,VAH,VAL,Nearest_HVN,Nearest_LVN,Dist_OR_High_Ticks," +
                 "Dist_OR_Low_Ticks,Dist_VWAP_Ticks,Dist_POC_Ticks,Dist_VAH_Ticks,Dist_VAL_Ticks,Dist_HVN_Ticks," +
                 "Dist_LVN_Ticks,Profile_Std_Ticks,Profile_Skewness,Profile_Excess_Kurtosis,Profile_Entropy," +
@@ -1837,7 +2601,7 @@ namespace ATAS.Indicators
                     Csv(DetectorVersion),
                     Csv(BurstId),
                     Csv(TimestampUtc.ToString("O", CultureInfo.InvariantCulture)),
-                    Csv(TimestampUtc.AddSeconds(1).ToString("O", CultureInfo.InvariantCulture)),
+                    Csv(DetectorPublishTimestampUtc.ToString("O", CultureInfo.InvariantCulture)),
                     Csv(DetectorPublishTimestampUtc.ToString("O", CultureInfo.InvariantCulture)),
                     Csv(TimestampNy.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
                     Bar.ToString(CultureInfo.InvariantCulture),
@@ -1940,6 +2704,27 @@ namespace ATAS.Indicators
                     Num(Features.SecondsSincePriorBurst),
                     Csv(Features.MechanismValidity),
                     Csv(Features.MechanismExclusionReason),
+                    Features.DomSnapshotValid ? "1" : "0",
+                    Csv(Features.DomExclusionReason),
+                    Features.DomBidLevelCount.ToString(CultureInfo.InvariantCulture),
+                    Features.DomAskLevelCount.ToString(CultureInfo.InvariantCulture),
+                    Num(Features.DomBestBid),
+                    Num(Features.DomBestAsk),
+                    Num(Features.DomSpreadTicks),
+                    Num(Features.DomDirectionalMicropriceTicks),
+                    Num(Features.DomDirectionalDepthImbalanceL1),
+                    Num(Features.DomDirectionalDepthImbalanceL3),
+                    Num(Features.DomDirectionalDepthImbalanceL5),
+                    Num(Features.DomAheadDepthL3),
+                    Num(Features.DomBehindDepthL3),
+                    Num(Features.DomAheadDepthPerAggressiveL3),
+                    Num(Features.DomAheadL1ConcentrationL5),
+                    Num(Features.DomDirectionalPullStack1s),
+                    Num(Features.DomDirectionalPullStack3s),
+                    Num(Features.DomAheadStackShare1s),
+                    Num(Features.DomNearChurnPerAggressive1s),
+                    Features.DomNearUpdateCount1s.ToString(CultureInfo.InvariantCulture),
+                    Features.DomNearUpdateCount3s.ToString(CultureInfo.InvariantCulture),
                     Num(Profile.OrHigh),
                     Num(Profile.OrLow),
                     Num(Profile.OrWidthTicks),

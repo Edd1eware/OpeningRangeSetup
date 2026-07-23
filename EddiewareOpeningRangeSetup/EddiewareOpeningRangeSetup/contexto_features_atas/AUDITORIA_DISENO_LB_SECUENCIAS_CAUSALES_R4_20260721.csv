@@ -1,0 +1,19 @@
+check,evidence,passed
+DETECTOR_VERSION,liquidity-burst-detector-2026-07-21-v6-causal-sequence,True
+TIMELINE_ENABLED_DEFAULT,ExportCausalTimeline defaults true,True
+LOOKBACK_BOUND,1..10 seconds,True
+EVENT_SCHEMA,arrival/source/causal/available/decision timestamps,True
+DOM_AND_TAPE_CAPTURE,MarketDepthChanged + ProcessTrade append events,True
+PREDECISION_FILTER,timeline writer enforces causal timestamp <= decision,True
+ACTUAL_DECISION_TIMESTAMP,Feature available equals detector publish timestamp,True
+MBP_SEMANTICS,depth changes are not mislabeled cancel/fill,True
+NO_OUTCOME_IN_TIMELINE,no MAE/MFE/result columns in timeline header,True
+RESET_ARCHIVES_TIMELINE,fresh runs archive burst_causal_timeline.csv,True
+TRADING_UNCHANGED,timeline never enters exporter or signal bus,True
+WORKSPACE_DETECTOR,LiquidityBurstDetector attached,True
+DLL_INSTALLED,installed indicator equals current build,True
+X10_ONLY,run plan X10_R1 only,True
+DST_SCOPE,256 dates 2025-03-10->2026-07-17,True
+TECHNICAL_GATE,"known burst dates=['10/03/2025', '18/03/2025', '27/03/2025', '03/04/2025']",True
+ISOLATED_ROOT,R4 root is new/owned,True
+HANDLE_REPLAY,Replay acquisition avoids whole-desktop UIA,True

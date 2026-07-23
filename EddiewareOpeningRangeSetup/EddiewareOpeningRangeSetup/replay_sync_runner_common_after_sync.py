@@ -291,26 +291,28 @@ def write_telegram_run_eta(eta_seconds, remaining, status="ACTIVA"):
 
 
 def get_replay_controls():
-    candidates = Desktop(backend="uia").windows(
-        title_re=".*Replay.*",
-        visible_only=True,
-    )
-    candidates = [
-        window
-        for window in candidates
-        if window.rectangle().left > -10000 and window.rectangle().top > -10000
-    ]
-    if not candidates:
+    # Enumerating the whole UIA desktop can hang when ATAS coexists with heavy
+    # WebView/Electron windows. Resolve the small Replay top-level window with
+    # Win32, then wrap only that exact HWND with UIA.
+    import win32gui
+    from pywinauto import Application
+
+    handles: list[int] = []
+
+    def collect(hwnd: int, _context: object) -> None:
+        if not win32gui.IsWindowVisible(hwnd):
+            return
+        title = win32gui.GetWindowText(hwnd).strip().lower()
+        left, top, right, bottom = win32gui.GetWindowRect(hwnd)
+        if title.startswith("replay") and left > -10000 and top > -10000 and right > left and bottom > top:
+            handles.append(hwnd)
+
+    win32gui.EnumWindows(collect, None)
+    if not handles:
         raise RuntimeError("Abre y deja visible la ventana Replay de ATAS.")
 
-    replay = next(
-        (
-            window
-            for window in candidates
-            if window.window_text().lower().startswith("replay")
-        ),
-        candidates[0],
-    )
+    replay_handle = handles[0]
+    replay = Application(backend="uia").connect(handle=replay_handle).window(handle=replay_handle)
     replay.set_focus()
     edits = replay.descendants(control_type="Edit")
     buttons = replay.descendants(control_type="Button")
@@ -626,7 +628,12 @@ def click_stop(stop_button=None):
         if button is None:
             return False
         try:
-            button.click_input()
+            # ATAS 8.0.14 ignores synthesized pointer clicks on its WPF replay
+            # toolbar on some layouts, while InvokePattern executes reliably.
+            try:
+                button.invoke()
+            except Exception:
+                button.click_input()
             time.sleep(0.35)
             return True
         except Exception:
@@ -853,7 +860,13 @@ def start_replay_with_retries(
         started_at = time.time()
         REPLAY_STARTED_FILE.write_text(str(started_at), encoding="utf-8")
         try:
-            start_button.click_input()
+            # ATAS 8.0.14 can expose an enabled WPF Play control while ignoring
+            # a synthesized pointer click. Invoke its automation command first;
+            # retain the physical click for older wrappers without InvokePattern.
+            try:
+                start_button.invoke()
+            except Exception:
+                start_button.click_input()
         except Exception as exc:
             print(
                 f"No pude dar Play (intento {attempt}/{REPLAY_START_RETRY_ATTEMPTS}): {exc}"
@@ -1279,6 +1292,24 @@ def _send_stage_progress(progress_meta, *, done, total, passed, failed,
         except Exception:
             pass
 
+    hypothesis_status = None
+    hypothesis_root = progress_meta.get("hypothesis_monitor_root")
+    if hypothesis_root:
+        try:
+            monitor_kind = str(progress_meta.get("hypothesis_monitor_kind", "dom")).strip().lower()
+            if monitor_kind == "matrix_classification":
+                from lb_matrix_classification_monitor import update_status_file
+            elif monitor_kind == "causal_sequence":
+                from lb_causal_sequence_monitor import update_status_file
+            else:
+                from lb_dom_hypothesis_monitor import update_status_file
+            hypothesis_status = update_status_file(hypothesis_root)
+        except Exception as exc:
+            hypothesis_status = (
+                "Efectividad del DOM antes del movimiento : CALCULANDO 0 sesiones "
+                f"[monitor: {type(exc).__name__}]"
+            )
+
     try:
         telegram.send_progress_update(
             RESULTS_FOLDER,
@@ -1303,6 +1334,7 @@ def _send_stage_progress(progress_meta, *, done, total, passed, failed,
             pnl_usd=pnl_usd,
             contracts=contracts,
             stats=stats,
+            hypothesis_status=hypothesis_status,
         )
     except Exception as exc:
         print(f"WARNING: progreso Telegram fallo: {exc}")

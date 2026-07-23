@@ -709,6 +709,7 @@ def send_progress_update(
     pnl_usd=None,
     contracts=None,
     stats=None,
+    hypothesis_status=None,
 ):
     """Manda un mensaje de progreso de Historia X10 únicamente."""
     credentials = _read_credentials(results_folder)
@@ -764,6 +765,8 @@ def send_progress_update(
     # Stats acumuladas de la corrida (WR/PF/TP/SL/rachas).
     if stats:
         lines.append(_format_stats_line(stats))
+    if hypothesis_status:
+        lines.append(str(hypothesis_status))
     # Progreso TOTAL hacia la meta (sincronizadas X1==X10), no parcial por etapa.
     if global_target:
         missing = max(global_target - synced, 0)

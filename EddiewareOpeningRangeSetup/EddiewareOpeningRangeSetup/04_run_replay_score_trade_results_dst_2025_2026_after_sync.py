@@ -1136,6 +1136,7 @@ def reset_replay_run_state(output_folder):
     research_capture_names = (
         "burst_events.csv",
         "burst_response_events.csv",
+        "burst_causal_timeline.csv",
         "trade_inputs.csv",
         "trade_results.csv",
         "exporter_lifecycle_diagnostics.csv",
@@ -1146,6 +1147,7 @@ def reset_replay_run_state(output_folder):
         "telegram_eta_reserved_dates.txt",
         "telegram_eta_terminal_sent_dates.txt",
         "telegram_run_eta.txt",
+        "telegram_lb_hypothesis.txt",
     )
     capture_paths = [
         Path(RESULTS_FOLDER) / file_name

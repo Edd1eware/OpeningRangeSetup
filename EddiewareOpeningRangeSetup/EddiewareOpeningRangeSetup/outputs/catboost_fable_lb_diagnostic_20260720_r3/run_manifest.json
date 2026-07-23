@@ -1,0 +1,49 @@
+{
+  "created_at_utc": "2026-07-21T00:07:49.781330+00:00",
+  "old_rows": 70,
+  "new_rows": 45,
+  "combined_rows": 115,
+  "old_families": {
+    "B_CLEAN_BREAKOUT": 41,
+    "A_TRUE_ABSORPTION": 29
+  },
+  "new_families": {
+    "B_CLEAN_BREAKOUT": 30,
+    "A_TRUE_ABSORPTION": 15
+  },
+  "old_years": {
+    "2022": 22,
+    "2023": 30,
+    "2024": 18
+  },
+  "new_years": {
+    "2025": 34,
+    "2026": 11
+  },
+  "new_source_audit": [
+    {
+      "stage": "dataset",
+      "status": "OK",
+      "inputs": 60,
+      "bursts": 150,
+      "outcomes": 736,
+      "joined_rows": 60,
+      "causal_rows": 60
+    }
+  ],
+  "new_holdout_reused_as_holdout": false,
+  "purpose": "post-holdout hypothesis generation only",
+  "eligible_feature_count": 119,
+  "burst_mechanism_feature_count": 92,
+  "stable_univariate_candidates": [],
+  "catboost_parameters_tuned_on_new": false,
+  "new_sample_is_fresh_holdout": false,
+  "trading_logic_changed": false,
+  "atas_launched": false,
+  "output": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\outputs\\catboost_fable_lb_diagnostic_20260720_r3",
+  "plots": [
+    "outputs\\catboost_fable_lb_diagnostic_20260720_r3\\visualizations\\catboost_temporal_auc.png",
+    "outputs\\catboost_fable_lb_diagnostic_20260720_r3\\visualizations\\catboost_shap_oos_top20.png",
+    "outputs\\catboost_fable_lb_diagnostic_20260720_r3\\visualizations\\feature_temporal_stability.png"
+  ]
+}

@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "C:\Users\k_99_\Desktop\codding\OpeningRangeSetup\EddiewareOpeningRangeSetup\EddiewareOpeningRangeSetup\04_run_replay_lb_matrix_classification_dst_2025_2026.py", line 359, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "C:\Users\k_99_\Desktop\codding\OpeningRangeSetup\EddiewareOpeningRangeSetup\EddiewareOpeningRangeSetup\04_run_replay_lb_matrix_classification_dst_2025_2026.py", line 304, in main
+    passed, failures = _run_dates(
+                       ^^^^^^^^^^^
+  File "C:\Users\k_99_\Desktop\codding\OpeningRangeSetup\EddiewareOpeningRangeSetup\EddiewareOpeningRangeSetup\04_run_replay_lb_matrix_classification_dst_2025_2026.py", line 214, in _run_dates
+    return replay_sync.run_replay_period(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\k_99_\Desktop\codding\OpeningRangeSetup\EddiewareOpeningRangeSetup\EddiewareOpeningRangeSetup\replay_sync_runner_common_after_sync.py", line 1417, in run_replay_period
+    raise RuntimeError(
+RuntimeError: No pude configurar Replay en X10. Confirma ATAS/replay speed antes de relanzar; version esperada score-exporter-2026-07-19-v27-final-causal-publish-guard.

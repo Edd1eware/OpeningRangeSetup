@@ -40,9 +40,27 @@ from sklearn.tree import DecisionTreeClassifier
 
 RANDOM_SEED = 20260717
 EXPECTED_EXPORTER_VERSION = "score-exporter-2026-07-19-v27-final-causal-publish-guard"
-EXPECTED_BURST_VERSION = "liquidity-burst-detector-2026-07-19-v4-publish-clock-audit"
+EXPECTED_BURST_VERSION = "liquidity-burst-detector-2026-07-20-v5-dom-geometry"
+SUPPORTED_BURST_VERSIONS = {
+    EXPECTED_BURST_VERSION,
+    "liquidity-burst-detector-2026-07-22-v7-postburst-matrix",
+    "liquidity-burst-detector-2026-07-21-v6-causal-sequence",
+    "liquidity-burst-detector-2026-07-19-v4-publish-clock-audit",
+}
 TELEGRAM_TITLE = "ANALISIS  FAMILIAS A, B, C, ETC."
 TICK_SIZE = 0.25
+CLEAN_EXCURSION_TICKS = 10.0
+FAMILY_ABSORPTION = "A_CLEAN_ABSORPTION"
+FAMILY_CONTINUATION = "B_CLEAN_CONTINUATION"
+FAMILY_VARIABLE = "C_VARIABLE_TRADE"
+FAMILY_EXCLUDED = "EXCLUDED_NO_PATH_METRICS"
+ANALYSIS_FAMILIES = (FAMILY_ABSORPTION, FAMILY_VARIABLE, FAMILY_CONTINUATION)
+MODEL_FAMILIES = (FAMILY_ABSORPTION, FAMILY_CONTINUATION)
+FAMILY_ORDINAL = {
+    FAMILY_CONTINUATION: 0,
+    FAMILY_VARIABLE: 1,
+    FAMILY_ABSORPTION: 2,
+}
 
 OUTCOME_PATTERNS = re.compile(
     r"(?:^|_)(?:mfe|mae|result|exit|outcome|future|final|target_moved|stop_moved)(?:_|$)",
@@ -144,6 +162,17 @@ BURST_SPECS = [
     FeatureSpec("GapFill_Seconds_60", "burst_events", "count synthetic carry-forward gap buckets", "count", "Advertencia de datos irregulares, no señal de mercado.", -60, 0),
     FeatureSpec("Burst_Index_In_Episode", "burst_events", "ordinal burst within 30s episode", "count", "Dependencia entre eventos del mismo episodio.", -30, 0),
     FeatureSpec("Seconds_Since_Prior_Burst", "burst_events", "timestamp-current minus prior burst", "seconds", "Separación temporal entre eventos correlacionados.", -300, 0),
+    FeatureSpec("DOM_Spread_Ticks", "burst_events", "(best_ask-best_bid)/tick at detector publish", "ticks", "Vacío inmediato entre ambos lados del DOM; breakout limpio debería ser mayor.", 0, 0),
+    FeatureSpec("DOM_Directional_Microprice_Ticks", "burst_events", "burst_sign*(microprice-midpoint)/tick", "ticks", "Presión L1 orientada al burst; continuación debería ser mayor.", 0, 0),
+    FeatureSpec("DOM_Directional_Depth_Imbalance_L1", "burst_events", "burst_sign*(bid_depth_L1-ask_depth_L1)/(bid+ask)", "ratio", "Asimetría del touch orientada al burst.", 0, 0),
+    FeatureSpec("DOM_Directional_Depth_Imbalance_L3", "burst_events", "burst_sign*(sum_bid_L3-sum_ask_L3)/(sum_bid+sum_ask)", "ratio", "Presión agregada de los tres primeros niveles.", 0, 0),
+    FeatureSpec("DOM_Directional_Depth_Imbalance_L5", "burst_events", "burst_sign*(sum_bid_L5-sum_ask_L5)/(sum_bid+sum_ask)", "ratio", "Geometría direccional de cinco niveles del libro.", 0, 0),
+    FeatureSpec("DOM_Ahead_Depth_Per_Aggressive_L3", "burst_events", "ahead_passive_depth_L3/max(gross_aggressive_0_1,1)", "ratio", "Pared pasiva delante por unidad de agresión; absorción debería ser mayor.", -1, 0),
+    FeatureSpec("DOM_Ahead_L1_Concentration_L5", "burst_events", "ahead_depth_L1/sum(ahead_depth_L1_L5)", "ratio", "Concentración de liquidez defensiva en el primer nivel.", 0, 0),
+    FeatureSpec("DOM_Directional_PullStack_1s", "burst_events", "(behind_net_add-ahead_net_add)/sum(abs(depth_changes)), top5", "ratio", "Pull/stack transversal orientado: positivo favorece continuación.", -1, 0),
+    FeatureSpec("DOM_Directional_PullStack_3s", "burst_events", "(behind_net_add-ahead_net_add)/sum(abs(depth_changes)), top5", "ratio", "Persistencia a tres segundos del pull/stack orientado.", -3, 0),
+    FeatureSpec("DOM_Ahead_Stack_Share_1s", "burst_events", "ahead_adds/(ahead_adds+ahead_removes), top5", "ratio", "Apilamiento pasivo delante del burst; absorción debería ser mayor.", -1, 0),
+    FeatureSpec("DOM_Near_Churn_Per_Aggressive_1s", "burst_events", "sum(abs(depth_changes_top5))/max(gross_aggressive_0_1,1)", "ratio", "Actividad pasiva multilevel por unidad de agresión.", -1, 0),
 ]
 
 ENTRY_SPECS = [
@@ -214,7 +243,27 @@ ENGINEERED_SPECS = [
 ]
 
 ALL_SPECS = BURST_SPECS + ENTRY_SPECS + ENGINEERED_SPECS
-FEATURE_NAMES = [spec.name for spec in ALL_SPECS]
+ALL_FEATURE_NAMES = [spec.name for spec in ALL_SPECS]
+DOM_FEATURE_NAMES = [spec.name for spec in BURST_SPECS if spec.name.startswith("DOM_")]
+FEATURE_NAMES = list(ALL_FEATURE_NAMES)
+
+
+def configure_feature_scope(scope: str = "ALL") -> tuple[str, ...]:
+    """Freeze the predictor family used by the downstream research report."""
+    global FEATURE_NAMES
+    normalized = scope.strip().upper()
+    if normalized == "DOM_ONLY":
+        FEATURE_NAMES = list(DOM_FEATURE_NAMES)
+    elif normalized == "ALL":
+        FEATURE_NAMES = list(ALL_FEATURE_NAMES)
+    else:
+        raise ValueError(f"Unsupported feature scope: {scope}")
+    return tuple(FEATURE_NAMES)
+
+
+def _active_specs() -> list[FeatureSpec]:
+    active = set(FEATURE_NAMES)
+    return [spec for spec in ALL_SPECS if spec.name in active]
 
 
 def _to_bool(series: pd.Series) -> pd.Series:
@@ -270,8 +319,11 @@ def _load_bursts(results_folder: Path) -> pd.DataFrame:
         return pd.DataFrame()
     frame = pd.read_csv(path, low_memory=False)
     if "Detector_VERSION" in frame:
-        expected = frame["Detector_VERSION"].astype(str).eq(EXPECTED_BURST_VERSION)
+        expected = frame["Detector_VERSION"].astype(str).isin(SUPPORTED_BURST_VERSIONS)
         frame = frame.loc[expected].copy()
+    for spec in BURST_SPECS:
+        if spec.name not in frame:
+            frame[spec.name] = np.nan
     frame["burst_event_timestamp"] = pd.to_datetime(
         frame["Timestamp_UTC"], utc=True, errors="coerce"
     )
@@ -352,17 +404,21 @@ def _engineer(frame: pd.DataFrame) -> pd.DataFrame:
 
 def _label_family(row: pd.Series) -> tuple[str, str]:
     result = str(row.get("Result_Label", "")).upper()
-    mae = float(row.get("MAE_ticks", np.nan))
-    mfe = float(row.get("MFE_ticks", np.nan))
-    sl = float(row.get("Initial_SL_ticks", np.nan))
-    tp = float(row.get("Initial_TP_ticks", np.nan))
-    if result == "TP" and np.isfinite(mae) and np.isfinite(mfe) and mae <= 10 and mfe >= tp:
-        return "A_TRUE_ABSORPTION", "TP; MAE<=10; MFE>=TP inicial"
-    if result == "SL" and np.isfinite(mae) and np.isfinite(mfe) and mfe <= 10 and mae >= sl:
-        return "B_CLEAN_BREAKOUT", "SL; MFE<=10; MAE>=SL inicial"
-    if result in {"TP", "SL"}:
-        return "C_MIXED_PATH", "TP/SL con excursión intermedia; no cumple A ni B estricta"
-    return "D_OTHER_EXIT", f"Salida {result or 'desconocida'}"
+    mae = float(pd.to_numeric(row.get("MAE_ticks", np.nan), errors="coerce"))
+    mfe = float(pd.to_numeric(row.get("MFE_ticks", np.nan), errors="coerce"))
+    sl = float(pd.to_numeric(row.get("Initial_SL_ticks", np.nan), errors="coerce"))
+    tp = float(pd.to_numeric(row.get("Initial_TP_ticks", np.nan), errors="coerce"))
+    has_path = np.isfinite(mae) and np.isfinite(mfe) and np.isfinite(sl) and np.isfinite(tp) and sl > 0 and tp > 0
+    if result == "TP" and has_path and mae <= CLEAN_EXCURSION_TICKS and mfe >= tp:
+        return FAMILY_ABSORPTION, f"TP; MAE<={CLEAN_EXCURSION_TICKS:g}; MFE>=TP inicial"
+    if result == "SL" and has_path and mfe <= CLEAN_EXCURSION_TICKS and mae >= sl:
+        return FAMILY_CONTINUATION, f"SL; MFE<={CLEAN_EXCURSION_TICKS:g}; MAE>=SL inicial"
+    if has_path:
+        return FAMILY_VARIABLE, (
+            f"Trayectoria variable {result or 'otra'}; MAE={mae:g}; MFE={mfe:g}; "
+            "no cumple absorción ni continuación limpia"
+        )
+    return FAMILY_EXCLUDED, f"Sin MAE/MFE/SL/TP terminales suficientes; salida {result or 'desconocida'}"
 
 
 def build_dataset(results_folder: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -404,6 +460,17 @@ def build_dataset(results_folder: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
     labels = merged.apply(_label_family, axis=1, result_type="expand")
     merged["family"] = labels[0]
     merged["family_reason"] = labels[1]
+    merged["family_ordinal"] = merged["family"].map(FAMILY_ORDINAL)
+    sl_safe = pd.to_numeric(merged["Initial_SL_ticks"], errors="coerce").replace(0, np.nan)
+    tp_safe = pd.to_numeric(merged["Initial_TP_ticks"], errors="coerce").replace(0, np.nan)
+    merged["path_mae_fraction_of_sl"] = pd.to_numeric(merged["MAE_ticks"], errors="coerce") / sl_safe
+    merged["path_mfe_fraction_of_tp"] = pd.to_numeric(merged["MFE_ticks"], errors="coerce") / tp_safe
+    path_bias = merged["path_mfe_fraction_of_tp"] - merged["path_mae_fraction_of_sl"]
+    merged["variable_path_shape"] = "NOT_VARIABLE"
+    variable = merged["family"].eq(FAMILY_VARIABLE)
+    merged.loc[variable & path_bias.gt(0.15), "variable_path_shape"] = "VARIABLE_ABSORPTION_LEAN_BY_OUTCOME"
+    merged.loc[variable & path_bias.lt(-0.15), "variable_path_shape"] = "VARIABLE_CONTINUATION_LEAN_BY_OUTCOME"
+    merged.loc[variable & path_bias.between(-0.15, 0.15, inclusive="both"), "variable_path_shape"] = "VARIABLE_BALANCED_PATH"
     merged = merged.sort_values(["prediction_timestamp", "fecha"], kind="stable").reset_index(drop=True)
     n = len(merged)
     discovery_end = max(1, math.floor(n * 0.60))
@@ -438,12 +505,14 @@ def _feature_catalog() -> pd.DataFrame:
         "causal_flag": 1,
         "realtime_available": 1,
         "engineered": int(spec.engineered),
-    } for spec in ALL_SPECS])
+    } for spec in _active_specs()])
 
 
 def _candidate_features() -> pd.DataFrame:
     rows = []
-    for spec in ENGINEERED_SPECS:
+    active = set(FEATURE_NAMES)
+    candidate_specs = _active_specs() if active == set(DOM_FEATURE_NAMES) else ENGINEERED_SPECS
+    for spec in candidate_specs:
         rows.append({
             "feature": spec.name,
             "hypothesis": spec.interpretation,
@@ -452,11 +521,12 @@ def _candidate_features() -> pd.DataFrame:
             "status": "TEST_WITHOUT_TRADING_FILTER",
             "rejection_condition": "causal violation; unstable sign; q>=0.10; |Cliff delta|<0.33",
         })
-    rows.extend([
-        {"feature": "refill_ratio", "hypothesis": "Reposición del libro tras agresión.", "formula": "added_size_at_level/consumed_size", "pre_registered_before_full_run": 1, "status": "REJECTED_UNAVAILABLE_IN_CURRENT_REPLAY", "rejection_condition": "MBO/MBP no está presente en el workspace ni en Historia X10 actual."},
-        {"feature": "refill_speed", "hypothesis": "Velocidad de reconstrucción del nivel.", "formula": "refilled_contracts/seconds", "pre_registered_before_full_run": 1, "status": "REJECTED_UNAVAILABLE_IN_CURRENT_REPLAY", "rejection_condition": "Sin stream de libro causal reproducible."},
-        {"feature": "book_embedding", "hypothesis": "Estado no lineal del libro.", "formula": "embedding(MBO/MBP sequence)", "pre_registered_before_full_run": 1, "status": "REJECTED_UNAVAILABLE_IN_CURRENT_REPLAY", "rejection_condition": "No inventar datos de libro ausentes."},
-    ])
+    if active != set(DOM_FEATURE_NAMES):
+        rows.extend([
+            {"feature": "same_order_refill_ratio", "hypothesis": "Reposición atribuible a la misma orden tras agresión.", "formula": "same_order_added_size/consumed_size", "pre_registered_before_full_run": 1, "status": "REJECTED_REQUIRES_MBO", "rejection_condition": "MarketDepthChanged permite geometría MBP causal, pero no identidad de orden."},
+            {"feature": "same_order_survival", "hypothesis": "Supervivencia de una orden individual frente a ejecuciones.", "formula": "order_lifetime_after_first_fill", "pre_registered_before_full_run": 1, "status": "REJECTED_REQUIRES_MBO", "rejection_condition": "No inferir identidad ni prioridad de cola desde MBP agregado."},
+            {"feature": "book_embedding", "hypothesis": "Estado no lineal del libro.", "formula": "embedding(MBO/MBP sequence)", "pre_registered_before_full_run": 1, "status": "DEFERRED_SAMPLE_SIZE", "rejection_condition": "Primero falsar las 11 geometrías DOM preregistradas con interpretación física."},
+        ])
     return pd.DataFrame(rows)
 
 
@@ -464,7 +534,7 @@ def _causality_audit(dataset: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]
     rows = []
     prediction_min = dataset["prediction_timestamp"].min() if not dataset.empty else pd.NaT
     prediction_max = dataset["prediction_timestamp"].max() if not dataset.empty else pd.NaT
-    for spec in ALL_SPECS:
+    for spec in _active_specs():
         rows.append({
             "feature": spec.name,
             "source": spec.source,
@@ -485,7 +555,7 @@ def _causality_audit(dataset: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]
         {"variable": "Dynamic_Alarm_*", "reason": "Gestión posterior a entrada.", "decision": "REJECT_FROM_FEATURES"},
         {"variable": "Price_Accepted_After_Imbalance_AtEntry", "reason": "Nombre semánticamente ambiguo; excluida hasta demostrar timestamp causal propio.", "decision": "REJECT_CONSERVATIVE"},
         {"variable": "Price_Rejected_After_Imbalance_AtEntry", "reason": "Nombre semánticamente ambiguo; excluida hasta demostrar timestamp causal propio.", "decision": "REJECT_CONSERVATIVE"},
-        {"variable": "refill/order-book", "reason": "Stream MBO/MBP no disponible en la configuración replay actual.", "decision": "REJECT_UNAVAILABLE"},
+        {"variable": "same-order refill/survival", "reason": "La identidad de orden exige MBO; el MBP causal de cinco niveles sí se captura directamente en el detector v5.", "decision": "REJECT_REQUIRES_MBO"},
     ]
     for name in FEATURE_NAMES:
         if OUTCOME_PATTERNS.search(name):
@@ -537,6 +607,20 @@ def _bootstrap_diff(a: np.ndarray, b: np.ndarray, rng: np.random.Generator, n_bo
     return tuple(np.quantile(values, [0.025, 0.975]).tolist())
 
 
+def _ordinal_permutation(values: np.ndarray, targets: np.ndarray, rng: np.random.Generator, n_perm: int = 2000) -> tuple[float, float]:
+    if len(values) < 6 or len(np.unique(targets)) < 3:
+        return np.nan, np.nan
+    observed = float(stats.spearmanr(values, targets).statistic)
+    if not np.isfinite(observed):
+        return np.nan, np.nan
+    hits = 0
+    for _ in range(n_perm):
+        permuted = rng.permutation(targets)
+        candidate = float(stats.spearmanr(values, permuted).statistic)
+        hits += np.isfinite(candidate) and abs(candidate) >= abs(observed)
+    return observed, (hits + 1) / (n_perm + 1)
+
+
 def _bh_adjust(p_values: pd.Series) -> pd.Series:
     values = p_values.fillna(1.0).to_numpy(float)
     order = np.argsort(values)
@@ -557,10 +641,11 @@ def _statistical_tests(dataset: pd.DataFrame) -> pd.DataFrame:
     for feature in FEATURE_NAMES:
         if feature not in discovery:
             continue
-        a = pd.to_numeric(discovery.loc[discovery["family"] == "A_TRUE_ABSORPTION", feature], errors="coerce").dropna().to_numpy()
-        b = pd.to_numeric(discovery.loc[discovery["family"] == "B_CLEAN_BREAKOUT", feature], errors="coerce").dropna().to_numpy()
-        row = {"feature": feature, "n_A": len(a), "n_B": len(b)}
-        for prefix, values in (("A", a), ("B", b)):
+        a = pd.to_numeric(discovery.loc[discovery["family"] == FAMILY_ABSORPTION, feature], errors="coerce").dropna().to_numpy()
+        c = pd.to_numeric(discovery.loc[discovery["family"] == FAMILY_VARIABLE, feature], errors="coerce").dropna().to_numpy()
+        b = pd.to_numeric(discovery.loc[discovery["family"] == FAMILY_CONTINUATION, feature], errors="coerce").dropna().to_numpy()
+        row = {"feature": feature, "n_A": len(a), "n_C": len(c), "n_B": len(b)}
+        for prefix, values in (("A", a), ("C", c), ("B", b)):
             row.update({
                 f"{prefix}_mean": np.mean(values) if len(values) else np.nan,
                 f"{prefix}_median": np.median(values) if len(values) else np.nan,
@@ -577,13 +662,26 @@ def _statistical_tests(dataset: pd.DataFrame) -> pd.DataFrame:
             row["mann_whitney_p"] = stats.mannwhitneyu(a, b, alternative="two-sided").pvalue
             row["ks_p"] = stats.ks_2samp(a, b).pvalue
             row["welch_t_p"] = stats.ttest_ind(a, b, equal_var=False).pvalue
-            row["anova_p"] = stats.f_oneway(a, b).pvalue
-            row["permutation_p"] = _permutation_p(a, b, rng)
+            row["anova_p"] = stats.f_oneway(a, c, b).pvalue if len(c) >= 2 else stats.f_oneway(a, b).pvalue
             row["mean_diff_bootstrap_ci_low"], row["mean_diff_bootstrap_ci_high"] = _bootstrap_diff(a, b, rng)
+        ordinal_frame = discovery.loc[discovery["family"].isin(ANALYSIS_FAMILIES), ["family", feature]].copy()
+        ordinal_frame[feature] = pd.to_numeric(ordinal_frame[feature], errors="coerce")
+        ordinal_frame = ordinal_frame.dropna()
+        ordinal_rho, ordinal_p = _ordinal_permutation(
+            ordinal_frame[feature].to_numpy(float),
+            ordinal_frame["family"].map(FAMILY_ORDINAL).to_numpy(float),
+            rng,
+        )
+        row["ordinal_spearman_A_C_B"] = ordinal_rho
+        row["ordinal_permutation_p"] = ordinal_p
+        # The registered target is the clean A-vs-B contrast. C is retained only
+        # as a descriptive abstention family and cannot determine feature rank.
+        row["permutation_p"] = _permutation_p(a, b, rng) if len(a) >= 2 and len(b) >= 2 else np.nan
         for metric in (
             "cohens_d_A_minus_B", "cliffs_delta_A_minus_B", "overlap_coefficient",
             "mann_whitney_p", "ks_p", "welch_t_p", "anova_p", "permutation_p",
             "mean_diff_bootstrap_ci_low", "mean_diff_bootstrap_ci_high",
+            "ordinal_spearman_A_C_B", "ordinal_permutation_p",
         ):
             row.setdefault(metric, np.nan)
         rows.append(row)
@@ -613,7 +711,11 @@ def _conditional_mi_proxy(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> float:
 
 
 def _model_and_rankings(dataset: pd.DataFrame, stats_frame: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    eligible = dataset.loc[dataset["causal_row_flag"] & dataset["family"].isin(["A_TRUE_ABSORPTION", "B_CLEAN_BREAKOUT"])].copy()
+    all_eligible = dataset.loc[dataset["causal_row_flag"] & dataset["family"].isin(ANALYSIS_FAMILIES)].copy()
+    eligible = all_eligible.loc[all_eligible["family"].isin(MODEL_FAMILIES)].copy()
+    discovery_all = all_eligible.loc[all_eligible["split"] == "discovery"].copy()
+    validation_all = all_eligible.loc[all_eligible["split"] == "validation"].copy()
+    holdout_all = all_eligible.loc[all_eligible["split"] == "holdout"].copy()
     discovery = eligible.loc[eligible["split"] == "discovery"].copy()
     validation = eligible.loc[eligible["split"] == "validation"].copy()
     holdout = eligible.loc[eligible["split"] == "holdout"].copy()
@@ -628,7 +730,8 @@ def _model_and_rankings(dataset: pd.DataFrame, stats_frame: pd.DataFrame) -> tup
             "n": len(discovery), "classes": discovery["family"].nunique(),
         }])
 
-    y_disc = discovery["family"].eq("A_TRUE_ABSORPTION").astype(int).to_numpy()
+    y_disc = discovery["family"].astype(str).to_numpy()
+    y_disc_binary = discovery["family"].eq(FAMILY_ABSORPTION).astype(int).to_numpy()
     stat_lookup = stats_frame.set_index("feature") if not stats_frame.empty else pd.DataFrame()
     ordered = sorted(
         candidates,
@@ -643,10 +746,10 @@ def _model_and_rankings(dataset: pd.DataFrame, stats_frame: pd.DataFrame) -> tup
     x_disc_i = imputer.fit_transform(x_disc)
     base_cols = [c for c in ["Delta1s", "Velocity1s", "ContractsPerSecond"] if c in selected]
     z = x_disc_i[:, [selected.index(c) for c in base_cols]] if base_cols else x_disc_i[:, : min(3, x_disc_i.shape[1])]
-    mi = mutual_info_classif(x_disc_i, y_disc, random_state=RANDOM_SEED)
+    mi = mutual_info_classif(x_disc_i, y_disc_binary, random_state=RANDOM_SEED)
     for feature, value in zip(selected, mi):
         importance_rows.append({"feature": feature, "method": "mutual_information", "importance": value, "split": "discovery"})
-        importance_rows.append({"feature": feature, "method": "conditional_mutual_information_proxy", "importance": _conditional_mi_proxy(x_disc_i[:, selected.index(feature)], y_disc, z), "split": "discovery"})
+        importance_rows.append({"feature": feature, "method": "conditional_mutual_information_proxy", "importance": _conditional_mi_proxy(x_disc_i[:, selected.index(feature)], y_disc_binary, z), "split": "discovery"})
 
     models = {
         "logistic": make_pipeline(StandardScaler(), LogisticRegression(max_iter=2000, class_weight="balanced", random_state=RANDOM_SEED)),
@@ -666,7 +769,7 @@ def _model_and_rankings(dataset: pd.DataFrame, stats_frame: pd.DataFrame) -> tup
     for model_name, model in models.items():
         model.fit(x_disc_i, y_disc)
         if model_name == "logistic":
-            raw_importance = np.abs(model.named_steps["logisticregression"].coef_[0])
+            raw_importance = np.mean(np.abs(model.named_steps["logisticregression"].coef_), axis=0)
         elif model_name == "decision_tree":
             raw_importance = model.feature_importances_
         elif model_name == "random_forest":
@@ -676,23 +779,35 @@ def _model_and_rankings(dataset: pd.DataFrame, stats_frame: pd.DataFrame) -> tup
         for feature, value in zip(selected, raw_importance):
             importance_rows.append({"feature": feature, "method": model_name, "importance": float(value), "split": "discovery"})
         if model_name == "catboost" and Pool is not None:
-            shap_values = model.get_feature_importance(Pool(x_disc_i, label=y_disc), type="ShapValues")[:, :-1]
-            for feature, value in zip(selected, np.mean(np.abs(shap_values), axis=0)):
+            shap_values = np.asarray(
+                model.get_feature_importance(Pool(x_disc_i, label=y_disc), type="ShapValues")
+            )
+            if shap_values.ndim == 3:
+                shap_importance = np.mean(np.abs(shap_values[:, :, :-1]), axis=(0, 1))
+            else:
+                shap_importance = np.mean(np.abs(shap_values[:, :-1]), axis=0)
+            for feature, value in zip(selected, shap_importance):
                 importance_rows.append({"feature": feature, "method": "catboost_incremental_shap", "importance": float(value), "split": "discovery"})
 
         for split_name, split_frame in (("validation", validation), ("holdout", holdout)):
             if split_frame.empty:
                 model_rows.append({"model": model_name, "split": split_name, "status": "NO_ROWS", "n": 0})
                 continue
-            y = split_frame["family"].eq("A_TRUE_ABSORPTION").astype(int).to_numpy()
+            y = split_frame["family"].astype(str).to_numpy()
             x = imputer.transform(split_frame[selected].apply(pd.to_numeric, errors="coerce"))
-            pred = model.predict(x).astype(int).reshape(-1)
-            proba = model.predict_proba(x)[:, 1] if hasattr(model, "predict_proba") else pred.astype(float)
+            pred = np.asarray(model.predict(x)).reshape(-1).astype(str)
+            proba = model.predict_proba(x) if hasattr(model, "predict_proba") else None
+            classes = np.asarray(getattr(model, "classes_", MODEL_FAMILIES)).astype(str)
+            clean_auc = np.nan
+            if proba is not None and len(classes) == 2 and len(np.unique(y)) == 2 and FAMILY_ABSORPTION in classes:
+                absorption_index = int(np.flatnonzero(classes == FAMILY_ABSORPTION)[0])
+                clean_auc = roc_auc_score((y == FAMILY_ABSORPTION).astype(int), proba[:, absorption_index])
             model_rows.append({
                 "model": model_name, "split": split_name, "status": "OK",
                 "n": len(y), "balanced_accuracy": balanced_accuracy_score(y, pred) if len(np.unique(y)) > 1 else np.nan,
-                "roc_auc": roc_auc_score(y, proba) if len(np.unique(y)) > 1 else np.nan,
-                "confusion_matrix": json.dumps(confusion_matrix(y, pred, labels=[0, 1]).tolist()),
+                "roc_auc": clean_auc,
+                "roc_auc_A_vs_B": clean_auc,
+                "confusion_matrix": json.dumps(confusion_matrix(y, pred, labels=list(MODEL_FAMILIES)).tolist()),
             })
             if split_name == "validation" and len(y) >= 3:
                 perm = permutation_importance(model, x, y, n_repeats=50, random_state=RANDOM_SEED, scoring="balanced_accuracy")
@@ -700,10 +815,13 @@ def _model_and_rankings(dataset: pd.DataFrame, stats_frame: pd.DataFrame) -> tup
                     importance_rows.append({"feature": feature, "method": f"{model_name}_permutation", "importance": float(value), "split": "validation"})
 
         if model_name == "logistic" and len(selected) > 1 and not validation.empty:
-            y_validation = validation["family"].eq("A_TRUE_ABSORPTION").astype(int).to_numpy()
+            y_validation = validation["family"].astype(str).to_numpy()
             if len(np.unique(y_validation)) > 1:
                 x_validation = imputer.transform(validation[selected].apply(pd.to_numeric, errors="coerce"))
-                baseline = balanced_accuracy_score(y_validation, model.predict(x_validation).astype(int).reshape(-1))
+                baseline = balanced_accuracy_score(
+                    y_validation,
+                    np.asarray(model.predict(x_validation)).reshape(-1).astype(str),
+                )
                 for feature_index, feature in enumerate(selected):
                     keep = [i for i in range(len(selected)) if i != feature_index]
                     ablated = make_pipeline(
@@ -713,7 +831,7 @@ def _model_and_rankings(dataset: pd.DataFrame, stats_frame: pd.DataFrame) -> tup
                     ablated.fit(x_disc_i[:, keep], y_disc)
                     ablated_score = balanced_accuracy_score(
                         y_validation,
-                        ablated.predict(x_validation[:, keep]).astype(int).reshape(-1),
+                        np.asarray(ablated.predict(x_validation[:, keep])).reshape(-1).astype(str),
                     )
                     importance_rows.append({
                         "feature": feature,
@@ -726,10 +844,16 @@ def _model_and_rankings(dataset: pd.DataFrame, stats_frame: pd.DataFrame) -> tup
     rng = np.random.default_rng(RANDOM_SEED)
     for feature in top_for_validation:
         row: dict[str, object] = {"feature": feature}
-        discovery_a = pd.to_numeric(discovery.loc[discovery["family"] == "A_TRUE_ABSORPTION", feature], errors="coerce").dropna()
-        discovery_b = pd.to_numeric(discovery.loc[discovery["family"] == "B_CLEAN_BREAKOUT", feature], errors="coerce").dropna()
+        discovery_a = pd.to_numeric(discovery.loc[discovery["family"] == FAMILY_ABSORPTION, feature], errors="coerce").dropna()
+        discovery_c = pd.to_numeric(discovery_all.loc[discovery_all["family"] == FAMILY_VARIABLE, feature], errors="coerce").dropna()
+        discovery_b = pd.to_numeric(discovery.loc[discovery["family"] == FAMILY_CONTINUATION, feature], errors="coerce").dropna()
         direction = np.sign(discovery_a.median() - discovery_b.median()) if len(discovery_a) and len(discovery_b) else 0
         row["discovery_direction_A_minus_B"] = direction
+        row["discovery_median_C"] = discovery_c.median() if len(discovery_c) else np.nan
+        row["discovery_C_between_A_B"] = int(
+            len(discovery_a) > 0 and len(discovery_b) > 0 and len(discovery_c) > 0
+            and min(discovery_a.median(), discovery_b.median()) <= discovery_c.median() <= max(discovery_a.median(), discovery_b.median())
+        )
         row["discovery_threshold_mid_medians"] = (discovery_a.median() + discovery_b.median()) / 2 if len(discovery_a) and len(discovery_b) else np.nan
         if len(discovery_a) >= 2 and len(discovery_b) >= 2 and direction != 0:
             bootstrap_signs = []
@@ -749,13 +873,23 @@ def _model_and_rankings(dataset: pd.DataFrame, stats_frame: pd.DataFrame) -> tup
             row["monte_carlo_bootstrap_direction_stability"] = np.nan
             row["gaussian_noise_5pct_direction_stability"] = np.nan
         stable = True
-        for split_name, split_frame in (("validation", validation), ("holdout", holdout)):
-            a = pd.to_numeric(split_frame.loc[split_frame["family"] == "A_TRUE_ABSORPTION", feature], errors="coerce").dropna()
-            b = pd.to_numeric(split_frame.loc[split_frame["family"] == "B_CLEAN_BREAKOUT", feature], errors="coerce").dropna()
+        for split_name, split_frame, split_all in (
+            ("validation", validation, validation_all),
+            ("holdout", holdout, holdout_all),
+        ):
+            a = pd.to_numeric(split_frame.loc[split_frame["family"] == FAMILY_ABSORPTION, feature], errors="coerce").dropna()
+            c = pd.to_numeric(split_all.loc[split_all["family"] == FAMILY_VARIABLE, feature], errors="coerce").dropna()
+            b = pd.to_numeric(split_frame.loc[split_frame["family"] == FAMILY_CONTINUATION, feature], errors="coerce").dropna()
             split_direction = np.sign(a.median() - b.median()) if len(a) and len(b) else np.nan
             row[f"{split_name}_n_A"] = len(a)
+            row[f"{split_name}_n_C"] = len(c)
             row[f"{split_name}_n_B"] = len(b)
             row[f"{split_name}_direction_A_minus_B"] = split_direction
+            c_between = bool(
+                len(a) > 0 and len(b) > 0 and len(c) > 0
+                and min(a.median(), b.median()) <= c.median() <= max(a.median(), b.median())
+            )
+            row[f"{split_name}_C_between_A_B"] = int(c_between)
             threshold = row["discovery_threshold_mid_medians"]
             if pd.notna(threshold) and direction != 0:
                 predicts_a = (
@@ -763,13 +897,17 @@ def _model_and_rankings(dataset: pd.DataFrame, stats_frame: pd.DataFrame) -> tup
                     if direction > 0
                     else pd.to_numeric(split_frame[feature], errors="coerce").le(threshold)
                 )
-                family_a = split_frame["family"].eq("A_TRUE_ABSORPTION")
-                family_b = split_frame["family"].eq("B_CLEAN_BREAKOUT")
+                family_a = split_frame["family"].eq(FAMILY_ABSORPTION)
+                family_c = split_frame["family"].eq(FAMILY_VARIABLE)
+                family_b = split_frame["family"].eq(FAMILY_CONTINUATION)
                 row[f"{split_name}_B_detectable_pct"] = float((~predicts_a[family_b]).mean() * 100) if family_b.any() else np.nan
                 row[f"{split_name}_A_lost_pct"] = float((~predicts_a[family_a]).mean() * 100) if family_a.any() else np.nan
-            if np.isnan(split_direction) or split_direction != direction:
+                row[f"{split_name}_C_absorption_side_pct"] = float(predicts_a[family_c].mean() * 100) if family_c.any() else np.nan
+            if np.isnan(split_direction) or split_direction != direction or not c_between:
                 stable = False
-        row["direction_stable_discovery_validation_holdout"] = int(stable and direction != 0)
+        row["direction_stable_discovery_validation_holdout"] = int(
+            stable and direction != 0 and row["discovery_C_between_A_B"] == 1
+        )
         validation_rows.append(row)
     return pd.DataFrame(importance_rows), pd.DataFrame(validation_rows), pd.DataFrame(model_rows)
 
@@ -927,7 +1065,7 @@ def _visualizations(dataset: pd.DataFrame, rankings: pd.DataFrame, output: Path)
         paths.append(path)
         for feature in rankings["feature"].head(3):
             fig, ax = plt.subplots(figsize=(8, 5))
-            for family, color in (("A_TRUE_ABSORPTION", "#2ca02c"), ("B_CLEAN_BREAKOUT", "#d62728")):
+            for family, color in ((FAMILY_ABSORPTION, "#2ca02c"), (FAMILY_VARIABLE, "#f59e0b"), (FAMILY_CONTINUATION, "#d62728")):
                 values = pd.to_numeric(dataset.loc[dataset["family"] == family, feature], errors="coerce").dropna()
                 if len(values):
                     ax.hist(values, bins=min(12, max(4, len(values))), alpha=0.45, density=True, label=family, color=color)
@@ -990,7 +1128,7 @@ def _final_report(
     counts = dataset["family"].value_counts().to_dict() if not dataset.empty else {}
     robust = rankings.loc[rankings["robust_candidate"].eq(1)] if not rankings.empty else pd.DataFrame()
     lines = [
-        "# Análisis Familias A, B, C, etc.",
+        "# Análisis Liquidity Burst — DOM para A vs B limpias",
         "",
         "## Resultado principal",
         "",
@@ -1005,18 +1143,18 @@ def _final_report(
         "## Muestra",
         "",
         f"- Total de entradas Liquidity Burst causales: {len(dataset)}.",
-        f"- Familia A — absorción verdadera estricta: {counts.get('A_TRUE_ABSORPTION', 0)}.",
-        f"- Familia B — breakout limpio estricto: {counts.get('B_CLEAN_BREAKOUT', 0)}.",
-        f"- Familia C — trayectoria mixta: {counts.get('C_MIXED_PATH', 0)}.",
-        f"- Familia D — otras salidas: {counts.get('D_OTHER_EXIT', 0)}.",
+        f"- ABSORCIÓN LIMPIA: {counts.get(FAMILY_ABSORPTION, 0)}.",
+        f"- CONTINUACIÓN LIMPIA: {counts.get(FAMILY_CONTINUATION, 0)}.",
+        f"- TRADE VARIABLE: {counts.get(FAMILY_VARIABLE, 0)}.",
+        f"- Excluidos sin MAE/MFE terminales suficientes: {counts.get(FAMILY_EXCLUDED, 0)}.",
         "- Split cronológico: 60% discovery, 20% validation, 20% holdout abierto una sola vez al cierre.",
         "",
         "## Definición de familias",
         "",
-        "- A: TP, MAE <=10 ticks y MFE >= TP inicial.",
-        "- B: SL, MFE <=10 ticks y MAE >= SL inicial.",
-        "- C: TP/SL con excursión intermedia que no cumple A/B estricta.",
-        "- D: time exit, break-even u otra salida.",
+        f"- ABSORCIÓN LIMPIA: TP, MAE <={CLEAN_EXCURSION_TICKS:g} ticks y MFE >= TP inicial.",
+        f"- CONTINUACIÓN LIMPIA: SL, MFE <={CLEAN_EXCURSION_TICKS:g} ticks y MAE >= SL inicial.",
+        "- TRADE VARIABLE: outcome terminal con MAE/MFE válidos que no cumple ninguna trayectoria limpia.",
+        "- Dentro de TRADE VARIABLE se conserva MAE/SL frente a MFE/TP y se prueba si DOM lo coloca entre las dos familias limpias.",
         "",
         "## Features con mayor evidencia en discovery",
         "",
@@ -1037,7 +1175,7 @@ def _final_report(
         "",
         "## Modelos fuera de muestra",
         "",
-        "| Modelo | Split | n | Balanced accuracy | ROC AUC | Estado |",
+        "| Modelo | Split | n | Balanced accuracy A/B | ROC AUC A-vs-B | Estado |",
         "|---|---|---:|---:|---:|---|",
     ])
     if model_metrics.empty:
@@ -1055,7 +1193,7 @@ def _final_report(
         f"- Features aceptadas como causales: {int(causality['causal_flag'].sum()) if not causality.empty and 'causal_flag' in causality else 0}.",
         f"- Variables rechazadas o no disponibles: {len(leakage)}.",
         "- MFE, MAE, resultado, salida y estados finales se usaron solo para etiquetas/outcomes.",
-        "- Refill, MBO, MBP y embeddings de libro se rechazaron porque el workspace replay actual no entrega ese stream; no se fabricaron valores.",
+        "- DOM_GEOMETRY usa el MBP top-5 causal recibido por MarketDepthChanged; identidad/supervivencia de órdenes MBO y embeddings se excluyen.",
         "- El análisis usa los CSV terminales por fecha como outcomes canónicos; `trade_results.csv` no se usa para MAE/MFE porque una recalculación sincronizada puede sobrescribir esa tabla con métricas parciales.",
         "",
         "## Respuestas científicas",
@@ -1065,8 +1203,8 @@ def _final_report(
         "3. Las features nuevas se documentan con fórmula física en `feature_catalog.csv` y `candidate_features.csv`.",
         "4. Mutual information, CMI proxy, SHAP de CatBoost, permutation importance y ablación quedan separados por método.",
         "5. Ninguna combinación se convierte en filtro en esta corrida.",
-        "6. El porcentaje de B potencialmente detectable solo se considera si una feature es robusta en discovery/validation/holdout.",
-        "7. La pérdida potencial de ganadoras se calcula sobre A, nunca se oculta.",
+        "6. El target de inferencia y modelado es exclusivamente A-vs-B; TRADE VARIABLE se conserva como abstención descriptiva.",
+        "7. La pérdida potencial de absorciones limpias y la ubicación descriptiva de C se reportan, nunca se ocultan.",
         "8. La prioridad siguiente es capturar un stream de libro reproducible solo si ATAS Historia lo suministra sin alterar el replay.",
         "",
         "## Decisión",
@@ -1079,15 +1217,15 @@ def _final_report(
 
 
 def _research_ledger(output: Path, dataset: pd.DataFrame) -> str:
-    return f"""# Research ledger — Absorción vs Breakout
+    return f"""# Research ledger — tres familias Liquidity Burst
 
 ## Pre-registro
 
 - Semilla: `{RANDOM_SEED}`.
 - Prediction timestamp único: `feature_timestamp_utc` del snapshot de entrada.
-- Familias: A TP con MAE<=10; B SL con MFE<=10 y MAE>=SL; C trayectoria mixta; D otra salida.
+- Familias: A absorción limpia; B continuación limpia; C trade variable con MAE/MFE terminales. Sin trayectoria medible se excluye.
 - Split cronológico congelado antes del análisis: 60/20/20.
-- Criterio robusto: permutation q BH <0.10, |Cliff delta| >=0.33 y mismo signo en discovery, validation y holdout.
+- Criterio robusto: permutation q BH <0.10, |Cliff delta A-B| >=0.33, C entre A/B y mismo orden en discovery, validation y holdout.
 - No se busca PF, no se optimiza threshold y no se modifica trading.
 
 ## Inventario de hipótesis
@@ -1096,7 +1234,7 @@ def _research_ledger(output: Path, dataset: pd.DataFrame) -> str:
 - Presión de absorción: absorción debe mostrar mucho delta por poco desplazamiento.
 - Persistencia: breakout limpio debe conservar signo de delta y velocidad en 1/3/5s.
 - Contexto: proximidad a POC/VAH/VAL/HVN/LVN puede modular absorción.
-- Refill/libro: hipótesis rechazada por indisponibilidad del stream en el workspace actual.
+- DOM top-5: instrumentado causalmente en detector v5; refill/supervivencia de la misma orden sigue excluido porque requiere MBO.
 
 ## Holdout
 
@@ -1108,6 +1246,8 @@ def _research_ledger(output: Path, dataset: pd.DataFrame) -> str:
 
 def _mechanism_family(feature: str) -> str:
     name = feature.lower()
+    if name.startswith("dom_"):
+        return "DOM_GEOMETRY"
     if "flow_" in name or "delta_retention" in name or "velocity_retention" in name or "counterflow" in name:
         return "FLOW_PERSISTENCE"
     if "ticksperaggressive" in name or "price_per" in name or "effort" in name:
@@ -1217,7 +1357,7 @@ def _write_v27_artifacts(
     (output_folder / "incremental_information_report.md").write_text("\n".join(incremental_lines) + "\n", encoding="utf-8")
 
     rejected = pd.DataFrame([
-        {"feature": "refill/depth/book imbalance", "reason": "Historia X10 no ha demostrado un stream Level 2 reproducible.", "evidence": "No se aproxima ni simula order book.", "revisit": "Sólo tras prueba determinista add/modify/cancel."},
+        {"feature": "same-order refill/survival", "reason": "Requiere identidad MBO, no sólo profundidad agregada.", "evidence": "El detector v5 sí captura geometría MBP top-5; no atribuye eventos a órdenes individuales.", "revisit": "Sólo si la familia DOM_GEOMETRY justifica comprar más MBO."},
         {"feature": "actual fill slippage", "reason": "El exporter actual registra entrada simulada al precio de señal.", "evidence": "Signal_To_Entry_Directional_Drift_Ticks no representa un fill real.", "revisit": "Con fills reales de la estrategia y timestamps comparables."},
         {"feature": "post-burst response as same-entry predictor", "reason": "Disponible después de la decisión.", "evidence": "burst_response_events.csv está marcado POST_BURST_ONLY.", "revisit": "En una estrategia futura de confirmación retrasada."},
     ])
@@ -1246,6 +1386,7 @@ def run_analysis(results_folder: Path, output_folder: Path | None = None) -> dic
 
     identity = [
         "fecha", "BurstId", "prediction_timestamp", "burst_event_timestamp", "burst_timestamp", "split", "family", "family_reason",
+        "family_ordinal", "path_mae_fraction_of_sl", "path_mfe_fraction_of_tp", "variable_path_shape",
         "ExecutionSide", "BurstSide", "Entry_price", "Initial_SL_ticks", "Initial_TP_ticks",
         "Result_Label", "result TP SL BE", "MAE_ticks", "MFE_ticks", "ExitTime_NY_Milliseconds",
         "causal_row_flag", "canonical_source_file",

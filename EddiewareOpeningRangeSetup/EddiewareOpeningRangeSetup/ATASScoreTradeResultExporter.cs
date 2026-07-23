@@ -4079,6 +4079,7 @@ namespace ATAS.Indicators
 
         private string ReadTelegramRunEtaLine()
         {
+            var lines = new List<string>();
             try
             {
                 var path = Path.Combine(_exportFolder, "telegram_run_eta.txt");
@@ -4086,7 +4087,15 @@ namespace ATAS.Indicators
                 {
                     var value = File.ReadAllText(path).Trim();
                     if (!string.IsNullOrWhiteSpace(value))
-                        return value;
+                        lines.Add(value);
+                }
+
+                var hypothesisPath = Path.Combine(_exportFolder, "telegram_lb_hypothesis.txt");
+                if (File.Exists(hypothesisPath))
+                {
+                    var value = File.ReadAllText(hypothesisPath).Trim();
+                    if (!string.IsNullOrWhiteSpace(value))
+                        lines.Add(value);
                 }
             }
             catch
@@ -4094,7 +4103,9 @@ namespace ATAS.Indicators
                 // Reporting only: an ETA read must never affect the trade result.
             }
 
-            return "Tiempo restante corrida: CALCULANDO";
+            if (lines.Count == 0)
+                lines.Add("Tiempo restante corrida: CALCULANDO");
+            return string.Join(Environment.NewLine, lines);
         }
 
         // Balance corrido persistido por fecha (idempotente: X1/X10/re-runs de la
