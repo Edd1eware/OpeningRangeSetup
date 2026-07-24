@@ -1,0 +1,25 @@
+[1/6] audited NQ_MBO_SNAPSHOT_2022-04-05_LB_20220405_093200_BUY_0001: reconciliation=100.0000% left_censored=0.0000% gate=PASS
+[2/6] audited NQ_MBO_SNAPSHOT_2022-08-31_LB_20220831_093400_SELL_0001: reconciliation=100.0000% left_censored=0.0000% gate=PASS
+[3/6] audited NQ_MBO_SNAPSHOT_2023-05-18_LB_20230518_093436_BUY_0001: reconciliation=100.0000% left_censored=0.0000% gate=PASS
+[4/6] audited NQ_MBO_SNAPSHOT_2023-08-29_LB_20230829_093105_SELL_0001: reconciliation=100.0000% left_censored=0.0000% gate=PASS
+[5/6] audited NQ_MBO_SNAPSHOT_2024-05-02_LB_20240502_093112_SELL_0001: reconciliation=100.0000% left_censored=0.0000% gate=PASS
+[6/6] audited NQ_MBO_SNAPSHOT_2024-07-16_LB_20240716_093212_BUY_0001: reconciliation=100.0000% left_censored=0.0000% gate=PASS
+{
+  "created_at_utc": "2026-07-24T02:36:29.898304+00:00",
+  "sessions": 6,
+  "total_records": 12759652,
+  "total_bytes": 256314607,
+  "snapshot_sessions_passed": 6,
+  "contract_sessions_passed": 6,
+  "bad_book_rows": 0,
+  "sequence_regressions": 0,
+  "minimum_internal_reconciliation_pct": 100.0,
+  "maximum_left_censored_order_pct": 0.0,
+  "attacked_levels_sessions_passed": 6,
+  "cutoff_sessions_passed": 6,
+  "footprint_atas_comparison_used_as_gate": false,
+  "technical_gate_passed": true,
+  "next_action": "REQUEST_AUTHORIZATION_FOR_REMAINING_18",
+  "csv_output": "contexto_features_atas\\MBO_SNAPSHOT_TECHNICAL_6_AUDIT_20260723.csv",
+  "md_output": "contexto_features_atas\\MBO_SNAPSHOT_TECHNICAL_6_AUDIT_20260723.md"
+}

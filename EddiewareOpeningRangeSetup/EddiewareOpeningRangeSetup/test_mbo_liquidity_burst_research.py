@@ -40,7 +40,45 @@ class MboFeatureTests(unittest.TestCase):
     def test_fill_paired_cancel_is_not_double_counted(self):
         frame = sample_frame()
         self.assertFalse(bool(frame.loc[2, "pure_cancel"]))
+        self.assertEqual(frame.loc[2, "fill_cancel_relation"], "EXACT_GROUP_FILL_C_MATCH")
         self.assertTrue(bool(frame.loc[4, "pure_cancel"]))
+
+    def test_multiple_unit_fills_match_one_aggregate_cancel(self):
+        timestamp = pd.Timestamp("2024-01-01T00:00:00.050Z")
+        frame = pd.DataFrame(
+            {
+                "ts_event": [timestamp, timestamp, timestamp],
+                "action": ["F", "F", "C"],
+                "side": ["B", "B", "B"],
+                "price": [100.0, 100.0, 100.0],
+                "size": [1.0, 1.0, 2.0],
+                "order_id": np.array([7, 7, 7], dtype="uint64"),
+            }
+        )
+        marked = mark_pure_cancels(frame)
+        self.assertFalse(bool(marked.loc[2, "pure_cancel"]))
+        self.assertTrue(
+            marked["fill_cancel_relation"].eq("EXACT_GROUP_FILL_C_MATCH").all()
+        )
+
+    def test_quantity_mismatch_is_ambiguous_not_pure_cancel(self):
+        timestamp = pd.Timestamp("2024-01-01T00:00:00.050Z")
+        frame = pd.DataFrame(
+            {
+                "ts_event": [timestamp, timestamp],
+                "action": ["F", "C"],
+                "side": ["B", "B"],
+                "price": [100.0, 100.0],
+                "size": [1.0, 2.0],
+                "order_id": np.array([8, 8], dtype="uint64"),
+            }
+        )
+        marked = mark_pure_cancels(frame)
+        self.assertFalse(bool(marked.loc[1, "pure_cancel"]))
+        self.assertEqual(
+            marked.loc[1, "fill_cancel_relation"],
+            "AMBIGUOUS_FILL_C_QUANTITY_MISMATCH",
+        )
 
     def test_lifecycle_and_refill_are_causal(self):
         frame = sample_frame()

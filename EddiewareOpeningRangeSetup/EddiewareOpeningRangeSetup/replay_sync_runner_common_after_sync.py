@@ -1297,7 +1297,9 @@ def _send_stage_progress(progress_meta, *, done, total, passed, failed,
     if hypothesis_root:
         try:
             monitor_kind = str(progress_meta.get("hypothesis_monitor_kind", "dom")).strip().lower()
-            if monitor_kind == "matrix_classification":
+            if monitor_kind == "matrix_mbo":
+                from lb_matrix_mbo_monitor import update_status_file
+            elif monitor_kind == "matrix_classification":
                 from lb_matrix_classification_monitor import update_status_file
             elif monitor_kind == "causal_sequence":
                 from lb_causal_sequence_monitor import update_status_file

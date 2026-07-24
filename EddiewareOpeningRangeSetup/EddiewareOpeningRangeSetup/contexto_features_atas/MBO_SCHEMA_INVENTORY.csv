@@ -1,0 +1,25 @@
+dataset_version,source_format,field,dtype,meaning,information_status,coverage_rows,coverage_pct,session_coverage,notes
+DATABENTO_MBO_PILOT100_RAW,DBN zstd,ts_recv,"datetime64[ns, UTC]",capture-server receive time,explicit,1274719.0,100.0,100/100,Raw MBO; no snapshot records in requested windows.
+DATABENTO_MBO_PILOT100_RAW,DBN zstd,ts_event,"datetime64[ns, UTC]",matching-engine receive time,explicit,1274719.0,100.0,100/100,Raw MBO; no snapshot records in requested windows.
+DATABENTO_MBO_PILOT100_RAW,DBN zstd,rtype,uint8,record type; observed 160,explicit,1274719.0,100.0,100/100,Raw MBO; no snapshot records in requested windows.
+DATABENTO_MBO_PILOT100_RAW,DBN zstd,publisher_id,uint16,venue/dataset publisher,explicit,1274719.0,100.0,100/100,Raw MBO; no snapshot records in requested windows.
+DATABENTO_MBO_PILOT100_RAW,DBN zstd,instrument_id,uint32,numeric instrument identity,explicit,1274719.0,100.0,100/100,Raw MBO; no snapshot records in requested windows.
+DATABENTO_MBO_PILOT100_RAW,DBN zstd,action,string,A/C/M/F/T/R/N event code,explicit,1274719.0,100.0,100/100,Raw MBO; no snapshot records in requested windows.
+DATABENTO_MBO_PILOT100_RAW,DBN zstd,side,string,resting side or aggressor side,explicit,1274719.0,100.0,100/100,Raw MBO; no snapshot records in requested windows.
+DATABENTO_MBO_PILOT100_RAW,DBN zstd,price,float64,event/order price,explicit,1274719.0,100.0,100/100,Raw MBO; no snapshot records in requested windows.
+DATABENTO_MBO_PILOT100_RAW,DBN zstd,size,uint32,event/order quantity per action semantics,explicit,1274719.0,100.0,100/100,Raw MBO; no snapshot records in requested windows.
+DATABENTO_MBO_PILOT100_RAW,DBN zstd,channel_id,uint8,Databento normalized channel,explicit,1274719.0,100.0,100/100,Raw MBO; no snapshot records in requested windows.
+DATABENTO_MBO_PILOT100_RAW,DBN zstd,order_id,uint64,venue order identifier,explicit,1274719.0,100.0,100/100,Raw MBO; no snapshot records in requested windows.
+DATABENTO_MBO_PILOT100_RAW,DBN zstd,flags,uint8,event boundary and quality bit field,explicit,1274719.0,100.0,100/100,Raw MBO; no snapshot records in requested windows.
+DATABENTO_MBO_PILOT100_RAW,DBN zstd,ts_in_delta,int32,matching-engine send offset before ts_recv,explicit,1274719.0,100.0,100/100,Raw MBO; no snapshot records in requested windows.
+DATABENTO_MBO_PILOT100_RAW,DBN zstd,sequence,uint32,venue message sequence,explicit,1274719.0,100.0,100/100,Raw MBO; no snapshot records in requested windows.
+DATABENTO_MBO_PILOT100_RAW,DBN zstd,symbol,string,requested continuous symbol mapping,explicit,1274719.0,100.0,100/100,Raw MBO; no snapshot records in requested windows.
+DATABENTO_MBO_PILOT100_RAW,DBN zstd,raw_ordinal,int64,physical order in decoded DBN,derived without reordering,1274719.0,100.0,100/100,Raw MBO; no snapshot records in requested windows.
+ATAS_BOOKRECORDER_MBP,CSV,time_ny,string HH:mm:ss.fff,ATAS event time converted to New York,explicit_aggregated,,,92/100,"Millisecond, no sequence, no order identity, source clock kind not persisted."
+ATAS_BOOKRECORDER_MBP,CSV,side,string,Bid/Ask,explicit_aggregated,,,92/100,"Millisecond, no sequence, no order identity, source clock kind not persisted."
+ATAS_BOOKRECORDER_MBP,CSV,price,decimal,price level,explicit_aggregated,,,92/100,"Millisecond, no sequence, no order identity, source clock kind not persisted."
+ATAS_BOOKRECORDER_MBP,CSV,volume,decimal,new aggregate resting size,explicit_aggregated,,,92/100,"Millisecond, no sequence, no order identity, source clock kind not persisted."
+ATAS_BOOKRECORDER_TAPE,CSV,time_ny,string HH:mm:ss.fff,ATAS trade time converted to New York,explicit_trade,,,92/100,"Millisecond, no sequence, no receive/export timestamp."
+ATAS_BOOKRECORDER_TAPE,CSV,price,decimal,trade price,explicit_trade,,,92/100,"Millisecond, no sequence, no receive/export timestamp."
+ATAS_BOOKRECORDER_TAPE,CSV,volume,decimal,trade quantity,explicit_trade,,,92/100,"Millisecond, no sequence, no receive/export timestamp."
+ATAS_BOOKRECORDER_TAPE,CSV,direction,string,Buy/Sell/Between,explicit_trade,,,92/100,"Millisecond, no sequence, no receive/export timestamp."

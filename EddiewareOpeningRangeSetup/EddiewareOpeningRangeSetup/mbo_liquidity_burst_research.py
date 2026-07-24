@@ -81,6 +81,47 @@ CORE_MBO_FEATURES = [
     "near_w3_reuse_order_id_share",
 ]
 
+# Frozen interpretation of the 12 predictors after the direct MBO capability
+# audit.  This is reporting metadata, not an additional feature family.
+CORE_MBO_FEATURE_STATUS = {
+    "burst_w1_passive_add_size": ("EXPLICIT", "A size at the displayed burst-side level"),
+    "burst_w1_passive_pure_cancel_size": (
+        "INFERRED_DEFENSIBLE",
+        "C with no F for the same order/exchange-time/price; economic intent is not observed",
+    ),
+    "burst_w1_passive_fill_size": ("EXPLICIT", "F size of resting orders; never added to T size"),
+    "burst_w1_new_order_survival_share": (
+        "INFERRED_RIGHT_CENSORED",
+        "Only orders whose A is observed inside the downloaded window",
+    ),
+    "burst_w1_short_lived_250ms_share": (
+        "INFERRED_COMPLETE_CYCLES_ONLY",
+        "Only cycles beginning with an observed A and ending before cutoff",
+    ),
+    "burst_w1_refill_100ms_share": (
+        "INFERRED_LEVEL_REPLENISHMENT",
+        "A at the same side/price after removal; does not prove same participant",
+    ),
+    "burst_w3_cancel_to_add_size": (
+        "INFERRED_CANCEL_EXPLICIT_ADD",
+        "C cause inferred; A explicit; no initial-book denominator",
+    ),
+    "near_w1_add_size_side_imbalance": ("EXPLICIT_DERIVED", "A sizes by displayed side"),
+    "near_w1_pure_cancel_size_side_imbalance": (
+        "INFERRED_DEFENSIBLE",
+        "C without same-key F, compared by side",
+    ),
+    "near_w1_fill_size_side_imbalance": ("EXPLICIT_DERIVED", "F sizes by resting side"),
+    "near_w3_orderbook_message_rate": (
+        "MIXED_EXPLICIT_INFERRED",
+        "A/M explicit plus inferred pure-C count",
+    ),
+    "near_w3_reuse_order_id_share": (
+        "EXPLICIT_WINDOW_ONLY",
+        "Repeated observed messages per ID; not participant identity",
+    ),
+}
+
 
 def safe_ratio(numerator: float, denominator: float) -> float:
     return float(numerator / denominator) if denominator > 0 else np.nan
@@ -103,19 +144,52 @@ def bh_adjust(p_values: pd.Series) -> pd.Series:
 
 
 def mark_pure_cancels(frame: pd.DataFrame) -> pd.DataFrame:
-    """Distinguish true cancels from the C record paired with a fill."""
+    """Classify C conservatively against grouped F records.
+
+    CME can emit several unit F records followed by one aggregate C, so a
+    row-for-row match is invalid.  ``pure_cancel`` is true only when no F
+    exists for the same order, exchange timestamp, and price.  Quantity
+    mismatches remain ambiguous and are excluded from pure cancellations.
+    """
     frame = frame.copy()
-    fill_pairs = set(
-        zip(
-            frame.loc[frame["action"].eq("F"), "order_id"].astype("uint64"),
-            frame.loc[frame["action"].eq("F"), "ts_event"],
-            strict=False,
-        )
+    frame["fill_cancel_relation"] = "NOT_APPLICABLE"
+    relevant = frame["action"].isin(["F", "C"])
+    keys = ["order_id", "ts_event", "price"]
+    grouped = (
+        frame.loc[relevant]
+        .groupby([*keys, "action"], sort=False)["size"]
+        .sum()
+        .unstack("action")
+        .fillna(0.0)
+        .astype(float)
     )
-    frame["pure_cancel"] = [
-        action == "C" and (np.uint64(order_id), timestamp) not in fill_pairs
-        for action, order_id, timestamp in zip(frame["action"], frame["order_id"], frame["ts_event"], strict=True)
-    ]
+    if "F" not in grouped:
+        grouped["F"] = 0.0
+    if "C" not in grouped:
+        grouped["C"] = 0.0
+    grouped["relation"] = np.select(
+        [
+            grouped["F"].gt(0) & grouped["C"].gt(0) & np.isclose(grouped["F"], grouped["C"]),
+            grouped["F"].gt(0) & grouped["C"].gt(0),
+            grouped["F"].gt(0),
+            grouped["C"].gt(0),
+        ],
+        [
+            "EXACT_GROUP_FILL_C_MATCH",
+            "AMBIGUOUS_FILL_C_QUANTITY_MISMATCH",
+            "FILL_WITHOUT_C_SAME_KEY",
+            "C_WITHOUT_FILL_SAME_KEY",
+        ],
+        default="NOT_APPLICABLE",
+    )
+    if relevant.any():
+        relation_lookup = grouped["relation"]
+        event_keys = pd.MultiIndex.from_frame(frame.loc[relevant, keys])
+        frame.loc[relevant, "fill_cancel_relation"] = relation_lookup.reindex(event_keys).to_numpy()
+    frame["pure_cancel"] = (
+        frame["action"].eq("C")
+        & frame["fill_cancel_relation"].eq("C_WITHOUT_FILL_SAME_KEY")
+    )
     return frame
 
 
@@ -126,7 +200,10 @@ def load_causal_mbo(path: Path, cutoff: pd.Timestamp) -> tuple[pd.DataFrame, int
     frame["ts_event"] = pd.to_datetime(frame["ts_event"], utc=True)
     frame["price"] = pd.to_numeric(frame["price"], errors="coerce")
     frame["size"] = pd.to_numeric(frame["size"], errors="coerce").fillna(0.0).astype(float)
-    frame = frame.sort_values(["ts_event", "sequence"], kind="stable").reset_index(drop=True)
+    frame["raw_ordinal"] = np.arange(len(frame), dtype=np.int64)
+    frame = frame.sort_values(
+        ["ts_event", "sequence", "raw_ordinal"], kind="stable"
+    ).reset_index(drop=True)
     raw_rows = len(frame)
     frame = frame.loc[frame["ts_event"].le(cutoff)].copy().reset_index(drop=True)
     frame["sequence_index_local"] = np.arange(len(frame))
@@ -349,6 +426,22 @@ def extract_event_features(row: pd.Series, mbo_dir: Path) -> dict[str, object]:
         "mbo_first_ts_event": full["ts_event"].min().isoformat(),
         "mbo_last_ts_event": full["ts_event"].max().isoformat(),
         "mbo_causal_max_ok": float(full["ts_event"].max() <= cutoff),
+        "mbo_unique_order_ids": float(full["order_id"].nunique()),
+        "mbo_first_action_add_share": float(
+            full.groupby("order_id", sort=False)["action"].first().eq("A").mean()
+        ),
+        "mbo_left_censored_order_share": float(
+            full.groupby("order_id", sort=False)["action"].first().ne("A").mean()
+        ),
+        "mbo_snapshot_rows": float(((pd.to_numeric(full["flags"], errors="coerce").fillna(0).astype(int) & 32) != 0).sum()),
+        "mbo_bad_book_rows": float(((pd.to_numeric(full["flags"], errors="coerce").fillna(0).astype(int) & 4) != 0).sum()),
+        "mbo_pure_cancel_rows": float(full["pure_cancel"].sum()),
+        "mbo_ambiguous_cancel_fill_rows": float(
+            (
+                full["action"].eq("C")
+                & full["fill_cancel_relation"].eq("AMBIGUOUS_FILL_C_QUANTITY_MISMATCH")
+            ).sum()
+        ),
     }
     for scope in SCOPES:
         scoped = full.loc[scope_mask(full, scope, burst_price, reference)].copy()

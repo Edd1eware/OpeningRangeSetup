@@ -1,0 +1,127 @@
+# AUDITORÍA TÉCNICA — MBO SNAPSHOT 100
+
+Veredicto: **PASA**.
+
+La comparación de footprint ATAS–Databento no se usó como puerta. Toda reconciliación es interna al stream MBO.
+
+## Resumen
+
+- Sesiones: 100/100.
+- Registros: 257,564,810.
+- Snapshot válido: 100/100.
+- Contrato raw/instrument_id válido: 100/100.
+- F_MAYBE_BAD_BOOK: 0.
+- Retrocesos de sequence: 0.
+- Reconciliación interna mínima: 99.9992%.
+- Censura izquierda máxima: 0.0013%.
+- L0:L2 atacados reconstruibles: 100/100.
+- Cutoff causal válido: 100/100.
+
+## Resultado por sesión
+
+| Fecha | Contrato | Snapshot | Reconciliación | Censura izq. | L0:L2 | Gate |
+|---|---|---:|---:|---:|---:|---:|
+| 2022-04-05 | NQM2 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2022-04-06 | NQM2 | PASS | 99.9999% | 0.0001% | PASS | PASS |
+| 2022-04-26 | NQM2 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2022-04-27 | NQM2 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2022-05-04 | NQM2 | PASS | 99.9999% | 0.0001% | PASS | PASS |
+| 2022-05-09 | NQM2 | PASS | 100.0000% | 0.0001% | PASS | PASS |
+| 2022-05-18 | NQM2 | PASS | 99.9999% | 0.0001% | PASS | PASS |
+| 2022-05-20 | NQM2 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2022-05-23 | NQM2 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2022-05-27 | NQM2 | PASS | 99.9999% | 0.0001% | PASS | PASS |
+| 2022-06-08 | NQM2 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2022-06-13 | NQM2 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2022-06-27 | NQU2 | PASS | 99.9999% | 0.0001% | PASS | PASS |
+| 2022-07-18 | NQU2 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2022-07-19 | NQU2 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2022-07-20 | NQU2 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2022-07-26 | NQU2 | PASS | 99.9999% | 0.0002% | PASS | PASS |
+| 2022-07-29 | NQU2 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2022-08-01 | NQU2 | PASS | 99.9998% | 0.0003% | PASS | PASS |
+| 2022-08-04 | NQU2 | PASS | 99.9999% | 0.0001% | PASS | PASS |
+| 2022-08-09 | NQU2 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2022-08-15 | NQU2 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2022-08-17 | NQU2 | PASS | 99.9999% | 0.0001% | PASS | PASS |
+| 2022-08-31 | NQU2 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2022-09-01 | NQU2 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2022-09-06 | NQU2 | PASS | 99.9999% | 0.0001% | PASS | PASS |
+| 2022-09-28 | NQZ2 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2022-10-11 | NQZ2 | PASS | 100.0000% | 0.0001% | PASS | PASS |
+| 2022-10-18 | NQZ2 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2022-10-25 | NQZ2 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2022-10-26 | NQZ2 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2022-10-27 | NQZ2 | PASS | 100.0000% | 0.0001% | PASS | PASS |
+| 2022-10-28 | NQZ2 | PASS | 99.9992% | 0.0013% | PASS | PASS |
+| 2022-11-03 | NQZ2 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-03-21 | NQM3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-03-28 | NQM3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-04-03 | NQM3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-04-04 | NQM3 | PASS | 99.9999% | 0.0002% | PASS | PASS |
+| 2023-04-19 | NQM3 | PASS | 99.9999% | 0.0001% | PASS | PASS |
+| 2023-04-26 | NQM3 | PASS | 99.9999% | 0.0001% | PASS | PASS |
+| 2023-05-03 | NQM3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-05-11 | NQM3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-05-18 | NQM3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-05-22 | NQM3 | PASS | 99.9999% | 0.0002% | PASS | PASS |
+| 2023-05-26 | NQM3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-05-31 | NQM3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-06-05 | NQM3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-06-13 | NQM3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-06-22 | NQU3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-06-23 | NQU3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-06-30 | NQU3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-07-18 | NQU3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-07-20 | NQU3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-07-27 | NQU3 | PASS | 99.9999% | 0.0001% | PASS | PASS |
+| 2023-08-08 | NQU3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-08-24 | NQU3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-08-25 | NQU3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-08-29 | NQU3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-08-31 | NQU3 | PASS | 99.9999% | 0.0001% | PASS | PASS |
+| 2023-09-05 | NQU3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-09-07 | NQU3 | PASS | 99.9999% | 0.0002% | PASS | PASS |
+| 2023-09-14 | NQZ3 | PASS | 99.9999% | 0.0002% | PASS | PASS |
+| 2023-09-15 | NQZ3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-09-19 | NQZ3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-09-22 | NQZ3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-09-26 | NQZ3 | PASS | 99.9999% | 0.0001% | PASS | PASS |
+| 2023-09-27 | NQZ3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-10-02 | NQZ3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-10-16 | NQZ3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-10-27 | NQZ3 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2023-11-02 | NQZ3 | PASS | 99.9999% | 0.0001% | PASS | PASS |
+| 2024-03-18 | NQM4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-04-02 | NQM4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-04-04 | NQM4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-04-05 | NQM4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-04-09 | NQM4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-04-17 | NQM4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-04-18 | NQM4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-04-23 | NQM4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-04-26 | NQM4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-05-02 | NQM4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-05-03 | NQM4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-05-10 | NQM4 | PASS | 99.9999% | 0.0002% | PASS | PASS |
+| 2024-05-20 | NQM4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-05-28 | NQM4 | PASS | 99.9998% | 0.0003% | PASS | PASS |
+| 2024-06-05 | NQM4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-06-06 | NQM4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-06-11 | NQM4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-06-13 | NQM4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-06-14 | NQM4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-07-08 | NQU4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-07-12 | NQU4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-07-16 | NQU4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-07-18 | NQU4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-07-22 | NQU4 | PASS | 99.9999% | 0.0002% | PASS | PASS |
+| 2024-07-26 | NQU4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-07-30 | NQU4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-08-08 | NQU4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-08-13 | NQU4 | PASS | 100.0000% | 0.0000% | PASS | PASS |
+| 2024-08-14 | NQU4 | PASS | 99.9999% | 0.0001% | PASS | PASS |
+
+## Alcance del veredicto
+
+PASA sólo significa que los datos permiten construir causalmente las ocho features preregistradas. No demuestra todavía separación entre absorción y breakout.

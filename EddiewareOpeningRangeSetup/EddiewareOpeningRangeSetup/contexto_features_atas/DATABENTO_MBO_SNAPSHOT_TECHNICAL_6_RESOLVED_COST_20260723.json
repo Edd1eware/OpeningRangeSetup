@@ -1,0 +1,13 @@
+{
+  "created_at_utc": "2026-07-24T02:23:19.982683+00:00",
+  "manifest_rows": 6,
+  "metadata_cost_requests_performed": 6,
+  "market_data_downloaded": false,
+  "billable_download_performed": false,
+  "estimated_total_cost_usd": 1.433332183957,
+  "estimated_mean_cost_usd": 0.23888869732616666,
+  "estimated_min_cost_usd": 0.177762423456,
+  "estimated_max_cost_usd": 0.300296352804,
+  "manifest": "contexto_features_atas\\DATABENTO_MBO_SNAPSHOT_TECHNICAL_6_RESOLVED_20260723.csv",
+  "detail_output": "contexto_features_atas\\DATABENTO_MBO_SNAPSHOT_TECHNICAL_6_RESOLVED_COST_DETAIL_20260723.csv"
+}

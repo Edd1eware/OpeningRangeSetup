@@ -1,0 +1,42 @@
+check,evidence,passed
+MANIFEST_100_UNIQUE,100 fechas/BurstId,True
+DISCOVERY_ONLY,validation=0 holdout=0,True
+TEMPORAL_COVERAGE,"years={2022: 34, 2023: 37, 2024: 29}",True
+FAMILY_COVERAGE,"families={'B_CLEAN_BREAKOUT': 41, 'C_MIXED_PATH': 30, 'A_TRUE_ABSORPTION': 29}",True
+MBO_FILES_100,files=100,True
+MBO_RAW_SCHEMA,order_id/actions/timestamps/flags/sequence,True
+MBO_NO_BAD_BOOK,F_MAYBE_BAD_BOOK rows=0,True
+MBO_WITHIN_REQUEST,rows at/after end=0,True
+MBO_ACTIONS,"actions={'C': 494465, 'A': 485688, 'M': 158532, 'F': 80925, 'T': 55109}",True
+MBO_CENSORSHIP_EXPLICIT,snapshot=0 clear=0,True
+MBO_CAPABILITY_VERDICT_B,B. SIRVEN PARCIALMENTE,True
+MBO_QUALITY_100,quality rows=100,True
+MBO_FINAL_MS_EXCLUDED,same-ms tie rows=595,True
+MBO_NO_ROWS_AFTER_END,at/after request end=0,True
+MBO_INITIAL_QUEUE_PROHIBITED,classification=['NO_DISPONIBLE'],True
+MBO_GROUPED_FILL_CANCEL,F/C grouped by order+exchange-time+price,True
+MBO_CORE_12_FROZEN,12 features + status metadata,True
+MBO_NO_QUEUE_PREDICTOR,no queue feature in MBO_CORE,True
+MBP_METADATA_100,C:\Users\k_99_\Desktop\codding\OpeningRangeSetup\EddiewareOpeningRangeSetup\EddiewareOpeningRangeSetup\outputs\preentry_liquidity_features_20260720_preentry_r2\preentry_mbp_feature_ledger.csv,True
+DETECTOR_VERSION,liquidity-burst-detector-2026-07-22-v7-postburst-matrix,True
+POST_LB_EXPORT_BOUND,"start=max(configured,t_burst)",True
+DECISION_EXPORT_BOUND,event<=t_decision,True
+MBO_CAUSAL_BOUND,ts_event<=cutoff,True
+MATRIX_CAUSAL_BOUND,matrix.audit_timeline,True
+OUTCOMES_JOINED_LAST,predictors before target,True
+FROZEN_COMBINATIONS,7 exact families,True
+LOYO_FIXED_MODEL,LOYO years; C=0.2,True
+PERMUTATION_BOOTSTRAP,1000 + 1000,True
+NO_OUTCOME_IN_TRADING,analysis observational,True
+TELEGRAM_LABEL,ETIQUETA MATRIX+MBO,True
+TELEGRAM_CAPABILITY_B,explicit/inferred/censored limitations,True
+FINAL_VERDICT_FROZEN,NO SOY CAPAZ DE SEPARAR UNA ABSORCION DE UN BREAKOUT LIMPIO,True
+WORKSPACE_DETECTOR,LiquidityBurstDetector attached,True
+DLL_INSTALLED,installed DLL equals current build,True
+X10_ONLY,X10_R1 only,True
+DATES_MATCH_MANIFEST,100 manifest dates,True
+TECHNICAL_GATE,"dates=['05/04/2022', '06/04/2022', '26/04/2022', '27/04/2022']",True
+ISOLATED_ROOT,new/owned R1 root,True
+PROTOCOL_PRESENT,C:\Users\k_99_\Desktop\codding\OpeningRangeSetup\EddiewareOpeningRangeSetup\EddiewareOpeningRangeSetup\contexto_features_atas\PROTOCOLO_CORRIDA_MATRIX_MBO_POST_AUDITORIA_R2_20260723.md,True
+EXPLICIT_LAUNCH_AUTHORIZATION,--authorized-launch required,True
+MONITOR_REFRESH_EVERY_SESSION,progress_every=1,True
