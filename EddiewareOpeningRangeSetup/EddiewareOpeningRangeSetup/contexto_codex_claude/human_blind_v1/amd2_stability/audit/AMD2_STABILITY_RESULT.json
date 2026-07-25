@@ -1,0 +1,29 @@
+{
+  "protocol": "HUMAN_BLIND_V1_AMD2_STABILITY_V1",
+  "outcome_loaded": false,
+  "mapping_loaded": false,
+  "primary_endpoint": {
+    "original_ab_denominator": 62,
+    "flips": 9,
+    "flip_rate": 0.14516129032258066,
+    "threshold_max": 0.1,
+    "pass": false
+  },
+  "secondary": {
+    "exact_consensus_all_98": 82,
+    "exact_consensus_all_98_rate": 0.8367346938775511,
+    "new_consensus_ab": 60,
+    "new_consensus_counts": {
+      "A": 27,
+      "B": 33,
+      "C": 38
+    }
+  },
+  "input_sha256": {
+    "original_consensus": "d3ca0d8238b0698b913dbe4b782f99076691027b886f96a416a3e15152b971a3",
+    "claude_perturbed": "8681a33200ebe9598335042501db491c2866b47edd3fd5ddd2d5d269e3e0399d",
+    "codex_perturbed": "b0ef4fb1779442771185bb2d5e1cb64260d1a2cbf8ca5ddb17cf2b90fa95a5ce"
+  },
+  "interpretation_limit": "This measures stability to a cosmetic render perturbation only; it does not measure predictive separation or correctness.",
+  "cases_output_sha256": "3f0c493505eb3231069ea6034cbd33dc9c42b172e611319d80d103923ae35749"
+}

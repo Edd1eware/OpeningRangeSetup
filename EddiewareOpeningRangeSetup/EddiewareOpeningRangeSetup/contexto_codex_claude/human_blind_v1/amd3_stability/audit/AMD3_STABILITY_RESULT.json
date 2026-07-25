@@ -1,0 +1,35 @@
+{
+  "protocol": "HUMAN_BLIND_V1_AMD3_STABILITY_V1",
+  "outcome_loaded": false,
+  "mapping_loaded": false,
+  "primary_endpoint": {
+    "stable_core_ab_denominator": 53,
+    "flips": 7,
+    "flip_rate": 0.1320754716981132,
+    "threshold_max": 0.1,
+    "pass": false
+  },
+  "secondary": {
+    "directional_a_b_flips": 0,
+    "perturbation2_consensus_counts": {
+      "A": 18,
+      "B": 36,
+      "C": 44
+    },
+    "transitions": {
+      "A_to_A": 13,
+      "A_to_C": 7,
+      "B_to_B": 33,
+      "C_to_A": 5,
+      "C_to_B": 3,
+      "C_to_C": 37
+    }
+  },
+  "input_sha256": {
+    "stable_core": "a9ed1568d5274a6b881aac00d74c8022da253af25da329ed809900708b80e68e",
+    "claude_perturbation2": "0031255c285cd79a098691a6ade7639db0911ca790fd1bb291b91782a5fe9920",
+    "codex_perturbation2": "00b4a8298ea9cf57ac9fca97c1c4863bedaf4648390dbeebfbc056ce6154090c"
+  },
+  "cases_output_sha256": "f4cc303032436be51a6aadafd42f870324bb9c0b9ff5a044c2ed61445061a667",
+  "interpretation_limit": "Stability is not predictive separation. Outcome remains sealed unless the primary gate passes."
+}

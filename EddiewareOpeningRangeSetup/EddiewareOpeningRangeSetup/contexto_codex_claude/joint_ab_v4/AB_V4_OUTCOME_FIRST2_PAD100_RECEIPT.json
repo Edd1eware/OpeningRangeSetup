@@ -1,0 +1,83 @@
+{
+  "started_at_utc": "2026-07-24T17:32:28.017314+00:00",
+  "authorized_total_cap_usd": 5.93,
+  "additional_quote_usd": 0.111598911882,
+  "new_worst_case_total_usd": 5.922336065770001,
+  "rows": {
+    "NQ_JOINT_AB_V4_MBO_2022-04-05_LB_20220405_093200_BUY_0001_PAD100MS": {
+      "status": "downloaded",
+      "path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\databento_mbo\\joint_ab_v4_outcome98_20260724\\NQ_JOINT_AB_V4_MBO_2022-04-05_LB_20220405_093200_BUY_0001_PAD100MS.mbo.dbn.zst",
+      "sha256": "4ad15946c073c790035b24c2a94541d83e4fd75e2f4d9cdea1c892494ada82f5",
+      "legacy_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\databento_mbo\\joint_ab_v4_outcome98_20260724\\NQ_JOINT_AB_V4_MBO_2022-04-05_LB_20220405_093200_BUY_0001.mbo.dbn.zst",
+      "legacy_sha256": "89a09cf2c47c62f1efc3fe20994e6387492e8ae0343882333c07c9a28997a984",
+      "estimated_cost_usd": 0.050874182582,
+      "bytes": 131463,
+      "records": 6820,
+      "t_records": 288,
+      "t_match_events": 244,
+      "used_t_match_events": 236,
+      "unclosed_used_t_match_events": 0,
+      "mixed_timestamp_used_t_match_events": 0,
+      "multi_sequence_used_t_match_events": 200,
+      "maybe_bad_book_records": 0,
+      "sequence_regressions": 0,
+      "instrument_ids": [
+        2895
+      ],
+      "symbols": [
+        "NQM2"
+      ],
+      "ts_recv_min": "2022-04-05T13:32:00.926286745+00:00",
+      "ts_recv_max": "2022-04-05T13:32:06.124784909+00:00",
+      "ts_event_min": "2022-04-05T13:32:00.926200891+00:00",
+      "ts_event_max": "2022-04-05T13:32:06.124688799+00:00",
+      "p0_ts_event": "2022-04-05T13:32:01.025458357+00:00",
+      "p0_price": 15134.0,
+      "p0_lag_ms": 0.541,
+      "post_t_match_events": 235,
+      "last_post_price": 15133.0,
+      "transport_padding_records_never_labeled": 29,
+      "information_status": "OUTCOME_ONLY_NEVER_PREDICTOR"
+    },
+    "NQ_JOINT_AB_V4_MBO_2022-04-06_LB_20220406_093100_BUY_0001_PAD100MS": {
+      "status": "downloaded",
+      "path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\databento_mbo\\joint_ab_v4_outcome98_20260724\\NQ_JOINT_AB_V4_MBO_2022-04-06_LB_20220406_093100_BUY_0001_PAD100MS.mbo.dbn.zst",
+      "sha256": "1a73ac4283b2421aee307b44a11723b76d5e5dedac79d2f8f8cb0eb7384248d5",
+      "legacy_path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\databento_mbo\\joint_ab_v4_outcome98_20260724\\NQ_JOINT_AB_V4_MBO_2022-04-06_LB_20220406_093100_BUY_0001.mbo.dbn.zst",
+      "legacy_sha256": "14cf6c1ddb82f1c90dd8521f856971b43e452585fdf592c0b375c6df72e39229",
+      "estimated_cost_usd": 0.0607247293,
+      "bytes": 148907,
+      "records": 7728,
+      "t_records": 338,
+      "t_match_events": 304,
+      "used_t_match_events": 284,
+      "unclosed_used_t_match_events": 0,
+      "mixed_timestamp_used_t_match_events": 0,
+      "multi_sequence_used_t_match_events": 250,
+      "maybe_bad_book_records": 0,
+      "sequence_regressions": 0,
+      "instrument_ids": [
+        2895
+      ],
+      "symbols": [
+        "NQM2"
+      ],
+      "ts_recv_min": "2022-04-06T13:31:00.905110625+00:00",
+      "ts_recv_max": "2022-04-06T13:31:06.086271193+00:00",
+      "ts_event_min": "2022-04-06T13:31:00.904850019+00:00",
+      "ts_event_max": "2022-04-06T13:31:06.086186401+00:00",
+      "p0_ts_event": "2022-04-06T13:31:01.002502605+00:00",
+      "p0_price": 14642.25,
+      "p0_lag_ms": 1.497,
+      "post_t_match_events": 283,
+      "last_post_price": 14635.25,
+      "transport_padding_records_never_labeled": 130,
+      "information_status": "OUTCOME_ONLY_NEVER_PREDICTOR"
+    }
+  },
+  "completed_at_utc": "2026-07-24T17:32:40.697521+00:00",
+  "valid_sessions": 2,
+  "free_bytes_after": 107126407168,
+  "reserve_10_gib_pass": true,
+  "integrity_pass": true
+}

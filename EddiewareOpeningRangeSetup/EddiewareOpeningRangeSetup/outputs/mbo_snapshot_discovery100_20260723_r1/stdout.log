@@ -1,0 +1,164 @@
+[1/100] LB_20220405_093200_BUY_0001 fill=1.100 withdraw=0.833 durable_refill=0.138
+[2/100] LB_20220406_093100_BUY_0001 fill=1.444 withdraw=3.778 durable_refill=0.021
+[3/100] LB_20220426_093143_SELL_0001 fill=0.250 withdraw=3.250 durable_refill=0.071
+[4/100] LB_20220427_093500_BUY_0001 fill=1.250 withdraw=1.750 durable_refill=0.083
+[5/100] LB_20220504_093301_SELL_0001 fill=0.917 withdraw=1.250 durable_refill=0.115
+[6/100] LB_20220509_093112_BUY_0001 fill=0.000 withdraw=0.500 durable_refill=0.000
+[7/100] LB_20220518_093457_BUY_0001 fill=1.000 withdraw=1.833 durable_refill=0.059
+[8/100] LB_20220520_093501_SELL_0001 fill=1.333 withdraw=2.833 durable_refill=0.040
+[9/100] LB_20220523_093420_SELL_0001 fill=0.857 withdraw=0.857 durable_refill=0.167
+[10/100] LB_20220527_093100_BUY_0001 fill=1.000 withdraw=0.208 durable_refill=0.310
+[11/100] LB_20220608_093102_SELL_0001 fill=1.615 withdraw=0.231 durable_refill=0.167
+[12/100] LB_20220613_093107_SELL_0001 fill=0.600 withdraw=1.600 durable_refill=0.000
+[13/100] LB_20220627_093202_SELL_0001 fill=0.471 withdraw=0.529 durable_refill=0.353
+[14/100] LB_20220718_093105_SELL_0001 fill=0.875 withdraw=1.375 durable_refill=0.167
+[15/100] LB_20220719_093600_SELL_0001 fill=1.200 withdraw=2.200 durable_refill=0.029
+[16/100] LB_20220720_093414_BUY_0001 fill=0.133 withdraw=1.800 durable_refill=0.069
+[17/100] LB_20220726_093111_SELL_0001 fill=1.714 withdraw=1.714 durable_refill=0.083
+[18/100] LB_20220729_093500_SELL_0001 fill=2.833 withdraw=3.333 durable_refill=0.162
+[19/100] LB_20220801_093127_SELL_0001 fill=0.947 withdraw=0.526 durable_refill=0.250
+[20/100] LB_20220804_093511_BUY_0001 fill=0.719 withdraw=0.438 durable_refill=0.189
+[21/100] LB_20220809_093105_SELL_0001 fill=0.636 withdraw=0.545 durable_refill=0.000
+[22/100] LB_20220815_093300_BUY_0001 fill=0.167 withdraw=0.917 durable_refill=0.769
+[23/100] LB_20220817_093558_BUY_0001 fill=0.071 withdraw=0.429 durable_refill=0.000
+[24/100] LB_20220831_093400_SELL_0001 fill=0.917 withdraw=1.000 durable_refill=0.043
+[25/100] LB_20220901_093124_SELL_0002 fill=0.250 withdraw=1.917 durable_refill=0.231
+[26/100] LB_20220906_093405_BUY_0001 fill=2.125 withdraw=3.250 durable_refill=0.000
+[27/100] LB_20220928_093328_SELL_0001 fill=0.722 withdraw=1.944 durable_refill=0.104
+[28/100] LB_20221011_093101_SELL_0001 fill=0.889 withdraw=4.000 durable_refill=0.000
+[29/100] LB_20221018_093155_SELL_0001 fill=0.444 withdraw=1.111 durable_refill=0.000
+[30/100] LB_20221025_093119_BUY_0001 fill=0.500 withdraw=0.643 durable_refill=0.000
+[31/100] LB_20221026_093108_SELL_0002 fill=0.900 withdraw=0.300 durable_refill=0.500
+[32/100] LB_20221027_093628_SELL_0001 fill=0.750 withdraw=2.125 durable_refill=0.000
+[33/100] LB_20221028_093127_BUY_0001 fill=0.100 withdraw=2.100 durable_refill=0.136
+[34/100] LB_20221103_093349_BUY_0001 fill=0.800 withdraw=0.600 durable_refill=0.381
+[35/100] LB_20230321_093130_BUY_0001 fill=0.778 withdraw=1.222 durable_refill=0.000
+[36/100] LB_20230328_093202_SELL_0001 fill=1.500 withdraw=0.533 durable_refill=0.066
+[37/100] LB_20230403_093250_BUY_0001 fill=0.056 withdraw=0.185 durable_refill=0.000
+[38/100] LB_20230404_093600_SELL_0001 fill=0.571 withdraw=0.429 durable_refill=0.190
+[39/100] LB_20230419_093353_SELL_0001 fill=0.000 withdraw=0.174 durable_refill=0.000
+[40/100] LB_20230426_093201_SELL_0001 fill=0.500 withdraw=0.938 durable_refill=0.217
+[41/100] LB_20230503_093500_BUY_0001 fill=0.944 withdraw=2.278 durable_refill=0.121
+[42/100] LB_20230511_093202_SELL_0001 fill=0.600 withdraw=1.480 durable_refill=0.000
+[43/100] LB_20230518_093436_BUY_0001 fill=0.032 withdraw=0.000 durable_refill=0.000
+[44/100] LB_20230522_093356_BUY_0001 fill=0.963 withdraw=0.259 durable_refill=0.394
+[45/100] LB_20230526_093357_BUY_0001 fill=1.000 withdraw=1.556 durable_refill=0.174
+[46/100] LB_20230531_093156_BUY_0001 fill=0.409 withdraw=1.409 durable_refill=0.125
+[47/100] LB_20230605_093500_BUY_0001 fill=1.667 withdraw=1.857 durable_refill=0.108
+[48/100] LB_20230613_093139_SELL_0001 fill=0.000 withdraw=2.400 durable_refill=0.333
+[49/100] LB_20230622_093240_BUY_0001 fill=0.636 withdraw=2.091 durable_refill=0.100
+[50/100] LB_20230623_093159_BUY_0001 fill=0.400 withdraw=0.308 durable_refill=0.000
+[51/100] LB_20230630_093123_BUY_0001 fill=0.385 withdraw=1.231 durable_refill=0.000
+[52/100] LB_20230718_093258_SELL_0002 fill=1.045 withdraw=0.727 durable_refill=0.308
+[53/100] LB_20230720_093345_SELL_0001 fill=0.000 withdraw=0.500 durable_refill=0.700
+[54/100] LB_20230727_093300_BUY_0001 fill=1.148 withdraw=0.444 durable_refill=0.060
+[55/100] LB_20230808_093726_SELL_0001 fill=0.821 withdraw=0.214 durable_refill=0.172
+[56/100] LB_20230824_093139_SELL_0001 fill=0.714 withdraw=1.000 durable_refill=0.250
+[57/100] LB_20230825_093257_BUY_0001 fill=0.990 withdraw=0.042 durable_refill=0.005
+[58/100] LB_20230829_093105_SELL_0001 fill=0.143 withdraw=0.600 durable_refill=0.038
+[59/100] LB_20230831_093357_BUY_0001 fill=0.211 withdraw=2.000 durable_refill=0.000
+[60/100] LB_20230905_093500_SELL_0002 fill=0.750 withdraw=2.750 durable_refill=0.000
+[61/100] LB_20230907_093117_SELL_0001 fill=0.067 withdraw=0.667 durable_refill=0.091
+[62/100] LB_20230914_093127_SELL_0001 fill=0.176 withdraw=2.412 durable_refill=0.000
+[63/100] LB_20230915_093253_SELL_0001 fill=0.647 withdraw=0.353 durable_refill=0.353
+[64/100] LB_20230919_093101_SELL_0001 fill=0.600 withdraw=1.000 durable_refill=0.000
+[65/100] LB_20230922_093553_SELL_0001 fill=0.000 withdraw=0.895 durable_refill=0.000
+[66/100] LB_20230926_093118_SELL_0002 fill=0.471 withdraw=0.824 durable_refill=0.364
+[67/100] LB_20230927_093102_BUY_0001 fill=1.389 withdraw=1.278 durable_refill=0.042
+[68/100] LB_20231002_093150_BUY_0001 fill=0.160 withdraw=0.240 durable_refill=0.000
+[69/100] LB_20231016_093102_BUY_0001 fill=0.900 withdraw=2.100 durable_refill=0.100
+[70/100] LB_20231027_093329_BUY_0001 fill=0.643 withdraw=4.286 durable_refill=0.072
+[71/100] LB_20231102_093203_SELL_0001 fill=0.500 withdraw=0.812 durable_refill=0.381
+[72/100] LB_20240318_093121_BUY_0001 fill=0.897 withdraw=1.207 durable_refill=0.000
+[73/100] LB_20240402_093358_SELL_0002 fill=1.143 withdraw=0.607 durable_refill=0.041
+[74/100] LB_20240404_093500_BUY_0001 fill=2.077 withdraw=2.077 durable_refill=0.019
+[75/100] LB_20240405_093248_SELL_0001 fill=1.214 withdraw=1.214 durable_refill=0.059
+[76/100] LB_20240409_093342_SELL_0001 fill=0.214 withdraw=0.179 durable_refill=0.152
+[77/100] LB_20240417_093502_SELL_0001 fill=0.462 withdraw=3.000 durable_refill=0.000
+[78/100] LB_20240418_093109_SELL_0001 fill=0.444 withdraw=0.833 durable_refill=0.174
+[79/100] LB_20240423_093145_BUY_0001 fill=0.909 withdraw=0.455 durable_refill=0.500
+[80/100] LB_20240426_093151_SELL_0001 fill=0.625 withdraw=2.125 durable_refill=0.136
+[81/100] LB_20240502_093112_SELL_0001 fill=0.750 withdraw=3.125 durable_refill=0.032
+[82/100] LB_20240503_093157_SELL_0001 fill=0.222 withdraw=1.000 durable_refill=0.273
+[83/100] LB_20240510_093420_BUY_0001 fill=0.867 withdraw=0.833 durable_refill=0.000
+[84/100] LB_20240520_093220_BUY_0001 fill=0.700 withdraw=0.350 durable_refill=0.548
+[85/100] LB_20240528_093142_BUY_0001 fill=1.833 withdraw=1.708 durable_refill=0.035
+[86/100] LB_20240605_093547_SELL_0002 fill=0.263 withdraw=1.053 durable_refill=0.280
+[87/100] LB_20240606_093413_BUY_0001 fill=1.143 withdraw=1.429 durable_refill=0.056
+[88/100] LB_20240611_093350_BUY_0001 fill=0.533 withdraw=1.667 durable_refill=0.061
+[89/100] LB_20240613_093209_BUY_0001 fill=0.962 withdraw=0.423 durable_refill=0.000
+[90/100] LB_20240614_093644_BUY_0001 fill=0.188 withdraw=1.000 durable_refill=0.000
+[91/100] LB_20240708_093223_BUY_0001 fill=0.846 withdraw=2.462 durable_refill=0.093
+[92/100] LB_20240712_093101_BUY_0001 fill=0.417 withdraw=3.917 durable_refill=0.077
+[93/100] LB_20240716_093212_BUY_0001 fill=0.600 withdraw=1.200 durable_refill=0.278
+[94/100] LB_20240718_093155_SELL_0001 fill=0.500 withdraw=1.750 durable_refill=0.407
+[95/100] LB_20240722_093156_SELL_0001 fill=0.857 withdraw=1.500 durable_refill=0.212
+[96/100] LB_20240726_093346_SELL_0001 fill=0.333 withdraw=6.167 durable_refill=0.077
+[97/100] LB_20240730_093638_BUY_0001 fill=1.000 withdraw=0.409 durable_refill=0.129
+[98/100] LB_20240808_093753_SELL_0001 fill=1.286 withdraw=0.429 durable_refill=0.333
+[99/100] LB_20240813_093126_BUY_0001 fill=1.375 withdraw=5.875 durable_refill=0.000
+[100/100] LB_20240814_093352_SELL_0001 fill=0.000 withdraw=0.174 durable_refill=0.000
+{
+  "created_at_utc": "2026-07-24T04:32:45.412591+00:00",
+  "verdict": "NO SOY CAPAZ DE SEPARAR UNA ABSORCION DE UN BREAKOUT LIMPIO",
+  "capable_discovery": false,
+  "primary_family": "MATRIX_TRANSITIONS_PLUS_MBO_SNAPSHOT_8",
+  "primary_metrics": {
+    "feature_family": "MATRIX_TRANSITIONS_PLUS_MBO_SNAPSHOT_8",
+    "model": "logistic_C_0.2_balanced",
+    "validation": "LOYO_2022_2023_2024",
+    "feature_count": 14,
+    "n": 70,
+    "n_A": 29,
+    "n_B": 41,
+    "balanced_accuracy": 0.5370058873002523,
+    "roc_auc_A_vs_B": 0.5138772077375946,
+    "sensitivity_A": 0.5862068965517241,
+    "specificity_B": 0.4878048780487805,
+    "balanced_accuracy_ci_low": 0.43140243902439024,
+    "balanced_accuracy_ci_high": 0.652701850294365,
+    "permutation_p_within_year": 0.31368631368631367,
+    "minimum_marginal_year_side_balanced_accuracy": 0.41628959276018096,
+    "direction_coherent_year_side_cells": 4,
+    "gain_vs_matrix_balanced_accuracy": -0.005046257359125339,
+    "gain_vs_matrix_auc": -0.08284272497897405,
+    "gain_vs_best_simple_balanced_accuracy": -0.005046257359125339,
+    "gain_vs_best_simple_auc": -0.08284272497897405,
+    "pilot_gate_passed": false,
+    "strict_discovery_gate_passed": false,
+    "final_gate_passed": false,
+    "status": "NO_SUPERA_PUERTA_DISCOVERY"
+  },
+  "quality": {
+    "sessions": 100,
+    "clean_ab": 70,
+    "families": {
+      "B_CLEAN_BREAKOUT": 41,
+      "C_MIXED_PATH": 30,
+      "A_TRUE_ABSORPTION": 29
+    },
+    "years": {
+      "2022": 34,
+      "2023": 37,
+      "2024": 29
+    },
+    "sides": {
+      "SELL": 53,
+      "BUY": 47
+    },
+    "events_after_cutoff_used": 0,
+    "cutoff_passed": 100,
+    "minimum_coverage_250ms": 250.0,
+    "minimum_coverage_500ms": 500.0,
+    "ambiguous_cancel_fill_rows": 41,
+    "unknown_state_rows": 0,
+    "matrix_required_checks_passed": 14,
+    "matrix_required_checks": 14
+  },
+  "figure": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\outputs\\mbo_snapshot_discovery100_20260723_r1\\mbo_snapshot_discovery_effectiveness.png",
+  "ledger": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\outputs\\mbo_snapshot_discovery100_20260723_r1\\mbo_snapshot_8_feature_ledger_100.csv",
+  "metrics": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\outputs\\mbo_snapshot_discovery100_20260723_r1\\mbo_snapshot_discovery_metrics.csv",
+  "predictions": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\outputs\\mbo_snapshot_discovery100_20260723_r1\\mbo_snapshot_discovery_loyo_predictions.csv",
+  "report": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\outputs\\mbo_snapshot_discovery100_20260723_r1\\MBO_SNAPSHOT_DISCOVERY_100_PREDICTIVE_REPORT.md",
+  "json": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\outputs\\mbo_snapshot_discovery100_20260723_r1\\mbo_snapshot_discovery_result.json"
+}

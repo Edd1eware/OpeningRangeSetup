@@ -1,0 +1,77 @@
+{
+  "created_at_utc": "2026-07-24T18:36:39.603923+00:00",
+  "design_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_codex_claude\\20260724_021_PREREGISTRO_MECHANICAL_BOOK_V1.md",
+  "design_sha256": "9c804cab08fc3e4c457909906254feebe8a3c1bd169aa5b503436bf03a046541",
+  "labels_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_codex_claude\\mechanical_book_v1\\MECHANICAL_BOOK_V1_LABELS_98.csv",
+  "predictive_model_trained": false,
+  "terminal_results_used": false,
+  "last_sale_future_used": false,
+  "sessions": 98,
+  "eligible_sessions": 98,
+  "excluded_sessions": 0,
+  "counts": {
+    "A_ABSORCION_LIMPIA": 2,
+    "B_BREAKOUT_LIMPIO": 2,
+    "C_VARIABLE": 94
+  },
+  "prevalence": {
+    "A_ABSORCION_LIMPIA": 0.02040816326530612,
+    "B_BREAKOUT_LIMPIO": 0.02040816326530612,
+    "C_VARIABLE": 0.9591836734693877
+  },
+  "minimum_class_count_15pct": 15,
+  "clean_class_max_share": 0.5,
+  "jaccards": {
+    "A_low_425": 1.0,
+    "A_high_575": 1.0,
+    "B_low_425": 0.6666666666666666,
+    "B_high_575": 0.5
+  },
+  "by_year": {
+    "2022": {
+      "A_ABSORCION_LIMPIA": 2,
+      "B_BREAKOUT_LIMPIO": 0,
+      "C_VARIABLE": 31
+    },
+    "2023": {
+      "A_ABSORCION_LIMPIA": 0,
+      "B_BREAKOUT_LIMPIO": 2,
+      "C_VARIABLE": 34
+    },
+    "2024": {
+      "A_ABSORCION_LIMPIA": 0,
+      "B_BREAKOUT_LIMPIO": 0,
+      "C_VARIABLE": 29
+    }
+  },
+  "by_side": {
+    "BUY": {
+      "A_ABSORCION_LIMPIA": 2,
+      "B_BREAKOUT_LIMPIO": 1,
+      "C_VARIABLE": 44
+    },
+    "SELL": {
+      "A_ABSORCION_LIMPIA": 0,
+      "B_BREAKOUT_LIMPIO": 1,
+      "C_VARIABLE": 50
+    }
+  },
+  "total_late_received_predecision_exchange_records": 227,
+  "total_F_dep": 1174.0,
+  "total_C_dep": 5024.0,
+  "gates": {
+    "handoff_integrity_98": true,
+    "all_eligible": true,
+    "state_reconciliation_zero_unknown": true,
+    "zero_clear_rows": true,
+    "fills_reconciled_with_C": false,
+    "A_at_least_15pct": false,
+    "B_at_least_15pct": false,
+    "no_clean_class_over_70pct": true,
+    "A_and_B_each_year": false,
+    "A_and_B_each_side": false,
+    "jaccard_A_both_at_least_070": true,
+    "jaccard_B_both_at_least_070": false
+  },
+  "instrument_pass": false
+}

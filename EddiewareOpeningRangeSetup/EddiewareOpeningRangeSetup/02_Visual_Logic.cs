@@ -15,6 +15,12 @@ namespace ATAS.Indicators
         private const decimal APlusStopTicks = 60m;
         private const decimal ValueAcceptanceMinTradeTicks = 30m;
         private const decimal NormalScalpMaxTradeTicks = 120m;
+        // Historical base rates from 184 unique causal Liquidity Burst trades
+        // (2022-2026). Conditional models did not pass temporal validation, so
+        // the chart reports the reproducible side-specific prior instead of
+        // presenting detector strength/percentile as a calibrated probability.
+        private const decimal BuyBurstSellProbability = 44m / 85m;
+        private const decimal SellBurstBuyProbability = 52m / 99m;
         private readonly ScoreTradeSignalEngine _signalEngine = new ScoreTradeSignalEngine();
 
         private DateTime _currentDate = DateTime.MinValue;
@@ -1319,9 +1325,15 @@ namespace ATAS.Indicators
                 ? Math.Max(candleHigh, burst.Price) + tickSize * LiquidityBurstLabelOffsetTicks
                 : Math.Min(candleLow, burst.Price) - tickSize * LiquidityBurstLabelOffsetTicks;
             var background = isSellPosition ? Color.Red : Color.ForestGreen;
-            var label = isSellPosition
-                ? "BUY ABSORPTION | SELL POSITION"
-                : "SELL ABSORPTION | BUY POSITION";
+            var probability = isSellPosition
+                ? BuyBurstSellProbability
+                : SellBurstBuyProbability;
+            var probabilityPercent = Math.Round(
+                probability * 100m,
+                0,
+                MidpointRounding.AwayFromZero);
+            var probabilitySide = isSellPosition ? "SELL" : "BUY";
+            var label = $"BURST {probabilityPercent:0}% {probabilitySide} PROBABILITY";
 
             AddText(
                 $"EW_LIQUIDITY_BURST_{burstId}",

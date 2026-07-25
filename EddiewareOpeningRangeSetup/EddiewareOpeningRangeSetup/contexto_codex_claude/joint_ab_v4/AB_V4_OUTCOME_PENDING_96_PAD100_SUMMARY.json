@@ -1,0 +1,13 @@
+{
+  "created_at_utc": "2026-07-24T17:03:27.235489+00:00",
+  "billable_download_started_for_padding": false,
+  "completed_valid_old_files": 2,
+  "lost_old_request_assumed_billed": "NQ_JOINT_AB_V4_MBO_2022-04-26_LB_20220426_093143_SELL_0001",
+  "assumed_incurred_cost_usd": 0.166896311939,
+  "pending_padded_requests": 96,
+  "pending_padded_cost_usd": 5.643840841949,
+  "projected_worst_case_total_usd": 5.810737153888001,
+  "additional_authorization_over_old_cap_usd": 0.05073715388800082,
+  "free_gib": 99.76968765258789,
+  "reserve_10_gib_pass": true
+}

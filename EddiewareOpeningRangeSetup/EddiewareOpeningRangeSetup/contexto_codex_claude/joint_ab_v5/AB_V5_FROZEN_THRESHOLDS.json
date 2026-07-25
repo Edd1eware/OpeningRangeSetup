@@ -1,0 +1,40 @@
+{
+  "created_at_utc": "2026-07-24T17:54:17.496195+00:00",
+  "design_path": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_codex_claude\\20260724_016_PREREGISTRO_V5_INSTRUMENTO.md",
+  "design_sha256": "22b486cc7e310f5117f0a932817695d3c702a69ec975162927ca90fc8e9070a8",
+  "calibration_pass": true,
+  "gates": {
+    "design_hash_match": true,
+    "session_count_98": true,
+    "all_sessions_min_10_windows": true,
+    "aggregate_min_1000_physical_windows": true,
+    "exactly_two_orientations_per_window": true,
+    "dwell_B_min_100_oriented_sequences": true,
+    "dwell_A_min_100_oriented_sequences": true,
+    "positive_ordered_price_thresholds": true,
+    "positive_dwell_thresholds": true,
+    "all_used_events_closed": true,
+    "all_used_events_single_timestamp": true,
+    "zero_maybe_bad_book_records": true,
+    "zero_sequence_regressions": true,
+    "deterministic_double_decode_3_sessions": true
+  },
+  "thresholds": {
+    "T_push_ticks": 7.0,
+    "T_ext_ticks": 15.0,
+    "T_ret_ticks": 7.0,
+    "T_dwB_seconds": 0.648899664,
+    "T_dwA_seconds": 0.568278243,
+    "pseudo_window_count": 3533,
+    "oriented_observation_count": 7066,
+    "dwell_B_oriented_sequence_support": 1824,
+    "dwell_A_oriented_sequence_support": 1049
+  },
+  "excluded_rollover_dates": [
+    "2022-06-13",
+    "2023-06-13"
+  ],
+  "real_outcomes_read": false,
+  "predictors_or_terminal_results_read": false,
+  "download_performed": false
+}

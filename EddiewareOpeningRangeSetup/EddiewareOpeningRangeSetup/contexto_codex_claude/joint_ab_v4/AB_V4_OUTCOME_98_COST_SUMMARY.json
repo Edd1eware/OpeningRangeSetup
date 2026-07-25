@@ -1,0 +1,29 @@
+{
+  "created_at_utc": "2026-07-24T16:42:38.286852+00:00",
+  "billable_download_started": false,
+  "sessions": 98,
+  "window_milliseconds": 5100,
+  "excluded_rollover_dates": [
+    "2022-06-13",
+    "2023-06-13"
+  ],
+  "cost_by_schema": [
+    {
+      "schema": "mbo",
+      "count": 98,
+      "sum": 5.755439753831,
+      "mean": 0.058728977079908165,
+      "max": 0.095859065652
+    },
+    {
+      "schema": "trades",
+      "count": 98,
+      "sum": 2.822613000872,
+      "mean": 0.028802173478285713,
+      "max": 0.042048275471
+    }
+  ],
+  "free_bytes": 107990048768,
+  "free_gib": 100.57357025146484,
+  "reserve_10_gib_pass": true
+}

@@ -1,0 +1,62 @@
+{
+  "started_at_utc": "2026-07-24T16:52:27.343791+00:00",
+  "authorized_cap_usd": 5.76,
+  "estimated_cost_usd": 5.755439753831,
+  "free_bytes_before": 107977220096,
+  "rows": {
+    "NQ_JOINT_AB_V4_MBO_2022-04-05_LB_20220405_093200_BUY_0001": {
+      "status": "downloaded",
+      "path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\databento_mbo\\joint_ab_v4_outcome98_20260724\\NQ_JOINT_AB_V4_MBO_2022-04-05_LB_20220405_093200_BUY_0001.mbo.dbn.zst",
+      "estimated_cost_usd": 0.050874182582,
+      "bytes": 130818,
+      "records": 6791,
+      "t_records": 287,
+      "t_match_events": 243,
+      "unclosed_t_match_events": 0,
+      "mixed_timestamp_t_match_events": 0,
+      "multi_sequence_t_match_events": 207,
+      "maybe_bad_book_records": 0,
+      "sequence_regressions": 0,
+      "instrument_ids": [
+        2895
+      ],
+      "symbols": [
+        "NQM2"
+      ],
+      "ts_event_min": "2022-04-05T13:32:00.926200891+00:00",
+      "ts_event_max": "2022-04-05T13:32:06.024912989+00:00",
+      "p0_ts_event": "2022-04-05T13:32:01.025458357+00:00",
+      "p0_price": 15134.0,
+      "p0_lag_ms": 0.541,
+      "post_t_match_events": 235,
+      "last_post_price": 15133.0
+    },
+    "NQ_JOINT_AB_V4_MBO_2022-04-06_LB_20220406_093100_BUY_0001": {
+      "status": "downloaded",
+      "path": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\databento_mbo\\joint_ab_v4_outcome98_20260724\\NQ_JOINT_AB_V4_MBO_2022-04-06_LB_20220406_093100_BUY_0001.mbo.dbn.zst",
+      "estimated_cost_usd": 0.0607247293,
+      "bytes": 146351,
+      "records": 7598,
+      "t_records": 334,
+      "t_match_events": 300,
+      "unclosed_t_match_events": 0,
+      "mixed_timestamp_t_match_events": 0,
+      "multi_sequence_t_match_events": 260,
+      "maybe_bad_book_records": 0,
+      "sequence_regressions": 0,
+      "instrument_ids": [
+        2895
+      ],
+      "symbols": [
+        "NQM2"
+      ],
+      "ts_event_min": "2022-04-06T13:31:00.904850019+00:00",
+      "ts_event_max": "2022-04-06T13:31:06.003070887+00:00",
+      "p0_ts_event": "2022-04-06T13:31:01.002502605+00:00",
+      "p0_price": 14642.25,
+      "p0_lag_ms": 1.497,
+      "post_t_match_events": 283,
+      "last_post_price": 14635.25
+    }
+  }
+}

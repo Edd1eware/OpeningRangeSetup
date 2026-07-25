@@ -1,0 +1,59 @@
+{
+  "protocol": "HUMAN_BLIND_V1_AMD1",
+  "information_scope": "CaseID and blind A/B/C labels only; no mapping, date, side, family, result, MFE, MAE, TP, SL, or PnL loaded",
+  "coders": [
+    "EDUARDO",
+    "CLAUDE",
+    "CODEX"
+  ],
+  "n_cases": 98,
+  "krippendorff_alpha_nominal": 0.4396231049971926,
+  "operational_gate_threshold": 0.6,
+  "operational_gate_pass": false,
+  "unanimous_cases": 45,
+  "majority_cases": 95,
+  "all_different_cases": 3,
+  "label_counts": {
+    "EDUARDO": {
+      "A": 39,
+      "B": 37,
+      "C": 22
+    },
+    "CLAUDE": {
+      "A": 30,
+      "B": 38,
+      "C": 30
+    },
+    "CODEX": {
+      "A": 35,
+      "B": 37,
+      "C": 26
+    }
+  },
+  "pairwise": {
+    "EDUARDO__CLAUDE": {
+      "n": 98,
+      "matches": 51,
+      "agreement": 0.5204081632653061,
+      "cohen_kappa": 0.27669597989949757
+    },
+    "EDUARDO__CODEX": {
+      "n": 98,
+      "matches": 52,
+      "agreement": 0.5306122448979592,
+      "cohen_kappa": 0.28421721181327414
+    },
+    "CLAUDE__CODEX": {
+      "n": 98,
+      "matches": 82,
+      "agreement": 0.8367346938775511,
+      "cohen_kappa": 0.7537688442211057
+    }
+  },
+  "input_sha256": {
+    "EDUARDO": "72f945c1195a070b4f5e93f57c3cbe6ffc5020d504ffe74098c37fdefd21886f",
+    "CLAUDE": "c48535384452444fa81eee08ba593418eeef37ce16cab7811d668008d0d7a1b7",
+    "CODEX": "413a82d472e3897de270698762a8f4a0675ce67a8102bb45790761611bb08e32"
+  },
+  "interpretation_limit": "Agreement measures rubric reproducibility only. It is not evidence that labels predict clean absorption or clean breakout."
+}

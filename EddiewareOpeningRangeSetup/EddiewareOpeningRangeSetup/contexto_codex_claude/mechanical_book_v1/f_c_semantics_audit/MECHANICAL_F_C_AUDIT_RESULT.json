@@ -1,0 +1,28 @@
+{
+  "created_at_utc": "2026-07-24T18:43:19.148353+00:00",
+  "sessions": 98,
+  "sessions_with_F_at_L0": 94,
+  "identity_keys": 1120,
+  "keys_with_C_identity_sibling": 1080,
+  "identity_sibling_key_coverage": 0.9642857142857143,
+  "F_qty_at_L0": 1174.0,
+  "F_qty_without_C_identity_sibling": 49.0,
+  "identity_sibling_quantity_coverage": 0.9582623509369677,
+  "F_qty_exceeding_C_sibling_qty": 54.0,
+  "previous_algorithm_fill_without_c_qty": 54.0,
+  "previous_unmatched_explained_by_F_gt_C": true,
+  "sessions_with_F_gt_C": 1,
+  "sessions_with_missing_identity_sibling": 29,
+  "keys_with_M_or_C_state_reduction": 1112,
+  "keys_with_equal_F_state_reduction_qty": 1111,
+  "F_qty_without_M_or_C_state_reduction": 18.0,
+  "F_state_reduction_quantity_reconciled": false,
+  "sessions_with_unreconciled_F_state_reduction": 7,
+  "labels_modified": false,
+  "model_trained": false,
+  "outputs": {
+    "sessions": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_codex_claude\\mechanical_book_v1\\f_c_semantics_audit\\MECHANICAL_F_C_SESSION_AUDIT.csv",
+    "groups": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_codex_claude\\mechanical_book_v1\\f_c_semantics_audit\\MECHANICAL_F_C_IDENTITY_GROUPS.csv",
+    "non_equal_packet_rows": "C:\\Users\\k_99_\\Desktop\\codding\\OpeningRangeSetup\\EddiewareOpeningRangeSetup\\EddiewareOpeningRangeSetup\\contexto_codex_claude\\mechanical_book_v1\\f_c_semantics_audit\\MECHANICAL_F_C_NON_EQUAL_PACKET_ROWS.csv"
+  }
+}

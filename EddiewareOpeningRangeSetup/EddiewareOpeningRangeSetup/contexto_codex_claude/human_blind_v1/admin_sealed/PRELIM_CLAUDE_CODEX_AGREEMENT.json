@@ -1,0 +1,40 @@
+{
+  "protocol": "HUMAN_BLIND_V1_AMD1",
+  "information_scope": "CaseID and blind A/B/C labels only; no mapping, date, side, family, result, MFE, MAE, TP, SL, or PnL loaded",
+  "coders": [
+    "CLAUDE",
+    "CODEX"
+  ],
+  "n_cases": 98,
+  "krippendorff_alpha_nominal": 0.754620526936689,
+  "operational_gate_threshold": 0.6,
+  "operational_gate_pass": true,
+  "unanimous_cases": 82,
+  "majority_cases": 82,
+  "all_different_cases": 16,
+  "label_counts": {
+    "CLAUDE": {
+      "A": 30,
+      "B": 38,
+      "C": 30
+    },
+    "CODEX": {
+      "A": 35,
+      "B": 37,
+      "C": 26
+    }
+  },
+  "pairwise": {
+    "CLAUDE__CODEX": {
+      "n": 98,
+      "matches": 82,
+      "agreement": 0.8367346938775511,
+      "cohen_kappa": 0.7537688442211057
+    }
+  },
+  "input_sha256": {
+    "CLAUDE": "c48535384452444fa81eee08ba593418eeef37ce16cab7811d668008d0d7a1b7",
+    "CODEX": "413a82d472e3897de270698762a8f4a0675ce67a8102bb45790761611bb08e32"
+  },
+  "interpretation_limit": "Agreement measures rubric reproducibility only. It is not evidence that labels predict clean absorption or clean breakout."
+}

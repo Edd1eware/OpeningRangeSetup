@@ -1,0 +1,51 @@
+{
+  "created_at_utc": "2026-07-24T18:51:52Z",
+  "status": "V1_CLOSED_FAIL_NO_RESCUE",
+  "type": "IMMUTABLE_SEMANTIC_DOCUMENTARY_ERRATA",
+  "original_artifacts_preserved": true,
+  "labels_modified": false,
+  "result_modified": false,
+  "model_trained": false,
+  "atas_executed": false,
+  "new_data_downloaded": false,
+  "original_hashes": {
+    "design_sha256": "9c804cab08fc3e4c457909906254feebe8a3c1bd169aa5b503436bf03a046541",
+    "result_sha256": "e1307ffdd30a1147beebf84cc3d9690bffd65518ed2811252019f19b0a53d850",
+    "labels_sha256": "bfddb850bbcfce5fc7ccebd0a96a08473909c32496208d254b3fa2386c100513",
+    "fc_audit_sha256": "08d4ac4f4a3e52f194ee8b3255a30106d2c7d6148c87c47189ca9a69d15538c9"
+  },
+  "fc_semantic_correction": {
+    "original_fill_without_c_qty": 54,
+    "partial_fill_explained_by_M_qty": 36,
+    "passive_iceberg_or_replenishment_qty": 12,
+    "aggressor_F_qty": 6,
+    "aggressor_F_sessions": 4,
+    "data_invalid": false,
+    "fills_reconciled_with_C_was_preregistered": false,
+    "fills_reconciled_with_C_is_valid_integrity_gate": false
+  },
+  "label_invariance_after_excluding_aggressor_F": {
+    "2023-05-18": "C_VARIABLE",
+    "2023-08-24": "C_VARIABLE",
+    "2023-09-19": "C_VARIABLE",
+    "2024-06-05": "C_VARIABLE"
+  },
+  "frozen_gate_failures_unchanged": {
+    "A_count": 2,
+    "B_count": 2,
+    "C_count": 94,
+    "A_at_least_15pct": false,
+    "B_at_least_15pct": false,
+    "A_and_B_each_year": false,
+    "A_and_B_each_side": false,
+    "jaccard_B_both_at_least_070": false,
+    "instrument_pass": false
+  },
+  "future_accounting_rule": {
+    "F_dep": "PASSIVE_F_ONLY_AT_ATTACKED_SIDE_L0",
+    "exclude": "F_ORDER_ID_EQUAL_TO_AGGRESSOR_T_ORDER_ID_IN_SAME_TRADE_SUMMARY",
+    "state_mutation": "M_OR_C_APPLIED_AT_F_LAST",
+    "note": "This is for any future preregistered design; it does not revise V1."
+  }
+}
+

@@ -11,6 +11,7 @@ from urllib.request import Request, urlopen
 
 
 TELEGRAM_MESSAGE_IDS_FILE = "telegram_message_ids.txt"
+TELEGRAM_PERSISTENT_MESSAGE_IDS_FILE = "telegram_persistent_message_ids.txt"
 TELEGRAM_SENT_DATES_FILE = "telegram_sent_dates.txt"
 TELEGRAM_DELETE_BATCH_SIZE = 100
 
@@ -589,7 +590,7 @@ def clear_telegram_before_run(results_folder):
     return failed == 0
 
 
-def send_photo(results_folder, photo_path, caption=""):
+def send_photo(results_folder, photo_path, caption="", persistent=False):
     """Manda una imagen (gráfico) a Telegram via sendPhoto (multipart)."""
     credentials = _read_credentials(results_folder)
     if credentials is None:
@@ -627,8 +628,13 @@ def send_photo(results_folder, photo_path, caption=""):
             return False
         mid = payload.get("result", {}).get("message_id")
         if mid:
+            ids_file = (
+                TELEGRAM_PERSISTENT_MESSAGE_IDS_FILE
+                if persistent
+                else TELEGRAM_MESSAGE_IDS_FILE
+            )
             with open(
-                os.path.join(results_folder, TELEGRAM_MESSAGE_IDS_FILE),
+                os.path.join(results_folder, ids_file),
                 "a", encoding="utf-8",
             ) as file:
                 file.write(f"{mid}\n")
@@ -638,7 +644,7 @@ def send_photo(results_folder, photo_path, caption=""):
         return False
 
 
-def send_text(results_folder, message):
+def send_text(results_folder, message, persistent=False):
     """Manda un mensaje de texto libre a Telegram (alertas, avisos puntuales)."""
     credentials = _read_credentials(results_folder)
     if credentials is None:
@@ -647,8 +653,13 @@ def send_text(results_folder, message):
         message_id = _send_message(credentials[0], credentials[1], message)
         if message_id is None:
             return False
+        ids_file = (
+            TELEGRAM_PERSISTENT_MESSAGE_IDS_FILE
+            if persistent
+            else TELEGRAM_MESSAGE_IDS_FILE
+        )
         with open(
-            os.path.join(results_folder, TELEGRAM_MESSAGE_IDS_FILE),
+            os.path.join(results_folder, ids_file),
             "a",
             encoding="utf-8",
         ) as file:
@@ -657,6 +668,16 @@ def send_text(results_folder, message):
     except Exception as exc:
         print(f"WARNING: no pude enviar alerta Telegram: {exc}")
         return False
+
+
+def send_persistent_text(results_folder, message):
+    """Envía texto que no participa en la limpieza automática de corridas."""
+    return send_text(results_folder, message, persistent=True)
+
+
+def send_persistent_photo(results_folder, photo_path, caption=""):
+    """Envía una imagen que no participa en la limpieza automática de corridas."""
+    return send_photo(results_folder, photo_path, caption, persistent=True)
 
 
 def _format_eta(seconds):

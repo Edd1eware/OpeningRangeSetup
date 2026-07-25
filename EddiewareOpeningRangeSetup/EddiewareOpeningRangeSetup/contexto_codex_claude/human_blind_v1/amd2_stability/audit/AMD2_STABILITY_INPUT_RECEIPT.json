@@ -1,0 +1,25 @@
+{
+  "protocol": "HUMAN_BLIND_V1_AMD2_STABILITY_V1",
+  "outcome_loaded": false,
+  "mapping_loaded": false,
+  "cases": 98,
+  "consensus_counts": {
+    "A": 27,
+    "B": 35,
+    "C": 36
+  },
+  "original_ab_denominator": 62,
+  "input_sha256": {
+    "config": "39d6e055c8a3a3906d76442e5e0d0294fb46e1e37fe3fe1e1a176916570cfc83",
+    "claude": "c48535384452444fa81eee08ba593418eeef37ce16cab7811d668008d0d7a1b7",
+    "codex": "413a82d472e3897de270698762a8f4a0675ce67a8102bb45790761611bb08e32"
+  },
+  "output_sha256": {
+    "consensus": "d3ca0d8238b0698b913dbe4b782f99076691027b886f96a416a3e15152b971a3",
+    "manifest": "099ec5bb14f701b2900e55b1634fd8895967e2f00dd2cb68abef66faa5178c41",
+    "order_claude": "74570227858e2f1507d02ce45e16b8cef42d385c897465b886cdf4395cd0b017",
+    "order_codex": "451abad340c4934714fc5b3aed35f84485290a9d20de5e54e687f2dbe10d509d"
+  },
+  "all_metadata_clean": true,
+  "all_information_change_none": true
+}
