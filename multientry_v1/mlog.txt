@@ -1,0 +1,117 @@
+MC multientry ░░░░░░░░░░   0.0% |  0.0 min restantes
+MC multientry ██░░░░░░░░  15.1% |  0.0 min restantes
+MC multientry ███░░░░░░░  30.0% |  0.0 min restantes
+MC multientry █████░░░░░  45.2% |  0.0 min restantes
+MC multientry ██████░░░░  60.2% |  0.0 min restantes
+MC multientry ████████░░  75.8% |  0.0 min restantes
+MC multientry █████████░  91.7% |  0.0 min restantes
+MC multientry ██████████ 100.0% |  0.0 min restantes ✓
+MC multientry ██████████ 100.0% |  0.0 min restantes ✓
+{
+  "estudio": "MULTIENTRY-V1",
+  "prereg_sha256": "a784adf35c6fca236489b9d167a22b4259ec5b80085afd3f3058e659eed32bf7",
+  "umbral_vpt_DEV_p66": 27.1745,
+  "n_total": 2360,
+  "n_dev_filtrado": 675,
+  "n_fresh_sin_filtro": 1347,
+  "n_fresh_filtrado": 1172,
+  "entradas_por_dia_fresh": 3.26,
+  "DEV_filtrado": {
+    "trades": 675,
+    "trades_mes": 39.71,
+    "wr": 40.3,
+    "pf": 0.905,
+    "ev_net": -1.563,
+    "por_anio": {
+      "2022": {
+        "trades": 394,
+        "trades_mes": 49.25,
+        "wr": 40.86,
+        "pf": 0.941,
+        "ev_net": -0.954
+      },
+      "2023": {
+        "trades": 281,
+        "trades_mes": 31.22,
+        "wr": 39.5,
+        "pf": 0.857,
+        "ev_net": -2.416
+      }
+    }
+  },
+  "FRESH_sin_filtro": {
+    "trades": 1347,
+    "trades_mes": 61.23,
+    "wr": 39.05,
+    "pf": 0.962,
+    "ev_net": -0.642,
+    "por_anio": {
+      "2024": {
+        "trades": 542,
+        "trades_mes": 60.22,
+        "wr": 36.53,
+        "pf": 0.874,
+        "ev_net": -2.142
+      },
+      "2025": {
+        "trades": 538,
+        "trades_mes": 67.25,
+        "wr": 39.22,
+        "pf": 0.942,
+        "ev_net": -0.983
+      },
+      "2026": {
+        "trades": 267,
+        "trades_mes": 53.4,
+        "wr": 43.82,
+        "pf": 1.197,
+        "ev_net": 3.09
+      }
+    }
+  },
+  "FRESH_filtrado": {
+    "trades": 1172,
+    "trades_mes": 53.27,
+    "wr": 39.85,
+    "pf": 0.983,
+    "ev_net": -0.294,
+    "por_anio": {
+      "2024": {
+        "trades": 399,
+        "trades_mes": 44.33,
+        "wr": 36.84,
+        "pf": 0.877,
+        "ev_net": -2.185
+      },
+      "2025": {
+        "trades": 510,
+        "trades_mes": 63.75,
+        "wr": 40.39,
+        "pf": 0.972,
+        "ev_net": -0.471
+      },
+      "2026": {
+        "trades": 263,
+        "trades_mes": 52.6,
+        "wr": 43.35,
+        "pf": 1.183,
+        "ev_net": 2.916
+      }
+    }
+  },
+  "monte_carlo": {
+    "payouts_esperados": 0.1699,
+    "p_quema": 1.0,
+    "p_quema_sin_payout": 0.8547,
+    "payouts_p95": 1.0
+  },
+  "gates": {
+    "G1_ev_net_pos": false,
+    "G2_pf_gt_115": false,
+    "G3_anios_pos_ge2": false,
+    "G4_freq_ge_20_mes": true,
+    "G5_payouts_gt_05": false,
+    "G6_quema_sin_payout_lt50": false
+  },
+  "VERDICT": "FAIL"
+}

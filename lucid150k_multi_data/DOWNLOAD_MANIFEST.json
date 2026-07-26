@@ -1,0 +1,24 @@
+{
+  "updated_utc": "2026-07-26T15:02:07.760751+00:00",
+  "dataset": "GLBX.MDP3",
+  "symbols": [
+    "YM.c.0",
+    "RTY.c.0"
+  ],
+  "schema": "ohlcv-1s",
+  "window_ny": "09:25:00..10:05:00",
+  "date_range": [
+    "2022-04-25",
+    "2026-06-30"
+  ],
+  "expected_sessions": 1028,
+  "files_complete": 517,
+  "completed_this_run": 508,
+  "errors_this_run": [],
+  "bytes_total": 26506147,
+  "bytes_added_this_run": 25993242,
+  "cap_bytes": 5368709120,
+  "free_bytes": 114058207232,
+  "projected_cost_usd": 15.4847,
+  "projected_cost_with_margin_usd": 19.3558
+}

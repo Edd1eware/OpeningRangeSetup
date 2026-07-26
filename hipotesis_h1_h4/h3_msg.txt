@@ -1,0 +1,27 @@
+H3 LIQUIDITY BURST COMO FILTRO DE DIA: NO TESTEABLE
+
+VEREDICTO: no se puede probar con los datos actuales. NO es un rechazo.
+
+CONDICION DE VIABILIDAD (fijada en el preregistro ANTES de mirar):
+  exigido:  >=300 de 698 sesiones con etiqueta LB, y >=100 en FRESH
+  obtenido: 91 sesiones totales, 25 en FRESH
+
+COBERTURA REAL DE ETIQUETAS LB:
+  2022: 32
+  2023: 34
+  2024: 25
+  2025: 0
+  2026: 0
+  TOTAL: 91   (rango 2022-04-05 a 2024-08-14)
+
+No existe etiquetado LB para 2025 ni 2026, que son justo los dos anios donde el baseline es positivo.
+
+POR QUE NO FUERZO EL TEST:
+El preregistro prohibe sustituir por un proxy inventado o etiquetar a mano un subconjunto conveniente. Correr H3 con 25 sesiones fresh, TODAS de 2024 (el peor anio), daria un resultado sin poder estadistico y sesgado por regimen. Reportarlo como evidencia seria peor que no correrlo.
+
+QUE HARIA FALTA:
+Correr el detector de Liquidity Burst (ya existe: 12_LiquidityBurstDetector.cs + infra de replay 20/20) sobre las ~600 sesiones faltantes, sobre todo 2025-2026. Es trabajo de COMPUTO, no de investigacion: el detector ya esta construido y validado.
+
+ESTADO: H3 queda ABIERTA, NO REFUTADA. Es la unica de las cuatro sin respuesta empirica, y sigue siendo plausible: la evidencia disponible (LB precede A+ 5/5 dias, 0 dias A+ sin LB, n=9) apunta justo a que el LB funciona como condicion necesaria a nivel de dia, que es lo que H3 propone.
+
+BATERIA COMPLETA. Resumen en el siguiente mensaje.

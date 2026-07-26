@@ -1,0 +1,73 @@
+LB-EXIT reconstruccion ░░░░░░░░░░   0.1% |  0.0 min restantes
+LB-EXIT reconstruccion █░░░░░░░░░   6.8% |  0.1 min restantes
+LB-EXIT reconstruccion ██░░░░░░░░  24.8% |  0.1 min restantes
+LB-EXIT reconstruccion ███░░░░░░░  32.9% |  0.1 min restantes
+LB-EXIT reconstruccion █████░░░░░  49.1% |  0.0 min restantes
+LB-EXIT reconstruccion ███████░░░  69.1% |  0.0 min restantes
+LB-EXIT reconstruccion ███████░░░  73.1% |  0.0 min restantes
+LB-EXIT reconstruccion ████████░░  78.5% |  0.0 min restantes
+LB-EXIT reconstruccion ████████░░  82.2% |  0.0 min restantes
+LB-EXIT reconstruccion █████████░  93.5% |  0.0 min restantes
+LB-EXIT reconstruccion ██████████  98.0% |  0.0 min restantes
+LB-EXIT reconstruccion ██████████ 100.0% |  0.0 min restantes ✓
+LB-EXIT reconstruccion ██████████ 100.0% |  0.0 min restantes ✓
+{
+  "estudio": "LB-EXIT-V1",
+  "prereg_sha256": "d105142b3a968f1a3afed8ea6ac08533ac4471bd04a3ed612717b085eeb4156d",
+  "n_dias_con_LB_y_trade": 199,
+  "n_LB_durante_trade": 87,
+  "PRIMARIO_2022_2024": {
+    "n": 44,
+    "ev_hold_neto": 22.068,
+    "ev_exitlb_neto": 24.523,
+    "mejora_media": 2.455,
+    "mejora_mediana": 10.5,
+    "pct_trades_mejorados": 65.9
+  },
+  "por_anio": {
+    "2022": {
+      "n": 12,
+      "ev_hold_neto": 18.25,
+      "ev_exitlb_neto": 26.5,
+      "mejora_media": 8.25,
+      "mejora_mediana": 10.0,
+      "pct_trades_mejorados": 66.7
+    },
+    "2023": {
+      "n": 22,
+      "ev_hold_neto": 19.136,
+      "ev_exitlb_neto": 24.409,
+      "mejora_media": 5.273,
+      "mejora_mediana": 9.0,
+      "pct_trades_mejorados": 68.2
+    },
+    "2024": {
+      "n": 10,
+      "ev_hold_neto": 33.1,
+      "ev_exitlb_neto": 22.4,
+      "mejora_media": -10.7,
+      "mejora_mediana": 27.5,
+      "pct_trades_mejorados": 60.0
+    }
+  },
+  "ci95_mejora": [
+    -9.047,
+    12.25
+  ],
+  "gates": {
+    "G1_mejora_ge_2ticks": true,
+    "G2_ci95_excluye_0": false,
+    "G3_mejora_pos_2de3": true,
+    "G4_n_ge_40": true
+  },
+  "VERDICT": "FAIL",
+  "CONFIRMACION_2025_2026": {
+    "n": 43,
+    "ev_hold_neto": 23.86,
+    "ev_exitlb_neto": 22.047,
+    "mejora_media": -1.814,
+    "mejora_mediana": 9.0,
+    "pct_trades_mejorados": 65.1
+  },
+  "nota": "comparacion pareada; 2025-26 es descriptivo, sin veredicto"
+}

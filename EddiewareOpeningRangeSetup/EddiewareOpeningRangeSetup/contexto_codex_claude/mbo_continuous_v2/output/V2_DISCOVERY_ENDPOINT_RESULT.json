@@ -1,0 +1,26 @@
+{
+  "information_status": "V2_DISCOVERY_ENDPOINT_OPENED_ONCE",
+  "n_pairs": 69,
+  "min_pairs": 56,
+  "mH_reasons": {
+    "OK": 98
+  },
+  "m1_reasons": {
+    "OK": 98
+  },
+  "OR_reasons": {
+    "OK": 98
+  },
+  "rho_hat": -0.16298867373036174,
+  "ci95_low": -0.3988057814794562,
+  "ci95_high": 0.0940732398407946,
+  "threshold_rho": 0.25,
+  "seed": "0x22f9cadf098b1625",
+  "n_boot": 10000,
+  "Y60_median": 0.08208955223880597,
+  "Y60_iqr": [
+    -0.449438202247191,
+    0.30597014925373134
+  ],
+  "VERDICT": "FAIL"
+}

@@ -1,0 +1,63 @@
+{
+  "study": "LUCID150K-SNIPER-V4-BREADTH",
+  "stage": "DEV_ONLY",
+  "prereg_sha256": "4674221355ddcebe513f2ef5c03b3256db2a4e4c0b5d32ab1c502a2a07d5a5e1",
+  "dates_scanned": 414,
+  "errors": 0,
+  "dispositions": {
+    "breadth_lt_2": 341,
+    "risk_outside": 9,
+    "trade": 64
+  },
+  "TRAILING": {
+    "n": 64,
+    "ev_R": -0.02381,
+    "median_R": 0.0,
+    "pf": 0.9546,
+    "win_rate_pct": 48.438,
+    "positive_years": 1,
+    "positive_halves_pct": 50.0,
+    "median_half_EV_R": -0.01393,
+    "year_EV_R": {
+      "2022": 0.00776,
+      "2023": -0.05347
+    },
+    "half_EV_R": {
+      "2022-H1": -0.06564,
+      "2022-H2": 0.03778,
+      "2023-H1": -0.41455,
+      "2023-H2": 0.21259
+    }
+  },
+  "FIXED_1R_DIAGNOSTIC": {
+    "n": 64,
+    "ev_R": -0.05295,
+    "median_R": 0.86207,
+    "pf": 0.899,
+    "win_rate_pct": 51.562,
+    "positive_years": 0,
+    "positive_halves_pct": 50.0,
+    "median_half_EV_R": -0.14159,
+    "year_EV_R": {
+      "2022": -0.04218,
+      "2023": -0.06306
+    },
+    "half_EV_R": {
+      "2022-H1": -0.39898,
+      "2022-H2": 0.10378,
+      "2023-H1": -0.38696,
+      "2023-H2": 0.17561
+    }
+  },
+  "trailing_minus_fixed_EV_R": 0.02914,
+  "gates": {
+    "D1_n_ge_40": true,
+    "D2_ev_gt_008R": false,
+    "D3_pf_gt_125": false,
+    "D4_two_positive_years": false,
+    "D5_positive_halves_ge_60pct": false,
+    "D6_trailing_minus_fixed_ge_minus005R": true
+  },
+  "PASS_DEV": false,
+  "CONTINUE_PSEUDO_DOWNLOAD": false
+}

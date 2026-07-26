@@ -1,0 +1,114 @@
+{
+  "estudio": "LUCID100K-V2",
+  "prereg_sha256": "c63857a8e6fc3198c739920566af8e2f0bd195730ef8a36bb652ad91b8952473",
+  "seleccion_en_DEV": [
+    {
+      "tp": 40,
+      "size": 2,
+      "p_pass_dev": 0.4273
+    },
+    {
+      "tp": 40,
+      "size": 3,
+      "p_pass_dev": 0.3889
+    },
+    {
+      "tp": 80,
+      "size": 3,
+      "p_pass_dev": 0.215
+    },
+    {
+      "tp": 60,
+      "size": 3,
+      "p_pass_dev": 0.1971
+    },
+    {
+      "tp": 80,
+      "size": 2,
+      "p_pass_dev": 0.1925
+    },
+    {
+      "tp": 60,
+      "size": 2,
+      "p_pass_dev": 0.1612
+    },
+    {
+      "tp": 80,
+      "size": 1,
+      "p_pass_dev": 0.147
+    },
+    {
+      "tp": 100,
+      "size": 3,
+      "p_pass_dev": 0.1205
+    },
+    {
+      "tp": 100,
+      "size": 2,
+      "p_pass_dev": 0.1156
+    },
+    {
+      "tp": 100,
+      "size": 1,
+      "p_pass_dev": 0.09
+    },
+    {
+      "tp": 40,
+      "size": 1,
+      "p_pass_dev": 0.0688
+    },
+    {
+      "tp": 60,
+      "size": 1,
+      "p_pass_dev": 0.0587
+    }
+  ],
+  "combinacion_congelada": {
+    "TP_SL_ticks": 40,
+    "contratos": 2,
+    "p_pass_dev": 0.4273
+  },
+  "FRESH_metricas": {
+    "trades": 177,
+    "trades_mes": 8.43,
+    "wr": 51.98,
+    "breakeven_wr": 52.5,
+    "pf": 0.979,
+    "ev_net": -0.418
+  },
+  "FRESH_por_anio": {
+    "2024": {
+      "trades": 64,
+      "trades_mes": 7.11,
+      "wr": 42.19,
+      "breakeven_wr": 52.5,
+      "pf": 0.66,
+      "ev_net": -8.25
+    },
+    "2025": {
+      "trades": 76,
+      "trades_mes": 9.5,
+      "wr": 56.58,
+      "breakeven_wr": 52.5,
+      "pf": 1.179,
+      "ev_net": 3.263
+    },
+    "2026": {
+      "trades": 37,
+      "trades_mes": 9.25,
+      "wr": 59.46,
+      "breakeven_wr": 52.5,
+      "pf": 1.327,
+      "ev_net": 5.568
+    }
+  },
+  "FRESH_P_pass": 0.1088,
+  "intentos_esperados": 9.19,
+  "gates": {
+    "G1_ppass_ge_30": false,
+    "G2_ev_net_pos": false,
+    "G3_wr_gt_breakeven": false,
+    "G4_anios_pos_ge2": true
+  },
+  "VERDICT": "FAIL"
+}

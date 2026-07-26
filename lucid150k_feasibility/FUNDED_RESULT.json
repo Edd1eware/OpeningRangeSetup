@@ -1,0 +1,142 @@
+[
+ {
+  "p_eligible": 0.53905,
+  "p_dead": 0.93825,
+  "median_days": 20.0,
+  "edge_ticks": 0.0,
+  "frac": 0.05
+ },
+ {
+  "p_eligible": 0.54335,
+  "p_dead": 0.9397,
+  "median_days": 20.0,
+  "edge_ticks": 0.0,
+  "frac": 0.1
+ },
+ {
+  "p_eligible": 0.22295,
+  "p_dead": 0.9813,
+  "median_days": 18.0,
+  "edge_ticks": 0.0,
+  "frac": 0.2
+ },
+ {
+  "p_eligible": 0.08445,
+  "p_dead": 0.9983,
+  "median_days": 8.0,
+  "edge_ticks": 0.0,
+  "frac": 0.35
+ },
+ {
+  "p_eligible": 0.62515,
+  "p_dead": 0.90195,
+  "median_days": 20.0,
+  "edge_ticks": 2.0,
+  "frac": 0.05
+ },
+ {
+  "p_eligible": 0.6233,
+  "p_dead": 0.9035,
+  "median_days": 20.0,
+  "edge_ticks": 2.0,
+  "frac": 0.1
+ },
+ {
+  "p_eligible": 0.2768,
+  "p_dead": 0.96345,
+  "median_days": 21.0,
+  "edge_ticks": 2.0,
+  "frac": 0.2
+ },
+ {
+  "p_eligible": 0.1033,
+  "p_dead": 0.99655,
+  "median_days": 10.0,
+  "edge_ticks": 2.0,
+  "frac": 0.35
+ },
+ {
+  "p_eligible": 0.70475,
+  "p_dead": 0.85015,
+  "median_days": 19.0,
+  "edge_ticks": 4.0,
+  "frac": 0.05
+ },
+ {
+  "p_eligible": 0.7019,
+  "p_dead": 0.84965,
+  "median_days": 20.0,
+  "edge_ticks": 4.0,
+  "frac": 0.1
+ },
+ {
+  "p_eligible": 0.3387,
+  "p_dead": 0.93585,
+  "median_days": 21.0,
+  "edge_ticks": 4.0,
+  "frac": 0.2
+ },
+ {
+  "p_eligible": 0.13175,
+  "p_dead": 0.99125,
+  "median_days": 13.0,
+  "edge_ticks": 4.0,
+  "frac": 0.35
+ },
+ {
+  "p_eligible": 0.8295,
+  "p_dead": 0.70345,
+  "median_days": 19.0,
+  "edge_ticks": 8.0,
+  "frac": 0.05
+ },
+ {
+  "p_eligible": 0.8365,
+  "p_dead": 0.7011000000000001,
+  "median_days": 18.0,
+  "edge_ticks": 8.0,
+  "frac": 0.1
+ },
+ {
+  "p_eligible": 0.4972,
+  "p_dead": 0.8279,
+  "median_days": 22.0,
+  "edge_ticks": 8.0,
+  "frac": 0.2
+ },
+ {
+  "p_eligible": 0.2126,
+  "p_dead": 0.96455,
+  "median_days": 16.0,
+  "edge_ticks": 8.0,
+  "frac": 0.35
+ },
+ {
+  "p_eligible": 0.9164,
+  "p_dead": 0.5277499999999999,
+  "median_days": 15.0,
+  "edge_ticks": 12.0,
+  "frac": 0.05
+ },
+ {
+  "p_eligible": 0.91735,
+  "p_dead": 0.5274,
+  "median_days": 15.0,
+  "edge_ticks": 12.0,
+  "frac": 0.1
+ },
+ {
+  "p_eligible": 0.63885,
+  "p_dead": 0.6623,
+  "median_days": 22.0,
+  "edge_ticks": 12.0,
+  "frac": 0.2
+ },
+ {
+  "p_eligible": 0.3145,
+  "p_dead": 0.90035,
+  "median_days": 18.0,
+  "edge_ticks": 12.0,
+  "frac": 0.35
+ }
+]

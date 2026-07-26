@@ -1,0 +1,12 @@
+{
+  "YM": {
+    "symbol": "YM.c.0",
+    "cost_usd_rango_completo": 101.29
+  },
+  "RTY": {
+    "symbol": "RTY.c.0",
+    "cost_usd_rango_completo": 97.1259
+  },
+  "TOTAL_USD": 198.4159,
+  "nota": "cotizacion del rango continuo completo; la descarga real se hace por dia y solo la ventana 13:00-21:05Z"
+}

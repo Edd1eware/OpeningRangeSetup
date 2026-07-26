@@ -1,0 +1,40 @@
+LB COMO SENAL DE SALIDA: RECHAZADA (3 de 4 gates)
+
+VEREDICTO: FAIL
+
+GATES:
+G1 mejora media >=+2.0 ticks -> +2.455            PASS
+G2 IC95 excluye 0            -> [-9.05, +12.25]   FAIL
+G3 mejora >0 en >=2 de 3     -> 2 de 3            PASS
+G4 n >=40                    -> 44                PASS
+
+La mejora media existe (+2.46 ticks) pero el intervalo de confianza es ENORME y contiene el cero. No se distingue del ruido.
+
+PRIMARIO 2022-2024 (n=44 trades con LB durante la posicion abierta):
+  Mantener (trail 50/20/40): EV neto +22.07
+  Salir en el LB:            EV neto +24.52
+  Mejora media +2.46 | mediana +10.50 | 65.9% de trades mejorados
+  2022: n12 mejora +8.25
+  2023: n22 mejora +5.27
+  2024: n10 mejora -10.70
+
+CONFIRMACION 2025-2026 (descriptiva, sin veredicto):
+  n=43 | mejora media -1.81 | mediana +9.00 | 65.1% mejorados
+El conjunto de confirmacion va EN CONTRA.
+
+*** LO QUE REVELA LA DIVERGENCIA MEDIA vs MEDIANA (el hallazgo real) ***
+  mediana de la mejora: +10.5 (primario) / +9.0 (confirmacion)
+  % trades mejorados:   66% / 65%
+  media de la mejora:   +2.46 / -1.81
+
+Salir en el LB MEJORA DOS TERCIOS de los trades y aun asi la media se desploma.
+
+Explicacion mecanica: la salida anticipada recorta muchas perdidas pequenas (de ahi la mediana positiva) pero MATA LOS RUNNERS GRANDES, que son los que pagan toda la estrategia de trailing.
+
+Es la firma clasica de una regla de salida que "se siente bien" y destruye valor: mejora la mayoria de los trades y empeora el resultado final.
+
+CIERRE: por preregistro, un fallo = rechazada. No pruebo salida parcial, ni retardo tras el LB, ni reversa, ni otra gestion base. La linea se cierra aqui.
+
+LIMITACION HONESTA: n=44 y n=43 son muestras chicas, el test esta infra-potenciado. Pero el gate exigia IC95 excluyendo cero justamente para no promover ruido, y la confirmacion ademas apunta en contra.
+
+Doc: OpeningRangeSetup\lb_exit_v1\LB_EXIT_INFORME.md

@@ -1,0 +1,37 @@
+MULTI-INSTRUMENTO ETAPA 1: EL EDGE NO TRANSFIERE A ES. CERRADO SIN GASTAR.
+
+COSTE: $0.00  (NO descargue YM ni RTY -> ahorro $139.29)
+
+GATES (3 de 3 FAIL):
+E1 EV neto >0   -> -0.877   FAIL
+E2 anios >=2    -> 1 de 3   FAIL
+E3 PF >1.15     -> 0.757    FAIL
+
+ES vs NQ, MISMA REGLA, FRESH 2024-2026:
+  NQ (referencia): n177  8.43/mes WR38.98 PF1.156 EVneto +2.582
+  ES (transferido):n285  9.50/mes WR32.28 PF0.757 EVneto -0.877
+
+ES por anio:
+  2024: n112 WR27.7 PF0.682 EVneto -1.295
+  2025: n117 WR32.5 PF0.675 EVneto -1.162
+  2026: n56  WR41.1 PF1.200 EVneto +0.554
+
+No es marginal: pierde 2 de 3 anios con PF 0.67-0.68. Y 2025, que fue excelente para NQ (+6.59), es NEGATIVO en ES (-1.16). No es regimen compartido: los instrumentos se comportan distinto ante la misma regla.
+
+ESCALADO APLICADO (preespecificado, sin fitting):
+  mediana OR en DEV: NQ 99.5 ticks | ES 18.0 ticks
+  k_ES = 0.1809  ->  (SL,ACT,DIST) 40/20/40 pasa a 7/4/7 en ES
+
+LIMITACION HONESTA: un stop de 7 ticks en ES (1.75 puntos) es muy cenido y podria estar dominado por ruido de microestructura. No puedo descartar que otro transform diera otro resultado. Pero probar mas transforms es fitting y el preregistro lo prohibe. Lo reporto como limite del test, no como excusa.
+
+QUE QUEDA ESTABLECIDO:
+El edge del primer breakout es NQ-ESPECIFICO. Coincide con la cuarentena previa de ES (que fue sobre la regla FADE, regla distinta, misma conclusion). Dos reglas independientes fallan al transferir al indice mas liquido y mas correlacionado con NQ.
+
+LA PALANCA DE FRECUENCIA QUEDA CERRADA POR COMPLETO:
+  Multi-entrada mismo nivel -> FAIL (EV +2.38 a -0.29)
+  Multi-instrumento         -> FAIL (no transfiere a ES)
+
+EL VALOR DEL DISENO POR ETAPAS:
+La Etapa 1 costo $0 porque ES ya estaba en disco. Si hubiera descargado YM+RTY primero, habria gastado $139.29 para llegar a la MISMA conclusion. Probar gratis lo que se puede probar gratis fue lo que ahorro el dinero.
+
+Doc: OpeningRangeSetup\multi_instrument_v1\STAGE1_INFORME.md

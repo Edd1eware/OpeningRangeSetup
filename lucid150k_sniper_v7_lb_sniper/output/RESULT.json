@@ -1,0 +1,89 @@
+{
+  "study": "LUCID150K-SNIPER-V7-LB-SNIPER",
+  "prereg_sha256": "4c96e1b79ad3c48715d2574faae5e236589508f5dd7822878cf448191b4c1034",
+  "days_with_eligible_episodes": 96,
+  "errors": 0,
+  "dispositions": {
+    "trade": 79,
+    "not_accepted": 19,
+    "overlap": 1,
+    "episode_lt_120s": 10,
+    "missing_nq": 2
+  },
+  "DEV": {
+    "TRAILING": {
+      "n": 54,
+      "ev_R": 0.06296,
+      "median_R": 0.0,
+      "pf": 1.1349,
+      "win_rate_pct": 46.296,
+      "positive_years": 1,
+      "positive_halves_pct": 50.0,
+      "median_half_EV_R": 0.08928,
+      "year_EV_R": {
+        "2022": 0.344,
+        "2023": -0.17931
+      },
+      "half_EV_R": {
+        "2022-H1": 0.47222,
+        "2022-H2": 0.27188,
+        "2023-H1": -0.09333,
+        "2023-H2": -0.27143
+      }
+    },
+    "FIXED_40_20_DIAGNOSTIC": {
+      "n": 54,
+      "ev_R": -0.08889,
+      "median_R": -1.2,
+      "pf": 0.8824,
+      "win_rate_pct": 37.037,
+      "positive_years": 1,
+      "positive_halves_pct": 50.0,
+      "median_half_EV_R": -0.04375,
+      "year_EV_R": {
+        "2022": 0.12,
+        "2023": -0.26897
+      },
+      "half_EV_R": {
+        "2022-H1": 0.13333,
+        "2022-H2": 0.1125,
+        "2023-H1": -0.2,
+        "2023-H2": -0.34286
+      }
+    },
+    "trades_per_month": 2.5714,
+    "trailing_minus_fixed_EV_R": 0.15185,
+    "gates": {
+      "D1_n_ge_30": true,
+      "D2_frequency_ge_15": true,
+      "D3_ev_gt_015R": false,
+      "D4_pf_gt_140": false,
+      "D5_two_positive_years": false,
+      "D6_positive_halves_ge_60pct": false,
+      "D7_trailing_minus_fixed_ge_minus005R": true
+    },
+    "PASS": false
+  },
+  "PSEUDO_VAL": null,
+  "DESCRIPTIVE_PSEUDO": {
+    "n": 25,
+    "ev_R": -0.208,
+    "median_R": -1.2,
+    "pf": 0.6667,
+    "win_rate_pct": 44.0,
+    "positive_years": 0,
+    "positive_halves_pct": 0.0,
+    "median_half_EV_R": -0.135,
+    "year_EV_R": {
+      "2025": -0.08611,
+      "2026": -0.52143
+    },
+    "half_EV_R": {
+      "2025-H1": -0.025,
+      "2025-H2": -0.135,
+      "2026-H1": -0.52143
+    }
+  },
+  "AUTHORIZE_HOLDOUT_BUILD": false,
+  "VERDICT_STAGE": "FAIL_NO_HOLDOUT"
+}

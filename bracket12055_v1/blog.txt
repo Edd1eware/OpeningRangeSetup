@@ -1,0 +1,122 @@
+MC bracket 120/55 ░░░░░░░░░░   0.0% |  0.0 min restantes
+MC bracket 120/55 ████░░░░░░  43.6% |  0.0 min restantes
+MC bracket 120/55 █████████░  86.9% |  0.0 min restantes
+MC bracket 120/55 ██████████ 100.0% |  0.0 min restantes ✓
+MC bracket 120/55 ██████████ 100.0% |  0.0 min restantes ✓
+{
+  "estudio": "BRACKET-120/55-V1 Parte A",
+  "prereg_sha256": "c756e20baafacbfd82ec63dad670baea8ccbb9d251ec7572a3a1358f49709c54",
+  "nota": "caracterizacion, NO validacion; FRESH 2024-26 esta quemado",
+  "breakeven_wr_pct": 31.43,
+  "A1_DEV_2022_2023": {
+    "trades": 296,
+    "trades_mes": 17.41,
+    "wr": 32.09,
+    "pf": 0.978,
+    "ev_net": -0.834,
+    "por_anio": {
+      "2022": {
+        "trades": 134,
+        "trades_mes": 16.75,
+        "wr": 30.6,
+        "pf": 0.913,
+        "ev_net": -3.455
+      },
+      "2023": {
+        "trades": 162,
+        "trades_mes": 18.0,
+        "wr": 33.33,
+        "pf": 1.035,
+        "ev_net": 1.333
+      }
+    }
+  },
+  "A2_ventanas": [
+    {
+      "ventana": "2022-H1",
+      "n": 46,
+      "ev_net": 0.065,
+      "pnl": 3.0
+    },
+    {
+      "ventana": "2022-H2",
+      "n": 88,
+      "ev_net": -5.295,
+      "pnl": -466.0
+    },
+    {
+      "ventana": "2023-H1",
+      "n": 75,
+      "ev_net": 8.333,
+      "pnl": 625.0
+    },
+    {
+      "ventana": "2023-H2",
+      "n": 87,
+      "ev_net": -4.701,
+      "pnl": -409.0
+    },
+    {
+      "ventana": "2024-H1",
+      "n": 75,
+      "ev_net": -10.333,
+      "pnl": -775.0
+    },
+    {
+      "ventana": "2024-H2",
+      "n": 87,
+      "ev_net": -0.678,
+      "pnl": -59.0
+    },
+    {
+      "ventana": "2025-H1",
+      "n": 76,
+      "ev_net": 14.382,
+      "pnl": 1093.0
+    },
+    {
+      "ventana": "2025-H2",
+      "n": 86,
+      "ev_net": 12.186,
+      "pnl": 1048.0
+    },
+    {
+      "ventana": "2026-H1",
+      "n": 77,
+      "ev_net": 4.364,
+      "pnl": 336.0
+    },
+    {
+      "ventana": "2026-H2",
+      "n": 1,
+      "ev_net": -57.0,
+      "pnl": -57.0
+    }
+  ],
+  "A2_frac_positivas": 0.5,
+  "A2_max_share": 0.816,
+  "A3_monte_carlo": {
+    "payouts_esperados": 0.2354,
+    "p_quema": 1.0,
+    "p_quema_sin_payout": 0.8113,
+    "payouts_p95": 1.0,
+    "entradas_por_dia": 1.0
+  },
+  "checks": {
+    "A1_C1_ev_pos": false,
+    "A1_C2_pf_gt_115": false,
+    "A2_C1_60pct_pos": false,
+    "A2_C2_sin_ventana_dominante": false,
+    "A3_C1_payouts_gt_05": false,
+    "A3_C2_quema_sin_payout_lt50": false
+  },
+  "VERDICT_PARTE_A": "FAIL",
+  "contexto_ya_visto_FRESH": {
+    "n": 402,
+    "trades_mes": 18.27,
+    "wr": 34.83,
+    "pf": 1.106,
+    "ev_net": 3.945,
+    "aviso": "no otorga PASS, solo contexto"
+  }
+}

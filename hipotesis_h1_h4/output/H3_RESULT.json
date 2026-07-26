@@ -1,0 +1,159 @@
+{
+  "hipotesis": "H3",
+  "titulo": "Liquidity Burst como filtro de DIA",
+  "universo": "2025-2026 replay sistematico (2022-24 excluido por sesgo)",
+  "n_universo": 240,
+  "n_con_LB": 111,
+  "n_sin_LB": 129,
+  "PRIMARIO_base_ambas": {
+    "sin_filtro": {
+      "trades": 240,
+      "trades_mes": 18.46,
+      "wr": 43.75,
+      "pf": 1.189,
+      "ev_net": 3.358,
+      "por_anio": {
+        "2025": {
+          "trades": 162,
+          "trades_mes": 20.25,
+          "wr": 43.83,
+          "pf": 1.179,
+          "ev_net": 3.296
+        },
+        "2026": {
+          "trades": 78,
+          "trades_mes": 15.6,
+          "wr": 43.59,
+          "pf": 1.212,
+          "ev_net": 3.487
+        }
+      }
+    },
+    "con_LB": {
+      "trades": 111,
+      "trades_mes": 9.25,
+      "wr": 36.94,
+      "pf": 0.79,
+      "ev_net": -4.477,
+      "por_anio": {
+        "2025": {
+          "trades": 77,
+          "trades_mes": 9.62,
+          "wr": 36.36,
+          "pf": 0.774,
+          "ev_net": -5.117
+        },
+        "2026": {
+          "trades": 34,
+          "trades_mes": 8.5,
+          "wr": 38.24,
+          "pf": 0.836,
+          "ev_net": -3.029
+        }
+      }
+    },
+    "sin_LB": {
+      "trades": 129,
+      "trades_mes": 9.92,
+      "wr": 49.61,
+      "pf": 1.685,
+      "ev_net": 10.101,
+      "por_anio": {
+        "2025": {
+          "trades": 85,
+          "trades_mes": 10.62,
+          "wr": 50.59,
+          "pf": 1.745,
+          "ev_net": 10.918
+        },
+        "2026": {
+          "trades": 44,
+          "trades_mes": 8.8,
+          "wr": 47.73,
+          "pf": 1.572,
+          "ev_net": 8.523
+        }
+      }
+    }
+  },
+  "DESCRIPTIVO_solo_UP": {
+    "sin_filtro": {
+      "trades": 113,
+      "trades_mes": 9.42,
+      "wr": 46.9,
+      "pf": 1.413,
+      "ev_net": 6.558,
+      "por_anio": {
+        "2025": {
+          "trades": 76,
+          "trades_mes": 9.5,
+          "wr": 44.74,
+          "pf": 1.328,
+          "ev_net": 5.197
+        },
+        "2026": {
+          "trades": 37,
+          "trades_mes": 9.25,
+          "wr": 51.35,
+          "pf": 1.585,
+          "ev_net": 9.351
+        }
+      }
+    },
+    "con_LB": {
+      "trades": 50,
+      "trades_mes": 4.17,
+      "wr": 50.0,
+      "pf": 1.237,
+      "ev_net": 3.74,
+      "por_anio": {
+        "2025": {
+          "trades": 34,
+          "trades_mes": 4.25,
+          "wr": 44.12,
+          "pf": 0.806,
+          "ev_net": -3.382
+        },
+        "2026": {
+          "trades": 16,
+          "trades_mes": 4.0,
+          "wr": 62.5,
+          "pf": 2.525,
+          "ev_net": 18.875
+        }
+      }
+    },
+    "sin_LB": {
+      "trades": 63,
+      "trades_mes": 5.25,
+      "wr": 44.44,
+      "pf": 1.551,
+      "ev_net": 8.794,
+      "por_anio": {
+        "2025": {
+          "trades": 42,
+          "trades_mes": 5.25,
+          "wr": 45.24,
+          "pf": 1.832,
+          "ev_net": 12.143
+        },
+        "2026": {
+          "trades": 21,
+          "trades_mes": 5.25,
+          "wr": 42.86,
+          "pf": 1.112,
+          "ev_net": 2.095
+        }
+      }
+    }
+  },
+  "gates": {
+    "G1_ev_net_pos": false,
+    "G2_pf_gt_115": false,
+    "G3_anios_pos_2de2": false,
+    "G4_freq_ge_4_mes": true,
+    "G5_supera_sin_filtro": false
+  },
+  "VERDICT": "FAIL",
+  "nota": "caracterizacion, no validacion: sin era-split dentro de 2025-2026. El corte solo-UP es descriptivo, sin autoridad de veredicto."
+}

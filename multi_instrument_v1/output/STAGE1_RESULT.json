@@ -1,0 +1,82 @@
+{
+  "etapa": 1,
+  "prereg_sha256": "7a9b562040927da1330b4bd989ae73fac9f381ac6eba2bead68d741d7d0c2e8a",
+  "coste_usd": 0.0,
+  "mediana_OR_ticks_DEV": {
+    "NQ": 99.5,
+    "ES": 18.0
+  },
+  "k_ES": 0.1809,
+  "params_ES_escalados": {
+    "SL": 7,
+    "ACT": 4,
+    "DIST": 7
+  },
+  "NQ_referencia_FRESH": {
+    "trades": 177,
+    "trades_mes": 8.43,
+    "wr": 38.98,
+    "pf": 1.156,
+    "ev_net": 2.582,
+    "por_anio": {
+      "2024": {
+        "trades": 64,
+        "trades_mes": 7.11,
+        "wr": 29.69,
+        "pf": 0.729,
+        "ev_net": -5.172
+      },
+      "2025": {
+        "trades": 76,
+        "trades_mes": 9.5,
+        "wr": 43.42,
+        "pf": 1.457,
+        "ev_net": 6.592
+      },
+      "2026": {
+        "trades": 37,
+        "trades_mes": 9.25,
+        "wr": 45.95,
+        "pf": 1.47,
+        "ev_net": 7.757
+      }
+    }
+  },
+  "ES_FRESH": {
+    "trades": 285,
+    "trades_mes": 9.5,
+    "wr": 32.28,
+    "pf": 0.757,
+    "ev_net": -0.877,
+    "por_anio": {
+      "2024": {
+        "trades": 112,
+        "trades_mes": 9.33,
+        "wr": 27.68,
+        "pf": 0.682,
+        "ev_net": -1.295
+      },
+      "2025": {
+        "trades": 117,
+        "trades_mes": 9.75,
+        "wr": 32.48,
+        "pf": 0.675,
+        "ev_net": -1.162
+      },
+      "2026": {
+        "trades": 56,
+        "trades_mes": 9.33,
+        "wr": 41.07,
+        "pf": 1.2,
+        "ev_net": 0.554
+      }
+    }
+  },
+  "gates": {
+    "E1_ev_net_pos": false,
+    "E2_anios_pos_ge2": false,
+    "E3_pf_gt_115": false
+  },
+  "VERDICT": "FAIL",
+  "consecuencia": "PASS -> autorizada descarga YM+RTY (~$139.29); FAIL -> edge NQ-especifico, no se descarga nada"
+}

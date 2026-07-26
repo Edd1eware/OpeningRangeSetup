@@ -1,0 +1,32 @@
+RESUMEN BATERIA H1-H4 — ninguna candidata, pero SI hay senal
+
+RESULTADOS:
+H1 Sesgo UP        FAIL (4/5 gates)  falla solo PF por 0.013
+H2 Gate regimen    FAIL (2/5 gates)  el gate EMPEORA los 3 anios
+H4 Sizing dinamico FAIL (0/3 gates)  test inutil por base perdedora (falla mia)
+H3 Filtro LB       NO TESTEABLE      91 sesiones de 300 exigidas
+
+EL HALLAZGO QUE SI IMPORTA (H1):
+Solo operar breakouts UP, en FRESH 2024-26:
+  n=177 | 8.4 trades/mes | WR 41.8 | PF 1.137 | EV NETO +2.38 ticks
+vs baseline ambas direcciones: EV neto -0.58
+
+Es la PRIMERA VEZ en todo el proyecto que algo da EV neto POSITIVO en holdout temporal con frecuencia operable. Mejora ~3 ticks netos por trade.
+
+Por anio: 2024 -5.00 | 2025 +5.20 | 2026 +9.35
+El unico gate que falla es PF (1.137 vs 1.15), y lo rompe 2024. Sin 2024 pasaria holgado, pero excluirlo esta prohibido y seria el autoengano clasico.
+
+LO QUE APRENDIMOS (negativos valiosos):
+1. El regimen de 2024 NO es autocorrelacionado. No se anuncia en el momentum de las 20 sesiones previas. Cierra una FAMILIA ENTERA de detectores de regimen.
+2. El sizing no crea edge donde no lo hay (99.96% de quema sobre base negativa). Cuantifica por que no fondear este baseline.
+3. El sesgo direccional UP/DOWN es real y economicamente grande, pero insuficiente SOLO.
+
+MI RECOMENDACION:
+H1 merece un preregistro NUEVO y limpio, no un rescate del actual. Razones:
+- Tuvo caveat de contaminacion (observe el split full-sample antes de preregistrar)
+- Falla por 0.013 en un gate: eso es "no concluyente", no "refutado"
+- Un test limpio seria: solo-UP + sizing dinamico (la combinacion que H4 nunca pudo probar por mi error de encadenamiento), con datos frescos o walk-forward, y gate fijado antes
+
+Tambien vale correr el detector LB sobre 2025-2026 para desbloquear H3: es computo, no investigacion.
+
+NO voy a seguir minando estos mismos 698 dias. Cada test adicional sobre el mismo dataset gasta credibilidad. Docs en OpeningRangeSetup\hipotesis_h1_h4\

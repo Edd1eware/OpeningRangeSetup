@@ -1,0 +1,90 @@
+{
+  "study": "LUCID150K-SNIPER-V10-OR5",
+  "prereg_sha256": "7b882794f7cf0cf63da4e0e2f275a50d3e99ed938ac41237b1ca249fa259a72e",
+  "dates_scanned": 1028,
+  "errors": 0,
+  "dispositions": {
+    "first_acceptance_unconfirmed": 599,
+    "trade": 298,
+    "retest_es_unconfirmed": 70,
+    "no_retest": 52,
+    "opposite_close": 6,
+    "no_acceptance": 3
+  },
+  "DEV": {
+    "TRAILING": {
+      "n": 109,
+      "ev_R": -0.11927,
+      "median_R": -1.1,
+      "pf": 0.7851,
+      "win_rate_pct": 43.119,
+      "positive_years": 1,
+      "positive_halves_pct": 25.0,
+      "median_half_EV_R": -0.32334,
+      "year_EV_R": {
+        "2022": 0.17391,
+        "2023": -0.33333
+      },
+      "half_EV_R": {
+        "2022-H1": -0.385,
+        "2022-H2": 0.32917,
+        "2023-H1": -0.39848,
+        "2023-H2": -0.26167
+      }
+    },
+    "FIXED_80_40_DIAGNOSTIC": {
+      "n": 109,
+      "ev_R": -0.08165,
+      "median_R": -1.1,
+      "pf": 0.8876,
+      "win_rate_pct": 33.945,
+      "positive_years": 1,
+      "positive_halves_pct": 25.0,
+      "median_half_EV_R": -0.38637,
+      "year_EV_R": {
+        "2022": 0.33478,
+        "2023": -0.38571
+      },
+      "half_EV_R": {
+        "2022-H1": -0.5,
+        "2022-H2": 0.56667,
+        "2023-H1": -0.37273,
+        "2023-H2": -0.4
+      }
+    },
+    "trades_per_month": 5.1905,
+    "trailing_minus_fixed_EV_R": -0.03762,
+    "gates": {
+      "D1_n_ge_50": true,
+      "D2_frequency_ge_25": true,
+      "D3_ev_gt_010R": false,
+      "D4_pf_gt_130": false,
+      "D5_two_positive_years": false,
+      "D6_positive_halves_ge_60pct": false,
+      "D7_trailing_minus_fixed_ge_minus005R": true
+    },
+    "PASS": false
+  },
+  "PSEUDO_VAL_2024": null,
+  "STRESS_SEEN_2025_2026": {
+    "n": 128,
+    "ev_R": -0.14824,
+    "median_R": 0.0,
+    "pf": 0.7262,
+    "win_rate_pct": 46.094,
+    "positive_years": 0,
+    "positive_halves_pct": 33.33,
+    "median_half_EV_R": -0.15682,
+    "year_EV_R": {
+      "2025": -0.03827,
+      "2026": -0.33777
+    },
+    "half_EV_R": {
+      "2025-H1": 0.1027,
+      "2025-H2": -0.15682,
+      "2026-H1": -0.33777
+    }
+  },
+  "AUTHORIZE_HOLDOUT_DOWNLOAD": false,
+  "VERDICT_STAGE": "FAIL_NO_DOWNLOAD"
+}

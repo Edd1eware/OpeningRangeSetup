@@ -1,0 +1,198 @@
+{
+  "study": "CROSS-INSTRUMENT-NQ-V1",
+  "prereg_sha256": "72fc5eae6be0b8aac00b5b7a29c64692ad1d2f0322b37c2027b9ed23f9a31637",
+  "paired_dates_scanned": 1028,
+  "errors": 0,
+  "trade_rows": 496,
+  "cost_ticks": 4.0,
+  "PRIMARY_EST_HOLDOUT": {
+    "BASE": {
+      "n": 165,
+      "months_observed": 20,
+      "trades_per_active_month": 8.25,
+      "wr_pct": 52.121,
+      "ev_net": -1.4545,
+      "pf": 0.9525,
+      "positive_year_blocks": 2,
+      "by_year": {
+        "2022": {
+          "n": 15,
+          "ev_net": 16.0,
+          "pf": 1.75
+        },
+        "2023": {
+          "n": 48,
+          "ev_net": -6.5,
+          "pf": 0.805
+        },
+        "2024": {
+          "n": 40,
+          "ev_net": 5.0,
+          "pf": 1.1838
+        },
+        "2025": {
+          "n": 38,
+          "ev_net": -0.8421,
+          "pf": 0.9722
+        },
+        "2026": {
+          "n": 24,
+          "ev_net": -14.0,
+          "pf": 0.625
+        }
+      }
+    },
+    "ES_CONFIRM": {
+      "n": 26,
+      "months_observed": 15,
+      "trades_per_active_month": 1.733,
+      "wr_pct": 57.692,
+      "ev_net": 5.2308,
+      "pf": 1.1932,
+      "positive_year_blocks": 3,
+      "by_year": {
+        "2022": {
+          "n": 4,
+          "ev_net": -4.0,
+          "pf": 0.875
+        },
+        "2023": {
+          "n": 5,
+          "ev_net": 8.0,
+          "pf": 1.3125
+        },
+        "2024": {
+          "n": 6,
+          "ev_net": 36.0,
+          "pf": 4.375
+        },
+        "2025": {
+          "n": 6,
+          "ev_net": 16.0,
+          "pf": 1.75
+        },
+        "2026": {
+          "n": 5,
+          "ev_net": -40.0,
+          "pf": 0.2188
+        }
+      }
+    },
+    "ES_CONFIRM_bootstrap_EV_CI95": [
+      -17.8462,
+      28.3077
+    ],
+    "ES_CONFIRM_EV_improvement_vs_BASE": 6.6853,
+    "BASE_gates": {
+      "B1_ev_net_gt_0": false,
+      "B2_pf_gt_1_10": false,
+      "B3_positive_year_blocks_ge_3": false,
+      "B4_n_ge_100": true
+    },
+    "ES_CONFIRM_gates": {
+      "C1_ev_net_gt_0": true,
+      "C2_pf_gt_1_15": true,
+      "C3_ev_improvement_ge_2": true,
+      "C4_positive_year_blocks_ge_3": true,
+      "C5_n_ge_50": false,
+      "C6_bootstrap_ci_low_gt_0": false
+    },
+    "lucid150k_BASE": {
+      "attempts": 50000,
+      "p_pass": 0.14604,
+      "p_burn": 0.85396,
+      "p_unresolved_at_computational_guard": 0.0,
+      "median_trades_to_pass": 41.0,
+      "estimated_active_months_to_pass": 4.97,
+      "contracts": 3,
+      "max_intraday_loss_usd": 1575.0,
+      "dll_usd": 2700.0
+    },
+    "lucid150k_ES_CONFIRM": {
+      "attempts": 50000,
+      "p_pass": 0.3942,
+      "p_burn": 0.6058,
+      "p_unresolved_at_computational_guard": 0.0,
+      "median_trades_to_pass": 39.0,
+      "estimated_active_months_to_pass": 22.5,
+      "contracts": 3,
+      "max_intraday_loss_usd": 1290.0,
+      "dll_usd": 2700.0
+    }
+  },
+  "DESCRIPTIVE_EDT_SEEN": {
+    "BASE": {
+      "n": 331,
+      "months_observed": 37,
+      "trades_per_active_month": 8.946,
+      "wr_pct": 53.172,
+      "ev_net": -0.1934,
+      "pf": 0.9935,
+      "positive_year_blocks": 3,
+      "by_year": {
+        "2022": {
+          "n": 75,
+          "ev_net": -6.4,
+          "pf": 0.8077
+        },
+        "2023": {
+          "n": 79,
+          "ev_net": 1.3165,
+          "pf": 1.0451
+        },
+        "2024": {
+          "n": 64,
+          "ev_net": -9.625,
+          "pf": 0.725
+        },
+        "2025": {
+          "n": 76,
+          "ev_net": 7.0526,
+          "pf": 1.2702
+        },
+        "2026": {
+          "n": 37,
+          "ev_net": 10.5946,
+          "pf": 1.4375
+        }
+      }
+    },
+    "ES_CONFIRM": {
+      "n": 53,
+      "months_observed": 28,
+      "trades_per_active_month": 1.893,
+      "wr_pct": 56.604,
+      "ev_net": 3.9245,
+      "pf": 1.1413,
+      "positive_year_blocks": 2,
+      "by_year": {
+        "2022": {
+          "n": 12,
+          "ev_net": -4.0,
+          "pf": 0.875
+        },
+        "2023": {
+          "n": 10,
+          "ev_net": 32.0,
+          "pf": 3.5
+        },
+        "2024": {
+          "n": 10,
+          "ev_net": -4.0,
+          "pf": 0.875
+        },
+        "2025": {
+          "n": 14,
+          "ev_net": 4.5714,
+          "pf": 1.1667
+        },
+        "2026": {
+          "n": 7,
+          "ev_net": -12.5714,
+          "pf": 0.6562
+        }
+      }
+    }
+  },
+  "classification": "BASE_FAIL_ES_CONFIRM_FAIL"
+}

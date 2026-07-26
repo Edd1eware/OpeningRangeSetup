@@ -1,0 +1,59 @@
+{
+  "study": "LUCID150K-SNIPER-V9-CONFLICT-FADE",
+  "stage": "DEV",
+  "prereg_sha256": "ab7b9ad16491cea7dd49702d3d8b499739f4225f744fe9c872a307a18c005e4e",
+  "dates_scanned": 414,
+  "errors": 0,
+  "dispositions": {
+    "opposite_lt_2": 398,
+    "no_reclaim": 5,
+    "trade": 11
+  },
+  "TRAILING": {
+    "n": 11,
+    "ev_R": -0.40101,
+    "median_R": -1.2,
+    "pf": 0.4749,
+    "win_rate_pct": 27.273,
+    "positive_years": 0,
+    "positive_halves_pct": 0.0,
+    "median_half_EV_R": -0.41611,
+    "year_EV_R": {
+      "2023": -0.40101
+    },
+    "half_EV_R": {
+      "2023-H1": -0.25,
+      "2023-H2": -0.58222
+    }
+  },
+  "FIXED_1R_DIAGNOSTIC": {
+    "n": 11,
+    "ev_R": -0.46465,
+    "median_R": -1.2,
+    "pf": 0.3915,
+    "win_rate_pct": 36.364,
+    "positive_years": 0,
+    "positive_halves_pct": 0.0,
+    "median_half_EV_R": -0.49111,
+    "year_EV_R": {
+      "2023": -0.46465
+    },
+    "half_EV_R": {
+      "2023-H1": -0.2,
+      "2023-H2": -0.78222
+    }
+  },
+  "trades_per_month": 0.5238,
+  "trailing_minus_fixed_EV_R": 0.06364,
+  "gates": {
+    "D1_n_ge_25": false,
+    "D2_frequency_ge_12": false,
+    "D3_ev_gt_015R": false,
+    "D4_pf_gt_140": false,
+    "D5_two_positive_years": false,
+    "D6_positive_halves_ge_60pct": false,
+    "D7_trailing_minus_fixed_ge_minus005R": true
+  },
+  "PASS_DEV": false,
+  "CONTINUE_PSEUDO": false
+}

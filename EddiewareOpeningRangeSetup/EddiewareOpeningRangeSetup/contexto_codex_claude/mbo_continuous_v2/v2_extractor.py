@@ -140,9 +140,24 @@ def load_case(row: pd.Series, permute_p4: bool = False) -> CaseInputs:
     )
     start_record = int(row["pre_overlap_records"])
     if permute_p4:
-        # P4: deterministic permutation by SHA-256 of message identity, then
-        # regroup by sequence order; must reconstruct identical semantics.
+        # P4: transport-order robustness. Tag each post-overlap record with its
+        # original packet id (F_LAST boundaries in arrival order) and intra
+        # index, deterministically permute all rows by SHA-256 of message
+        # identity, then regroup by (packet, sequence/intra) restoring the
+        # original packetization. A faithful pipeline round-trips exactly.
         post = outcome.iloc[start_record:].reset_index(drop=True)
+        packet_id = np.empty(len(post), dtype=np.int64)
+        intra = np.empty(len(post), dtype=np.int64)
+        pid = 0
+        j = 0
+        for i, item in enumerate(post.itertuples(index=False)):
+            packet_id[i] = pid
+            intra[i] = j
+            j += 1
+            if bool(int(item.flags) & F_LAST):
+                pid += 1
+                j = 0
+        post = post.assign(_pid=packet_id, _intra=intra)
 
         def msg_key(item) -> str:
             raw = (f"{int(item.sequence)}|{int(item.order_id)}|"
@@ -151,10 +166,9 @@ def load_case(row: pd.Series, permute_p4: bool = False) -> CaseInputs:
             return hashlib.sha256(raw.encode()).hexdigest()
 
         keys = [msg_key(item) for item in post.itertuples(index=False)]
-        post = post.iloc[np.argsort(np.array(keys))].reset_index(drop=True)
-        post = post.sort_values(
-            ["sequence", "ts_recv"], kind="stable"
-        ).reset_index(drop=True)
+        post = post.iloc[np.argsort(np.array(keys), kind="stable")]
+        post = post.sort_values(["_pid", "_intra"], kind="stable").reset_index(
+            drop=True).drop(columns=["_pid", "_intra"])
         outcome = post
         start_record = 0
     packets, _ = logical_packets(

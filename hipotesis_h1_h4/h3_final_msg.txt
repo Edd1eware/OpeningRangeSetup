@@ -1,0 +1,46 @@
+H3 LIQUIDITY BURST: FAIL - relacion INVERSA fortisima, pero 82% LOOKAHEAD
+
+PRIMERO LA BUENA NOTICIA: NO hubo que correr ATAS. Las etiquetas de 2025-2026 YA EXISTIAN en otras carpetas de replay. Me equivoque antes al contar 91 sesiones: conte solo las que TENIAN burst, no las etiquetadas. Real: 356 sesiones etiquetadas (209 con LB, 147 sin). Te ahorre ~20 horas de maquina ocupada.
+
+Tambien excluí 2022-2024: fueron SELECCIONADAS por tener LB (tasa 86-94%) vs replay sistematico en 2025-26 (tasa 44-47%). Comparar ahi no medía nada.
+
+VEREDICTO: FAIL (4 de 5 gates)
+G1 EV neto >0     -> -4.477   FAIL
+G2 PF >1.15       -> 0.790    FAIL
+G3 anios 2 de 2   -> 0 de 2   FAIL
+G4 frecuencia >=4 -> 9.25     PASS
+G5 supera base    -> -4.477   FAIL
+
+LA RELACION EXISTE PERO ES LA INVERSA (240 sesiones 2025-26):
+  Sin filtro:    n240 WR43.8 PF1.189 EVneto  +3.358
+  Dias CON LB:   n111 WR36.9 PF0.790 EVneto  -4.477
+  Dias SIN LB:   n129 WR49.6 PF1.685 EVneto +10.101
+
+Diferencia de 14.6 TICKS netos. Consistente ambos anios:
+  2025: con LB -5.117 | sin LB +10.918
+  2026: con LB -3.029 | sin LB  +8.523
+
+La hipotesis decia "LB marca los dias que vale la pena operar". El dato dice lo CONTRARIO con fuerza: los dias con Liquidity Burst son los dias en que el breakout del OR FALLA.
+
+*** PERO: 82% ES LOOKAHEAD - NO SE PUEDE OPERAR ASI ***
+Verificacion de causalidad (obligatoria antes de celebrar):
+  entrada del breakout: mediana 09:31:09
+  primer LB del dia:    mediana 09:32:30
+  De 199 dias: LB antes de la entrada 35 (18%) | LB DESPUES 164 (82%)
+  mediana LB - entrada = +59 segundos
+
+En el momento de entrar todavia NO sabes si habra LB. Filtrar por "este dia tiene LB" usa informacion del futuro en 82% de los casos. Habria sido un falso descubrimiento clasico.
+
+EL REENCUADRE QUE SI ES CAUSAL:
+El LB llega ~59s DESPUES de la entrada. No sirve para decidir si entrar, pero si para decidir SI SEGUIR DENTRO:
+
+  Si estas en un breakout del OR y aparece un Liquidity Burst en el minuto
+  siguiente, ese es el aviso de que el breakout va a fallar.
+
+Eso es plenamente causal: el evento ocurre, luego actuas. Encaja con la logica de ATRAPADOS (fade tras breakout fallido) y con "el LB localiza volatilidad, no direccion".
+
+NO LO PRUEBO HOY: seria post hoc sobre el mismo dataset donde acabo de ver la relacion. Requiere su propio preregistro y holdout distinto o forward.
+
+ESTO ES LO MAS CONCRETO QUE DEJA EL DIA: una senal de SALIDA causal, no un filtro de entrada.
+
+Doc: OpeningRangeSetup\hipotesis_h1_h4\H3_INFORME_FINAL.md

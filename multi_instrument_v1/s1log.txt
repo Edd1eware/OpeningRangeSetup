@@ -1,0 +1,195 @@
+NQ primer breakout UP ░░░░░░░░░░   0.1% |  0.8 min restantes
+NQ primer breakout UP ░░░░░░░░░░   2.0% |  0.4 min restantes
+NQ primer breakout UP ░░░░░░░░░░   4.0% |  0.4 min restantes
+NQ primer breakout UP █░░░░░░░░░   5.9% |  0.4 min restantes
+NQ primer breakout UP █░░░░░░░░░   7.7% |  0.4 min restantes
+NQ primer breakout UP █░░░░░░░░░   9.2% |  0.4 min restantes
+NQ primer breakout UP █░░░░░░░░░  11.3% |  0.4 min restantes
+NQ primer breakout UP █░░░░░░░░░  13.3% |  0.4 min restantes
+NQ primer breakout UP ██░░░░░░░░  15.4% |  0.4 min restantes
+NQ primer breakout UP ██░░░░░░░░  17.4% |  0.4 min restantes
+NQ primer breakout UP ██░░░░░░░░  19.5% |  0.4 min restantes
+NQ primer breakout UP ██░░░░░░░░  21.7% |  0.3 min restantes
+NQ primer breakout UP ██░░░░░░░░  23.6% |  0.3 min restantes
+NQ primer breakout UP ███░░░░░░░  25.5% |  0.3 min restantes
+NQ primer breakout UP ███░░░░░░░  27.6% |  0.3 min restantes
+NQ primer breakout UP ███░░░░░░░  29.5% |  0.3 min restantes
+NQ primer breakout UP ███░░░░░░░  31.4% |  0.3 min restantes
+NQ primer breakout UP ███░░░░░░░  33.3% |  0.3 min restantes
+NQ primer breakout UP ████░░░░░░  35.2% |  0.3 min restantes
+NQ primer breakout UP ████░░░░░░  37.0% |  0.3 min restantes
+NQ primer breakout UP ████░░░░░░  39.1% |  0.3 min restantes
+NQ primer breakout UP ████░░░░░░  41.2% |  0.3 min restantes
+NQ primer breakout UP ████░░░░░░  43.2% |  0.2 min restantes
+NQ primer breakout UP █████░░░░░  45.4% |  0.2 min restantes
+NQ primer breakout UP █████░░░░░  47.3% |  0.2 min restantes
+NQ primer breakout UP █████░░░░░  49.4% |  0.2 min restantes
+NQ primer breakout UP █████░░░░░  51.4% |  0.2 min restantes
+NQ primer breakout UP █████░░░░░  53.4% |  0.2 min restantes
+NQ primer breakout UP ██████░░░░  55.4% |  0.2 min restantes
+NQ primer breakout UP ██████░░░░  57.2% |  0.2 min restantes
+NQ primer breakout UP ██████░░░░  59.4% |  0.2 min restantes
+NQ primer breakout UP ██████░░░░  61.4% |  0.2 min restantes
+NQ primer breakout UP ██████░░░░  63.5% |  0.2 min restantes
+NQ primer breakout UP ███████░░░  65.6% |  0.1 min restantes
+NQ primer breakout UP ███████░░░  67.2% |  0.1 min restantes
+NQ primer breakout UP ███████░░░  68.8% |  0.1 min restantes
+NQ primer breakout UP ███████░░░  70.6% |  0.1 min restantes
+NQ primer breakout UP ███████░░░  72.4% |  0.1 min restantes
+NQ primer breakout UP ███████░░░  74.2% |  0.1 min restantes
+NQ primer breakout UP ████████░░  76.1% |  0.1 min restantes
+NQ primer breakout UP ████████░░  78.0% |  0.1 min restantes
+NQ primer breakout UP ████████░░  80.0% |  0.1 min restantes
+NQ primer breakout UP ████████░░  82.0% |  0.1 min restantes
+NQ primer breakout UP ████████░░  84.0% |  0.1 min restantes
+NQ primer breakout UP █████████░  85.8% |  0.1 min restantes
+NQ primer breakout UP █████████░  88.0% |  0.1 min restantes
+NQ primer breakout UP █████████░  90.1% |  0.0 min restantes
+NQ primer breakout UP █████████░  92.1% |  0.0 min restantes
+NQ primer breakout UP █████████░  94.3% |  0.0 min restantes
+NQ primer breakout UP ██████████  96.3% |  0.0 min restantes
+NQ primer breakout UP ██████████  98.3% |  0.0 min restantes
+NQ primer breakout UP ██████████ 100.0% |  0.0 min restantes ✓
+NQ primer breakout UP ██████████ 100.0% |  0.0 min restantes ✓
+ES primer breakout UP ░░░░░░░░░░   0.1% |  0.6 min restantes
+ES primer breakout UP ░░░░░░░░░░   1.6% |  0.6 min restantes
+ES primer breakout UP ░░░░░░░░░░   3.2% |  0.5 min restantes
+ES primer breakout UP █░░░░░░░░░   5.1% |  0.5 min restantes
+ES primer breakout UP █░░░░░░░░░   6.9% |  0.5 min restantes
+ES primer breakout UP █░░░░░░░░░   8.5% |  0.5 min restantes
+ES primer breakout UP █░░░░░░░░░  10.3% |  0.4 min restantes
+ES primer breakout UP █░░░░░░░░░  11.9% |  0.4 min restantes
+ES primer breakout UP █░░░░░░░░░  13.5% |  0.4 min restantes
+ES primer breakout UP ██░░░░░░░░  15.1% |  0.4 min restantes
+ES primer breakout UP ██░░░░░░░░  16.9% |  0.4 min restantes
+ES primer breakout UP ██░░░░░░░░  18.6% |  0.4 min restantes
+ES primer breakout UP ██░░░░░░░░  20.1% |  0.4 min restantes
+ES primer breakout UP ██░░░░░░░░  21.8% |  0.4 min restantes
+ES primer breakout UP ██░░░░░░░░  23.5% |  0.4 min restantes
+ES primer breakout UP ███░░░░░░░  25.2% |  0.4 min restantes
+ES primer breakout UP ███░░░░░░░  26.9% |  0.4 min restantes
+ES primer breakout UP ███░░░░░░░  28.9% |  0.4 min restantes
+ES primer breakout UP ███░░░░░░░  30.8% |  0.3 min restantes
+ES primer breakout UP ███░░░░░░░  32.4% |  0.3 min restantes
+ES primer breakout UP ███░░░░░░░  34.4% |  0.3 min restantes
+ES primer breakout UP ████░░░░░░  36.0% |  0.3 min restantes
+ES primer breakout UP ████░░░░░░  37.6% |  0.3 min restantes
+ES primer breakout UP ████░░░░░░  39.7% |  0.3 min restantes
+ES primer breakout UP ████░░░░░░  41.8% |  0.3 min restantes
+ES primer breakout UP ████░░░░░░  43.4% |  0.3 min restantes
+ES primer breakout UP █████░░░░░  45.3% |  0.3 min restantes
+ES primer breakout UP █████░░░░░  47.2% |  0.3 min restantes
+ES primer breakout UP █████░░░░░  48.9% |  0.3 min restantes
+ES primer breakout UP █████░░░░░  50.8% |  0.2 min restantes
+ES primer breakout UP █████░░░░░  52.9% |  0.2 min restantes
+ES primer breakout UP █████░░░░░  54.6% |  0.2 min restantes
+ES primer breakout UP ██████░░░░  56.2% |  0.2 min restantes
+ES primer breakout UP ██████░░░░  58.1% |  0.2 min restantes
+ES primer breakout UP ██████░░░░  59.8% |  0.2 min restantes
+ES primer breakout UP ██████░░░░  61.5% |  0.2 min restantes
+ES primer breakout UP ██████░░░░  63.5% |  0.2 min restantes
+ES primer breakout UP ███████░░░  65.4% |  0.2 min restantes
+ES primer breakout UP ███████░░░  67.0% |  0.2 min restantes
+ES primer breakout UP ███████░░░  68.7% |  0.2 min restantes
+ES primer breakout UP ███████░░░  70.4% |  0.1 min restantes
+ES primer breakout UP ███████░░░  72.2% |  0.1 min restantes
+ES primer breakout UP ███████░░░  73.9% |  0.1 min restantes
+ES primer breakout UP ████████░░  75.7% |  0.1 min restantes
+ES primer breakout UP ████████░░  77.6% |  0.1 min restantes
+ES primer breakout UP ████████░░  79.6% |  0.1 min restantes
+ES primer breakout UP ████████░░  81.7% |  0.1 min restantes
+ES primer breakout UP ████████░░  83.4% |  0.1 min restantes
+ES primer breakout UP ████████░░  84.8% |  0.1 min restantes
+ES primer breakout UP █████████░  86.4% |  0.1 min restantes
+ES primer breakout UP █████████░  88.3% |  0.1 min restantes
+ES primer breakout UP █████████░  89.9% |  0.0 min restantes
+ES primer breakout UP █████████░  91.4% |  0.0 min restantes
+ES primer breakout UP █████████░  92.9% |  0.0 min restantes
+ES primer breakout UP █████████░  94.5% |  0.0 min restantes
+ES primer breakout UP ██████████  96.1% |  0.0 min restantes
+ES primer breakout UP ██████████  97.7% |  0.0 min restantes
+ES primer breakout UP ██████████  99.2% |  0.0 min restantes
+ES primer breakout UP ██████████ 100.0% |  0.0 min restantes ✓
+ES primer breakout UP ██████████ 100.0% |  0.0 min restantes ✓
+{
+  "etapa": 1,
+  "prereg_sha256": "7a9b562040927da1330b4bd989ae73fac9f381ac6eba2bead68d741d7d0c2e8a",
+  "coste_usd": 0.0,
+  "mediana_OR_ticks_DEV": {
+    "NQ": 99.5,
+    "ES": 18.0
+  },
+  "k_ES": 0.1809,
+  "params_ES_escalados": {
+    "SL": 7,
+    "ACT": 4,
+    "DIST": 7
+  },
+  "NQ_referencia_FRESH": {
+    "trades": 177,
+    "trades_mes": 8.43,
+    "wr": 38.98,
+    "pf": 1.156,
+    "ev_net": 2.582,
+    "por_anio": {
+      "2024": {
+        "trades": 64,
+        "trades_mes": 7.11,
+        "wr": 29.69,
+        "pf": 0.729,
+        "ev_net": -5.172
+      },
+      "2025": {
+        "trades": 76,
+        "trades_mes": 9.5,
+        "wr": 43.42,
+        "pf": 1.457,
+        "ev_net": 6.592
+      },
+      "2026": {
+        "trades": 37,
+        "trades_mes": 9.25,
+        "wr": 45.95,
+        "pf": 1.47,
+        "ev_net": 7.757
+      }
+    }
+  },
+  "ES_FRESH": {
+    "trades": 285,
+    "trades_mes": 9.5,
+    "wr": 32.28,
+    "pf": 0.757,
+    "ev_net": -0.877,
+    "por_anio": {
+      "2024": {
+        "trades": 112,
+        "trades_mes": 9.33,
+        "wr": 27.68,
+        "pf": 0.682,
+        "ev_net": -1.295
+      },
+      "2025": {
+        "trades": 117,
+        "trades_mes": 9.75,
+        "wr": 32.48,
+        "pf": 0.675,
+        "ev_net": -1.162
+      },
+      "2026": {
+        "trades": 56,
+        "trades_mes": 9.33,
+        "wr": 41.07,
+        "pf": 1.2,
+        "ev_net": 0.554
+      }
+    }
+  },
+  "gates": {
+    "E1_ev_net_pos": false,
+    "E2_anios_pos_ge2": false,
+    "E3_pf_gt_115": false
+  },
+  "VERDICT": "FAIL",
+  "consecuencia": "PASS -> autorizada descarga YM+RTY (~$139.29); FAIL -> edge NQ-especifico, no se descarga nada"
+}

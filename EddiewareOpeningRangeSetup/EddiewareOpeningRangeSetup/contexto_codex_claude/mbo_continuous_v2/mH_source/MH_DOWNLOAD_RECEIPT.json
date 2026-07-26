@@ -1,0 +1,12 @@
+{
+  "information_status": "MH_RAW_DOWNLOADED_NO_OUTCOME",
+  "dataset": "GLBX.MDP3",
+  "schema": "mbp-1",
+  "stype_in": "raw_symbol",
+  "n_files": 98,
+  "total_bytes": 1287687,
+  "quoted_cost_usd": 4.173532,
+  "cost_cap_usd": 5.0,
+  "addendum_sha256": "f4c5637eea52a4d982281cdc0088ffc3935567246847bb65c8f1f77091df9395",
+  "empty_files": []
+}

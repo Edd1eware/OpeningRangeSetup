@@ -1,0 +1,52 @@
+UPBIAS-V2 PARTE A: FAIL (4 de 7) - pero con el positivo mas fuerte del proyecto
+
+Recordatorio: la Parte A NO valida nada. Solo mide si el sesgo es fragil o robusto. PASS solo daba derecho a correr el forward. Salio FAIL, asi que NO se pasa a la Parte B.
+
+CHECKS:
+A1-C1 UP>DOWN en >=7 de 8 configs -> 8 de 8    PASS
+A1-C2 UP positivo en >=6 de 8     -> 7 de 8    PASS
+A2-C1 >=60% ventanas positivas    -> 66.7%     PASS
+A2-C2 ninguna ventana >50% PnL    -> 71.2%     FAIL
+A3-C1 payouts esperados >0.5      -> 0.381     FAIL
+A3-C2 quema sin payout <50%       -> 72.1%     FAIL
+A3-C3 dinamico > fijo             -> 0.3809 vs 0.3700  PASS
+
+A1 - EL SESGO ES REAL Y ROBUSTO (hallazgo mas solido del proyecto):
+UP supera a DOWN en las 8 configuraciones de gestion, SIN EXCEPCION.
+DOWN pierde entre -4.58 y -5.00 ticks netos en TODAS. UP positivo en 7 de 8.
+  trail_50_20_40: UP +2.14 | DOWN -4.75
+  fixed_60_60:    UP +1.98 | DOWN -4.95
+  fixed_60_30:    UP +1.89 | DOWN -4.71
+  trail_60_30_50: UP -0.26 | DOWN -4.58
+La asimetria NO es artefacto del trailing: es propiedad del mercado.
+
+A2 - PERO EL BENEFICIO ESTA CONCENTRADO:
+  2022-H1 +161 | 2022-H2 -279 | 2023-H1 +225 | 2023-H2 +379
+  2024-H1 +226 | 2024-H2 -546 | 2025-H1 +646 | 2025-H2 -251 | 2026-H1 +346
+UN SOLO SEMESTRE (2025-H1) aporta el 71% del PnL total. Y hay 3 semestres con perdidas fuertes.
+
+A3 - LA RESPUESTA QUE H4 NUNCA PUDO DAR (ahora si sobre base POSITIVA, EV +2.38):
+  Dinamico: payouts 0.3809 | quema 99.85% | quema sin payout 72.1%
+  Fijo:     payouts 0.3700 | quema 99.97% | quema sin payout 72.9%
+
+El sizing dinamico SI gana al fijo sobre base positiva, pero por 2.9%, NO por el +32% del resultado previo. Ese +32% se midio en otro contexto y no se reproduce aqui.
+
+Lo grave: con edge de +2.38 ticks/trade, el 72% de las cuentas se quema SIN COBRAR UN SOLO PAYOUT bajo reglas Lucid 150k.
+
+EL DIAGNOSTICO REAL:
+El problema NO es que no haya edge. El edge existe (8 de 8) y es positivo. El problema es de MAGNITUD frente a las reglas de la cuenta:
+  EV +2.38 ticks x 5 USD x 4 contratos = ~47.6 USD/dia esperado
+  target 9,000 USD -> ~189 dias para el primer payout
+  MaxLoss 4,500 trailing = 225 ticks de drawdown con 4 contratos
+Con ~1 trade/dia y esa varianza, tocar 225 ticks antes de acumular 9,000 es lo que pasa casi siempre.
+
+El edge es real pero DEMASIADO PEQUENO PARA ESTE VEHICULO A ESTA FRECUENCIA.
+
+QUE NO HAGO: no busco el sizing ni el numero de contratos que haga pasar el MC. Seria minar el mismo dataset por cuarta vez hoy. La restriccion es estructural, no un parametro por afinar.
+
+LO QUE QUEDA ESTABLECIDO:
+1. La asimetria UP/DOWN del OR es REAL y robusta a la gestion
+2. Es temporalmente concentrada: depende de tramos
+3. A esta frecuencia y con estas reglas, NO alcanza para farmear payouts. Se necesita mas edge por trade, mas trades por dia, o reglas de cuenta distintas. NO otro trailing.
+
+Doc: OpeningRangeSetup\upbias_v2\PARTE_A_INFORME.md
