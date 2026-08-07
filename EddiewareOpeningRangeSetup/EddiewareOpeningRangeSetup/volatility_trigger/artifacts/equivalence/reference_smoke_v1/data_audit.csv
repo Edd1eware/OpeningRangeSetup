@@ -1,6 +1,0 @@
-session_date,source,source_bytes,trade_rows,first_ticks,last_ticks,timestamp_backtracks,adjacent_exact_duplicates,tick_size,lot_size,status,liquidity_bursts,candidate_rows,reason
-2022-08-01,C:\Users\k_99_\AppData\Roaming\ATAS\Cache_v2\NQ@CME_Ind\2022_07_31\trades.dat,9782780.0,511570.0,6.3794923213148e+17,6.3794980819872e+17,0.0,0.0,0.25,1.0,PASS,25.0,5050.0,
-2022-08-02,,,,,,,,,,EXCLUDED,,,ValueError: nonmonotonic trade timestamps=1
-2022-08-03,C:\Users\k_99_\AppData\Roaming\ATAS\Cache_v2\NQ@CME_Ind\2022_08_02\trades.dat,10615406.0,552669.0,6.3795096000013e+17,6.3795153619933e+17,0.0,0.0,0.25,1.0,PASS,28.0,5656.0,
-2022-08-04,C:\Users\k_99_\AppData\Roaming\ATAS\Cache_v2\NQ@CME_Ind\2022_08_03\trades.dat,8612772.0,454639.0,6.3795182402926e+17,6.3795240019965e+17,0.0,0.0,0.25,1.0,PASS,13.0,2626.0,
-2022-08-05,C:\Users\k_99_\AppData\Roaming\ATAS\Cache_v2\NQ@CME_Ind\2022_08_04\trades.dat,10661576.0,568472.0,6.3795268802829e+17,6.3795326419966e+17,0.0,0.0,0.25,1.0,PASS,14.0,2828.0,

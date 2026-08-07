@@ -1,8 +1,0 @@
-{
-  "stage": "discovery",
-  "sessions": 195,
-  "readable_sessions": 189,
-  "sessions_with_backtracks": 66,
-  "total_backtracks": 9665,
-  "largest_backtrack_ms": 222135.0
-}

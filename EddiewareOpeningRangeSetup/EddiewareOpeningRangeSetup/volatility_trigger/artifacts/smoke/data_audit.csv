@@ -1,6 +1,0 @@
-session_date,source,source_bytes,trade_rows,first_ticks,last_ticks,timestamp_backtracks,adjacent_exact_duplicates,tick_size,lot_size,status,liquidity_bursts,candidate_rows,timestamp_policy,raw_timestamp_backtracks,largest_raw_backtrack_ms,timestamps_repaired,effective_timestamp_backtracks
-2022-08-01,C:\Users\k_99_\AppData\Roaming\ATAS\Cache_v2\NQ@CME_Ind\2022_07_31\trades.dat,9782780,511570,637949232131480000,637949808198720000,0,0,0.25,1.0,PASS,25,5050,,,,,
-2022-08-02,C:\Users\k_99_\AppData\Roaming\ATAS\Cache_v2\NQ@CME_Ind\2022_08_01\trades.dat,10741366,564588,637950096000650000,637950672198400001,0,2,0.25,1.0,PASS,31,6262,FILE_ORDER_CUMMAX,1.0,2.0,1.0,0.0
-2022-08-03,C:\Users\k_99_\AppData\Roaming\ATAS\Cache_v2\NQ@CME_Ind\2022_08_02\trades.dat,10615406,552669,637950960000130000,637951536199330001,0,0,0.25,1.0,PASS,28,5656,,,,,
-2022-08-04,C:\Users\k_99_\AppData\Roaming\ATAS\Cache_v2\NQ@CME_Ind\2022_08_03\trades.dat,8612772,454639,637951824029260000,637952400199650003,0,0,0.25,1.0,PASS,13,2626,,,,,
-2022-08-05,C:\Users\k_99_\AppData\Roaming\ATAS\Cache_v2\NQ@CME_Ind\2022_08_04\trades.dat,10661576,568472,637952688028290000,637953264199660000,0,0,0.25,1.0,PASS,14,2828,,,,,

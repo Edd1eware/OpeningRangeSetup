@@ -1,9 +1,0 @@
-model,split,status,n,balanced_accuracy,roc_auc,confusion_matrix
-logistic,validation,OK,8,0.5666666666666667,0.8,"[[4, 1], [2, 1]]"
-logistic,holdout,OK,9,0.75,1.0,"[[5, 0], [2, 2]]"
-decision_tree,validation,OK,8,0.6333333333333333,0.8,"[[3, 2], [1, 2]]"
-decision_tree,holdout,OK,9,0.675,0.85,"[[3, 2], [1, 3]]"
-random_forest,validation,OK,8,0.7333333333333334,0.8,"[[4, 1], [1, 2]]"
-random_forest,holdout,OK,9,0.625,0.65,"[[5, 0], [3, 1]]"
-catboost,validation,OK,8,0.9,0.8,"[[4, 1], [0, 3]]"
-catboost,holdout,OK,9,0.75,0.85,"[[5, 0], [2, 2]]"

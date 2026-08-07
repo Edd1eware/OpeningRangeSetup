@@ -1,40 +1,0 @@
-                check                                                            evidence  passed
-     DETECTOR_VERSION                 liquidity-burst-detector-2026-07-20-v5-dom-geometry    True
-    DOM_FEATURE_COUNT                                                      11 expected=11    True
-           DOM_SCHEMA                    Every preregistered DOM feature is emitted by C#    True
-   DOM_CAUSAL_WINDOWS                              Every DOM window ends at t0 or earlier    True
-DIRECT_DEPTH_CALLBACK                     MarketDepthChanged is consumed in arrival order    True
-   DOM_VALIDITY_GUARD                                 top-5, spread, crossed/stale checks    True
-       NO_POST_T0_DOM                     No response/MAE/MFE fields among DOM predictors    True
-   WORKSPACE_DETECTOR                      LiquidityBurstDetector attached to saved chart    True
-   WORKSPACE_EXPORTER                ATASScoreTradeResultExporter attached to saved chart    True
-WORKSPACE_CSV_ENABLED                  Detector ExportCsv=true and expected output folder    True
-        DLL_INSTALLED                  Installed indicator DLL equals current Debug build    True
-             X10_ONLY                                       Run plan contains X10_R1 only    True
-            DST_SCOPE                                 256 dates; 2025-03-10 -> 2026-07-17    True
-    TRADING_UNCHANGED DOM fields are observational; exporter change is Telegram text only    True
-   PRIMARY_HYPOTHESIS                             Wall ahead/aggression preregistered A>B    True
-AUDIT=PASS | C:\Users\k_99_\Desktop\codding\OpeningRangeSetup\EddiewareOpeningRangeSetup\EddiewareOpeningRangeSetup\contexto_features_atas\AUDITORIA_DISENO_LB_DOM_GEOMETRY_DST_2025_2026_20260720.md
-DATES=256 | 10/03/2025 -> 17/07/2026
-Resultados previos archivados: C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\visual_tests\_archive_04_run_replay_lb_dom_geometry_dst_2025_2026_runs_reset_20260720_185711
-Snapshots replay archivados: C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\_archive_replay_sync_signals_reset_20260720_185711
-Snapshots replay archivados: C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\_archive_replay_sync_results_reset_20260720_185711
-Estado Telegram reiniciado; backup: C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_balance_backup_20260720_185711.json
-Captura observacional previa archivada: C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\_archive_research_capture_reset_20260720_185711
-Telegram limpieza: 303 borrados, 0 no borrables (>48h, limite Bot API). Historial reiniciado; la corrida continua.
-
-Configurando Replay en X10...
-Replay ya estaba configurado en 10x.
-
-[X10_R1 1/256] 2025-03-10.
-Rango: FROM 10/03/2025 09:30:00 a. m. | TO 10/03/2025 10:30:00 a. m.
-Iniciando X10_R1 para 2025-03-10...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 12:00Esperando CSV terminal v11: 00:01 / resta 11:58Esperando CSV terminal v11: 00:02 / resta 11:57Esperando CSV terminal v11: 00:03 / resta 11:56Esperando CSV terminal v11: 00:04 / resta 11:55Esperando CSV terminal v11: 00:05 / resta 11:54Esperando CSV terminal v11: 00:06 / resta 11:53Esperando CSV terminal v11: 00:07 / resta 11:52Esperando CSV terminal v11: 00:08 / resta 11:51Esperando CSV terminal v11: 00:09 / resta 11:50Esperando CSV terminal v11: 00:10 / resta 11:49Esperando CSV terminal v11: 00:11 / resta 11:48Esperando CSV terminal v11: 00:12 / resta 11:47Esperando CSV terminal v11: 00:13 / resta 11:46Esperando CSV terminal v11: 00:14 / resta 11:45Esperando CSV terminal v11: 00:15 / resta 11:44Esperando CSV terminal v11: 00:16 / resta 11:43Esperando CSV terminal v11: 00:17 / resta 11:42Esperando CSV terminal v11: 00:18 / resta 11:41Esperando CSV terminal v11: 00:19 / resta 11:40Esperando CSV terminal v11: 00:20 / resta 11:39Esperando CSV terminal v11: 00:21 / resta 11:38Esperando CSV terminal v11: 00:22 / resta 11:37Esperando CSV terminal v11: 00:23 / resta 11:36Esperando CSV terminal v11: 00:24 / resta 11:35Esperando CSV terminal v11: 00:25 / resta 11:34Esperando CSV terminal v11: 00:26 / resta 11:33Resultado terminal confirmado.                                                            
-Guardado: X10_R1 2025-03-10 | Entry=19851.25 | Resultado=TP | Version=score-exporter-2026-07-19-v27-final-causal-publish-guard
-
-[X10_R1 2/256] 2025-03-11.
-Rango: FROM 11/03/2025 09:30:00 a. m. | TO 11/03/2025 10:30:00 a. m.
-Iniciando X10_R1 para 2025-03-11...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 12:00Esperando CSV terminal v11: 00:01 / resta 11:58Esperando CSV terminal v11: 00:02 / resta 11:57Esperando CSV terminal v11: 00:03 / resta 11:56Esperando CSV terminal v11: 00:04 / resta 11:55Esperando CSV terminal v11: 00:05 / resta 11:54Esperando CSV terminal v11: 00:06 / resta 11:53Esperando CSV terminal v11: 00:07 / resta 11:52Esperando CSV terminal v11: 00:08 / resta 11:51Esperando CSV terminal v11: 00:09 / resta 11:50Esperando CSV terminal v11: 00:10 / resta 11:49Esperando CSV terminal v11: 00:11 / resta 11:48Esperando CSV terminal v11: 00:12 / resta 11:47Esperando CSV terminal v11: 00:13 / resta 11:46Esperando CSV terminal v11: 00:14 / resta 11:45Esperando CSV terminal v11: 00:15 / resta 11:44Esperando CSV terminal v11: 00:16 / resta 11:43Esperando CSV terminal v11: 00:17 / resta 11:42Esperando CSV terminal v11: 00:18 / resta 11:41Esperando CSV terminal v11: 00:19 / resta 11:40Esperando CSV terminal v11: 00:20 / resta 11:39Esperando CSV terminal v11: 00:21 / resta 11:38Esperando CSV terminal v11: 00:22 / resta 11:37Esperando CSV terminal v11: 00:23 / resta 11:36Esperando CSV terminal v11: 00:24 / resta 11:35Esperando CSV terminal v11: 00:25 / resta 11:34Esperando CSV terminal v11: 00:26 / resta 11:33Esperando CSV terminal v11: 00:27 / resta 11:32Esperando CSV terminal v11: 00:28 / resta 11:31Esperando CSV terminal v11: 00:29 / resta 11:30Esperando CSV terminal v11: 00:30 / resta 11:29Esperando CSV terminal v11: 00:31 / resta 11:28Esperando CSV terminal v11: 00:32 / resta 11:27

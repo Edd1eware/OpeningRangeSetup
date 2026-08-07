@@ -1,7 +1,0 @@
-year,burst_side,coherent_features,tested_features,n_A,n_B,cell_coherent
-2022,BUY,5,7,5,5,True
-2022,SELL,5,7,4,8,True
-2023,BUY,1,7,3,10,False
-2023,SELL,5,7,10,7,True
-2024,BUY,3,7,4,6,False
-2024,SELL,5,7,3,5,True

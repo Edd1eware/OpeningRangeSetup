@@ -1,45 +1,0 @@
-                    check                                                    evidence  passed
-           PACKAGE_SHA256                       Frozen model hash matches sealed spec    True
-      LABEL_SOURCE_SHA256           A/B/C labeling implementation matches frozen spec    True
-            TRAINING_ROWS                                    70 expected; observed 70    True
-           TRAINING_YEARS                                          Observed 2022-2024    True
-       HOLDOUT_NOT_OPENED                            Frozen spec validation years: []    True
-             REPLAY_SCOPE                         256 dates; 2025-03-10 -> 2026-07-17    True
-       CORE_FEATURE_ORDER                                        10 frozen predictors    True
-           FEATURE_TIMING          Every frozen predictor has window_end_seconds <= 0    True
-    NO_OUTCOME_PREDICTORS            No response/MAE/MFE/result/exit/future predictor    True
-     TRADE_EXPORT_HEADERS      All entry-side frozen predictors exist in trade_inputs    True
-    REGIME_EXPORT_HEADERS            VWAP-distance and RV60 are exported before entry    True
-    DISCOVERY_CAUSAL_ROWS                                           Causal rows 70/70    True
-PUBLISH_PRECEDES_DECISION                    Publish-to-decision latency min=0.000 ms    True
-           MIXED_ABSTAINS C_MIXED_PATH is abstention and is excluded from A/B metrics    True
-        NO_MBO_DEPENDENCY                       MBO and incremental MBP/tape excluded    True
-         EXPORTER_VERSION    score-exporter-2026-07-19-v27-final-causal-publish-guard    True
-         DETECTOR_VERSION  liquidity-burst-detector-2026-07-19-v4-publish-clock-audit    True
-                 X10_ONLY                    Run plan rejects X1 and uses X10_R1 only    True
- POST_RESPONSE_LABEL_ONLY      1/3/5s response is excluded from same-entry predictors    True
-        TRADING_UNCHANGED      Observational runner and frozen offline evaluator only    True
-AUDIT=PASS | C:\Users\k_99_\Desktop\codding\OpeningRangeSetup\EddiewareOpeningRangeSetup\EddiewareOpeningRangeSetup\contexto_features_atas\AUDITORIA_DISENO_VALIDACION_LB_ABSORCION_VS_BREAKOUT_DST_2025_2026_20260720.md
-DATES=256 | 10/03/2025 -> 17/07/2026
-Initializing isolated observational capture and fresh Telegram state...
-Snapshots replay archivados: C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\_archive_replay_sync_signals_reset_20260720_113758
-Snapshots replay archivados: C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\_archive_replay_sync_results_reset_20260720_113758
-Estado Telegram reiniciado; backup: C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\telegram_balance_backup_20260720_113758.json
-Captura observacional previa archivada: C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\_archive_research_capture_reset_20260720_113758
-Telegram limpieza: 905 borrados, 0 no borrables (>48h, limite Bot API). Historial reiniciado; la corrida continua.
-
-Configurando Replay en X10...
-Replay ya estaba configurado en 10x.
-
-[X10_R1 1/256] 2025-03-10.
-Rango: FROM 10/03/2025 09:30:00 a. m. | TO 10/03/2025 10:30:00 a. m.
-Iniciando X10_R1 para 2025-03-10...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 12:00Esperando CSV terminal v11: 00:01 / resta 11:58Esperando CSV terminal v11: 00:02 / resta 11:57Esperando CSV terminal v11: 00:03 / resta 11:56Esperando CSV terminal v11: 00:04 / resta 11:55Esperando CSV terminal v11: 00:05 / resta 11:54Esperando CSV terminal v11: 00:06 / resta 11:53Esperando CSV terminal v11: 00:07 / resta 11:52Esperando CSV terminal v11: 00:08 / resta 11:51Esperando CSV terminal v11: 00:09 / resta 11:50Esperando CSV terminal v11: 00:10 / resta 11:49Esperando CSV terminal v11: 00:11 / resta 11:48Esperando CSV terminal v11: 00:12 / resta 11:47Esperando CSV terminal v11: 00:13 / resta 11:46Esperando CSV terminal v11: 00:14 / resta 11:45Esperando CSV terminal v11: 00:15 / resta 11:44Esperando CSV terminal v11: 00:16 / resta 11:43Esperando CSV terminal v11: 00:17 / resta 11:42Esperando CSV terminal v11: 00:18 / resta 11:41Esperando CSV terminal v11: 00:19 / resta 11:40Esperando CSV terminal v11: 00:21 / resta 11:38Resultado terminal confirmado.                                                            
-CSV guardado no terminal para X10_R1 2025-03-10; elimino el artefacto incompleto.
-
-[X10_R1 2/256] 2025-03-11.
-Rango: FROM 11/03/2025 09:30:00 a. m. | TO 11/03/2025 10:30:00 a. m.
-Iniciando X10_R1 para 2025-03-11...
-Replay iniciado (intento 1/3).                              
-Esperando CSV terminal v11: 00:00 / resta 12:00Esperando CSV terminal v11: 00:01 / resta 11:58Esperando CSV terminal v11: 00:02 / resta 11:57Esperando CSV terminal v11: 00:03 / resta 11:56Esperando CSV terminal v11: 00:04 / resta 11:55Esperando CSV terminal v11: 00:05 / resta 11:54Esperando CSV terminal v11: 00:06 / resta 11:53Esperando CSV terminal v11: 00:07 / resta 11:52Esperando CSV terminal v11: 00:08 / resta 11:51Esperando CSV terminal v11: 00:09 / resta 11:50Esperando CSV terminal v11: 00:10 / resta 11:49Esperando CSV terminal v11: 00:11 / resta 11:48Esperando CSV terminal v11: 00:12 / resta 11:47Esperando CSV terminal v11: 00:13 / resta 11:46Esperando CSV terminal v11: 00:14 / resta 11:45Esperando CSV terminal v11: 00:15 / resta 11:44Esperando CSV terminal v11: 00:16 / resta 11:43Esperando CSV terminal v11: 00:17 / resta 11:42Esperando CSV terminal v11: 00:18 / resta 11:41Esperando CSV terminal v11: 00:19 / resta 11:40Esperando CSV terminal v11: 00:20 / resta 11:39

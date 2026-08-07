@@ -1,6 +1,0 @@
-usage: 04_run_replay_score_trade_results_dst_2025_2026_after_sync.py
-       [-h] [--quick] [--prepare-only] [--compare-only] [--force]
-       [--reset-state] [--step] [--x1-only] [--x10-only] [--limit N]
-       [--from-date FROM_DATE] [--to-date TO_DATE]
-       [--section-label SECTION_LABEL]
-04_run_replay_score_trade_results_dst_2025_2026_after_sync.py: error: unrecognized arguments: ABSORTION TEST 2026
