@@ -45,11 +45,33 @@ namespace ATAS.Indicators
         [Display(Name = "Grabar Tape (trades)", Order = 5)]
         public bool RecordTape { get; set; } = true;
 
+        // The window is re-parsed in the setter, not only in OnRecalculate: editing
+        // the field in the indicator dialog does not reliably trigger a recalculate,
+        // which silently left the recorder on the previous window.
+        private string _startNy = "09:25";
+        private string _endNy = "15:35";
+
         [Display(Name = "Ventana inicio NY (HH:mm)", Order = 6)]
-        public string StartNy { get; set; } = "09:25";
+        public string StartNy
+        {
+            get => _startNy;
+            set
+            {
+                _startNy = value;
+                _winStart = ParseNy(value, new TimeSpan(9, 25, 0));
+            }
+        }
 
         [Display(Name = "Ventana fin NY (HH:mm)", Order = 7)]
-        public string EndNy { get; set; } = "15:35";
+        public string EndNy
+        {
+            get => _endNy;
+            set
+            {
+                _endNy = value;
+                _winEnd = ParseNy(value, new TimeSpan(15, 35, 0));
+            }
+        }
 
         private readonly string _targetDateFile =
             @"C:\Users\k_99_\Desktop\codding\data_footprint_generator\target_trade_result_date.txt";
@@ -63,6 +85,8 @@ namespace ATAS.Indicators
         private DateTime _openDate = DateTime.MinValue;
         private long _mboRows, _mbpRows, _tapeRows;
         private int _flushCtr;
+        private const int FlushIntervalSeconds = 2;
+        private DateTime _lastFlushUtc = DateTime.UtcNow;
 
         public BookRecorder()
         {
@@ -182,11 +206,31 @@ namespace ATAS.Indicators
             return slot;
         }
 
+        // Row-count flushing alone strands short captures: a 45-minute window that
+        // produces fewer than 8000 events never reaches disk, so the CSV appears
+        // truncated at whatever the internal buffer happened to spill. Flush on
+        // either a row count or a wall-clock interval, whichever comes first.
         private void MaybeFlush()
         {
-            if (++_flushCtr < 8000) return;
+            var due = ++_flushCtr >= 8000;
+            if (!due)
+            {
+                var now = DateTime.UtcNow;
+                if ((now - _lastFlushUtc).TotalSeconds >= FlushIntervalSeconds)
+                {
+                    due = true;
+                    _lastFlushUtc = now;
+                }
+            }
+            else
+            {
+                _lastFlushUtc = DateTime.UtcNow;
+            }
+
+            if (!due) return;
             _flushCtr = 0;
             try { _mbo?.Flush(); _mbp?.Flush(); _tape?.Flush(); } catch { }
+            FinalizeStatus();
         }
 
         private void FinalizeStatus()

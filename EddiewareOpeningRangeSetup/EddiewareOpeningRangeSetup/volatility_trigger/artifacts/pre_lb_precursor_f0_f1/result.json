@@ -1,0 +1,78 @@
+{
+  "audit_id": "PRE_LB_PRECURSOR_F0_F1_OUTCOME_BLIND_V1",
+  "status": "OUTCOME_BLIND_F0_F1_COMPLETE_PENDING_JOINT_REVIEW",
+  "process_pass": true,
+  "depth_present_sessions": 111,
+  "eligible_after_frozen_trade_qc_sessions": 104,
+  "liquidity_bursts": 2727,
+  "valid_references": 2560,
+  "invalid_references": 167,
+  "reference_status_counts": {
+    "VALID": 2560,
+    "SPREAD_GT_4": 102,
+    "SPREAD_LE_0": 65
+  },
+  "level_viability": [
+    {
+      "k": 1,
+      "aggregate_both_ge_k_fraction": 1.0,
+      "minimum_session_both_ge_k_fraction": 1.0,
+      "binding_session": "2022-07-27",
+      "binding_margin_vs_minimum": 0.050000000000000044,
+      "aggregate_pass": true,
+      "each_session_pass": true,
+      "viable": true
+    },
+    {
+      "k": 3,
+      "aggregate_both_ge_k_fraction": 1.0,
+      "minimum_session_both_ge_k_fraction": 1.0,
+      "binding_session": "2022-07-27",
+      "binding_margin_vs_minimum": 0.050000000000000044,
+      "aggregate_pass": true,
+      "each_session_pass": true,
+      "viable": true
+    },
+    {
+      "k": 5,
+      "aggregate_both_ge_k_fraction": 1.0,
+      "minimum_session_both_ge_k_fraction": 1.0,
+      "binding_session": "2022-07-27",
+      "binding_margin_vs_minimum": 0.050000000000000044,
+      "aggregate_pass": true,
+      "each_session_pass": true,
+      "viable": true
+    },
+    {
+      "k": 10,
+      "aggregate_both_ge_k_fraction": 1.0,
+      "minimum_session_both_ge_k_fraction": 1.0,
+      "binding_session": "2022-07-27",
+      "binding_margin_vs_minimum": 0.050000000000000044,
+      "aggregate_pass": true,
+      "each_session_pass": true,
+      "viable": true
+    }
+  ],
+  "startup_convergence_requires_joint_review": true,
+  "level_pathology_requires_joint_review": true,
+  "profile_raw_available": 2722,
+  "profile_drift_300s_available": 2597,
+  "depth_sessions_pass": true,
+  "eligible_sessions_pass": true,
+  "liquidity_bursts_pass": true,
+  "valid_references_pass": true,
+  "invalid_references_pass": true,
+  "process_errors_pass": true,
+  "exclusive_causes_and_row_alignment_pass": true,
+  "level_nesting_pass": true,
+  "forbidden_columns_pass": true,
+  "parent_v3_status": "REGIME_V3_TARGET_DISCOVERY_FAIL",
+  "f0_may_not_exclude_sessions_or_rescue_parent": true,
+  "regime_labels_imported": false,
+  "feature_outcome_associations_opened": false,
+  "models_opened": false,
+  "validation_opened": false,
+  "holdout_opened": false,
+  "freeze_sha256": "39DF6FBEC8571B87CCBDA9AB05E803AA39894A5EC8C2EE770263A51004C82F6B"
+}

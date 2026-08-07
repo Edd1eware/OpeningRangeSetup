@@ -1,0 +1,9 @@
+{
+  "stage": "smoke",
+  "source_kind": "depth",
+  "sessions": 5,
+  "readable_sessions": 5,
+  "sessions_with_backtracks": 5,
+  "total_backtracks": 76,
+  "largest_backtrack_ms": 16189322.0
+}

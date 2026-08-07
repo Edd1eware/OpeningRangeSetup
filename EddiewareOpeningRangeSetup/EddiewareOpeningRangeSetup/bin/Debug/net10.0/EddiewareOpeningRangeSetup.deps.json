@@ -9,10 +9,10 @@
       "EddiewareOpeningRangeSetup/1.0.0": {
         "dependencies": {
           "System.Drawing.Common": "10.0.7",
-          "ATAS.DataFeedsCore": "8.0.14.392",
-          "ATAS.Indicators": "8.0.14.392",
-          "ATAS.Strategies": "8.0.14.392",
-          "OFT.Rendering": "8.0.14.392"
+          "ATAS.DataFeedsCore": "8.0.14.396",
+          "ATAS.Indicators": "8.0.14.396",
+          "ATAS.Strategies": "8.0.14.396",
+          "OFT.Rendering": "8.0.14.396"
         },
         "runtime": {
           "EddiewareOpeningRangeSetup.dll": {}
@@ -58,27 +58,27 @@
           }
         }
       },
-      "ATAS.DataFeedsCore/8.0.14.392": {
+      "ATAS.DataFeedsCore/8.0.14.396": {
         "runtime": {
           "ATAS.DataFeedsCore.dll": {
-            "assemblyVersion": "8.0.14.392",
-            "fileVersion": "8.0.14.392"
+            "assemblyVersion": "8.0.14.396",
+            "fileVersion": "8.0.14.396"
           }
         }
       },
-      "ATAS.Indicators/8.0.14.392": {
+      "ATAS.Indicators/8.0.14.396": {
         "runtime": {
           "ATAS.Indicators.dll": {
-            "assemblyVersion": "8.0.14.392",
-            "fileVersion": "8.0.14.392"
+            "assemblyVersion": "8.0.14.396",
+            "fileVersion": "8.0.14.396"
           }
         }
       },
-      "ATAS.Strategies/8.0.14.392": {
+      "ATAS.Strategies/8.0.14.396": {
         "runtime": {
           "ATAS.Strategies.dll": {
-            "assemblyVersion": "8.0.14.392",
-            "fileVersion": "8.0.14.392"
+            "assemblyVersion": "8.0.14.396",
+            "fileVersion": "8.0.14.396"
           }
         },
         "resources": {
@@ -87,11 +87,11 @@
           }
         }
       },
-      "OFT.Rendering/8.0.14.392": {
+      "OFT.Rendering/8.0.14.396": {
         "runtime": {
           "OFT.Rendering.dll": {
-            "assemblyVersion": "8.0.14.392",
-            "fileVersion": "8.0.14.392"
+            "assemblyVersion": "8.0.14.396",
+            "fileVersion": "8.0.14.396"
           }
         }
       },
@@ -147,11 +147,11 @@
           }
         }
       },
-      "ATAS.Indicators.Technical/8.0.14.392": {
+      "ATAS.Indicators.Technical/8.0.14.396": {
         "runtime": {
           "ATAS.Indicators.Technical.dll": {
-            "assemblyVersion": "8.0.14.392",
-            "fileVersion": "8.0.14.392"
+            "assemblyVersion": "8.0.14.396",
+            "fileVersion": "8.0.14.396"
           }
         },
         "resources": {
@@ -297,22 +297,22 @@
       "path": "system.drawing.common/10.0.7",
       "hashPath": "system.drawing.common.10.0.7.nupkg.sha512"
     },
-    "ATAS.DataFeedsCore/8.0.14.392": {
+    "ATAS.DataFeedsCore/8.0.14.396": {
       "type": "reference",
       "serviceable": false,
       "sha512": ""
     },
-    "ATAS.Indicators/8.0.14.392": {
+    "ATAS.Indicators/8.0.14.396": {
       "type": "reference",
       "serviceable": false,
       "sha512": ""
     },
-    "ATAS.Strategies/8.0.14.392": {
+    "ATAS.Strategies/8.0.14.396": {
       "type": "reference",
       "serviceable": false,
       "sha512": ""
     },
-    "OFT.Rendering/8.0.14.392": {
+    "OFT.Rendering/8.0.14.396": {
       "type": "reference",
       "serviceable": false,
       "sha512": ""
@@ -337,7 +337,7 @@
       "serviceable": false,
       "sha512": ""
     },
-    "ATAS.Indicators.Technical/8.0.14.392": {
+    "ATAS.Indicators.Technical/8.0.14.396": {
       "type": "reference",
       "serviceable": false,
       "sha512": ""

@@ -1,0 +1,15 @@
+{
+  "stage": "smoke",
+  "sessions": 5,
+  "sessions_pass": 5,
+  "liquidity_bursts": 111,
+  "candidate_rows": 22422,
+  "outcome_valid_rows": 22422,
+  "sniper_success_rows": 0,
+  "causality_pass": true,
+  "outcome_feature_intersection": [],
+  "pass": true,
+  "validation_opened": false,
+  "holdout_opened": false,
+  "visual_logic_modified": false
+}

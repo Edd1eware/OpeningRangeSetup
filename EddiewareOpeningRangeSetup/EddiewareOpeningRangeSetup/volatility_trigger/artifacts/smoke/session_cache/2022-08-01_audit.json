@@ -1,0 +1,15 @@
+{
+  "session_date": "2022-08-01",
+  "source": "C:\\Users\\k_99_\\AppData\\Roaming\\ATAS\\Cache_v2\\NQ@CME_Ind\\2022_07_31\\trades.dat",
+  "source_bytes": 9782780,
+  "trade_rows": 511570,
+  "first_ticks": 637949232131480000,
+  "last_ticks": 637949808198720000,
+  "timestamp_backtracks": 0,
+  "adjacent_exact_duplicates": 0,
+  "tick_size": 0.25,
+  "lot_size": 1.0,
+  "status": "PASS",
+  "liquidity_bursts": 25,
+  "candidate_rows": 5050
+}

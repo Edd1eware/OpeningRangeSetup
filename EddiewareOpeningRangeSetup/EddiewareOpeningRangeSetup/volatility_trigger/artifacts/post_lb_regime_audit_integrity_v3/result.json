@@ -1,0 +1,19 @@
+{
+  "audit_id": "POST_LB_REGIME_TARGET_AUDIT_INTEGRITY_V3",
+  "status": "REGIME_TARGET_INVALID",
+  "liquidity_bursts": 111,
+  "valid_reference_bursts": 106,
+  "invalid_current_quote_bursts": 5,
+  "primary_reference": "MID",
+  "primary_horizon_ms": 5000,
+  "ambiguity_window_ms": 250,
+  "selected_threshold_ticks": null,
+  "selection_did_not_use_model_metrics": true,
+  "non_smoke_labels_opened": false,
+  "features_opened": false,
+  "models_opened": false,
+  "validation_opened": false,
+  "holdout_opened": false,
+  "freeze_sha256": "3C34902041DDCC72D35816492D45DDAD13D821B07E4FF32C5460B75EADBAFA0D",
+  "input_freeze_status": "BEFORE_CORRECTED_SMOKE_LABELS"
+}

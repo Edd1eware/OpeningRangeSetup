@@ -1,0 +1,115 @@
+{
+  "target_id": "POST_LB_REGIME_V3_CURRENT_QUOTE_RESOLVED_WITH_ABSTENTION",
+  "frozen_at_utc": "2026-07-27T15:58:14.467505+00:00",
+  "status": "BEFORE_V3_DISCOVERY_TARGET_LABELS",
+  "files": {
+    "config/post_lb_regime_v3_config.json": {
+      "bytes": 2232,
+      "sha256": "C38D7C97EF52DEF60BA043D9D501AC7EC3561E235B9344A0FDA0199F7B5068CE"
+    },
+    "config/preregistration/POST_LB_REGIME_V3_FREEZE_MANIFEST.json": {
+      "bytes": 3860,
+      "sha256": "3F832CC1DC19ADD1D4BD9094C19881AA745F1E0F9AFCC8E51C8035110376F21F"
+    },
+    "artifacts/data_coverage/depth_coverage_manifest.csv": {
+      "bytes": 61684,
+      "sha256": "D6D2FCCE3EF183C17B8C4B3B56BF69991DDFBA1963DBD62E72F72691918B9D9F"
+    },
+    "artifacts/data_coverage/manifest.json": {
+      "bytes": 565,
+      "sha256": "7792C1215C2F79515D01900FA4A820A6829DF83111517A7340A7C7DE9EBEC030"
+    },
+    "artifacts/resolved_threshold_audit_v3/manifest.json": {
+      "bytes": 460,
+      "sha256": "AF3A2276D0D5D7D923C02F9A549D802B05F6B89F40AAA78C0BB569EC212A0222"
+    },
+    "artifacts/post_lb_regime_audit_integrity_v3/manifest.json": {
+      "bytes": 970,
+      "sha256": "A2E6B5629E5635BDB08AC420C2F4D410D3615CB8B91A62BE274788A4A25FB664"
+    },
+    "config/preregistration/CLAUDE_CODEX_CONSENSUS_DATA_INTEGRITY.md": {
+      "bytes": 4246,
+      "sha256": "E5E5962EC6EB4668E674A277FCD2D874325D8BA53A8B3CE5931F2B5E18110DD8"
+    },
+    "config/preregistration/AMENDMENT_002_AMBIGUOUS_AS_ABSTENTION.md": {
+      "bytes": 1303,
+      "sha256": "6B29B6A82FE0130D2E1E9BB1C9A0A868DF3FCB87DED44E0C2AF52332604F7A8B"
+    },
+    "config/preregistration/AMENDMENT_003_CURRENT_QUOTE_VALIDITY.md": {
+      "bytes": 2557,
+      "sha256": "268DA5E7B093224C9CC3BEDF67B20650E5A5235B5E14BC619416732088468D6A"
+    },
+    "config/preregistration/ERRATA_001_MISSING_REFERENCE_ARTIFACT.md": {
+      "bytes": 818,
+      "sha256": "997A12AB51C58F2CB6C779E1528E0C1C3D27E0FB05F43FF1BE41329F14ACE9CA"
+    },
+    "config/preregistration/ERRATA_SCOPE_A1_EQUIVALENCE.md": {
+      "bytes": 709,
+      "sha256": "923136ED7A1B27B20BFB4A04B488434445F7CB855C15DF24C61D1564D63C4005"
+    },
+    "config/discovery_config.json": {
+      "bytes": 2613,
+      "sha256": "F0B7A6B909CE88B1CCEF7A947E2B6C81FDF48413B0D314D939DA4F0D2939315B"
+    },
+    "run_regime_discovery_target_v3.py": {
+      "bytes": 15549,
+      "sha256": "22C671A241BF3F6752F0E7E889763772F9462105CC5618A58B884D9561840215"
+    },
+    "run_regime_discovery_target.py": {
+      "bytes": 17329,
+      "sha256": "05BDB4F46F1BDB90B3C762278BD299B0FF3FE11A69BF45564556570AFC3AD0B1"
+    },
+    "run_research.py": {
+      "bytes": 15999,
+      "sha256": "80E4288F81E66E6CFD9A98D8409E0C707941A5C7F9B41CED2ECBE5D2B321A8BA"
+    },
+    "../atas_cache_decoder.py": {
+      "bytes": 14812,
+      "sha256": "A606E7F6A69BD64B709AE18242181AC0202096D6F147DB05310E7170FA8DAFC3"
+    },
+    "src/post_lb_regime.py": {
+      "bytes": 5979,
+      "sha256": "0AB54A52A85C0B6A8D48C0B2ABC19E7FA9108CED07A1F9B19D8BB58E60740809"
+    },
+    "src/efficiency_audit.py": {
+      "bytes": 16522,
+      "sha256": "534019DDF594D0A6A4FCFFBE8692EFB37BE17431E7A99C4FADA50D8A9DBC4AF8"
+    },
+    "src/vt_core.py": {
+      "bytes": 40318,
+      "sha256": "44E857B4FC88CAF430BA2353308B4B5840525AFBEF1755A7FF97DAFF505C8A86"
+    },
+    "tests/test_post_lb_regime.py": {
+      "bytes": 2586,
+      "sha256": "1005414A64EA80119DC0FF581EA3D74077C321A04442991438B8597CAF5A8B53"
+    },
+    "tests/test_efficiency_audit.py": {
+      "bytes": 6673,
+      "sha256": "45149CF719629ED09629D00991D2BB2070C9C989EDD5CAD8490C7C3CB9F64307"
+    },
+    "tests/test_vt_core.py": {
+      "bytes": 5310,
+      "sha256": "4FD9BF279F4CB0CA3673660BC90DBF530F9E4363B6FA45D5E89A19A09BA18CB0"
+    },
+    "tests/test_regime_discovery_v3.py": {
+      "bytes": 2222,
+      "sha256": "34DE8F075AB94E073C5E1B8AECE1F5493355A23638564A14F3385F5898504F17"
+    }
+  },
+  "runtime": {
+    "python": "3.12.10",
+    "python_implementation": "CPython",
+    "numpy": "2.5.0",
+    "pandas": "3.0.3",
+    "pyarrow": "24.0.0"
+  },
+  "threshold_ticks": 16,
+  "hierarchy_consumed": true,
+  "process_gate_evaluated_over_eligible": 1.0,
+  "v2_cache_reuse_forbidden": true,
+  "output_directory": "artifacts/regime_discovery_target_v3",
+  "features_opened": false,
+  "models_opened": false,
+  "validation_opened": false,
+  "holdout_opened": false
+}

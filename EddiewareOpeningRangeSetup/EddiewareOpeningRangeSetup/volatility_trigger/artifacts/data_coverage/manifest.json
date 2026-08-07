@@ -1,0 +1,18 @@
+{
+  "audit_id": "POST_LB_2022_CACHE_HEADER_COVERAGE_V1",
+  "outcome_blind": true,
+  "files": {
+    "depth_coverage_manifest.csv": {
+      "bytes": 61684,
+      "sha256": "D6D2FCCE3EF183C17B8C4B3B56BF69991DDFBA1963DBD62E72F72691918B9D9F"
+    },
+    "depth_coverage_manifest.csv.sha256": {
+      "bytes": 95,
+      "sha256": "9FCFCA869D4C18C67AF1A3FD358B68C3E341F9127FDFE35625421EBC6B4FFAC3"
+    },
+    "depth_coverage_summary.json": {
+      "bytes": 826,
+      "sha256": "ED2AFBB712A35CECDFF323B536D41221E126D7DC5AD9300EEC9D6807013EFA1E"
+    }
+  }
+}

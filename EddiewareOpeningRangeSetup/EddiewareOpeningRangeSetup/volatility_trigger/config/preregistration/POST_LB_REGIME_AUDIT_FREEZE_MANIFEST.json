@@ -1,0 +1,58 @@
+{
+  "audit_id": "POST_LB_REGIME_TARGET_AUDIT_V1",
+  "frozen_at_utc": "2026-07-27T14:51:17.479621+00:00",
+  "status": "BEFORE_REAL_REGIME_LABELS",
+  "files": {
+    "config/post_lb_regime_config.json": {
+      "bytes": 1693,
+      "sha256": "56FF6D2A38176FDC6E2F183BCCD713C1A419510C603CED802317A7CA9CE4C0C4"
+    },
+    "config/post_lb_regime_config.sha256": {
+      "bytes": 94,
+      "sha256": "92C0C017709CF91ED28797599C51A85094E4D03C54DA3BE6807AAF3A2AD66517"
+    },
+    "config/preregistration/POST_LB_REGIME_PREREGISTRATION.md": {
+      "bytes": 4191,
+      "sha256": "062C23DDDAE1E8E2AC5B46E68FEC03FB94869C88B3E7086F76C20D21211ADFC2"
+    },
+    "src/post_lb_regime.py": {
+      "bytes": 5685,
+      "sha256": "1B110AB0B20F2F6C024E688B1D3AA9A914285BD92C236F7FC799DD86290AC476"
+    },
+    "run_post_lb_regime.py": {
+      "bytes": 29783,
+      "sha256": "EB4FD3221315EA1C43B587AD22ED2548D4F33FC0F09CEC3B3A2AF0C54149D37F"
+    },
+    "tests/test_post_lb_regime.py": {
+      "bytes": 2586,
+      "sha256": "1005414A64EA80119DC0FF581EA3D74077C321A04442991438B8597CAF5A8B53"
+    },
+    "config/preregistration/SYNTHETIC_REGIME_TESTS.md": {
+      "bytes": 874,
+      "sha256": "B80D5F981A3C71F5D5B505052BC5AC5AED8D99F65CD4483FF68DD2731C79D2C7"
+    },
+    "src/efficiency_audit.py": {
+      "bytes": 14789,
+      "sha256": "70EEDB8EAC33E49304B1C4975C10C736FFC345FDDB4CB8C6C2B65C0306FF5918"
+    },
+    "config/preregistration/FREEZE_MANIFEST.json": {
+      "bytes": 1216,
+      "sha256": "CCA892AAABDEAE86135BC5DFB25796FF81437F6688E9A1D8F648315FC836BBEC"
+    },
+    "config/preregistration/EFFICIENCY_V2_FREEZE_MANIFEST.json": {
+      "bytes": 1175,
+      "sha256": "39AC5AA1EAF5E11FA30C8D233988E07BFED2FA7B1B6858625E6F9C8211B480B1"
+    },
+    "artifacts/smoke/manifest.json": {
+      "bytes": 369,
+      "sha256": "3C89E8F71A9C354102959F912870A922A52F46E9A4BB0071BE551CC225DE29F1"
+    },
+    "artifacts/smoke/liquidity_bursts.csv": {
+      "bytes": 17270,
+      "sha256": "B69599BB75204AA59CFE13A8ADAA9A2BF84EB55C7B7EB6DE9835866B09A22C32"
+    }
+  },
+  "discovery_opened": false,
+  "validation_opened": false,
+  "holdout_opened": false
+}

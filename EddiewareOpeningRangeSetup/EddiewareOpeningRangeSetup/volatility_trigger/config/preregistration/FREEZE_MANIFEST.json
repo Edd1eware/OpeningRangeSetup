@@ -1,0 +1,34 @@
+{
+  "experiment_id": "VT_TIER1_TRADE_V1A1",
+  "frozen_at_utc": "2026-07-27T05:41:53.975953+00:00",
+  "status": "TECHNICAL_AMENDMENT_AFTER_SMOKE_BEFORE_DISCOVERY",
+  "files": {
+    "config/discovery_config.json": {
+      "bytes": 2613,
+      "sha256": "F0B7A6B909CE88B1CCEF7A947E2B6C81FDF48413B0D314D939DA4F0D2939315B"
+    },
+    "config/preregistration/VT_TIER1_PREREGISTRATION.md": {
+      "bytes": 5168,
+      "sha256": "85EC66E55C49DB1C2A66D09B6674A51C7476FC5084EA16CAC881AAF3BAD3A7B4"
+    },
+    "config/preregistration/AMENDMENT_001_TIMESTAMP_AND_RUNTIME.md": {
+      "bytes": 4602,
+      "sha256": "0486104E23D65BA52DB4962D3BB4323D4795A6B68513A7DDC0CC7D58A36CB547"
+    },
+    "src/vt_core.py": {
+      "bytes": 40318,
+      "sha256": "44E857B4FC88CAF430BA2353308B4B5840525AFBEF1755A7FF97DAFF505C8A86"
+    },
+    "src/vt_model.py": {
+      "bytes": 16268,
+      "sha256": "8BFC89AA2DB39AAE4169B0D669E41CFA3C17A35E6F3552935759D8D448902C99"
+    },
+    "run_research.py": {
+      "bytes": 15999,
+      "sha256": "80E4288F81E66E6CFD9A98D8409E0C707941A5C7F9B41CED2ECBE5D2B321A8BA"
+    }
+  },
+  "validation_opened": false,
+  "holdout_opened": false,
+  "visual_logic_modified": false
+}

@@ -1,0 +1,23 @@
+{
+  "session_date": "2022-09-28",
+  "status": "PASS_ELIGIBLE",
+  "eligible_after_trade_qc": true,
+  "trade_qc_exclusion_reason": null,
+  "trade_source": "C:\\Users\\k_99_\\AppData\\Roaming\\ATAS\\Cache_v2\\NQ@CME_Ind\\2022_09_27\\trades.dat",
+  "depth_source": "C:\\Users\\k_99_\\AppData\\Roaming\\ATAS\\Cache_v2\\NQ@CME_Ind\\2022_09_27\\marketdepth.dat",
+  "liquidity_bursts": 31,
+  "valid_references": 30,
+  "invalid_references": 1,
+  "elapsed_seconds": 61.22487760000513,
+  "trade_timestamp_policy": "FILE_ORDER_CUMMAX",
+  "trade_raw_timestamp_backtracks": 3,
+  "trade_largest_raw_backtrack_ms": 3.0006,
+  "trade_timestamps_repaired": 3,
+  "trade_effective_timestamp_backtracks": 0,
+  "depth_policy": "FILE_ORDER_WATERMARK",
+  "depth_raw_rows": 10739176,
+  "depth_accepted_rows": 10739176,
+  "depth_clamped_rows": 199,
+  "depth_stale_rows_dropped": 0,
+  "depth_largest_lateness_ms": 4.0
+}

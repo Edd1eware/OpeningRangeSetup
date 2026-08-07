@@ -1,0 +1,18 @@
+{
+  "audit_id": "POST_LB_TRADE_ONLY_FIRST60_V1",
+  "outcome_blind": true,
+  "files": {
+    "trade_only_first60.csv": {
+      "bytes": 31494,
+      "sha256": "50337FD5556872AA11C42DAE3B5AFDAD58AAC2EC45A843761EAE964DF5DEE914"
+    },
+    "trade_only_first60_summary.json": {
+      "bytes": 1171,
+      "sha256": "1989FEE646AFE133BBCEC2450B5A76987E168D49A23AFFAFC208D04AB0025B47"
+    },
+    "trade_only_first60_report.md": {
+      "bytes": 1443,
+      "sha256": "C7DD4F17F817654F79F08A7610D38ADD8D44E9B030736139EB9548050C53F645"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "session_date": "2022-11-15",
+  "liquidity_bursts": null,
+  "valid_reference_bursts": null,
+  "reference_coverage": null,
+  "status": "EXCLUDED_FROZEN_TRADE_QC",
+  "reason": "ValueError: timestamp QC failed: backtracks=1351>10 or largest_ms=31.000200>50.000000"
+}

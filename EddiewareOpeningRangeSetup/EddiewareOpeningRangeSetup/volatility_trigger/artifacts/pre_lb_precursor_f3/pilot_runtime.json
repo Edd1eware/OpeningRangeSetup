@@ -1,0 +1,16 @@
+{
+  "status": "PILOT_F3_RUNTIME_ONLY_COMPLETE",
+  "sessions_requested": 2,
+  "sessions_newly_processed": 2,
+  "elapsed_seconds_each": [
+    93.35549499999615,
+    95.66682450001827
+  ],
+  "median_seconds": 94.51115975000721,
+  "maximum_seconds": 95.66682450001827,
+  "features_not_aggregated_or_inspected": true,
+  "labels_opened": false,
+  "outcomes_opened": false,
+  "models_opened": false,
+  "freeze_sha256": "1987FE7EB9CA5D089EEF90E4B132D280717F917BCB2682E4B38D604FE52900CB"
+}

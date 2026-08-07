@@ -1,0 +1,115 @@
+{
+  "audit_id": "POST_LB_QUOTE_STATE_SMOKE_V1",
+  "scope": "TECHNICAL_DEVELOPMENT_SET_ONLY",
+  "sessions": 5,
+  "liquidity_bursts": 111,
+  "old_pipeline_accepted": 111,
+  "stored_reference_exact_matches": 111,
+  "corrected_pipeline_accepted": 106,
+  "false_acceptances_due_invalid_current_state": 5,
+  "affected_lb_ids": [
+    "LB_20220801_100000_SELL_0007",
+    "LB_20220802_101805_BUY_0011",
+    "LB_20220803_100000_SELL_0006",
+    "LB_20220803_155000_BUY_0026",
+    "LB_20220804_155000_BUY_0013"
+  ],
+  "by_session": [
+    {
+      "session_date": "2022-08-01",
+      "liquidity_bursts": 25,
+      "false_acceptances": 1,
+      "corrected_accepted": 24
+    },
+    {
+      "session_date": "2022-08-02",
+      "liquidity_bursts": 31,
+      "false_acceptances": 1,
+      "corrected_accepted": 30
+    },
+    {
+      "session_date": "2022-08-03",
+      "liquidity_bursts": 28,
+      "false_acceptances": 2,
+      "corrected_accepted": 26
+    },
+    {
+      "session_date": "2022-08-04",
+      "liquidity_bursts": 13,
+      "false_acceptances": 1,
+      "corrected_accepted": 12
+    },
+    {
+      "session_date": "2022-08-05",
+      "liquidity_bursts": 14,
+      "false_acceptances": 0,
+      "corrected_accepted": 14
+    }
+  ],
+  "regime_classes_recomputed": false,
+  "non_smoke_labels_opened": false,
+  "features_opened": false,
+  "models_opened": false,
+  "depth_audits": [
+    {
+      "session_date": "2022-08-01",
+      "depth_source": "C:\\Users\\k_99_\\AppData\\Roaming\\ATAS\\Cache_v2\\NQ@CME_Ind\\2022_07_31\\marketdepth.dat",
+      "depth_tick_size": 0.25,
+      "depth_lot_size": 1.0,
+      "policy": "FILE_ORDER_WATERMARK",
+      "raw_rows": 10621842,
+      "accepted_rows": 10621842,
+      "clamped_rows": 8,
+      "stale_rows_dropped": 0,
+      "largest_lateness_ms": 1.0
+    },
+    {
+      "session_date": "2022-08-02",
+      "depth_source": "C:\\Users\\k_99_\\AppData\\Roaming\\ATAS\\Cache_v2\\NQ@CME_Ind\\2022_08_01\\marketdepth.dat",
+      "depth_tick_size": 0.25,
+      "depth_lot_size": 1.0,
+      "policy": "FILE_ORDER_WATERMARK",
+      "raw_rows": 11472553,
+      "accepted_rows": 11472553,
+      "clamped_rows": 69,
+      "stale_rows_dropped": 0,
+      "largest_lateness_ms": 2.0
+    },
+    {
+      "session_date": "2022-08-03",
+      "depth_source": "C:\\Users\\k_99_\\AppData\\Roaming\\ATAS\\Cache_v2\\NQ@CME_Ind\\2022_08_02\\marketdepth.dat",
+      "depth_tick_size": 0.25,
+      "depth_lot_size": 1.0,
+      "policy": "FILE_ORDER_WATERMARK",
+      "raw_rows": 9293195,
+      "accepted_rows": 9293195,
+      "clamped_rows": 18,
+      "stale_rows_dropped": 0,
+      "largest_lateness_ms": 1.0
+    },
+    {
+      "session_date": "2022-08-04",
+      "depth_source": "C:\\Users\\k_99_\\AppData\\Roaming\\ATAS\\Cache_v2\\NQ@CME_Ind\\2022_08_03\\marketdepth.dat",
+      "depth_tick_size": 0.25,
+      "depth_lot_size": 1.0,
+      "policy": "FILE_ORDER_WATERMARK",
+      "raw_rows": 9446490,
+      "accepted_rows": 9446490,
+      "clamped_rows": 14,
+      "stale_rows_dropped": 0,
+      "largest_lateness_ms": 1.0
+    },
+    {
+      "session_date": "2022-08-05",
+      "depth_source": "C:\\Users\\k_99_\\AppData\\Roaming\\ATAS\\Cache_v2\\NQ@CME_Ind\\2022_08_04\\marketdepth.dat",
+      "depth_tick_size": 0.25,
+      "depth_lot_size": 1.0,
+      "policy": "FILE_ORDER_WATERMARK",
+      "raw_rows": 10320857,
+      "accepted_rows": 10320607,
+      "clamped_rows": 22,
+      "stale_rows_dropped": 250,
+      "largest_lateness_ms": 16189322.0
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "audit_id": "POST_LB_REGIME_TARGET_AUDIT_V1",
+  "created_at": "2026-07-27",
+  "technical_development_stage": "smoke",
+  "primary_reference": "MID",
+  "reference_variants": [
+    "MID",
+    "EXECUTABLE",
+    "LAST_TRADE"
+  ],
+  "thresholds_ticks": [
+    4,
+    8,
+    12,
+    16
+  ],
+  "threshold_selection_hierarchy": [
+    8,
+    12,
+    4,
+    16
+  ],
+  "horizons_ms": [
+    500,
+    1000,
+    2000,
+    5000,
+    10000
+  ],
+  "primary_horizon_ms": 5000,
+  "ambiguity_window_ms": 250,
+  "ambiguity_sensitivity_windows_ms": [
+    200,
+    250,
+    300
+  ],
+  "threshold_perturbation_ticks": 1,
+  "horizon_perturbation_ms": 500,
+  "depth_warmup_start_ny": "09:25:00",
+  "depth_end_ny": "16:00:20",
+  "depth_timestamp_policy": {
+    "policy": "FILE_ORDER_WATERMARK",
+    "max_jitter_ms": 50.0,
+    "stale_action": "DROP"
+  },
+  "quote_policy": {
+    "coalesce_same_effective_timestamp": true,
+    "min_spread_ticks": 1,
+    "max_spread_ticks": 4,
+    "max_reference_age_ms": 250.0
+  },
+  "target_gates": {
+    "min_reference_coverage": 0.95,
+    "min_count_each_class": 5,
+    "max_single_class_share": 0.75,
+    "max_ambiguous_share": 0.25,
+    "max_buy_sell_total_variation": 0.15,
+    "min_sessions_each_class": 3,
+    "max_session_concentration_each_class": 0.6,
+    "min_mid_executable_agreement": 0.85,
+    "min_ambiguity_window_agreement": 0.9,
+    "min_threshold_perturbation_agreement": 0.8,
+    "min_horizon_perturbation_agreement": 0.85
+  },
+  "classes": [
+    "CONTINUATION",
+    "REVERSAL",
+    "NO_EXPANSION",
+    "AMBIGUOUS"
+  ],
+  "forbidden_selection_metrics": [
+    "auc",
+    "pr_auc",
+    "f1",
+    "model_accuracy",
+    "pnl",
+    "profit_factor",
+    "win_rate"
+  ]
+}

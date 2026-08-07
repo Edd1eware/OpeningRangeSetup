@@ -1,0 +1,12 @@
+{
+  "session_date": "2022-05-12",
+  "liquidity_bursts": null,
+  "valid_reference_bursts": null,
+  "reference_coverage": null,
+  "status": "EXCLUDED_DEPTH_HEADER_ONLY_ZERO_SCALE",
+  "reason": "Outcome-blind coverage manifest: HEADER_ONLY_ZERO_SCALE",
+  "trade_header_status": "DATA_PRESENT",
+  "depth_header_status": "HEADER_ONLY_ZERO_SCALE",
+  "trade_source": "C:\\Users\\k_99_\\AppData\\Roaming\\ATAS\\Cache_v2\\NQ@CME_Ind\\2022_05_11\\trades.dat",
+  "depth_source": "C:\\Users\\k_99_\\AppData\\Roaming\\ATAS\\Cache_v2\\NQ@CME_Ind\\2022_05_11\\marketdepth.dat"
+}

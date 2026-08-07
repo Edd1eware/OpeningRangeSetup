@@ -1,0 +1,32 @@
+{
+  "definition_id": "VT_EFFICIENCY_DIAGNOSTIC_V2",
+  "frozen_at_utc": "2026-07-27T14:45:04.773932+00:00",
+  "status": "DIAGNOSTIC_ONLY_BEFORE_REGIME_DISCOVERY",
+  "files": {
+    "config/efficiency_v2_config.json": {
+      "bytes": 688,
+      "sha256": "CE922A59C2FC47081D7B1945E8C031C5D02947479BDDFAD3F8CCC13F86D06A5F"
+    },
+    "config/preregistration/EFFICIENCY_V2_PREREGISTRATION.md": {
+      "bytes": 1755,
+      "sha256": "A4EEEA81B8678C2DE5B551723E1C996F7548E5DEFD0002B46D43F553B41E695F"
+    },
+    "config/preregistration/EFFICIENCY_AUDIT_FREEZE_MANIFEST.json": {
+      "bytes": 1547,
+      "sha256": "912743F6DD53C15F2F2F926F00BB62B4A101A1BA06ECA3A76DA2A42E73D27702"
+    },
+    "artifacts/efficiency_audit/result.json": {
+      "bytes": 1399,
+      "sha256": "7B08BCE449860615F1C47F8D63EEE6EC9EA1CE2F478306C6260A401F70F4919F"
+    },
+    "artifacts/efficiency_audit/manifest.json": {
+      "bytes": 660,
+      "sha256": "38673197CA0848AD8C11EB08D5353FFAEA5691B8C8FBFB58806F4BA82417DEC1"
+    }
+  },
+  "threshold": 0.65,
+  "threshold_reduced": false,
+  "discovery_opened": false,
+  "validation_opened": false,
+  "holdout_opened": false
+}

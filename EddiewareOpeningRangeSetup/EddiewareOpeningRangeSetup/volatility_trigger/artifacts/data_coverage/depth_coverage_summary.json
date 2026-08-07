@@ -1,0 +1,25 @@
+{
+  "audit_id": "POST_LB_2022_CACHE_HEADER_COVERAGE_V1",
+  "frozen_at_utc": "2026-07-27T15:32:58.996627+00:00",
+  "outcome_blind": true,
+  "features_opened": false,
+  "models_opened": false,
+  "sessions_attempted": 195,
+  "min_session_date": "2022-04-04",
+  "max_session_date": "2022-12-30",
+  "trade_status_counts": {
+    "DATA_PRESENT": 189,
+    "MISSING": 4,
+    "HEADER_ONLY_ZERO_SCALE": 2
+  },
+  "depth_status_counts": {
+    "DATA_PRESENT": 111,
+    "HEADER_ONLY_ZERO_SCALE": 80,
+    "MISSING": 4
+  },
+  "depth_present_sessions": 111,
+  "depth_present_share": 0.5692307692307692,
+  "first_depth_present_session": "2022-07-27",
+  "last_depth_present_session": "2022-12-30",
+  "two_distinct_111_warning": "111 depth-present sessions is unrelated to the 111 LB events in the five-session smoke set"
+}

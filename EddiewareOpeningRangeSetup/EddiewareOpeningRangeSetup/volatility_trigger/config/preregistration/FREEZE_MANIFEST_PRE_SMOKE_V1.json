@@ -1,0 +1,30 @@
+{
+  "experiment_id": "VT_TIER1_TRADE_V1",
+  "frozen_at_utc": "2026-07-27T04:54:59.735169+00:00",
+  "status": "PREREGISTERED_BEFORE_VT_OUTCOMES",
+  "files": {
+    "config/discovery_config.json": {
+      "bytes": 2407,
+      "sha256": "695C936FB4356BB796AA9E5F5520D381C7E9BCA81327A2E0CB3BAE48D4915EFB"
+    },
+    "config/preregistration/VT_TIER1_PREREGISTRATION.md": {
+      "bytes": 4510,
+      "sha256": "35FDA57AFEED49E95FFAFBC4F19B6FC0510D526698F826940373F50434DB70F8"
+    },
+    "src/vt_core.py": {
+      "bytes": 37501,
+      "sha256": "1B1ED8253FC5B65289274D5CBAB14B61983BB51B587CF83FA14D3D4C024BF069"
+    },
+    "src/vt_model.py": {
+      "bytes": 16268,
+      "sha256": "8BFC89AA2DB39AAE4169B0D669E41CFA3C17A35E6F3552935759D8D448902C99"
+    },
+    "run_research.py": {
+      "bytes": 15463,
+      "sha256": "5332E95F4EEB4379F7AB4914853222478462C265A554860F815AADB1A277BDA2"
+    }
+  },
+  "validation_opened": false,
+  "holdout_opened": false,
+  "visual_logic_modified": false
+}

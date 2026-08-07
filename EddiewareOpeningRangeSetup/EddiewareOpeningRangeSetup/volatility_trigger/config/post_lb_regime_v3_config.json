@@ -1,0 +1,90 @@
+{
+  "target_id": "POST_LB_REGIME_V3_CURRENT_QUOTE_RESOLVED_WITH_ABSTENTION",
+  "primary_reference": "MID",
+  "threshold_ticks": 16,
+  "horizon_ms": 5000,
+  "ambiguity_window_ms": 250,
+  "resolved_classes": [
+    "CONTINUATION",
+    "REVERSAL",
+    "NO_EXPANSION"
+  ],
+  "abstention_class": "AMBIGUOUS",
+  "ambiguous_policy": "PRESERVE_LABEL_EXCLUDE_FROM_RESOLVED_TRAINING",
+  "quote_policy": {
+    "current_causal_book_state_required": true,
+    "max_depth_age_ms": 250,
+    "min_spread_ticks": 1,
+    "max_spread_ticks": 4,
+    "persist_quote_audit_fields": true
+  },
+  "threshold_selection": {
+    "hierarchy": [
+      8,
+      12,
+      4,
+      16
+    ],
+    "selected_threshold_ticks": 16,
+    "hierarchy_consumed": true,
+    "do_not_revisit_after_discovery": true,
+    "resolved_tvd_scope": "CONTINUATION_REVERSAL_NO_EXPANSION",
+    "tvd_scope_invariance_verified": true
+  },
+  "discovery_dates": [
+    "2022-04-04",
+    "2022-12-30"
+  ],
+  "technical_development_dates": [
+    "2022-08-01",
+    "2022-08-02",
+    "2022-08-03",
+    "2022-08-04",
+    "2022-08-05"
+  ],
+  "checkpoints_ms": [
+    0,
+    100,
+    250,
+    500,
+    1000,
+    2000
+  ],
+  "target_only_discovery_gates": {
+    "min_valid_liquidity_bursts": 500,
+    "min_each_resolved_class": 100,
+    "min_months_each_resolved_class": 6,
+    "max_single_resolved_class_share": 0.7,
+    "max_buy_sell_total_variation": 0.15,
+    "max_month_concentration_each_resolved_class": 0.35,
+    "max_ambiguous_share": 0.1,
+    "min_reference_coverage_in_depth_sessions": 0.95
+  },
+  "process_gates": {
+    "min_evaluated_share_eligible_after_frozen_qc": 1.0,
+    "depth_present_share_is_report_only": true
+  },
+  "split_policy": {
+    "unit": "LB_ID",
+    "group_by_session": true,
+    "random_row_split": false,
+    "bootstrap_unit": "LB_ID_OR_SESSION",
+    "validation_year": 2023,
+    "holdout_year": 2024,
+    "closed_years": [
+      2025,
+      2026
+    ]
+  },
+  "forbidden": [
+    "merge_ambiguous_with_no_expansion",
+    "choose_threshold_by_model_metric",
+    "choose_horizon_by_model_metric",
+    "candidate_row_independence",
+    "revisit_threshold_hierarchy_after_discovery",
+    "mix_v2_and_v3_session_cache",
+    "pnl",
+    "profit_factor",
+    "win_rate"
+  ]
+}

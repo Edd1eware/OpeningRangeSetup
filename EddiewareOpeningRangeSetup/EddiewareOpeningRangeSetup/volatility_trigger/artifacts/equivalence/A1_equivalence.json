@@ -1,0 +1,40 @@
+{
+  "status": "EXACT_PASS",
+  "sessions": 4,
+  "candidate_rows": 16160,
+  "liquidity_bursts": 80,
+  "records": [
+    {
+      "session_date": "2022-08-01",
+      "status": "EXACT_PASS",
+      "rows": 5050,
+      "bursts": 25,
+      "raw_timestamp_backtracks": 0,
+      "elapsed_seconds": 13.288534299994353
+    },
+    {
+      "session_date": "2022-08-03",
+      "status": "EXACT_PASS",
+      "rows": 5656,
+      "bursts": 28,
+      "raw_timestamp_backtracks": 0,
+      "elapsed_seconds": 14.883747600004426
+    },
+    {
+      "session_date": "2022-08-04",
+      "status": "EXACT_PASS",
+      "rows": 2626,
+      "bursts": 13,
+      "raw_timestamp_backtracks": 0,
+      "elapsed_seconds": 9.958742900009383
+    },
+    {
+      "session_date": "2022-08-05",
+      "status": "EXACT_PASS",
+      "rows": 2828,
+      "bursts": 14,
+      "raw_timestamp_backtracks": 0,
+      "elapsed_seconds": 10.515875400000368
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "audit_id": "VT_EFFICIENCY_OUTCOME_ONLY_V1",
+  "created_at": "2026-07-26",
+  "candidate_stage": "smoke",
+  "horizon_ms": 2000,
+  "mid_sampling_ms": [
+    25,
+    50,
+    100
+  ],
+  "depth_warmup_start_ny": "09:25:00",
+  "depth_end_ny": "16:00:20",
+  "depth_timestamp_policy": {
+    "policy": "FILE_ORDER_WATERMARK",
+    "max_jitter_ms": 50.0,
+    "stale_action": "DROP"
+  },
+  "quote_policy": {
+    "coalesce_same_effective_timestamp": true,
+    "min_spread_ticks": 1,
+    "max_spread_ticks": 4,
+    "max_entry_quote_age_ms": 250.0,
+    "max_terminal_quote_age_ms": 250.0
+  },
+  "frozen_trade_path": {
+    "name": "PATH_EFFICIENCY_TRADE_V1",
+    "threshold": 0.65,
+    "status": "DEGENERATE_TARGET_COMPONENT"
+  },
+  "sniper_core_gates": {
+    "time_to_impulse_4t_max_ms": 750,
+    "signed_displacement_1s_min_ticks": 4,
+    "signed_displacement_2s_min_ticks": 8,
+    "pre_expansion_ae_4t_max_ticks": 2,
+    "initial_impulse_mfe_3t_pullback_min_ticks": 8
+  },
+  "distribution_quantiles": [
+    0.0,
+    0.01,
+    0.05,
+    0.1,
+    0.25,
+    0.5,
+    0.75,
+    0.9,
+    0.95,
+    0.99,
+    1.0
+  ],
+  "mechanical_gates": {
+    "min_trade_variant_coverage": 0.99,
+    "min_quote_variant_coverage": 0.9,
+    "min_quote_session_coverage": 0.8,
+    "max_abs_buy_sell_median_difference": 0.05,
+    "max_buy_sell_ks_statistic": 0.1,
+    "min_mid_sampling_pairwise_spearman": 0.9,
+    "max_mid_sampling_median_abs_difference": 0.05,
+    "min_nuisance_improvement_vs_trade_v1": 0.05
+  },
+  "selection_hierarchy": [
+    "mid_efficiency_sampled_50ms",
+    "excursion_efficiency",
+    "impulse_retention",
+    "mid_efficiency_quote_changes",
+    "microprice_efficiency"
+  ],
+  "selection_forbidden_fields": [
+    "sniper_success",
+    "sniper_core_positive_at_065",
+    "positive_count",
+    "positive_rate",
+    "auc",
+    "pr_auc",
+    "pnl"
+  ]
+}

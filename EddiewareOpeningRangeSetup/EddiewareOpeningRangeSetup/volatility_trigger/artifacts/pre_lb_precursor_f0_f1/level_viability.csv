@@ -1,0 +1,5 @@
+k,aggregate_both_ge_k_fraction,minimum_session_both_ge_k_fraction,binding_session,binding_margin_vs_minimum,aggregate_pass,each_session_pass,viable
+1,1.0,1.0,2022-07-27,0.050000000000000044,True,True,True
+3,1.0,1.0,2022-07-27,0.050000000000000044,True,True,True
+5,1.0,1.0,2022-07-27,0.050000000000000044,True,True,True
+10,1.0,1.0,2022-07-27,0.050000000000000044,True,True,True

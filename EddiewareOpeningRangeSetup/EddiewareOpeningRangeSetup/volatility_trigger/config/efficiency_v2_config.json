@@ -1,0 +1,23 @@
+{
+  "definition_id": "VT_EFFICIENCY_DIAGNOSTIC_V2",
+  "status": "DIAGNOSTIC_ONLY",
+  "measure": "impulse_retention",
+  "formula": "max(0,SignedMove_2s)/max(MFE_2s,epsilon)",
+  "horizon_ms": 2000,
+  "threshold": 0.65,
+  "threshold_policy": "CARRY_FORWARD_UNCHANGED_FROM_V1",
+  "combined_diagnostic": "SNIPER_CORE_AND_IMPULSE_RETENTION_V2_GE_065",
+  "allowed_uses": [
+    "outcome_diagnostics",
+    "trajectory_description",
+    "comparison_with_trade_path_v1"
+  ],
+  "forbidden_uses": [
+    "primary_regime_target",
+    "predictor",
+    "training_target_before_separate_preregistration",
+    "feature_selection",
+    "pnl_optimization"
+  ],
+  "primary_research_target": "POST_LB_REGIME"
+}

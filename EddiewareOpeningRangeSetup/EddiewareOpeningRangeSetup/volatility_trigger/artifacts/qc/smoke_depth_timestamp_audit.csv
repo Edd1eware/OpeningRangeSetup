@@ -1,0 +1,6 @@
+session_date,source,trade_rows,backtrack_count,largest_backtrack_ms,status,reason
+2022-08-01,C:\Users\k_99_\AppData\Roaming\ATAS\Cache_v2\NQ@CME_Ind\2022_07_31\marketdepth.dat,11806699,3,1.0,PASS,
+2022-08-02,C:\Users\k_99_\AppData\Roaming\ATAS\Cache_v2\NQ@CME_Ind\2022_08_01\marketdepth.dat,12985182,28,2.0,PASS,
+2022-08-03,C:\Users\k_99_\AppData\Roaming\ATAS\Cache_v2\NQ@CME_Ind\2022_08_02\marketdepth.dat,10655074,13,1.0,PASS,
+2022-08-04,C:\Users\k_99_\AppData\Roaming\ATAS\Cache_v2\NQ@CME_Ind\2022_08_03\marketdepth.dat,10831703,12,1.0,PASS,
+2022-08-05,C:\Users\k_99_\AppData\Roaming\ATAS\Cache_v2\NQ@CME_Ind\2022_08_04\marketdepth.dat,12326568,20,16189322.0,PASS,

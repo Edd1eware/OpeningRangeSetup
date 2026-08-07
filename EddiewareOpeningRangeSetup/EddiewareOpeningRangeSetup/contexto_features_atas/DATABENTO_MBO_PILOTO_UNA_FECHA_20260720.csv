@@ -1,2 +1,0 @@
-"request_id","fecha","BurstId","split","family_label_only","dataset","schema","symbols","stype_in","stype_out","start_utc","end_utc_exclusive","causal_cutoff_utc_inclusive","requested_seconds","post_download_filter","predictor_policy"
-"NQ_MBO_2022-04-05_LB_20220405_093200_BUY_0001","2022-04-05","LB_20220405_093200_BUY_0001","discovery","A_TRUE_ABSORPTION","GLBX.MDP3","mbo","NQ.v.0","continuous","raw_symbol","2022-04-05T13:31:51.026000Z","2022-04-05T13:32:01.027000Z","2022-04-05T13:32:01.026000Z","10.001","ts_event<=causal_cutoff_utc_inclusive","PREENTRY_ONLY_NO_POST_BURST"

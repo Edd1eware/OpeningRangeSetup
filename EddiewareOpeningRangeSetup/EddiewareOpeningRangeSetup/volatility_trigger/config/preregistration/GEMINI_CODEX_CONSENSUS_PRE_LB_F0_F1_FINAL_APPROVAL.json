@@ -1,0 +1,19 @@
+{
+  "audit_id": "PRE_LB_PRECURSOR_F0_F1_OUTCOME_BLIND_V1",
+  "date": "2026-07-27",
+  "consensus_document": "GEMINI_CODEX_CONSENSUS_PRE_LB_F0_F1_FINAL.md",
+  "consensus_document_sha256": "39893BB993067341DC76A34C62A8A2EC0F606ADAB482FE2B5343F98D8BD97ECB",
+  "gemini_verdicts": {
+    "runner_pre_freeze": "GEMINI_CODE_REVIEW_F0_RUNNER_PRE_FREEZE: PASS",
+    "pilot_runtime": "GEMINI_CODEX_PILOT_RUNTIME_CONSENSUS: PASS",
+    "f0_f1_joint_review": "GEMINI_CODEX_F0_F1_JOINT_REVIEW: PASS",
+    "consensus_document": "GEMINI_CONSENSUS_DOCUMENT_APPROVED: YES"
+  },
+  "codex_agrees": true,
+  "status": "F0_F1_PASS_WITH_MECHANICAL_LIMITATIONS",
+  "authorized_next_step": "DRAFT_AND_PREREGISTER_F2_OUTCOME_BLIND_ONLY",
+  "outcomes_opened": false,
+  "models_opened": false,
+  "validation_opened": false,
+  "holdout_opened": false
+}

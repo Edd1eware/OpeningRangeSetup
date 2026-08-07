@@ -1,0 +1,271 @@
+{
+  "audit_id": "PRE_LB_PRECURSOR_F2_PREREGISTRATION_V1A",
+  "line": "PRE_LB_PRECURSOR_EXPLORATORY_V1",
+  "status": "BEFORE_F3_OUTCOME_BLIND_FEATURE_MATRIX",
+  "scope": "DISCOVERY_2022_DEPTH_PRESENT",
+  "causal_cut": {
+    "predictor_event_time": "< source_second_ticks",
+    "detector_zone": "[source_second_ticks, publish_ticks]",
+    "outcome_event_time": "> publish_ticks",
+    "pre_windows_seconds": [
+      1,
+      5,
+      30
+    ]
+  },
+  "depth": {
+    "domain": "AGGREGATED_INCREMENTAL_L2_TOP10_ONLY",
+    "level_ks": [
+      1,
+      3,
+      5,
+      10
+    ],
+    "max_global_group_age_ms": 250.0,
+    "min_spread_ticks": 1,
+    "max_spread_ticks": 4,
+    "full_depth_features_forbidden": true,
+    "far_tail_features_forbidden": true,
+    "individual_order_or_mbo_claims_forbidden": true
+  },
+  "profile": {
+    "anchor_ny": "09:30:00",
+    "price_bin_ticks": 1,
+    "value_area_fraction": 0.7,
+    "drift_seconds": 300,
+    "min_profile_trades": 500,
+    "min_profile_elapsed_seconds": 1,
+    "imputation": "FORBIDDEN"
+  },
+  "clusters": {
+    "maximum_consecutive_gap_seconds": 30,
+    "definition": "CONNECTED_COMPONENT_WITHIN_SESSION",
+    "uses_future_gap": "DEPENDENCE_METADATA_ONLY",
+    "predictor_use": "FORBIDDEN",
+    "filter_use": "FORBIDDEN",
+    "weight_use": "FORBIDDEN",
+    "causal_predictor": "CTL_PriorLbWithin30s"
+  },
+  "feature_catalog": {
+    "baseline_detector_and_controls": [
+      "BLB_Delta1s_Favor",
+      "BLB_Delta3s_Favor",
+      "BLB_DeltaChangeZ_Favor",
+      "BLB_DeltaPercentile",
+      "BLB_TradesPerSecond",
+      "BLB_ContractsPerSecond",
+      "BLB_Velocity1s_Favor",
+      "BLB_Acceleration1s_Favor",
+      "CTL_RthElapsed_seconds",
+      "CTL_LbOrdinalPriorCount",
+      "CTL_PriorLbWithin30s"
+    ],
+    "baseline_price_history": [
+      "PX_NetMoveFavor_ticks_pre_1s",
+      "PX_Range_ticks_pre_1s",
+      "PX_PathEfficiencyFavor_pre_1s",
+      "PX_NetMoveFavor_ticks_pre_5s",
+      "PX_Range_ticks_pre_5s",
+      "PX_PathEfficiencyFavor_pre_5s",
+      "PX_NetMoveFavor_ticks_pre_30s",
+      "PX_Range_ticks_pre_30s",
+      "PX_PathEfficiencyFavor_pre_30s"
+    ],
+    "baseline_tape_history": [
+      "TAPE_TradeRate_pre_1s",
+      "TAPE_ContractRate_pre_1s",
+      "TAPE_DeltaImbalanceFavor_pre_1s",
+      "TAPE_AggressorSizeLogRetention_pre_1s",
+      "TAPE_TradeRate_pre_5s",
+      "TAPE_ContractRate_pre_5s",
+      "TAPE_DeltaImbalanceFavor_pre_5s",
+      "TAPE_AggressorSizeLogRetention_pre_5s",
+      "TAPE_TradeRate_pre_30s",
+      "TAPE_ContractRate_pre_30s",
+      "TAPE_DeltaImbalanceFavor_pre_30s",
+      "TAPE_AggressorSizeLogRetention_pre_30s"
+    ],
+    "dom_top10_state": [
+      "DOM_Spread_ticks",
+      "DOM_MicropriceOffsetFavor_ticks",
+      "DOM_ImbalanceL1_Favor",
+      "DOM_ImbalanceL3_Favor",
+      "DOM_ImbalanceL5_Favor",
+      "DOM_ImbalanceL10_Favor",
+      "DOM_AheadDepthPerLbContractsL3",
+      "DOM_AheadL1ConcentrationL5"
+    ],
+    "dom_top10_dynamics": [
+      "DOM_ImbalanceL10MeanFavor_pre_1s",
+      "DOM_MicropriceDriftFavor_ticks_pre_1s",
+      "DOM_ProxyDirectionalStackPullBalanceL10_pre_1s",
+      "DOM_NearChurnTurnoversPerSecondL10_pre_1s",
+      "DOM_ImbalanceL10MeanFavor_pre_5s",
+      "DOM_MicropriceDriftFavor_ticks_pre_5s",
+      "DOM_ProxyDirectionalStackPullBalanceL10_pre_5s",
+      "DOM_NearChurnTurnoversPerSecondL10_pre_5s",
+      "DOM_ImbalanceL10MeanFavor_pre_30s",
+      "DOM_MicropriceDriftFavor_ticks_pre_30s",
+      "DOM_ProxyDirectionalStackPullBalanceL10_pre_30s",
+      "DOM_NearChurnTurnoversPerSecondL10_pre_30s"
+    ],
+    "profile_f11": [
+      "PRF_PocSignedDistance_ticks",
+      "PRF_PocSide_Favor",
+      "PRF_VaSignedPositionNorm",
+      "PRF_InsideValueArea",
+      "PRF_VaWidth_ticks",
+      "PRF_PocDrift_ticks_300s",
+      "PRF_PocVolumeShare",
+      "PRF_ProfileEntropyNorm"
+    ]
+  },
+  "feature_count": 60,
+  "support_columns_not_predictors": [
+    "BASELINE_SUPPORT",
+    "DOM_STATE_SUPPORT",
+    "DOM_W1_SUPPORT",
+    "DOM_W5_SUPPORT",
+    "DOM_W30_SUPPORT",
+    "PROFILE_RAW_SUPPORT",
+    "PROFILE_F11_SUPPORT",
+    "COMBINED_W1_SUPPORT",
+    "COMBINED_W5_SUPPORT",
+    "COMBINED_W30_SUPPORT",
+    "LB_CLUSTER_ID_30S",
+    "LB_CLUSTER_SIZE_30S"
+  ],
+  "support_mask_technical_amendment": {
+    "amendment_id": "PRE_LB_F2_SUPPORT_MASKS_W5_W30_V1",
+    "timing": "BEFORE_ANY_REAL_F3_DATA",
+    "gemini_verdict": "GEMINI_F2_SUPPORT_AMENDMENT: APPROVE",
+    "codex_agrees": true,
+    "COMBINED_W5_SUPPORT": "BASELINE_SUPPORT & DOM_STATE_SUPPORT & DOM_W5_SUPPORT & PROFILE_F11_SUPPORT",
+    "COMBINED_W30_SUPPORT": "BASELINE_SUPPORT & DOM_STATE_SUPPORT & DOM_W30_SUPPORT & PROFILE_F11_SUPPORT",
+    "predictor_use": false,
+    "global_filter_use": false,
+    "rescue_use": false,
+    "purpose": "PREDECLARED_MATCHED_SAMPLES_FOR_SECONDARY_COMPARISONS_ONLY"
+  },
+  "primary_model": {
+    "task": "THREE_RESOLVED_CLASSES_WITH_AMBIGUOUS_ABSTENTION",
+    "classes": [
+      "CONTINUATION",
+      "REVERSAL",
+      "NO_EXPANSION"
+    ],
+    "baseline": "M0_BASE",
+    "augmented": "M_ALL_W1",
+    "support": "COMBINED_W1_SUPPORT",
+    "metric": "BALANCED_MULTICLASS_LOG_LOSS",
+    "delta_definition": "BMLL_M0_BASE_MINUS_BMLL_M_ALL_W1"
+  },
+  "models": {
+    "algorithm": "MULTINOMIAL_LOGISTIC_REGRESSION",
+    "standardization": "TRAIN_FOLD_ONLY",
+    "penalty": "L2",
+    "C": 1.0,
+    "solver": "lbfgs",
+    "max_iter": 10000,
+    "class_weight": "TRAIN_FOLD_BALANCED",
+    "hyperparameter_tuning": "FORBIDDEN",
+    "feature_selection": "FORBIDDEN"
+  },
+  "chronological_session_folds": [
+    {
+      "fold": 1,
+      "train_session_positions": [
+        1,
+        40
+      ],
+      "test_session_positions": [
+        41,
+        56
+      ]
+    },
+    {
+      "fold": 2,
+      "train_session_positions": [
+        1,
+        56
+      ],
+      "test_session_positions": [
+        57,
+        72
+      ]
+    },
+    {
+      "fold": 3,
+      "train_session_positions": [
+        1,
+        72
+      ],
+      "test_session_positions": [
+        73,
+        88
+      ]
+    },
+    {
+      "fold": 4,
+      "train_session_positions": [
+        1,
+        88
+      ],
+      "test_session_positions": [
+        89,
+        104
+      ]
+    }
+  ],
+  "primary_gates": {
+    "minimum_delta_balanced_multiclass_log_loss": 0.01,
+    "session_bootstrap_repetitions": 2000,
+    "session_bootstrap_seed": 20260727,
+    "session_bootstrap_ci": 0.95,
+    "session_bootstrap_lower_bound_strictly_greater_than": 0.0,
+    "within_session_circular_shift_permutations": 1000,
+    "permutation_seed": 20260727,
+    "permutation_p_max": 0.05,
+    "positive_test_folds_minimum": 3,
+    "test_folds_total": 4,
+    "buy_delta_strictly_positive": true,
+    "sell_delta_strictly_positive": true,
+    "all_gates_required": true
+  },
+  "secondary_tests": {
+    "comparisons": [
+      "M_DOM_W1_MINUS_M0_BASE_MATCHED_DOM_W1_SUPPORT",
+      "M_PRF_MINUS_M0_BASE_MATCHED_PROFILE_F11_SUPPORT",
+      "B_PRICE_PLUS_PRF_MINUS_B_PRICE_MATCHED_PROFILE_F11_SUPPORT",
+      "M_ALL_W5_MINUS_M_ALL_W1_MATCHED_COMBINED_W5_SUPPORT",
+      "M_ALL_W30_MINUS_M_ALL_W5_MATCHED_COMBINED_W30_SUPPORT"
+    ],
+    "benjamini_hochberg_q_max": 0.1,
+    "may_rescue_primary": false
+  },
+  "terminal_rule": {
+    "any_primary_gate_fails": "NO_DISCOVERY_SIGNAL_CLOSE_LINE",
+    "all_primary_gates_pass": "DISCOVERY_ONLY_SIGNAL",
+    "validation_auto_open": false,
+    "holdout_auto_open": false,
+    "parent_v3_status": "REGIME_V3_TARGET_DISCOVERY_FAIL"
+  },
+  "historical_contamination_guard": {
+    "ignore_prior_auc_and_rankings": true,
+    "ignore_prior_feature_shortlists": true,
+    "mechanical_definitions_only": true
+  },
+  "forbidden": [
+    "READ_OR_JOIN_LABELS_BEFORE_F3_FREEZE",
+    "USE_EVENT_TIME_AT_OR_AFTER_SOURCE_SECOND_IN_PRECURSOR",
+    "USE_POST_LB_POC_AS_PREDICTOR",
+    "USE_FULL_DEPTH_OR_FAR_TAIL",
+    "IMPUTE_OR_LOCF",
+    "EXCLUDE_POOR_SESSIONS",
+    "FILTER_OR_WEIGHT_LB_CLUSTERS",
+    "SWEEP_WINDOWS_THRESHOLDS_MODELS_OR_HYPERPARAMETERS",
+    "SELECT_FEATURES_FROM_OUTCOMES",
+    "OPEN_VALIDATION_OR_HOLDOUT",
+    "RESCUE_PARENT_V3"
+  ]
+}

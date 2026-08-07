@@ -1,0 +1,98 @@
+{
+  "experiment_id": "VT_TIER1_TRADE_V1A1",
+  "created_at": "2026-07-26",
+  "freeze_status": "TECHNICAL_AMENDMENT_AFTER_SMOKE_BEFORE_DISCOVERY",
+  "cache_root": "C:\\Users\\k_99_\\AppData\\Roaming\\ATAS\\Cache_v2\\NQ@CME_Ind",
+  "telegram_results_folder": "C:\\Users\\k_99_\\Desktop\\codding\\data_footprint_generator\\trade_results_score",
+  "tick_size": 0.25,
+  "lot_size": 1.0,
+  "timestamp_qc": {
+    "causal_policy": "FILE_ORDER_CUMMAX",
+    "max_backtrack_count": 10,
+    "max_single_backtrack_ms": 50.0
+  },
+  "detector": {
+    "source_version": "liquidity-burst-detector-2026-07-22-v7-postburst-matrix",
+    "history_seconds": 300,
+    "min_baseline_seconds": 30,
+    "delta_change_zscore_threshold": 2.5,
+    "delta_percentile_threshold": 0.95,
+    "persistence_seconds": 1,
+    "cumulative_window_seconds": 3,
+    "min_abs_delta_1s": 100,
+    "min_abs_delta_change_1s": 75,
+    "min_abs_cumulative_delta": 150,
+    "min_trades_per_second": 5,
+    "min_contracts_per_second": 50,
+    "require_price_velocity": false,
+    "cooldown_seconds": 5,
+    "max_gap_fill_seconds": 10,
+    "detection_start_ny": "09:30:00",
+    "detection_end_ny": "16:00:00"
+  },
+  "candidate_grid_ms": 50,
+  "candidate_max_ms": 5000,
+  "candidate_directions": [
+    -1,
+    1
+  ],
+  "analytic_price_reference": "LAST_TRADE",
+  "feature_windows_ms": [
+    50,
+    100,
+    250,
+    500,
+    1000,
+    2000,
+    5000
+  ],
+  "outcome_horizon_ms": 5000,
+  "sniper_success": {
+    "time_to_impulse_4t_max_ms": 750,
+    "signed_displacement_1s_min_ticks": 4,
+    "signed_displacement_2s_min_ticks": 8,
+    "pre_expansion_ae_4t_max_ticks": 2,
+    "initial_impulse_mfe_3t_pullback_min_ticks": 8,
+    "directional_efficiency_2s_min": 0.65
+  },
+  "splits": {
+    "smoke": [
+      "2022-08-01",
+      "2022-08-02",
+      "2022-08-03",
+      "2022-08-04",
+      "2022-08-05"
+    ],
+    "discovery": [
+      "2022-04-04",
+      "2022-12-30"
+    ],
+    "validation": [
+      "2023-01-03",
+      "2023-12-29"
+    ],
+    "holdout": [
+      "2024-01-02",
+      "2024-12-31"
+    ]
+  },
+  "discovery_gates": {
+    "min_liquidity_bursts": 80,
+    "min_sniper_eligible_bursts": 20,
+    "min_months_with_sniper_eligible": 3,
+    "min_candidate_auc": 0.6,
+    "min_auc_ci_low": 0.5,
+    "min_incremental_auc": 0.02,
+    "min_incremental_pr_relative": 0.1,
+    "min_positive_fold_fraction": 0.75
+  },
+  "validation_gates": {
+    "min_candidate_auc": 0.6,
+    "min_auc_ci_low": 0.5,
+    "min_incremental_auc": 0.02,
+    "min_side_auc": 0.55,
+    "min_months_positive_lift_fraction": 0.67
+  },
+  "random_seed": 20260726,
+  "bootstrap_repetitions": 2000
+}

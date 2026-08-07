@@ -295,7 +295,22 @@ def get_replay_controls():
     # WebView/Electron windows. Resolve the small Replay top-level window with
     # Win32, then wrap only that exact HWND with UIA.
     import win32gui
+    import win32process
     from pywinauto import Application
+
+    # Only windows owned by ATAS qualify. Matching on the title alone picks up
+    # anything that happens to start with "replay" — a File Explorer sitting on a
+    # folder named replay_atas is titled "replay_atas - Explorador de archivos",
+    # wins the enumeration order, and then the caller fails with "no encontré los
+    # campos FROM/TO" while the real Replay window is right there.
+    atas_pids = set()
+    try:
+        import psutil
+        for proc in psutil.process_iter(["pid", "name"]):
+            if (proc.info["name"] or "").lower().startswith("oft.platform"):
+                atas_pids.add(proc.info["pid"])
+    except Exception:
+        atas_pids = set()
 
     handles: list[int] = []
 
@@ -304,8 +319,17 @@ def get_replay_controls():
             return
         title = win32gui.GetWindowText(hwnd).strip().lower()
         left, top, right, bottom = win32gui.GetWindowRect(hwnd)
-        if title.startswith("replay") and left > -10000 and top > -10000 and right > left and bottom > top:
-            handles.append(hwnd)
+        if not (title.startswith("replay") and left > -10000 and top > -10000
+                and right > left and bottom > top):
+            return
+        if atas_pids:
+            try:
+                _, pid = win32process.GetWindowThreadProcessId(hwnd)
+            except Exception:
+                return
+            if pid not in atas_pids:
+                return
+        handles.append(hwnd)
 
     win32gui.EnumWindows(collect, None)
     if not handles:
@@ -577,6 +601,18 @@ def refresh_replay_date_controls():
     return from_box, to_box
 
 
+def format_replay_clock(time_text):
+    """Split a 24-hour "HH:MM" into the 12-hour text ATAS renders, plus its meridiem.
+
+    ATAS shows the replay date pickers on a localized 12-hour clock, so an
+    afternoon window has to be written as "03:45 p. m.", not "15:45 a. m.".
+    Morning times round-trip unchanged: "09:30" -> ("09:30", "a. m.").
+    """
+    hour, minute = (int(part) for part in str(time_text).split(":")[:2])
+    suffix = "a. m." if hour < 12 else "p. m."
+    return f"{hour % 12 or 12:02d}:{minute:02d}", suffix
+
+
 def configure_replay_range(
     from_box,
     to_box,
@@ -585,8 +621,10 @@ def configure_replay_range(
     replay_to_time=DEFAULT_REPLAY_TO_TIME,
 ):
     date_replay = date_replay_from_iso(date_iso)
-    expected_from = f"{date_replay} {replay_from_time} a. m."
-    expected_to = f"{date_replay} {replay_to_time} a. m."
+    from_clock, from_suffix = format_replay_clock(replay_from_time)
+    to_clock, to_suffix = format_replay_clock(replay_to_time)
+    expected_from = f"{date_replay} {from_clock} {from_suffix}"
+    expected_to = f"{date_replay} {to_clock} {to_suffix}"
     actual_from = ""
     actual_to = ""
 
@@ -604,8 +642,8 @@ def configure_replay_range(
         time.sleep(0.5)
         actual_to = control_value(to_box)
 
-        from_ok = date_replay in actual_from and replay_from_time in actual_from
-        to_ok = date_replay in actual_to and replay_to_time in actual_to
+        from_ok = date_replay in actual_from and from_clock in actual_from
+        to_ok = date_replay in actual_to and to_clock in actual_to
         if from_ok and to_ok and actual_from != actual_to:
             break
 

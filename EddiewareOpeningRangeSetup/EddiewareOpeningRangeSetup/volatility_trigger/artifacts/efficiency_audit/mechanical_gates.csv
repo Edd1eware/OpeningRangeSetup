@@ -1,0 +1,9 @@
+variant,coverage,coverage_pass,bounded_pass,buy_sell_median_abs_difference,buy_sell_ks_statistic,side_symmetry_pass,minimum_session_coverage,session_coverage_pass,baseline_nuisance_max_abs_spearman,variant_nuisance_max_abs_spearman,nuisance_improvement,nuisance_pass,mid_sampling_robustness_pass,pass
+trade_path_efficiency_v1,1.0,True,True,0.0,0.030327357060030313,True,1.0,True,0.06963292925234356,0.06963292925234356,0.0,False,True,False
+mid_efficiency_quote_changes,1.0,True,True,0.0,0.03505485683703502,True,1.0,True,0.06963292925234356,0.03564276376428014,0.03399016548806342,False,True,False
+mid_efficiency_sampled_25ms,1.0,True,True,0.0,0.03505485683703502,True,1.0,True,0.06963292925234356,0.01674945513493545,0.05288347411740811,True,True,True
+mid_efficiency_sampled_50ms,1.0,True,True,0.0,0.03478726251003472,True,1.0,True,0.06963292925234356,0.025776564763131657,0.0438563644892119,False,True,False
+mid_efficiency_sampled_100ms,1.0,True,True,0.0,0.03487646061903482,True,1.0,True,0.06963292925234356,0.030688851986479686,0.03894407726586387,False,True,False
+microprice_efficiency,1.0,True,True,0.003248071457527334,0.032468111676032474,True,1.0,True,0.06963292925234356,0.04607409293938919,0.02355883631295437,False,True,False
+excursion_efficiency,1.0,True,True,0.0,0.029078583534029034,True,1.0,True,0.06963292925234356,0.02627190449782806,0.043361024754515504,False,True,False
+impulse_retention,1.0,True,True,0.0,0.029167781643029245,True,1.0,True,0.06963292925234356,0.013473295708496754,0.0561596335438468,True,True,True

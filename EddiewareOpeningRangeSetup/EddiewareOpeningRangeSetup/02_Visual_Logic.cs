@@ -63,7 +63,6 @@ namespace ATAS.Indicators
         private bool _cvdPullbackExtremeDrawn;
         private bool _cvdRiskBracketActive;
         private bool _tradeHitDrawn;
-        private bool _timeOverDrawn;
         private int _activeMarketUpdateBar = -1;
         private DateTime _activeMarketUpdateTime = DateTime.MinValue;
         private DateTime _activeMarketCandleTime = DateTime.MinValue;
@@ -273,9 +272,6 @@ namespace ATAS.Indicators
                         DrawOpeningRange();
                 }
             }
-
-            if (TryDrawTimeOver(bar, candle))
-                return;
 
             if (!_orReady)
                 return;
@@ -1448,40 +1444,6 @@ namespace ATAS.Indicators
                 true);
         }
 
-        private bool TryDrawTimeOver(int bar, dynamic candle)
-        {
-            var time = candle.Time.TimeOfDay;
-
-            if (_timeOverDrawn ||
-                _tradeDrawn ||
-                time < MaxSignalTimeUtc)
-            {
-                return false;
-            }
-
-            _timeOverDrawn = true;
-            DrawTimeOverLabel(bar, candle);
-            return true;
-        }
-
-        private void DrawTimeOverLabel(int bar, dynamic candle)
-        {
-            AddText(
-                $"EW_TIME_OVER_{_currentDate:yyyyMMdd}_{bar}",
-                "TIME OVER",
-                true,
-                bar,
-                candle.High + GetTickSize() * ScoreLabelOffsetTicks,
-                0,
-                0,
-                Color.White,
-                Color.Blue,
-                Color.Blue,
-                14,
-                DrawingText.TextAlign.Center,
-                true);
-        }
-
         private bool IsOpeningCandle(dynamic candle)
         {
             var time = candle.Time.TimeOfDay;
@@ -1640,7 +1602,6 @@ namespace ATAS.Indicators
             _cvdProfitLockTicks = 0;
             _cvdProfitLockBestMfeTicks = 0;
             _tradeHitDrawn = false;
-            _timeOverDrawn = false;
             _activeMarketUpdateBar = -1;
             _activeMarketUpdateTime = DateTime.MinValue;
             _activeMarketCandleTime = DateTime.MinValue;

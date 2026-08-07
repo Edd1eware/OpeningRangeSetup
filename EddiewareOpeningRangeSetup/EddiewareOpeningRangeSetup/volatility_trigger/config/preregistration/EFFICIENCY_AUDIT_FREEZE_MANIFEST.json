@@ -1,0 +1,42 @@
+{
+  "audit_id": "VT_EFFICIENCY_OUTCOME_ONLY_V1",
+  "frozen_at_utc": "2026-07-27T05:54:52.497324+00:00",
+  "status": "BEFORE_EFFICIENCY_VARIANT_OUTPUTS",
+  "files": {
+    "config/efficiency_audit_config.json": {
+      "bytes": 1842,
+      "sha256": "A69488E5D30917E53541BB90B46F9668405A0A2687169A64AF56CB75B485440E"
+    },
+    "config/preregistration/EFFICIENCY_AUDIT_PREREGISTRATION.md": {
+      "bytes": 5147,
+      "sha256": "4B125E60254B02E2AA5D66B5F62E005C98DBFF11173D003441885926BE4DC391"
+    },
+    "src/efficiency_audit.py": {
+      "bytes": 14789,
+      "sha256": "70EEDB8EAC33E49304B1C4975C10C736FFC345FDDB4CB8C6C2B65C0306FF5918"
+    },
+    "run_efficiency_audit.py": {
+      "bytes": 21791,
+      "sha256": "6DE1F15B6C1AD6469D809F2475E2868EEBBAE2036D2C53616B6E5E4B60550430"
+    },
+    "tests/test_efficiency_audit.py": {
+      "bytes": 3664,
+      "sha256": "A9CD74FE5052A64E6F96368B042BF09712768083F7C4FC47FF0F702B85C1A7D6"
+    },
+    "config/preregistration/FREEZE_MANIFEST.json": {
+      "bytes": 1216,
+      "sha256": "CCA892AAABDEAE86135BC5DFB25796FF81437F6688E9A1D8F648315FC836BBEC"
+    },
+    "artifacts/smoke/manifest.json": {
+      "bytes": 369,
+      "sha256": "3C89E8F71A9C354102959F912870A922A52F46E9A4BB0071BE551CC225DE29F1"
+    },
+    "artifacts/smoke/vt_candidates.parquet": {
+      "bytes": 2260669,
+      "sha256": "6DF37AB88A31FD88D82611E94AA5F5B28C401781BDF06FBCA12C9D882DB59125"
+    }
+  },
+  "discovery_opened": false,
+  "validation_opened": false,
+  "holdout_opened": false
+}

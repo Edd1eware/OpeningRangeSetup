@@ -1,0 +1,68 @@
+{
+  "audit_id": "POST_LB_REGIME_TARGET_AUDIT_INTEGRITY_V3",
+  "frozen_at_utc": "2026-07-27T15:47:00.576229+00:00",
+  "status": "BEFORE_CORRECTED_SMOKE_LABELS",
+  "files": {
+    "config/post_lb_regime_config.json": {
+      "bytes": 1693,
+      "sha256": "56FF6D2A38176FDC6E2F183BCCD713C1A419510C603CED802317A7CA9CE4C0C4"
+    },
+    "config/preregistration/POST_LB_REGIME_PREREGISTRATION.md": {
+      "bytes": 4191,
+      "sha256": "062C23DDDAE1E8E2AC5B46E68FEC03FB94869C88B3E7086F76C20D21211ADFC2"
+    },
+    "config/preregistration/AMENDMENT_003_CURRENT_QUOTE_VALIDITY.md": {
+      "bytes": 2557,
+      "sha256": "268DA5E7B093224C9CC3BEDF67B20650E5A5235B5E14BC619416732088468D6A"
+    },
+    "config/preregistration/AMENDMENT_003_PRE_FIX_MANIFEST.json": {
+      "bytes": 1636,
+      "sha256": "2995832FB5334F66C6D2889DE8D5BB77F648CC07055487BE79A0A70C1A5B7763"
+    },
+    "config/preregistration/CLAUDE_CODEX_CONSENSUS_DATA_INTEGRITY.md": {
+      "bytes": 4246,
+      "sha256": "E5E5962EC6EB4668E674A277FCD2D874325D8BA53A8B3CE5931F2B5E18110DD8"
+    },
+    "artifacts/quote_state_smoke_audit/manifest.json": {
+      "bytes": 486,
+      "sha256": "05022D57F0D5C676861A93E961F6F6EF76B743C5CA6E7EB2705B5B5EF960C1C2"
+    },
+    "artifacts/data_coverage/manifest.json": {
+      "bytes": 565,
+      "sha256": "7792C1215C2F79515D01900FA4A820A6829DF83111517A7340A7C7DE9EBEC030"
+    },
+    "run_post_lb_regime_integrity_v3.py": {
+      "bytes": 7187,
+      "sha256": "BA2F9254046DAAF402987D2264088BF2F16565E974282F5395B754BD14AE2B2B"
+    },
+    "run_post_lb_regime.py": {
+      "bytes": 29984,
+      "sha256": "E4CA9901BDDAB9D88956D87B5C3EDDE65AF8B0C6890D3D8A8F8C957C818D68C9"
+    },
+    "src/post_lb_regime.py": {
+      "bytes": 5979,
+      "sha256": "0AB54A52A85C0B6A8D48C0B2ABC19E7FA9108CED07A1F9B19D8BB58E60740809"
+    },
+    "src/efficiency_audit.py": {
+      "bytes": 16522,
+      "sha256": "534019DDF594D0A6A4FCFFBE8692EFB37BE17431E7A99C4FADA50D8A9DBC4AF8"
+    },
+    "tests/test_post_lb_regime.py": {
+      "bytes": 2586,
+      "sha256": "1005414A64EA80119DC0FF581EA3D74077C321A04442991438B8597CAF5A8B53"
+    },
+    "tests/test_efficiency_audit.py": {
+      "bytes": 6673,
+      "sha256": "45149CF719629ED09629D00991D2BB2070C9C989EDD5CAD8490C7C3CB9F64307"
+    }
+  },
+  "threshold_selection_hierarchy_unchanged": [
+    8,
+    12,
+    4,
+    16
+  ],
+  "non_smoke_labels_opened": false,
+  "features_opened": false,
+  "models_opened": false
+}

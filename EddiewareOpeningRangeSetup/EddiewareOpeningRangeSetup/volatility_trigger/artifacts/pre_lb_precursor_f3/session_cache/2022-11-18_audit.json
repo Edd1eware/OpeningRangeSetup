@@ -1,0 +1,14 @@
+{
+  "session_date": "2022-11-18",
+  "status": "PASS_FROZEN_TRADE_QC_EXCLUDED",
+  "eligible_after_trade_qc": false,
+  "trade_qc_exclusion_reason": "timestamp QC failed: backtracks=529>10 or largest_ms=26.000000>50.000000",
+  "trade_source": "C:\\Users\\k_99_\\AppData\\Roaming\\ATAS\\Cache_v2\\NQ@CME_Ind\\2022_11_17\\trades.dat",
+  "depth_source": null,
+  "liquidity_bursts": null,
+  "feature_rows": 0,
+  "elapsed_seconds": 0.01491979998536408,
+  "labels_opened": false,
+  "outcomes_opened": false,
+  "models_opened": false
+}

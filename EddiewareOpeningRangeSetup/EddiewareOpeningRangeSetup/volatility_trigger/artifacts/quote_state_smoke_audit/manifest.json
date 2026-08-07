@@ -1,0 +1,17 @@
+{
+  "audit_id": "POST_LB_QUOTE_STATE_SMOKE_V1",
+  "files": {
+    "quote_state_by_lb.csv": {
+      "bytes": 24379,
+      "sha256": "D1D8AAB54B2FE3877EC18D68C2ED2F0EBE9E2E5D276CAD9F2D1F5CD9E56E49EC"
+    },
+    "summary.json": {
+      "bytes": 3581,
+      "sha256": "C0B83490C175ABC6A9D91DB4F109D4E5D3B34DA05544437F564C1ABD29A5C9A9"
+    },
+    "REPORT.md": {
+      "bytes": 540,
+      "sha256": "6312E5FBE09587A85CE821A1CB27D08824AF07B56249A85FCAD667025CF73A82"
+    }
+  }
+}

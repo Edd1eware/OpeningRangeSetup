@@ -1,0 +1,34 @@
+{
+  "target_id": "POST_LB_REGIME_V2_RESOLVED_WITH_ABSTENTION",
+  "frozen_at_utc": "2026-07-27T14:55:41.093832+00:00",
+  "status": "BEFORE_DISCOVERY_REGIME_LABELS",
+  "files": {
+    "config/post_lb_regime_v2_config.json": {
+      "bytes": 1364,
+      "sha256": "189D03A42B08A76A669DC69D4360CB0E438776E182A876055DBF862300320095"
+    },
+    "config/preregistration/POST_LB_REGIME_V2_PREREGISTRATION.md": {
+      "bytes": 2466,
+      "sha256": "DF0DB190272272CDA437C84D1F0C7AA0A07F6649F1496D5D57D79CC4434D7A02"
+    },
+    "config/preregistration/POST_LB_REGIME_AUDIT_FREEZE_MANIFEST.json": {
+      "bytes": 2187,
+      "sha256": "39F58E6854038AFBA8BBF23EE63704D6EA902D84B879BA255DD76925EC686EC7"
+    },
+    "artifacts/post_lb_regime_audit/result.json": {
+      "bytes": 562,
+      "sha256": "D29A20DF71E6FE9045898C9EDD529F417492A22F08E92D53188B3C4BDA49605C"
+    },
+    "artifacts/post_lb_regime_audit/manifest.json": {
+      "bytes": 970,
+      "sha256": "483F2AA3E30FB66B25195281A6B43E2117E8879ADCB6DF63B35D2B3E4F28877E"
+    }
+  },
+  "threshold_ticks": 8,
+  "horizon_ms": 5000,
+  "ambiguity_window_ms": 250,
+  "ambiguous_merged": false,
+  "discovery_models_opened": false,
+  "validation_opened": false,
+  "holdout_opened": false
+}
