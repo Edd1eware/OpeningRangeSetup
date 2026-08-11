@@ -1,0 +1,221 @@
+﻿Variable,Nacimiento,Actualizaciones,Congelada,Usable,Clasificacion,Motivo
+APlus_Absorption,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+APlus_Absorption_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+APlus_Speed,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+APlus_Speed_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+APlus_Speed_Setup_Confirmed,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+APlus_Speed_Setup_Confirmed_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+APlus_Speed_Threshold_TPS,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+APlus_Structure,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+APlus_Structure_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Alarm_To_Exit_Milliseconds,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,LEAKED,contains forbidden future/outcome token `(^|_)exit($|_)`
+Body,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Body_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Body_OK,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Body_OK_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+BreakOut_SPEED,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+BreakOut_SPEED_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+BreakOut_TICKS_PER_SEC,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+BreakOut_TICKS_PER_SEC_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Buy_Imbalance_Count,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Buy_Imbalance_Count_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Cumulative_Delta_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Cumulative_Delta_Source,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Cumulative_Delta_Source_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,NO,SAFE,captured/frozen at entry
+Cumulative_Delta_entry,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Current_MAE_Pullback_Ticks_At_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,LEAKED,contains forbidden future/outcome token `(^|_)mae($|_)`
+Current_MAE_Speed_TPS_At_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,LEAKED,contains forbidden future/outcome token `(^|_)mae($|_)`
+Cvd_Advertencia_Count,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Cvd_Advertencia_Count_At_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)alarm($|_)`
+Cvd_Advertencia_Count_Final,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)final($|_)`
+Cvd_Current,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)current($|_)`
+Cvd_Current_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)current($|_)`
+Cvd_Current_Final,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)final($|_)`
+Cvd_Excelente_Count,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Cvd_Excelente_Count_At_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)alarm($|_)`
+Cvd_Excelente_Count_Final,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)final($|_)`
+Cvd_Excelente_Pct,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Cvd_Excelente_Pct_Final,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)final($|_)`
+Cvd_Excelente_Time_Pct_Before_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)alarm($|_)`
+Cvd_Label_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Cvd_Label_At_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)alarm($|_)`
+Cvd_Label_Changes,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Cvd_Label_Changes_Final,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)final($|_)`
+Cvd_Label_Final,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)final($|_)`
+Cvd_Negative_Episodes,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Cvd_Negative_Episodes_Final,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)final($|_)`
+Cvd_NonExcellent_Consecutive_Samples,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Cvd_NonExcellent_Seconds_At_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)alarm($|_)`
+Cvd_Normal_Count,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Cvd_Normal_Count_At_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)alarm($|_)`
+Cvd_Normal_Count_Final,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)final($|_)`
+Cvd_Peak,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Cvd_Peak_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,NO,SAFE,captured/frozen at entry
+Cvd_Peak_Final,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)final($|_)`
+Cvd_Pullback_Label,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `cvd_pullback_label`
+Cvd_Pullback_Pct,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Cvd_Pullback_Pct_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,NO,SAFE,captured/frozen at entry
+Cvd_Pullback_Pct_At_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)alarm($|_)`
+Cvd_Pullback_Pct_Final,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)final($|_)`
+Cvd_Riesgo_Reversion_Count,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Cvd_Riesgo_Reversion_Count_At_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)alarm($|_)`
+Cvd_Riesgo_Reversion_Count_Final,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)final($|_)`
+Cvd_Total_Samples,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Cvd_Total_Samples_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,NO,SAFE,captured/frozen at entry
+Cvd_Total_Samples_At_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)alarm($|_)`
+Cvd_Total_Samples_Final,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)final($|_)`
+Cvd_Worst_Label,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Cvd_Worst_Label_Before_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)alarm($|_)`
+Cvd_Worst_Label_Final,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)final($|_)`
+Delta_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Delta_Change,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Delta_Change_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Delta_OK,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Delta_OK_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Delta_With_Side,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Delta_With_Side_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Delta_entry,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Distance_To_SL_Ticks_At_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)alarm($|_)`
+Distance_To_TP_Ticks_At_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)alarm($|_)`
+Drawdown_From_MFE_Ticks_At_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,LEAKED,contains forbidden future/outcome token `(^|_)mfe($|_)`
+Dynamic_Alarm_No_Gestionable_Por_Latencia,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)dynamic($|_)`
+Dynamic_Alarm_Reason,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)dynamic($|_)`
+Dynamic_Alarm_Seconds_From_Entry,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)dynamic($|_)`
+Dynamic_Alarm_Time_NY,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)dynamic($|_)`
+Dynamic_Alarm_Triggered,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)dynamic($|_)`
+EntryBar,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,SAFE_META,"identifier/timestamp, not an optimizer feature"
+EntrySecond_NY,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+EntryTime_NY,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+EntryTime_NY_Milliseconds,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Entry_price,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,SAFE_META,"identifier/timestamp, not an optimizer feature"
+Execution_Side_Imbalance_Count,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Execution_Side_Imbalance_Count_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+ExitTime_NY,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,SUSPECT,not explicitly classified as causal
+ExitTime_NY_Milliseconds,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Exit_price,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,LEAKED,contains forbidden future/outcome token `(^|_)exit($|_)`
+Exporter_VERSION,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Future_MAE_After_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,LEAKED,contains forbidden future/outcome token `(^|_)future($|_)`
+Future_MFE_After_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,LEAKED,contains forbidden future/outcome token `(^|_)future($|_)`
+Imbalance_Count,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Imbalance_Count_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Imbalance_Group_3,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Imbalance_Group_3_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Imbalance_Group_Price,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Imbalance_Group_Price_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Input_VERSION,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,NO,SAFE_META,"identifier/timestamp, not an optimizer feature"
+Largest_MAE_pullback_ticks,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,LEAKED,contains forbidden future/outcome token `(^|_)mae($|_)`
+Largest_MFE_pullup_ticks,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,LEAKED,contains forbidden future/outcome token `(^|_)mfe($|_)`
+Latency_Threshold_Milliseconds,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+MAE_Pullback_Ticks_At_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,LEAKED,contains forbidden future/outcome token `(^|_)mae($|_)`
+MAE_Speed_TPS_At_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,LEAKED,contains forbidden future/outcome token `(^|_)mae($|_)`
+MAE_ticks,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,LEAKED,contains forbidden future/outcome token `(^|_)mae($|_)`
+MFE_TP_Pct_At_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,LEAKED,contains forbidden future/outcome token `(^|_)mfe($|_)`
+MFE_Ticks_At_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,LEAKED,contains forbidden future/outcome token `(^|_)mfe($|_)`
+MFE_ticks,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,LEAKED,contains forbidden future/outcome token `(^|_)mfe($|_)`
+Max_Delta_during_trade,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)during($|_)`
+Max_MAE_Speed_1s,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,LEAKED,contains forbidden future/outcome token `(^|_)mae($|_)`
+Max_MAE_Speed_2s,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,LEAKED,contains forbidden future/outcome token `(^|_)mae($|_)`
+Max_MAE_Speed_500ms,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,LEAKED,contains forbidden future/outcome token `(^|_)mae($|_)`
+Max_Speed_MAE_during_trade,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,LEAKED,contains forbidden future/outcome token `(^|_)mae($|_)`
+Max_Speed_MFE_during_trade,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,LEAKED,contains forbidden future/outcome token `(^|_)mfe($|_)`
+Min_Delta_during_trade,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)during($|_)`
+No_Gestionable_Por_Latencia,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Number_of_PullUps_during_Trade,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)during($|_)`
+Number_of_Pullbacks_during_Trade,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)during($|_)`
+OR_High_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+OR_Low_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+OR_Range_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Open_PnL_Ticks_At_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)alarm($|_)`
+Previous_Delta,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Previous_Delta_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Previous_Volume,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Previous_Volume_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Price_Accepted_After_Imbalance,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Price_Accepted_After_Imbalance_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Price_Rejected_After_Imbalance,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Price_Rejected_After_Imbalance_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Range_OK,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Range_OK_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Raw_Speed_Label,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Raw_Speed_Label_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Result_After_Slippage_Ticks,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,LEAKED,contains forbidden future/outcome token `(^|_)result($|_)`
+Result_Breakeven_At_Alarm,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,LEAKED,contains forbidden future/outcome token `(^|_)result($|_)`
+Result_Label,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,LEAKED,contains forbidden future/outcome token `(^|_)result($|_)`
+Result_Trail_10,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,LEAKED,contains forbidden future/outcome token `(^|_)result($|_)`
+Result_Trail_15,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,LEAKED,contains forbidden future/outcome token `(^|_)result($|_)`
+Result_Trail_20,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,LEAKED,contains forbidden future/outcome token `(^|_)result($|_)`
+Result_VERSION,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,LEAKED,contains forbidden future/outcome token `(^|_)result($|_)`
+SL_price,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)sl($|_)`
+SL_price_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)sl($|_)`
+SL_price_Final,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)final($|_)`
+SL_ticks,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)sl($|_)`
+SL_ticks_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)sl($|_)`
+SL_ticks_Final,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)final($|_)`
+Score_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Seconds_Since_Last_MFE,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,LEAKED,contains forbidden future/outcome token `(^|_)mfe($|_)`
+Sell_Imbalance_Count,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Sell_Imbalance_Count_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Side,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,SUSPECT,not explicitly classified as causal
+Side_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Signal_Source,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,NO,SUSPECT,not explicitly classified as causal
+Signal_Source_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Slippage_Ticks_Per_Fill,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Speed_Elapsed_SECONDS,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Speed_Elapsed_SECONDS_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Speed_Ignored_By_Structure,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Speed_Ignored_By_Structure_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Speed_OK,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Speed_OK_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Speed_Profile,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,NO,SUSPECT,not explicitly classified as causal
+Speed_Profile_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Speed_Replay_Fallback,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Speed_Replay_Fallback_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Speed_Timing_Source,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Speed_Timing_Source_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Subsecond_Trade,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+TP_And_SL_Hit_Same_Update,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)update(d)?($|_)`
+TP_price,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)tp($|_)`
+TP_price_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)tp($|_)`
+TP_price_Final,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)final($|_)`
+TP_ticks,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)tp($|_)`
+TP_ticks_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)tp($|_)`
+TP_ticks_Final,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)final($|_)`
+Ticks_Saved_Breakeven_Vs_Baseline,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)breakeven($|_)`
+Ticks_Saved_Trail_10_Vs_Baseline,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)trail($|_)`
+Ticks_Saved_Trail_15_Vs_Baseline,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)trail($|_)`
+Ticks_Saved_Trail_20_Vs_Baseline,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)trail($|_)`
+Ticks_Saved_Vs_Baseline,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Time_OK,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Time_OK_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Trade_Duration,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,SUSPECT,not explicitly classified as causal
+Trade_Duration_Milliseconds,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+VWAP_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+VWAP_OK,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+VWAP_OK_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+VWAP_entry,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Volume_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Volume_Increase_Samples,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,SUSPECT,not explicitly classified as causal
+Volume_Increased_During_Trade,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)during($|_)`
+Volume_Increasing,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Volume_Increasing_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Volume_Increasing_Pct_During_Trade,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)during($|_)`
+Volume_OK,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+Volume_OK_AtEntry,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,SI,SAFE,captured/frozen at entry
+Volume_Observed_Samples,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,SUSPECT,not explicitly classified as causal
+Volume_entry,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+decision_timestamp,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,NO,SAFE_META,"identifier/timestamp, not an optimizer feature"
+entry_timestamp,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,SAFE_META,"identifier/timestamp, not an optimizer feature"
+entry_timestamp_utc,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,NO,SAFE_META,"identifier/timestamp, not an optimizer feature"
+feature_timestamp,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,NO,SAFE_META,"identifier/timestamp, not an optimizer feature"
+feature_timestamp_utc,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,NO,SAFE_META,"identifier/timestamp, not an optimizer feature"
+fecha,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,SAFE_META,"identifier/timestamp, not an optimizer feature"
+or_high,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,NO,SUSPECT,not explicitly classified as causal
+or_low,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,NO,SUSPECT,not explicitly classified as causal
+outcome_timestamp,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,DYNAMIC,contains forbidden future/outcome token `(^|_)outcome($|_)`
+range,CreateTrade / ScoreTradeSignal snapshot,No despues de entry,SI,NO,SUSPECT,not explicitly classified as causal
+result TP SL BE,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,LEAKED,contains forbidden future/outcome token `(^|_)result($|_)`
+result_ticks,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,LEAKED,contains forbidden future/outcome token `(^|_)result($|_)`
+score total,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+source_date,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+source_file,Legacy monolithic CSV,Revisar en codigo,NO verificado,NO,SUSPECT,not explicitly classified as causal
+trade_id,Trade lifecycle / close,"Si, durante o al cierre",NO como feature,NO,SAFE_META,"identifier/timestamp, not an optimizer feature"

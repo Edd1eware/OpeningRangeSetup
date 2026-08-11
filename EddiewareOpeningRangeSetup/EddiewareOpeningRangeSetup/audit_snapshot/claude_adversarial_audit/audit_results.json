@@ -1,0 +1,288 @@
+{
+  "integrity": {
+    "files": 730,
+    "rows_total": 730,
+    "files_with_extra_rows": 0,
+    "duplicate_dates": {},
+    "duplicate_entry_keys": {}
+  },
+  "counts": {
+    "events": 730,
+    "executed_trades": 564
+  },
+  "headline_reproduction": {
+    "claimed": {
+      "n": 342,
+      "wr": 73.39,
+      "pf": 3.01,
+      "exp": 15.54
+    },
+    "recomputed": {
+      "n": 342,
+      "wr": 73.39181286549707,
+      "pf": 3.005281026027914,
+      "exp": 15.543859649122806,
+      "profit": 5316.0
+    }
+  },
+  "cvd_label_x_result": {
+    "Excelente": {
+      "TP": 257,
+      "SL": 84,
+      "OPEN": 1
+    },
+    "Riesgo de reversion": {
+      "SL": 153,
+      "TP": 26
+    },
+    "Normal": {
+      "SL": 14,
+      "TP": 8
+    },
+    "Advertencia": {
+      "SL": 14,
+      "TP": 7
+    }
+  },
+  "wr_actual_by_cvd_label": {
+    "Advertencia": {
+      "n": 21,
+      "wr": 33.33333333333333,
+      "pf": 0.5730659025787965,
+      "exp": -7.095238095238095,
+      "profit": -149.0
+    },
+    "Excelente": {
+      "n": 342,
+      "wr": 75.14619883040936,
+      "pf": 2.7480263157894735,
+      "exp": 15.538011695906432,
+      "profit": 5314.0
+    },
+    "Normal": {
+      "n": 22,
+      "wr": 36.36363636363637,
+      "pf": 0.9565217391304348,
+      "exp": -0.6363636363636364,
+      "profit": -14.0
+    },
+    "Riesgo de reversion": {
+      "n": 179,
+      "wr": 14.52513966480447,
+      "pf": 0.1807397069085834,
+      "exp": -19.675977653631286,
+      "profit": -3522.0
+    }
+  },
+  "sim100_40_by_cvd_label": {
+    "Advertencia": {
+      "n": 21,
+      "wr": 33.33333333333333,
+      "pf": 0.6191950464396285,
+      "exp": -5.857142857142857,
+      "profit": -123.0
+    },
+    "Excelente": {
+      "n": 342,
+      "wr": 73.39181286549707,
+      "pf": 3.005281026027914,
+      "exp": 15.543859649122806,
+      "profit": 5316.0
+    },
+    "Normal": {
+      "n": 22,
+      "wr": 31.818181818181817,
+      "pf": 0.7514619883040936,
+      "exp": -3.8636363636363638,
+      "profit": -85.0
+    },
+    "Riesgo de reversion": {
+      "n": 179,
+      "wr": 13.40782122905028,
+      "pf": 0.18527131782945735,
+      "exp": -17.614525139664803,
+      "profit": -3153.0
+    }
+  },
+  "multiple_testing": {
+    "setups_evaluated_in_all_candidates_csv": 4298
+  },
+  "concentration": {
+    "total_profit_ticks": 5316.0,
+    "top5_trades_pct_of_profit": 7.035364936042137,
+    "top10_trades_pct_of_profit": 12.697516930022573,
+    "top20_trades_pct_of_profit": 23.984198645598195,
+    "top3_months_pct_of_profit": 17.042889390519186
+  },
+  "execution": {
+    "subsecond_trades": 43,
+    "no_gestionable_por_latencia": 8,
+    "tp_sl_same_update": 0,
+    "duration_ms_p10_p50_p90": [
+      822.344,
+      7000.331,
+      64141.588
+    ],
+    "exp_actual_no_slip": {
+      "n": 342,
+      "wr": 75.14619883040936,
+      "pf": 2.7480263157894735,
+      "exp": 15.538011695906432,
+      "profit": 5314.0
+    },
+    "exp_actual_with_slippage_column": {
+      "n": 341,
+      "wr": 75.366568914956,
+      "pf": 2.4438902743142146,
+      "exp": 13.583577712609971,
+      "profit": 4632.0
+    },
+    "slippage_column_available_n": 341
+  },
+  "honest_baselines": {
+    "all_trades_actual": {
+      "n": 564,
+      "wr": 52.836879432624116,
+      "pf": 1.203370786516854,
+      "exp": 2.8882978723404253,
+      "profit": 1629.0
+    },
+    "all_trades_sim_100_40": {
+      "n": 564,
+      "wr": 51.24113475177305,
+      "pf": 1.2720567770665183,
+      "exp": 3.4663120567375887,
+      "profit": 1955.0
+    },
+    "score_ge_8_sim_100_40": {
+      "n": 435,
+      "wr": 52.41379310344828,
+      "pf": 1.3206431343559415,
+      "exp": 3.9885057471264367,
+      "profit": 1735.0
+    },
+    "score_ge_9_sim_100_40": {
+      "n": 59,
+      "wr": 59.32203389830508,
+      "pf": 1.5914786967418546,
+      "exp": 8.0,
+      "profit": 472.0
+    }
+  },
+  "walk_forward_at_entry_only": [
+    {
+      "eval_year": 2023,
+      "selected_on_train": "Delta_With_Side=TRUE TP=80 SL=30",
+      "train": {
+        "n": 82,
+        "wr": 51.21951219512195,
+        "pf": 1.5853658536585367,
+        "exp": 7.024390243902439,
+        "profit": 576.0
+      },
+      "oos": {
+        "n": 72,
+        "wr": 51.388888888888886,
+        "pf": 1.4272608125819135,
+        "exp": 4.527777777777778,
+        "profit": 326.0
+      }
+    },
+    {
+      "eval_year": 2024,
+      "selected_on_train": "Delta_With_Side=TRUE TP=80 SL=30",
+      "train": {
+        "n": 154,
+        "wr": 51.298701298701296,
+        "pf": 1.5163136805953061,
+        "exp": 5.857142857142857,
+        "profit": 902.0
+      },
+      "oos": {
+        "n": 74,
+        "wr": 47.2972972972973,
+        "pf": 1.0975081256771397,
+        "exp": 1.2162162162162162,
+        "profit": 90.0
+      }
+    },
+    {
+      "eval_year": 2025,
+      "selected_on_train": "Delta_With_Side=TRUE TP=80 SL=40",
+      "train": {
+        "n": 228,
+        "wr": 51.31578947368421,
+        "pf": 1.3594864479315263,
+        "exp": 4.421052631578948,
+        "profit": 1008.0
+      },
+      "oos": {
+        "n": 76,
+        "wr": 51.31578947368421,
+        "pf": 1.1338221814848763,
+        "exp": 1.9210526315789473,
+        "profit": 146.0
+      }
+    },
+    {
+      "eval_year": 2026,
+      "selected_on_train": "Body_OK=TRUE TP=80 SL=30",
+      "train": {
+        "n": 487,
+        "wr": 50.513347022587276,
+        "pf": 1.3361180234624956,
+        "exp": 3.8829568788501025,
+        "profit": 1891.0
+      },
+      "oos": {
+        "n": 62,
+        "wr": 51.61290322580645,
+        "pf": 1.4561170212765957,
+        "exp": 5.532258064516129,
+        "profit": 343.0
+      }
+    }
+  ],
+  "cvd_filter_by_year_for_reference": [
+    {
+      "eval_year": 2023,
+      "cvd_excelente_sim100_40_oos": {
+        "n": 67,
+        "wr": 79.1044776119403,
+        "pf": 3.3696682464454977,
+        "exp": 14.925373134328359,
+        "profit": 1000.0
+      }
+    },
+    {
+      "eval_year": 2024,
+      "cvd_excelente_sim100_40_oos": {
+        "n": 71,
+        "wr": 74.64788732394366,
+        "pf": 3.1552062868369353,
+        "exp": 15.450704225352112,
+        "profit": 1097.0
+      }
+    },
+    {
+      "eval_year": 2025,
+      "cvd_excelente_sim100_40_oos": {
+        "n": 68,
+        "wr": 77.94117647058823,
+        "pf": 4.098360655737705,
+        "exp": 19.455882352941178,
+        "profit": 1323.0
+      }
+    },
+    {
+      "eval_year": 2026,
+      "cvd_excelente_sim100_40_oos": {
+        "n": 37,
+        "wr": 78.37837837837837,
+        "pf": 4.5062240663900415,
+        "exp": 22.83783783783784,
+        "profit": 845.0
+      }
+    }
+  ]
+}

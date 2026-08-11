@@ -1,0 +1,88 @@
+{
+  "oos_trades": 284,
+  "oos_active_months": 31,
+  "trades_per_month": 9.16,
+  "oos_exp_gross_ticks": 3.19,
+  "oos_exp_net_ticks": 0.24,
+  "oos_std_ticks": 30.81,
+  "lucid": {
+    "target_usd": 9000.0,
+    "trailing_dd_usd": 4500.0,
+    "sims": 10000,
+    "max_trades": 3000
+  },
+  "scenarios": {
+    "net_1c": {
+      "ev_usd_per_trade": 1.18,
+      "pass_pct": 27.7,
+      "bust_pct": 71.8,
+      "never_3000_trades_pct": 0.5,
+      "median_trades_to_pass": 1133.0,
+      "median_months_to_pass": 123.7,
+      "p90_months_to_pass": 213.0
+    },
+    "net_2c": {
+      "ev_usd_per_trade": 2.37,
+      "pass_pct": 21.3,
+      "bust_pct": 78.7,
+      "never_3000_trades_pct": 0.0,
+      "median_trades_to_pass": 298.0,
+      "median_months_to_pass": 32.5,
+      "p90_months_to_pass": 57.9
+    },
+    "net_3c": {
+      "ev_usd_per_trade": 3.55,
+      "pass_pct": 19.4,
+      "bust_pct": 80.6,
+      "never_3000_trades_pct": 0.0,
+      "median_trades_to_pass": 133.5,
+      "median_months_to_pass": 14.6,
+      "p90_months_to_pass": 26.7
+    },
+    "net_4c": {
+      "ev_usd_per_trade": 4.73,
+      "pass_pct": 19.7,
+      "bust_pct": 80.3,
+      "never_3000_trades_pct": 0.0,
+      "median_trades_to_pass": 77.0,
+      "median_months_to_pass": 8.4,
+      "p90_months_to_pass": 15.5
+    },
+    "gross_no_costs_1c": {
+      "ev_usd_per_trade": 15.93,
+      "pass_pct": 99.2,
+      "bust_pct": 0.8,
+      "never_3000_trades_pct": 0.0,
+      "median_trades_to_pass": 511.0,
+      "median_months_to_pass": 55.8,
+      "p90_months_to_pass": 89.2
+    },
+    "gross_no_costs_2c": {
+      "ev_usd_per_trade": 31.87,
+      "pass_pct": 85.6,
+      "bust_pct": 14.4,
+      "never_3000_trades_pct": 0.0,
+      "median_trades_to_pass": 221.0,
+      "median_months_to_pass": 24.1,
+      "p90_months_to_pass": 42.4
+    },
+    "gross_no_costs_3c": {
+      "ev_usd_per_trade": 47.8,
+      "pass_pct": 68.4,
+      "bust_pct": 31.6,
+      "never_3000_trades_pct": 0.0,
+      "median_trades_to_pass": 122.0,
+      "median_months_to_pass": 13.3,
+      "p90_months_to_pass": 23.7
+    },
+    "gross_no_costs_4c": {
+      "ev_usd_per_trade": 63.73,
+      "pass_pct": 57.1,
+      "bust_pct": 42.9,
+      "never_3000_trades_pct": 0.0,
+      "median_trades_to_pass": 76.0,
+      "median_months_to_pass": 8.3,
+      "p90_months_to_pass": 15.1
+    }
+  }
+}

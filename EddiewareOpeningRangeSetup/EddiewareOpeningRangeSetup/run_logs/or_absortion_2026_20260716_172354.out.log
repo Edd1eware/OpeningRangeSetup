@@ -1,0 +1,29 @@
+SECCION: 89 sesiones operables 09/03/2026 -> 15/07/2026 (fines de semana y feriados USA/CME excluidos).
+
+=== PESO DE EXCELS (workbooks de score) ===
+  Score_indicator_results_updated_2022_2026.xlsx                 15.5 KB
+  Score_indicator_results_updated_2025_2026.xlsx                310.6 KB
+  ------------------------------------------------------------------------------
+  Ano 2022_2026    total:      15.5 KB  (0.02 MB)
+  Ano 2025_2026    total:     310.6 KB  (0.30 MB)
+  TOTAL                      326.0 KB  (0.32 MB)
+
+INICIANDO REPLAY CAUSAL NO-LOOKAHEAD OR_ABSORTION_TEST_2026 (89 sesiones desde 09/03/2026)
+Fecha NY actual: 16/07/2026 | Ultima fecha permitida: 15/07/2026
+Version esperada: score-exporter-2026-07-13-v22-sync-snapshot-reset
+Resultados de validacion: C:\Users\k_99_\Desktop\codding\data_footprint_generator\trade_results_score\visual_tests\04_run_replay_score_trade_results_dst_2025_2026_runs
+
+Plan:
+  - FASE 1 (sincronia): primeras 10 fechas en X1_R1 y X10_R1; aborta si divergen.
+  - FASE 2 (historia completa): 89 fechas desde 04/04/2022 SOLO en X10 (las ya corridas se saltan).
+Ejecutando limpieza unica de Telegram antes de la primera fecha...
+Telegram limpieza: 0 borrados, 12 no borrables (>48h, limite Bot API). Historial reiniciado; la corrida continua.
+
+Configurando Replay en X1...
+Replay configurado automáticamente en 1x.
+
+[X1_R1 1/10] 2026-03-09.
+Rango: FROM 09/03/2026 09:30:00 a. m. | TO 09/03/2026 10:30:00 a. m.
+Iniciando X1_R1 para 2026-03-09...
+Replay iniciado (intento 1/3).                              
+Esperando CSV terminal v11: 00:00 / resta 20:00Esperando CSV terminal v11: 00:01 / resta 19:58Esperando CSV terminal v11: 00:02 / resta 19:57Esperando CSV terminal v11: 00:03 / resta 19:56Esperando CSV terminal v11: 00:04 / resta 19:55Esperando CSV terminal v11: 00:05 / resta 19:54Esperando CSV terminal v11: 00:06 / resta 19:53Esperando CSV terminal v11: 00:07 / resta 19:52Esperando CSV terminal v11: 00:08 / resta 19:51Esperando CSV terminal v11: 00:09 / resta 19:50Esperando CSV terminal v11: 00:10 / resta 19:49Esperando CSV terminal v11: 00:11 / resta 19:48Esperando CSV terminal v11: 00:12 / resta 19:47Esperando CSV terminal v11: 00:13 / resta 19:46Esperando CSV terminal v11: 00:14 / resta 19:45Esperando CSV terminal v11: 00:15 / resta 19:44Esperando CSV terminal v11: 00:16 / resta 19:43Esperando CSV terminal v11: 00:17 / resta 19:42Esperando CSV terminal v11: 00:18 / resta 19:41Esperando CSV terminal v11: 00:19 / resta 19:40Esperando CSV terminal v11: 00:20 / resta 19:39Esperando CSV terminal v11: 00:21 / resta 19:38Esperando CSV terminal v11: 00:22 / resta 19:37Esperando CSV terminal v11: 00:23 / resta 19:36Esperando CSV terminal v11: 00:24 / resta 19:35Esperando CSV terminal v11: 00:25 / resta 19:34Esperando CSV terminal v11: 00:26 / resta 19:33Esperando CSV terminal v11: 00:27 / resta 19:32Esperando CSV terminal v11: 00:28 / resta 19:31Esperando CSV terminal v11: 00:29 / resta 19:30Esperando CSV terminal v11: 00:30 / resta 19:29Esperando CSV terminal v11: 00:31 / resta 19:28Esperando CSV terminal v11: 00:32 / resta 19:27Esperando CSV terminal v11: 00:33 / resta 19:26Esperando CSV terminal v11: 00:34 / resta 19:25Esperando CSV terminal v11: 00:35 / resta 19:24Esperando CSV terminal v11: 00:36 / resta 19:23Esperando CSV terminal v11: 00:37 / resta 19:22Esperando CSV terminal v11: 00:38 / resta 19:21Esperando CSV terminal v11: 00:39 / resta 19:20Esperando CSV terminal v11: 00:40 / resta 19:19Esperando CSV terminal v11: 00:41 / resta 19:18

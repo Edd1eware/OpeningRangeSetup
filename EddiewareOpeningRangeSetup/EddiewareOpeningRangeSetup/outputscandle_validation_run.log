@@ -1,0 +1,140 @@
+[warn] 15 sessions without candle features (holiday dates)
+[0.1s] matrix: 486 rows, 239 features (37 candle)
+[0.0s] concept walk-forward
+   {"concept": "CONT_candle_body_conviction", "action": "CONT", "n": 161, "wins": 85, "losses": 76, "wr": 0.5279503105590062, "pf_gross": 1.118421052631579, "pf_after_2t": 0.9786184210526315, "wilson_low": 0.45108735200490535}
+   {"concept": "FADE_candle_sweep_wick", "action": "FADE", "n": 225, "wins": 116, "losses": 109, "wr": 0.5155555555555555, "pf_gross": 1.0642201834862386, "pf_after_2t": 0.9311926605504587, "wilson_low": 0.45054380203916533}
+   {"concept": "FADE_candle_range_contraction", "action": "FADE", "n": 189, "wins": 97, "losses": 92, "wr": 0.5132275132275133, "pf_gross": 1.0543478260869565, "pf_after_2t": 0.9225543478260869, "wilson_low": 0.44241858595190037}
+   {"concept": "CONT_candle_slope", "action": "CONT", "n": 246, "wins": 123, "losses": 123, "wr": 0.5, "pf_gross": 1.0, "pf_after_2t": 0.875, "wilson_low": 0.43800083481028895}
+   {"concept": "FADE_candle_climax", "action": "FADE", "n": 246, "wins": 123, "losses": 123, "wr": 0.5, "pf_gross": 1.0, "pf_after_2t": 0.875, "wilson_low": 0.43800083481028895}
+   {"concept": "FADE_candle_climax_shadow", "action": "FADE", "n": 246, "wins": 123, "losses": 123, "wr": 0.5, "pf_gross": 1.0, "pf_after_2t": 0.875, "wilson_low": 0.43800083481028895}
+   {"concept": "FADE_candle_wick_rejection", "action": "FADE", "n": 246, "wins": 123, "losses": 123, "wr": 0.5, "pf_gross": 1.0, "pf_after_2t": 0.875, "wilson_low": 0.43800083481028895}
+   {"concept": "FADE_candle_choch", "action": "FADE", "n": 246, "wins": 123, "losses": 123, "wr": 0.5, "pf_gross": 1.0, "pf_after_2t": 0.875, "wilson_low": 0.43800083481028895}
+[0.0s] router veto
+{
+  "router_all": {
+    "n": 80,
+    "wins": 59,
+    "losses": 21,
+    "wr": 0.7375,
+    "pf_gross": 2.8095238095238093,
+    "pf_after_2t": 2.4583333333333335,
+    "wilson_low": 0.6318104033557184
+  },
+  "cont_needs_net_bos_pos__fade_needs_failure_test": {
+    "all": {
+      "n": 57,
+      "wins": 39,
+      "losses": 18,
+      "wr": 0.6842105263157895,
+      "pf_gross": 2.1666666666666665,
+      "pf_after_2t": 1.8958333333333333,
+      "wilson_low": 0.5552022530213657
+    },
+    "train_first_340": {
+      "n": 46,
+      "wins": 31,
+      "losses": 15,
+      "wr": 0.6739130434782609,
+      "pf_gross": 2.066666666666667,
+      "pf_after_2t": 1.8083333333333333,
+      "wilson_low": 0.5296773241932242
+    },
+    "holdout_last_146": {
+      "n": 11,
+      "wins": 8,
+      "losses": 3,
+      "wr": 0.7272727272727273,
+      "pf_gross": 2.6666666666666665,
+      "pf_after_2t": 2.3333333333333335,
+      "wilson_low": 0.434354698823871
+    },
+    "weekly": {
+      "weeks": 101,
+      "trades_per_week": 0.5643564356435643,
+      "active_weeks": 42,
+      "zero_weeks": 59,
+      "median": 0.0,
+      "max": 3
+    }
+  },
+  "cont_needs_structure_pos__fade_needs_failure_test": {
+    "all": {
+      "n": 69,
+      "wins": 49,
+      "losses": 20,
+      "wr": 0.7101449275362319,
+      "pf_gross": 2.45,
+      "pf_after_2t": 2.14375,
+      "wilson_low": 0.5942855002638686
+    },
+    "train_first_340": {
+      "n": 54,
+      "wins": 37,
+      "losses": 17,
+      "wr": 0.6851851851851852,
+      "pf_gross": 2.176470588235294,
+      "pf_after_2t": 1.9044117647058822,
+      "wilson_low": 0.5525655517520491
+    },
+    "holdout_last_146": {
+      "n": 15,
+      "wins": 12,
+      "losses": 3,
+      "wr": 0.8,
+      "pf_gross": 4.0,
+      "pf_after_2t": 3.5,
+      "wilson_low": 0.5481455128483065
+    },
+    "weekly": {
+      "weeks": 101,
+      "trades_per_week": 0.6831683168316832,
+      "active_weeks": 50,
+      "zero_weeks": 51,
+      "median": 0.0,
+      "max": 3
+    }
+  },
+  "cont_needs_clv_pos__fade_needs_anti_clv": {
+    "all": {
+      "n": 44,
+      "wins": 32,
+      "losses": 12,
+      "wr": 0.7272727272727273,
+      "pf_gross": 2.6666666666666665,
+      "pf_after_2t": 2.3333333333333335,
+      "wilson_low": 0.5815112690754881
+    },
+    "train_first_340": {
+      "n": 36,
+      "wins": 25,
+      "losses": 11,
+      "wr": 0.6944444444444444,
+      "pf_gross": 2.272727272727273,
+      "pf_after_2t": 1.9886363636363635,
+      "wilson_low": 0.5314372714948967
+    },
+    "holdout_last_146": {
+      "n": 8,
+      "wins": 7,
+      "losses": 1,
+      "wr": 0.875,
+      "pf_gross": 7.0,
+      "pf_after_2t": 6.125,
+      "wilson_low": 0.5291118177871466
+    },
+    "weekly": {
+      "weeks": 101,
+      "trades_per_week": 0.43564356435643564,
+      "active_weeks": 37,
+      "zero_weeks": 64,
+      "median": 0.0,
+      "max": 2
+    }
+  }
+}
+[26.7s] conjunction search
+   {"action": "FADE", "conditions": ["of_liquidity_impulse <= 0", "book_prev_value_width_ticks >= 97", "candle_open_cross_bars <= 5"], "n": 111, "wins": 79, "losses": 32, "wr": 0.7117117117117117, "pf_gross": 2.46875, "pf_after_2t": 2.16015625, "wilson_low": 0.621483181629363}
+   {"action": "CONT", "conditions": ["of_sweep_count >= 203", "candle_wick_share_at_highs >= 0.264706", "candle_failure_test_low_count >= 1"], "n": 101, "wins": 74, "losses": 27, "wr": 0.7326732673267327, "pf_gross": 2.740740740740741, "pf_after_2t": 2.3981481481481484, "wilson_low": 0.6390055396933065}
+[5.9s] static tree (in-sample): {"n": 131, "wins": 122, "losses": 9, "wr": 0.9312977099236641, "pf_gross": 13.555555555555555, "pf_after_2t": 11.86111111111111, "wilson_low": 0.8745837372655908, "depth": 5, "min_leaf": 10, "selected_leaves": 6}
+[37.8s] nested walk-forward OOS: {"n": 82, "wins": 43, "losses": 39, "wr": 0.524390243902439, "pf_gross": 1.1025641025641026, "pf_after_2t": 0.9647435897435898, "wilson_low": 0.41764732979956165}
+Saved C:\Users\k_99_\Desktop\codding\OpeningRangeSetup\EddiewareOpeningRangeSetup\EddiewareOpeningRangeSetup\outputs\candle_holc_validation_20260701 TOTAL [70.6s]

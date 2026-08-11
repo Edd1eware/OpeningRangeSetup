@@ -1,0 +1,262 @@
+﻿fecha,EntryTime_NY,Side,score total,Cvd_Pullback_Label,Cvd_Worst_Label,Dynamic_Alarm_Triggered,Result_Label,result TP SL BE,MFE_ticks,MAE_ticks,TP_ticks,SL_ticks,sim_TP100_SL40,result_bucket,source_file
+2022-04-04,09:35:10,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+61,65,10,61,61,61.0,positive before +100,score_trade_result_2022-04-04_NY.csv
+2022-04-07,09:33:42,BUY,6,Excelente,Riesgo de reversion,TRUE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2022-04-07_NY.csv
+2022-04-08,09:33:45,SELL,8,Excelente,Normal,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2022-04-08_NY.csv
+2022-04-11,09:32:08,SELL,9,Excelente,Riesgo de reversion,TRUE,TP,+30,30,5,30,60,30.0,positive before +100,score_trade_result_2022-04-11_NY.csv
+2022-04-22,09:33:06,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2022-04-22_NY.csv
+2022-04-25,09:32:33,BUY,8,Excelente,Riesgo de reversion,TRUE,SL,-20,0,20,20,20,-20.0,negative before -40,score_trade_result_2022-04-25_NY.csv
+2022-04-26,09:32:14,SELL,8,Excelente,Advertencia,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2022-04-26_NY.csv
+2022-04-27,09:32:12,BUY,8,Excelente,Riesgo de reversion,FALSE,TP,+31,35,0,31,31,31.0,positive before +100,score_trade_result_2022-04-27_NY.csv
+2022-05-06,09:33:14,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2022-05-06_NY.csv
+2022-05-09,09:31:11,BUY,8,Excelente,Excelente,FALSE,TP,+20,20,15,20,20,20.0,positive before +100,score_trade_result_2022-05-09_NY.csv
+2022-05-10,09:35:03,SELL,7,Excelente,Advertencia,TRUE,TP,+60,60,30,60,60,60.0,positive before +100,score_trade_result_2022-05-10_NY.csv
+2022-05-11,09:31:17,BUY,6,Excelente,Riesgo de reversion,FALSE,TP,+30,30,0,30,60,30.0,positive before +100,score_trade_result_2022-05-11_NY.csv
+2022-05-12,09:31:13,BUY,8,Excelente,Excelente,FALSE,TP,+26,30,0,26,26,26.0,positive before +100,score_trade_result_2022-05-12_NY.csv
+2022-05-19,09:33:21,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2022-05-19_NY.csv
+2022-05-20,09:35:03,SELL,9,Excelente,Riesgo de reversion,FALSE,TP,+30,30,0,30,60,30.0,positive before +100,score_trade_result_2022-05-20_NY.csv
+2022-05-23,09:37:14,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,15,20,20,20.0,positive before +100,score_trade_result_2022-05-23_NY.csv
+2022-05-27,09:31:05,BUY,8,Excelente,Excelente,FALSE,TP,+60,60,0,60,60,60.0,positive before +100,score_trade_result_2022-05-27_NY.csv
+2022-05-31,09:33:13,SELL,7,Excelente,Excelente,FALSE,TP,+60,60,15,60,60,60.0,positive before +100,score_trade_result_2022-05-31_NY.csv
+2022-06-01,09:31:41,BUY,8,Excelente,Excelente,FALSE,TP,+26,30,0,26,26,26.0,positive before +100,score_trade_result_2022-06-01_NY.csv
+2022-06-02,09:31:07,SELL,8,Excelente,Normal,FALSE,TP,+46,50,0,46,46,46.0,positive before +100,score_trade_result_2022-06-02_NY.csv
+2022-06-06,09:36:15,SELL,5,Excelente,Advertencia,TRUE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2022-06-06_NY.csv
+2022-06-08,09:31:04,SELL,8,Excelente,Excelente,FALSE,TP,+60,60,20,60,60,60.0,positive before +100,score_trade_result_2022-06-08_NY.csv
+2022-06-10,09:33:13,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+56,60,25,56,56,56.0,positive before +100,score_trade_result_2022-06-10_NY.csv
+2022-06-17,09:31:10,BUY,6,Excelente,Excelente,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2022-06-17_NY.csv
+2022-06-22,09:31:12,BUY,8,Excelente,Excelente,FALSE,TP,+51,55,0,51,51,51.0,positive before +100,score_trade_result_2022-06-22_NY.csv
+2022-06-23,09:32:12,SELL,6,Excelente,Excelente,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2022-06-23_NY.csv
+2022-06-24,09:32:07,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2022-06-24_NY.csv
+2022-06-29,09:32:13,SELL,9,Excelente,Riesgo de reversion,FALSE,TP,+30,30,0,30,60,30.0,positive before +100,score_trade_result_2022-06-29_NY.csv
+2022-06-30,09:32:11,SELL,8,Excelente,Excelente,FALSE,TP,+21,25,0,21,21,21.0,positive before +100,score_trade_result_2022-06-30_NY.csv
+2022-07-11,09:35:04,SELL,8,Excelente,Normal,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2022-07-11_NY.csv
+2022-07-19,09:36:02,BUY,8,Excelente,Excelente,FALSE,TP,+60,60,20,60,60,60.0,positive before +100,score_trade_result_2022-07-19_NY.csv
+2022-07-20,09:35:04,SELL,11,Excelente,Riesgo de reversion,TRUE,TP,+30,30,5,30,60,30.0,positive before +100,score_trade_result_2022-07-20_NY.csv
+2022-07-25,09:35:11,SELL,8,Excelente,Advertencia,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2022-07-25_NY.csv
+2022-07-26,09:31:11,SELL,8,Excelente,Excelente,FALSE,TP,+56,60,0,56,56,56.0,positive before +100,score_trade_result_2022-07-26_NY.csv
+2022-07-27,09:37:04,BUY,8,Excelente,Excelente,FALSE,TP,+60,60,0,60,60,60.0,positive before +100,score_trade_result_2022-07-27_NY.csv
+2022-07-28,09:31:15,BUY,8,Excelente,Normal,TRUE,TP,+21,25,10,21,21,21.0,positive before +100,score_trade_result_2022-07-28_NY.csv
+2022-08-01,09:31:17,SELL,8,Excelente,Excelente,FALSE,TP,+46,50,0,46,46,46.0,positive before +100,score_trade_result_2022-08-01_NY.csv
+2022-08-09,09:31:06,SELL,8,Excelente,Excelente,FALSE,TP,+60,60,0,60,60,60.0,positive before +100,score_trade_result_2022-08-09_NY.csv
+2022-08-10,09:32:07,SELL,6,Excelente,Riesgo de reversion,TRUE,TP,+26,30,5,26,26,26.0,positive before +100,score_trade_result_2022-08-10_NY.csv
+2022-08-22,09:34:24,SELL,8,Excelente,Excelente,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2022-08-22_NY.csv
+2022-08-26,09:32:14,SELL,8,Excelente,Excelente,FALSE,TP,+31,35,0,31,31,31.0,positive before +100,score_trade_result_2022-08-26_NY.csv
+2022-09-02,09:33:14,SELL,5,Excelente,Riesgo de reversion,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2022-09-02_NY.csv
+2022-09-07,09:31:07,BUY,8,Excelente,Excelente,FALSE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2022-09-07_NY.csv
+2022-09-09,09:32:13,BUY,8,Excelente,Excelente,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2022-09-09_NY.csv
+2022-09-15,09:34:09,BUY,6,Excelente,Excelente,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2022-09-15_NY.csv
+2022-09-16,09:31:06,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+26,30,10,26,26,26.0,positive before +100,score_trade_result_2022-09-16_NY.csv
+2022-09-19,09:32:09,BUY,8,Excelente,Excelente,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2022-09-19_NY.csv
+2022-09-23,09:37:23,SELL,8,Excelente,Normal,FALSE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2022-09-23_NY.csv
+2022-09-27,09:31:28,BUY,7,Excelente,Excelente,FALSE,TP,+31,35,10,31,31,31.0,positive before +100,score_trade_result_2022-09-27_NY.csv
+2022-09-28,09:34:07,SELL,6,Excelente,Riesgo de reversion,TRUE,TP,+30,30,10,30,60,30.0,positive before +100,score_trade_result_2022-09-28_NY.csv
+2022-09-29,09:35:09,SELL,7,Excelente,Riesgo de reversion,TRUE,TP,+21,25,20,21,21,21.0,positive before +100,score_trade_result_2022-09-29_NY.csv
+2022-10-03,09:32:09,SELL,6,Excelente,Excelente,FALSE,TP,+60,60,0,60,60,60.0,positive before +100,score_trade_result_2022-10-03_NY.csv
+2022-10-04,09:33:06,BUY,8,Excelente,Excelente,FALSE,TP,+60,75,0,60,60,60.0,positive before +100,score_trade_result_2022-10-04_NY.csv
+2022-10-05,09:32:11,BUY,6,Excelente,Advertencia,FALSE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2022-10-05_NY.csv
+2022-10-10,09:33:14,SELL,6,Excelente,Riesgo de reversion,TRUE,TP,+20,20,15,20,20,20.0,positive before +100,score_trade_result_2022-10-10_NY.csv
+2022-10-17,09:35:08,BUY,8,Excelente,Riesgo de reversion,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2022-10-17_NY.csv
+2022-10-19,09:34:11,BUY,6,Excelente,Normal,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2022-10-19_NY.csv
+2022-10-21,09:31:05,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+30,30,10,30,60,30.0,positive before +100,score_trade_result_2022-10-21_NY.csv
+2022-10-24,09:32:09,SELL,8,Excelente,Excelente,FALSE,TP,+41,45,10,41,41,41.0,positive before +100,score_trade_result_2022-10-24_NY.csv
+2022-10-25,09:31:32,SELL,10,Excelente,Advertencia,FALSE,TP,+60,60,0,60,60,60.0,positive before +100,score_trade_result_2022-10-25_NY.csv
+2022-10-28,09:32:15,BUY,8,Excelente,Advertencia,FALSE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2022-10-28_NY.csv
+2022-11-02,09:31:09,SELL,8,Excelente,Excelente,FALSE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2022-11-02_NY.csv
+2022-11-03,09:33:50,SELL,8,Excelente,Excelente,FALSE,TP,+60,60,20,60,60,60.0,positive before +100,score_trade_result_2022-11-03_NY.csv
+2022-11-04,09:31:18,SELL,6,Excelente,Excelente,FALSE,TP,+76,80,10,76,76,76.0,positive before +100,score_trade_result_2022-11-04_NY.csv
+2023-03-24,09:32:15,SELL,8,Excelente,Advertencia,FALSE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2023-03-24_NY.csv
+2023-03-28,09:32:04,SELL,8,Excelente,Excelente,FALSE,TP,+60,60,0,60,60,60.0,positive before +100,score_trade_result_2023-03-28_NY.csv
+2023-03-29,09:32:09,BUY,8,Excelente,Excelente,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2023-03-29_NY.csv
+2023-03-30,09:32:23,SELL,9,Excelente,Excelente,FALSE,TP,+60,60,0,60,60,60.0,positive before +100,score_trade_result_2023-03-30_NY.csv
+2023-04-06,09:31:07,SELL,8,Excelente,Excelente,FALSE,TP,+20,20,15,20,20,20.0,positive before +100,score_trade_result_2023-04-06_NY.csv
+2023-04-12,09:32:12,BUY,8,Excelente,Excelente,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2023-04-12_NY.csv
+2023-04-13,09:31:05,BUY,8,Excelente,Excelente,FALSE,TP,+20,20,15,20,20,20.0,positive before +100,score_trade_result_2023-04-13_NY.csv
+2023-04-14,09:36:26,BUY,8,Excelente,Excelente,FALSE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2023-04-14_NY.csv
+2023-05-05,09:32:06,BUY,8,Excelente,Advertencia,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2023-05-05_NY.csv
+2023-05-09,09:31:04,BUY,6,Excelente,Riesgo de reversion,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2023-05-09_NY.csv
+2023-05-10,09:31:07,BUY,8,Excelente,Excelente,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2023-05-10_NY.csv
+2023-05-11,09:32:04,SELL,8,Excelente,Riesgo de reversion,FALSE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2023-05-11_NY.csv
+2023-05-25,09:31:03,SELL,6,Excelente,Normal,TRUE,TP,+20,20,15,20,20,20.0,positive before +100,score_trade_result_2023-05-25_NY.csv
+2023-06-02,09:32:08,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2023-06-02_NY.csv
+2023-06-07,09:32:06,BUY,8,Excelente,Normal,TRUE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2023-06-07_NY.csv
+2023-06-14,09:36:11,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+26,30,15,26,26,26.0,positive before +100,score_trade_result_2023-06-14_NY.csv
+2023-06-16,09:34:40,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,15,20,20,20.0,positive before +100,score_trade_result_2023-06-16_NY.csv
+2023-06-20,09:31:05,BUY,7,Excelente,Riesgo de reversion,TRUE,TP,+21,25,10,21,21,21.0,positive before +100,score_trade_result_2023-06-20_NY.csv
+2023-06-21,09:32:07,BUY,6,Excelente,Riesgo de reversion,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2023-06-21_NY.csv
+2023-06-22,09:35:11,BUY,8,Excelente,Advertencia,TRUE,SL,-21,20,25,21,21,-21.0,negative before -40,score_trade_result_2023-06-22_NY.csv
+2023-06-23,09:32:07,BUY,6,Excelente,Riesgo de reversion,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2023-06-23_NY.csv
+2023-06-26,09:36:11,SELL,10,Excelente,Riesgo de reversion,TRUE,TP,+60,60,5,60,60,60.0,positive before +100,score_trade_result_2023-06-26_NY.csv
+2023-06-27,09:35:19,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+60,60,20,60,60,60.0,positive before +100,score_trade_result_2023-06-27_NY.csv
+2023-07-11,09:31:06,BUY,8,Excelente,Advertencia,FALSE,TP,+60,60,0,60,60,60.0,positive before +100,score_trade_result_2023-07-11_NY.csv
+2023-07-13,09:35:11,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,15,20,20,20.0,positive before +100,score_trade_result_2023-07-13_NY.csv
+2023-07-17,09:36:11,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+60,60,5,60,60,60.0,positive before +100,score_trade_result_2023-07-17_NY.csv
+2023-07-19,09:31:05,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2023-07-19_NY.csv
+2023-07-27,09:33:02,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2023-07-27_NY.csv
+2023-08-02,09:34:11,SELL,8,Excelente,Excelente,FALSE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2023-08-02_NY.csv
+2023-08-07,09:31:06,BUY,7,Excelente,Excelente,FALSE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2023-08-07_NY.csv
+2023-08-14,09:32:10,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+21,25,10,21,21,21.0,positive before +100,score_trade_result_2023-08-14_NY.csv
+2023-08-16,09:32:16,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2023-08-16_NY.csv
+2023-08-21,09:34:21,BUY,8,Excelente,Advertencia,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2023-08-21_NY.csv
+2023-08-23,09:35:01,BUY,9,Excelente,Riesgo de reversion,FALSE,TP,+30,30,5,30,60,30.0,positive before +100,score_trade_result_2023-08-23_NY.csv
+2023-08-24,09:35:02,SELL,8,Excelente,Advertencia,FALSE,TP,+60,60,0,60,60,60.0,positive before +100,score_trade_result_2023-08-24_NY.csv
+2023-08-28,09:34:08,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2023-08-28_NY.csv
+2023-08-29,09:31:08,SELL,8,Excelente,Excelente,FALSE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2023-08-29_NY.csv
+2023-08-30,09:32:09,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2023-08-30_NY.csv
+2023-08-31,09:35:03,BUY,8,Excelente,Excelente,FALSE,TP,+21,25,5,21,21,21.0,positive before +100,score_trade_result_2023-08-31_NY.csv
+2023-09-01,09:31:05,BUY,8,Excelente,Riesgo de reversion,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2023-09-01_NY.csv
+2023-09-08,09:32:14,BUY,8,Excelente,Advertencia,TRUE,TP,+31,35,15,31,31,31.0,positive before +100,score_trade_result_2023-09-08_NY.csv
+2023-09-13,09:31:07,BUY,8,Excelente,Normal,FALSE,TP,+21,25,0,21,21,21.0,positive before +100,score_trade_result_2023-09-13_NY.csv
+2023-09-14,09:34:16,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2023-09-14_NY.csv
+2023-09-18,09:33:11,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+21,25,10,21,21,21.0,positive before +100,score_trade_result_2023-09-18_NY.csv
+2023-09-19,09:31:03,SELL,8,Excelente,Riesgo de reversion,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2023-09-19_NY.csv
+2023-09-27,09:31:07,SELL,10,Excelente,Excelente,FALSE,TP,+60,60,0,60,60,60.0,positive before +100,score_trade_result_2023-09-27_NY.csv
+2023-10-02,09:33:29,BUY,6,Excelente,Excelente,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2023-10-02_NY.csv
+2023-10-06,09:31:08,BUY,6,Excelente,Excelente,FALSE,TP,+20,20,15,20,20,20.0,positive before +100,score_trade_result_2023-10-06_NY.csv
+2023-10-09,09:32:27,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,15,20,20,20.0,positive before +100,score_trade_result_2023-10-09_NY.csv
+2023-10-16,09:31:05,BUY,8,Excelente,Riesgo de reversion,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2023-10-16_NY.csv
+2023-10-23,09:35:14,SELL,8,Excelente,Riesgo de reversion,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2023-10-23_NY.csv
+2023-10-25,09:31:07,SELL,8,Excelente,Normal,FALSE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2023-10-25_NY.csv
+2023-10-26,09:33:07,BUY,8,Excelente,Riesgo de reversion,FALSE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2023-10-26_NY.csv
+2023-11-02,09:32:03,BUY,9,Excelente,Riesgo de reversion,TRUE,TP,+30,30,15,30,60,30.0,positive before +100,score_trade_result_2023-11-02_NY.csv
+2024-03-13,09:31:04,SELL,8,Excelente,Excelente,FALSE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2024-03-13_NY.csv
+2024-03-18,09:32:04,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+60,60,55,60,60,-40.0,-40 stop,score_trade_result_2024-03-18_NY.csv
+2024-03-19,09:31:27,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+21,25,5,21,21,21.0,positive before +100,score_trade_result_2024-03-19_NY.csv
+2024-03-27,09:32:09,SELL,6,Excelente,Normal,FALSE,TP,+21,25,5,21,21,21.0,positive before +100,score_trade_result_2024-03-27_NY.csv
+2024-03-28,09:31:13,SELL,8,Excelente,Excelente,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2024-03-28_NY.csv
+2024-04-01,09:33:21,BUY,6,Excelente,Excelente,FALSE,TP,+46,50,0,46,46,46.0,positive before +100,score_trade_result_2024-04-01_NY.csv
+2024-04-02,09:33:59,BUY,10,Excelente,Advertencia,FALSE,TP,+60,60,0,60,60,60.0,positive before +100,score_trade_result_2024-04-02_NY.csv
+2024-04-04,09:35:03,BUY,7,Excelente,Advertencia,FALSE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2024-04-04_NY.csv
+2024-04-08,09:35:12,SELL,8,Excelente,Normal,FALSE,TP,+31,35,5,31,31,31.0,positive before +100,score_trade_result_2024-04-08_NY.csv
+2024-04-17,09:35:06,SELL,6,Excelente,Riesgo de reversion,TRUE,TP,+20,20,15,20,20,20.0,positive before +100,score_trade_result_2024-04-17_NY.csv
+2024-05-02,09:31:13,SELL,8,Excelente,Excelente,FALSE,TP,+20,20,15,20,20,20.0,positive before +100,score_trade_result_2024-05-02_NY.csv
+2024-05-06,09:37:17,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,15,20,20,20.0,positive before +100,score_trade_result_2024-05-06_NY.csv
+2024-05-13,09:33:13,SELL,5,Excelente,Riesgo de reversion,TRUE,TP,+51,55,15,51,51,51.0,positive before +100,score_trade_result_2024-05-13_NY.csv
+2024-05-14,09:33:57,BUY,10,Excelente,Normal,FALSE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2024-05-14_NY.csv
+2024-05-17,09:34:08,SELL,8,Excelente,Normal,TRUE,SL,-20,15,20,20,20,-20.0,negative before -40,score_trade_result_2024-05-17_NY.csv
+2024-05-20,09:33:03,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2024-05-20_NY.csv
+2024-05-23,09:31:05,SELL,8,Excelente,Normal,FALSE,TP,+21,25,0,21,21,21.0,positive before +100,score_trade_result_2024-05-23_NY.csv
+2024-05-28,09:36:11,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2024-05-28_NY.csv
+2024-05-30,09:34:08,SELL,6,Excelente,Excelente,FALSE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2024-05-30_NY.csv
+2024-06-03,09:32:41,SELL,10,Excelente,Excelente,FALSE,TP,+60,60,0,60,60,60.0,positive before +100,score_trade_result_2024-06-03_NY.csv
+2024-06-07,09:34:49,BUY,10,Excelente,Riesgo de reversion,TRUE,TP,+60,60,25,60,60,60.0,positive before +100,score_trade_result_2024-06-07_NY.csv
+2024-06-11,09:34:06,SELL,8,Excelente,Excelente,FALSE,TP,+60,60,10,60,60,60.0,positive before +100,score_trade_result_2024-06-11_NY.csv
+2024-06-17,09:35:10,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2024-06-17_NY.csv
+2024-06-20,09:32:09,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2024-06-20_NY.csv
+2024-07-02,09:32:07,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+60,60,5,60,60,60.0,positive before +100,score_trade_result_2024-07-02_NY.csv
+2024-07-03,09:34:11,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2024-07-03_NY.csv
+2024-07-08,09:35:06,SELL,8,Excelente,Riesgo de reversion,FALSE,TP,+26,30,20,26,26,26.0,positive before +100,score_trade_result_2024-07-08_NY.csv
+2024-07-16,09:32:12,SELL,10,Excelente,Riesgo de reversion,TRUE,TP,+20,20,15,20,20,20.0,positive before +100,score_trade_result_2024-07-16_NY.csv
+2024-07-18,09:32:21,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,15,20,20,20.0,positive before +100,score_trade_result_2024-07-18_NY.csv
+2024-07-24,09:33:05,SELL,8,Excelente,Riesgo de reversion,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2024-07-24_NY.csv
+2024-07-26,09:34:08,SELL,8,Excelente,Riesgo de reversion,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2024-07-26_NY.csv
+2024-07-29,09:31:12,SELL,8,Excelente,Riesgo de reversion,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2024-07-29_NY.csv
+2024-08-01,09:33:09,BUY,6,Excelente,Riesgo de reversion,TRUE,TP,+20,20,15,20,20,20.0,positive before +100,score_trade_result_2024-08-01_NY.csv
+2024-08-05,09:32:06,BUY,5,Excelente,Riesgo de reversion,FALSE,TP,+30,30,5,30,60,30.0,positive before +100,score_trade_result_2024-08-05_NY.csv
+2024-08-06,09:32:24,BUY,6,Excelente,Normal,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2024-08-06_NY.csv
+2024-08-08,09:37:26,SELL,6,Excelente,Riesgo de reversion,TRUE,TP,+60,60,35,60,60,60.0,positive before +100,score_trade_result_2024-08-08_NY.csv
+2024-08-13,09:34:12,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2024-08-13_NY.csv
+2024-08-14,09:35:06,SELL,9,Excelente,Riesgo de reversion,TRUE,TP,+30,30,10,30,60,30.0,positive before +100,score_trade_result_2024-08-14_NY.csv
+2024-08-23,09:31:10,SELL,6,Excelente,Excelente,FALSE,TP,+21,25,0,21,21,21.0,positive before +100,score_trade_result_2024-08-23_NY.csv
+2024-08-29,09:31:41,BUY,8,Excelente,Excelente,FALSE,TP,+46,50,25,46,46,46.0,positive before +100,score_trade_result_2024-08-29_NY.csv
+2024-09-05,09:33:11,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2024-09-05_NY.csv
+2024-09-06,09:32:46,SELL,6,Excelente,Advertencia,FALSE,TP,+21,25,5,21,21,21.0,positive before +100,score_trade_result_2024-09-06_NY.csv
+2024-09-10,09:31:24,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2024-09-10_NY.csv
+2024-09-13,09:36:21,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+36,40,25,36,36,36.0,positive before +100,score_trade_result_2024-09-13_NY.csv
+2024-09-26,09:35:10,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+31,35,10,31,31,31.0,positive before +100,score_trade_result_2024-09-26_NY.csv
+2024-10-01,09:32:39,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+60,60,20,60,60,60.0,positive before +100,score_trade_result_2024-10-01_NY.csv
+2024-10-09,09:35:09,BUY,8,Excelente,Excelente,FALSE,TP,+60,60,35,60,60,60.0,positive before +100,score_trade_result_2024-10-09_NY.csv
+2024-10-15,09:35:13,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+21,25,5,21,21,21.0,positive before +100,score_trade_result_2024-10-15_NY.csv
+2024-10-16,09:31:07,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2024-10-16_NY.csv
+2024-10-17,09:34:07,SELL,6,Excelente,Riesgo de reversion,FALSE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2024-10-17_NY.csv
+2024-10-21,09:36:22,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+21,25,10,21,21,21.0,positive before +100,score_trade_result_2024-10-21_NY.csv
+2024-10-25,09:35:11,BUY,8,Excelente,Riesgo de reversion,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2024-10-25_NY.csv
+2024-10-29,09:31:18,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+36,40,5,36,36,36.0,positive before +100,score_trade_result_2024-10-29_NY.csv
+2024-10-31,09:31:44,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+36,40,10,36,36,36.0,positive before +100,score_trade_result_2024-10-31_NY.csv
+2024-11-01,09:31:06,BUY,7,Excelente,Excelente,FALSE,TP,+60,60,0,60,60,60.0,positive before +100,score_trade_result_2024-11-01_NY.csv
+2025-03-12,09:33:11,BUY,8,Excelente,Advertencia,FALSE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2025-03-12_NY.csv
+2025-03-17,09:32:54,BUY,8,Excelente,Excelente,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2025-03-17_NY.csv
+2025-03-18,09:35:09,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+30,30,15,30,60,30.0,positive before +100,score_trade_result_2025-03-18_NY.csv
+2025-03-20,09:32:16,BUY,6,Excelente,Excelente,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2025-03-20_NY.csv
+2025-03-21,09:31:08,BUY,6,Excelente,Riesgo de reversion,FALSE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2025-03-21_NY.csv
+2025-04-01,09:32:30,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+60,60,10,60,60,60.0,positive before +100,score_trade_result_2025-04-01_NY.csv
+2025-04-07,09:31:54,BUY,7,Excelente,Riesgo de reversion,TRUE,TP,+41,45,15,41,41,41.0,positive before +100,score_trade_result_2025-04-07_NY.csv
+2025-04-08,09:31:07,SELL,6,Excelente,Excelente,FALSE,TP,+60,60,0,60,60,60.0,positive before +100,score_trade_result_2025-04-08_NY.csv
+2025-04-14,09:35:40,SELL,6,Excelente,Riesgo de reversion,TRUE,TP,+61,65,20,61,61,61.0,positive before +100,score_trade_result_2025-04-14_NY.csv
+2025-04-21,09:37:04,SELL,9,Excelente,Riesgo de reversion,TRUE,TP,+30,30,20,30,60,30.0,positive before +100,score_trade_result_2025-04-21_NY.csv
+2025-05-02,09:36:54,SELL,6,Excelente,Riesgo de reversion,TRUE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2025-05-02_NY.csv
+2025-05-06,09:32:19,BUY,6,Excelente,Riesgo de reversion,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2025-05-06_NY.csv
+2025-05-08,09:32:20,SELL,8,Excelente,Normal,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2025-05-08_NY.csv
+2025-05-12,09:31:53,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2025-05-12_NY.csv
+2025-05-13,09:32:07,BUY,8,Excelente,Excelente,FALSE,TP,+21,25,15,21,21,21.0,positive before +100,score_trade_result_2025-05-13_NY.csv
+2025-05-14,09:32:15,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+26,30,5,26,26,26.0,positive before +100,score_trade_result_2025-05-14_NY.csv
+2025-05-19,09:36:30,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,15,20,20,20.0,positive before +100,score_trade_result_2025-05-19_NY.csv
+2025-05-27,09:35:21,SELL,8,Excelente,Riesgo de reversion,FALSE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2025-05-27_NY.csv
+2025-05-29,09:32:11,SELL,9,Excelente,Riesgo de reversion,TRUE,TP,+30,30,15,30,60,30.0,positive before +100,score_trade_result_2025-05-29_NY.csv
+2025-05-30,09:35:21,SELL,8,Excelente,Normal,FALSE,TP,+60,60,0,60,60,60.0,positive before +100,score_trade_result_2025-05-30_NY.csv
+2025-06-05,09:32:11,SELL,8,Excelente,Excelente,FALSE,TP,+46,50,10,46,46,46.0,positive before +100,score_trade_result_2025-06-05_NY.csv
+2025-06-11,09:33:12,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+30,30,35,30,60,30.0,positive before +100,score_trade_result_2025-06-11_NY.csv
+2025-06-13,09:31:10,BUY,8,Excelente,Excelente,FALSE,TP,+46,50,15,46,46,46.0,positive before +100,score_trade_result_2025-06-13_NY.csv
+2025-06-18,09:36:29,SELL,8,Excelente,Excelente,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2025-06-18_NY.csv
+2025-06-20,09:36:13,BUY,8,Excelente,Riesgo de reversion,FALSE,TP,+60,60,0,60,60,60.0,positive before +100,score_trade_result_2025-06-20_NY.csv
+2025-06-23,09:33:44,SELL,8,Excelente,Riesgo de reversion,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2025-06-23_NY.csv
+2025-07-07,09:34:04,SELL,9,Excelente,Riesgo de reversion,FALSE,TP,+30,30,10,30,60,30.0,positive before +100,score_trade_result_2025-07-07_NY.csv
+2025-07-09,09:31:08,BUY,8,Excelente,Excelente,FALSE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2025-07-09_NY.csv
+2025-07-14,09:31:21,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2025-07-14_NY.csv
+2025-07-15,09:37:19,SELL,8,Excelente,Riesgo de reversion,FALSE,TP,+51,55,0,51,51,51.0,positive before +100,score_trade_result_2025-07-15_NY.csv
+2025-07-16,09:31:10,SELL,6,Excelente,Riesgo de reversion,TRUE,TP,+20,20,15,20,20,20.0,positive before +100,score_trade_result_2025-07-16_NY.csv
+2025-07-21,09:35:12,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+60,60,40,60,60,-40.0,-40 stop,score_trade_result_2025-07-21_NY.csv
+2025-07-23,09:31:12,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+26,30,5,26,26,26.0,positive before +100,score_trade_result_2025-07-23_NY.csv
+2025-07-31,09:31:14,SELL,9,Excelente,Excelente,FALSE,TP,+60,60,20,60,60,60.0,positive before +100,score_trade_result_2025-07-31_NY.csv
+2025-08-01,09:33:08,SELL,9,Excelente,Riesgo de reversion,FALSE,TP,+30,30,25,30,60,30.0,positive before +100,score_trade_result_2025-08-01_NY.csv
+2025-08-04,09:35:17,BUY,8,Excelente,Normal,TRUE,TP,+41,45,10,41,41,41.0,positive before +100,score_trade_result_2025-08-04_NY.csv
+2025-08-06,09:31:23,BUY,8,Excelente,Normal,FALSE,TP,+31,35,5,31,31,31.0,positive before +100,score_trade_result_2025-08-06_NY.csv
+2025-08-14,09:34:46,BUY,8,Excelente,Excelente,FALSE,TP,+36,40,0,36,36,36.0,positive before +100,score_trade_result_2025-08-14_NY.csv
+2025-08-25,09:31:17,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2025-08-25_NY.csv
+2025-09-03,09:31:08,SELL,6,Excelente,Excelente,FALSE,TP,+60,60,0,60,60,60.0,positive before +100,score_trade_result_2025-09-03_NY.csv
+2025-09-04,09:32:11,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+60,60,55,60,60,-40.0,-40 stop,score_trade_result_2025-09-04_NY.csv
+2025-09-11,09:36:46,SELL,6,Excelente,Riesgo de reversion,TRUE,TP,+26,30,5,26,26,26.0,positive before +100,score_trade_result_2025-09-11_NY.csv
+2025-09-12,09:35:56,BUY,10,Excelente,Riesgo de reversion,TRUE,TP,+20,20,15,20,20,20.0,positive before +100,score_trade_result_2025-09-12_NY.csv
+2025-09-24,09:33:29,SELL,8,Excelente,Normal,FALSE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2025-09-24_NY.csv
+2025-09-26,09:32:30,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+51,55,25,51,51,51.0,positive before +100,score_trade_result_2025-09-26_NY.csv
+2025-09-30,09:33:16,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2025-09-30_NY.csv
+2025-10-01,09:31:26,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2025-10-01_NY.csv
+2025-10-07,09:36:11,BUY,8,Excelente,Normal,FALSE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2025-10-07_NY.csv
+2025-10-08,09:32:13,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+60,60,5,60,60,60.0,positive before +100,score_trade_result_2025-10-08_NY.csv
+2025-10-13,09:33:16,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+91,95,45,91,91,-40.0,-40 stop,score_trade_result_2025-10-13_NY.csv
+2025-10-15,09:34:44,BUY,10,Excelente,Riesgo de reversion,TRUE,TP,+60,60,20,60,60,60.0,positive before +100,score_trade_result_2025-10-15_NY.csv
+2025-10-17,09:34:29,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+26,30,10,26,26,26.0,positive before +100,score_trade_result_2025-10-17_NY.csv
+2025-10-20,09:31:05,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,15,20,20,20.0,positive before +100,score_trade_result_2025-10-20_NY.csv
+2025-10-22,09:34:09,SELL,8,Excelente,Advertencia,FALSE,TP,+60,60,0,60,60,60.0,positive before +100,score_trade_result_2025-10-22_NY.csv
+2025-10-30,09:35:09,SELL,8,Excelente,Excelente,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2025-10-30_NY.csv
+2025-10-31,09:33:31,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+41,45,15,41,41,41.0,positive before +100,score_trade_result_2025-10-31_NY.csv
+2026-03-16,09:35:25,BUY,8,Excelente,Normal,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2026-03-16_NY.csv
+2026-03-17,09:32:17,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+20,20,15,20,20,20.0,positive before +100,score_trade_result_2026-03-17_NY.csv
+2026-03-25,09:36:26,BUY,8,Excelente,Excelente,FALSE,TP,+31,35,5,31,31,31.0,positive before +100,score_trade_result_2026-03-25_NY.csv
+2026-03-30,09:31:10,BUY,8,Excelente,Excelente,FALSE,TP,+60,60,30,60,60,60.0,positive before +100,score_trade_result_2026-03-30_NY.csv
+2026-03-31,09:34:25,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+61,65,15,61,61,61.0,positive before +100,score_trade_result_2026-03-31_NY.csv
+2026-04-06,09:31:08,BUY,8,Excelente,Excelente,FALSE,TP,+60,60,5,60,60,60.0,positive before +100,score_trade_result_2026-04-06_NY.csv
+2026-04-16,09:31:11,SELL,8,Excelente,Riesgo de reversion,TRUE,SL,-21,5,25,21,21,-21.0,negative before -40,score_trade_result_2026-04-16_NY.csv
+2026-04-17,09:33:16,SELL,6,Excelente,Advertencia,TRUE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2026-04-17_NY.csv
+2026-04-29,09:31:06,SELL,8,Excelente,Excelente,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2026-04-29_NY.csv
+2026-04-30,09:33:59,SELL,8,Excelente,Excelente,FALSE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2026-04-30_NY.csv
+2026-05-01,09:31:07,BUY,8,Excelente,Excelente,FALSE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2026-05-01_NY.csv
+2026-05-11,09:31:07,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+30,30,5,30,60,30.0,positive before +100,score_trade_result_2026-05-11_NY.csv
+2026-05-13,09:31:16,SELL,8,Excelente,Riesgo de reversion,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2026-05-13_NY.csv
+2026-05-15,09:31:05,SELL,8,Excelente,Excelente,FALSE,TP,+60,60,20,60,60,60.0,positive before +100,score_trade_result_2026-05-15_NY.csv
+2026-05-19,09:32:14,BUY,7,Excelente,Riesgo de reversion,TRUE,TP,+26,30,10,26,26,26.0,positive before +100,score_trade_result_2026-05-19_NY.csv
+2026-05-22,09:31:11,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+60,60,40,60,60,-40.0,-40 stop,score_trade_result_2026-05-22_NY.csv
+2026-05-27,09:35:38,SELL,8,Excelente,Advertencia,TRUE,TP,+26,30,20,26,26,26.0,positive before +100,score_trade_result_2026-05-27_NY.csv
+2026-05-28,09:33:25,SELL,6,Excelente,Riesgo de reversion,TRUE,TP,+96,100,15,96,96,100.0,+100 target,score_trade_result_2026-05-28_NY.csv
+2026-06-01,09:32:32,BUY,6,Excelente,Normal,TRUE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2026-06-01_NY.csv
+2026-06-03,09:31:54,SELL,10,Excelente,Riesgo de reversion,TRUE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2026-06-03_NY.csv
+2026-06-08,09:31:15,BUY,8,Excelente,Excelente,FALSE,TP,+20,20,10,20,20,20.0,positive before +100,score_trade_result_2026-06-08_NY.csv
+2026-06-09,09:32:06,SELL,8,Excelente,Riesgo de reversion,TRUE,TP,+30,30,10,30,60,30.0,positive before +100,score_trade_result_2026-06-09_NY.csv
+2026-06-11,09:34:21,SELL,8,Excelente,Riesgo de reversion,FALSE,TP,+30,30,0,30,60,30.0,positive before +100,score_trade_result_2026-06-11_NY.csv
+2026-06-12,09:33:17,SELL,7,Excelente,Normal,FALSE,TP,+60,60,0,60,60,60.0,positive before +100,score_trade_result_2026-06-12_NY.csv
+2026-06-15,09:35:30,BUY,8,Excelente,Excelente,FALSE,TP,+20,20,5,20,20,20.0,positive before +100,score_trade_result_2026-06-15_NY.csv
+2026-06-18,09:34:26,SELL,6,Excelente,Riesgo de reversion,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2026-06-18_NY.csv
+2026-06-22,09:33:10,SELL,5,Excelente,Riesgo de reversion,FALSE,TP,+20,20,0,20,20,20.0,positive before +100,score_trade_result_2026-06-22_NY.csv
+2026-06-23,09:32:09,BUY,6,Excelente,Excelente,FALSE,TP,+60,60,10,60,60,60.0,positive before +100,score_trade_result_2026-06-23_NY.csv
+2026-06-24,09:32:30,BUY,6,Excelente,Advertencia,FALSE,TP,+76,80,5,76,76,76.0,positive before +100,score_trade_result_2026-06-24_NY.csv
+2026-06-25,09:31:09,SELL,8,Excelente,Riesgo de reversion,TRUE,SL,-20,0,20,20,20,-20.0,negative before -40,score_trade_result_2026-06-25_NY.csv
+2026-06-26,09:33:14,SELL,8,Excelente,Advertencia,FALSE,TP,+60,60,10,60,60,60.0,positive before +100,score_trade_result_2026-06-26_NY.csv
+2026-07-09,09:34:15,BUY,8,Excelente,Riesgo de reversion,TRUE,TP,+56,60,30,56,56,56.0,positive before +100,score_trade_result_2026-07-09_NY.csv

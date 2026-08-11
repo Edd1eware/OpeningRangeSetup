@@ -1,0 +1,115 @@
+namespace ATAS.Indicators
+{
+    internal static class AbsorptionDetector
+    {
+        public static void ApplyAPlusStructure(ImbalanceState state, string side)
+        {
+            state.HasAPlusStructure = false;
+            state.APlusStructureSide = "";
+            state.APlusStructurePrice = null;
+
+            side = string.IsNullOrWhiteSpace(side) ? "" : side.Trim().ToUpperInvariant();
+
+            if (side == "BUY" && state.HasBuy3_ImbalanceGroup)
+            {
+                state.HasAPlusStructure = true;
+                state.APlusStructureSide = "BUY";
+                state.APlusStructurePrice = state.Buy3_ImbalanceGroupPrice;
+                return;
+            }
+
+            if (side == "SELL" && state.HasSell3_ImbalanceGroup)
+            {
+                state.HasAPlusStructure = true;
+                state.APlusStructureSide = "SELL";
+                state.APlusStructurePrice = state.Sell3_ImbalanceGroupPrice;
+            }
+        }
+
+        public static int CalculateImbalanceScore(ImbalanceState state, string side)
+        {
+            var score = 0;
+
+            if (side == "BUY")
+            {
+                if (state.HasBuy_ImbalanceUnTouched)
+                    score += 1;
+
+                if (state.HasBuy3_ImbalanceGroup)
+                    score += 2;
+            }
+            else if (side == "SELL")
+            {
+                if (state.HasSell_ImbalanceUnTouched)
+                    score += 1;
+
+                if (state.HasSell3_ImbalanceGroup)
+                    score += 2;
+            }
+
+            return score;
+        }
+
+        public static void ApplySignalSource(ScoreTradeSignal state)
+        {
+            // La etiqueta Liquidity Burst ya representa agresion absorbida. Se
+            // conserva como decision terminal causal para que ResolveExecutionSide
+            // ejecute el lado opuesto en el mismo snapshot de un segundo.
+            if (state.HasLiquidityBurst)
+            {
+                state.HasAPlusAbsorption = true;
+                state.APlusStructureSide = state.LiquidityBurstSide;
+                state.SignalSource = "LIQUIDITY BURST ABSORTION";
+                return;
+            }
+
+            var hasAPlusSpeed = state.SpeedLabel == "A+ speed" &&
+                state.VolumeIncreasing &&
+                state.VolumeOk &&
+                state.DeltaWithSide;
+
+            state.HasAPlusSpeed = hasAPlusSpeed && state.PriceAcceptedAfterSpeed;
+
+            if (state.HasAPlusStructure)
+            {
+                state.HasAPlusAbsorption = state.PriceRejectedAfterImbalance;
+                state.SignalSource = state.PriceAcceptedAfterImbalance
+                    ? "A+ STRUCTURE"
+                    : state.PriceRejectedAfterImbalance
+                        ? "A+ ABSORTION"
+                        : "BREAKOUT";
+                return;
+            }
+
+            if (hasAPlusSpeed && !state.PriceAcceptedAfterSpeed)
+            {
+                state.HasAPlusAbsorption = true;
+                state.APlusStructureSide = state.Side;
+                state.SignalSource = "A+ ABSORTION";
+                return;
+            }
+
+            if (state.HasAPlusSpeed)
+            {
+                state.SignalSource = state.HasLiquidityBurst
+                    ? "LIQUIDITY BURST A+ SPEED"
+                    : "A+ SPEED";
+                return;
+            }
+
+            if (state.HasLiquidityBurst)
+            {
+                state.SignalSource = "LIQUIDITY BURST";
+                return;
+            }
+
+            if (state.IsValueAcceptance)
+            {
+                state.SignalSource = "VALUE_ACCEPTANCE";
+                return;
+            }
+
+            state.SignalSource = "BREAKOUT";
+        }
+    }
+}

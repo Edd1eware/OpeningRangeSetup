@@ -7,6 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="audit_snapshot\**\*.cs" />
+    <Compile Remove="outputs\**\*.cs" />
+    <Compile Remove="catboost_info\**\*.cs" />
+    <None Include="audit_snapshot\**\*" />
+    <None Include="outputs\**\*" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="System.Drawing.Common" Version="10.0.7" />
   </ItemGroup>
 
