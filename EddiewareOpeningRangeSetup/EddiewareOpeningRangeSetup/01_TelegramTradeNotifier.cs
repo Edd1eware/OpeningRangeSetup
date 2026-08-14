@@ -68,8 +68,10 @@ namespace ATAS.Indicators
             string folder,
             string series,
             DateTime utcSlot,
-            string message)
+            string message,
+            int repetitions = 1)
         {
+            var requestedCopies = Math.Clamp(repetitions, 1, 20);
             var normalizedSlot = utcSlot.Kind == DateTimeKind.Utc
                 ? utcSlot
                 : utcSlot.ToUniversalTime();
@@ -97,18 +99,53 @@ namespace ATAS.Indicators
                         return;
                     }
 
-                    long? messageId = null;
-                    for (var attempt = 1; attempt <= 3 && !messageId.HasValue; attempt++)
+                    var sentCopies = 0;
+                    long? lastMessageId = null;
+                    for (var copy = 1; copy <= requestedCopies; copy++)
                     {
-                        messageId = await SendMessage(credentials.Token, credentials.ChatId, message)
-                            .ConfigureAwait(false);
-                        if (!messageId.HasValue && attempt < 3)
-                            await Task.Delay(TimeSpan.FromSeconds(2 * attempt)).ConfigureAwait(false);
+                        long? messageId = null;
+                        for (var attempt = 1; attempt <= 3 && !messageId.HasValue; attempt++)
+                        {
+                            messageId = await SendMessage(credentials.Token, credentials.ChatId, message)
+                                .ConfigureAwait(false);
+                            if (!messageId.HasValue && attempt < 3)
+                                await Task.Delay(TimeSpan.FromSeconds(2 * attempt)).ConfigureAwait(false);
+                        }
+
+                        if (messageId.HasValue)
+                        {
+                            sentCopies++;
+                            lastMessageId = messageId;
+                            AppendMessageId(folder, messageId.Value);
+                            WriteDeliveryLog(
+                                folder,
+                                safeSeries,
+                                slotKey,
+                                $"sent_{copy:00}_of_{requestedCopies:00}",
+                                messageId);
+                        }
+                        else
+                        {
+                            WriteDeliveryLog(
+                                folder,
+                                safeSeries,
+                                slotKey,
+                                $"send_failed_{copy:00}_of_{requestedCopies:00}",
+                                null);
+                        }
+
+                        if (copy < requestedCopies)
+                            await Task.Delay(TimeSpan.FromMilliseconds(1100)).ConfigureAwait(false);
                     }
 
-                    if (!messageId.HasValue)
+                    if (sentCopies != requestedCopies)
                     {
-                        WriteDeliveryLog(folder, safeSeries, slotKey, "send_failed", null);
+                        WriteDeliveryLog(
+                            folder,
+                            safeSeries,
+                            slotKey,
+                            $"burst_incomplete_{sentCopies:00}_of_{requestedCopies:00}",
+                            lastMessageId);
                         return;
                     }
 
@@ -116,12 +153,14 @@ namespace ATAS.Indicators
                     {
                         Directory.CreateDirectory(folder);
                         File.AppendAllText(sentSlotsFile, slotKey + Environment.NewLine);
-                        File.AppendAllText(
-                            Path.Combine(folder, "telegram_message_ids.txt"),
-                            messageId.Value.ToString(CultureInfo.InvariantCulture) + Environment.NewLine);
                     }
 
-                    WriteDeliveryLog(folder, safeSeries, slotKey, "sent", messageId);
+                    WriteDeliveryLog(
+                        folder,
+                        safeSeries,
+                        slotKey,
+                        $"burst_sent_{requestedCopies:00}",
+                        lastMessageId);
                 }
                 catch (Exception ex)
                 {
@@ -140,8 +179,10 @@ namespace ATAS.Indicators
             string series,
             DateTime utcSlot,
             string caption,
-            string photoPath)
+            string photoPath,
+            int repetitions = 1)
         {
+            var requestedCopies = Math.Clamp(repetitions, 1, 20);
             var normalizedSlot = utcSlot.Kind == DateTimeKind.Utc
                 ? utcSlot
                 : utcSlot.ToUniversalTime();
@@ -175,22 +216,57 @@ namespace ATAS.Indicators
                         return;
                     }
 
-                    long? messageId = null;
-                    for (var attempt = 1; attempt <= 3 && !messageId.HasValue; attempt++)
+                    var sentCopies = 0;
+                    long? lastMessageId = null;
+                    for (var copy = 1; copy <= requestedCopies; copy++)
                     {
-                        messageId = await SendPhoto(
-                                credentials.Token,
-                                credentials.ChatId,
-                                caption,
-                                photoPath)
-                            .ConfigureAwait(false);
-                        if (!messageId.HasValue && attempt < 3)
-                            await Task.Delay(TimeSpan.FromSeconds(2 * attempt)).ConfigureAwait(false);
+                        long? messageId = null;
+                        for (var attempt = 1; attempt <= 3 && !messageId.HasValue; attempt++)
+                        {
+                            messageId = await SendPhoto(
+                                    credentials.Token,
+                                    credentials.ChatId,
+                                    caption,
+                                    photoPath)
+                                .ConfigureAwait(false);
+                            if (!messageId.HasValue && attempt < 3)
+                                await Task.Delay(TimeSpan.FromSeconds(2 * attempt)).ConfigureAwait(false);
+                        }
+
+                        if (messageId.HasValue)
+                        {
+                            sentCopies++;
+                            lastMessageId = messageId;
+                            AppendMessageId(folder, messageId.Value);
+                            WriteDeliveryLog(
+                                folder,
+                                safeSeries,
+                                slotKey,
+                                $"photo_sent_{copy:00}_of_{requestedCopies:00}",
+                                messageId);
+                        }
+                        else
+                        {
+                            WriteDeliveryLog(
+                                folder,
+                                safeSeries,
+                                slotKey,
+                                $"photo_failed_{copy:00}_of_{requestedCopies:00}",
+                                null);
+                        }
+
+                        if (copy < requestedCopies)
+                            await Task.Delay(TimeSpan.FromMilliseconds(1100)).ConfigureAwait(false);
                     }
 
-                    if (!messageId.HasValue)
+                    if (sentCopies != requestedCopies)
                     {
-                        WriteDeliveryLog(folder, safeSeries, slotKey, "photo_send_failed", null);
+                        WriteDeliveryLog(
+                            folder,
+                            safeSeries,
+                            slotKey,
+                            $"photo_burst_incomplete_{sentCopies:00}_of_{requestedCopies:00}",
+                            lastMessageId);
                         return;
                     }
 
@@ -198,12 +274,14 @@ namespace ATAS.Indicators
                     {
                         Directory.CreateDirectory(folder);
                         File.AppendAllText(sentSlotsFile, slotKey + Environment.NewLine);
-                        File.AppendAllText(
-                            Path.Combine(folder, "telegram_message_ids.txt"),
-                            messageId.Value.ToString(CultureInfo.InvariantCulture) + Environment.NewLine);
                     }
 
-                    WriteDeliveryLog(folder, safeSeries, slotKey, "photo_sent", messageId);
+                    WriteDeliveryLog(
+                        folder,
+                        safeSeries,
+                        slotKey,
+                        $"photo_burst_sent_{requestedCopies:00}",
+                        lastMessageId);
                 }
                 catch (Exception ex)
                 {
@@ -215,6 +293,17 @@ namespace ATAS.Indicators
                         PendingDates.Remove(pendingKey);
                 }
             });
+        }
+
+        private static void AppendMessageId(string folder, long messageId)
+        {
+            lock (Sync)
+            {
+                Directory.CreateDirectory(folder);
+                File.AppendAllText(
+                    Path.Combine(folder, "telegram_message_ids.txt"),
+                    messageId.ToString(CultureInfo.InvariantCulture) + Environment.NewLine);
+            }
         }
 
         private static bool HasDateBeenSent(string path, string dateKey)

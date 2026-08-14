@@ -1,0 +1,442 @@
+{
+  "dataset": {
+    "source_trade_rows": 1271,
+    "built_rows": 1271,
+    "skipped_rows": 0,
+    "features": 37,
+    "first_date": "2025-03-10",
+    "last_date": "2026-08-07"
+  },
+  "scope_metrics": {
+    "ALL_CAUSAL_CANDIDATES": {
+      "n": 1271,
+      "wins": 299,
+      "losses": 972,
+      "wr": 0.23524783634933125,
+      "pf": 0.5984748319117692,
+      "avg_r": -0.3060839425649095,
+      "net_r": -389.032691
+    },
+    "CONFIRMED_LATER_SUBSET": {
+      "n": 113,
+      "wins": 45,
+      "losses": 68,
+      "wr": 0.39823008849557523,
+      "pf": 1.3235294117647058,
+      "avg_r": 0.19469026548672566,
+      "net_r": 22.0
+    }
+  },
+  "top_features_by_scope": {
+    "ALL_CAUSAL_CANDIDATES": [
+      "MappedPivotGapATR_AtEntry",
+      "ATASAway3ATR_AtEntry",
+      "ATASApproachBars3_AtEntry",
+      "LeadDivergence3ATR_AtEntry",
+      "ATASAway5ATR_AtEntry",
+      "ATASApproachBars5_AtEntry",
+      "LeadDivergence5ATR_AtEntry",
+      "ReturnCorrelation20_AtEntry",
+      "ATASAway1ATR_AtEntry",
+      "ATASSignalBodyATR_AtEntry"
+    ],
+    "CONFIRMED_LATER_SUBSET": [
+      "MappedPivotGapATR_AtEntry",
+      "LeadDivergence3ATR_AtEntry",
+      "CFDAway3ATR_AtEntry",
+      "LeaderSwingATR_AtEntry",
+      "ATASRange5ATR_AtEntry",
+      "CFDEfficiency5_AtEntry",
+      "CFDSignalRangeATR_AtEntry",
+      "CFDAway1ATR_AtEntry",
+      "ATASApproachBars3_AtEntry",
+      "MinuteNY_AtEntry"
+    ]
+  },
+  "common_top_features": [
+    "ATASApproachBars3_AtEntry",
+    "LeadDivergence3ATR_AtEntry",
+    "MappedPivotGapATR_AtEntry"
+  ],
+  "fixed_structural_hypotheses": [
+    {
+      "Scope": "ALL_CAUSAL_CANDIDATES",
+      "Rule": "ATASApproachBars3 <= 1",
+      "Period": "TOTAL",
+      "n": 474,
+      "wins": 167,
+      "losses": 307,
+      "wr": 0.35232067510548526,
+      "pf": 1.061372472681445,
+      "avg_r": 0.03953329113924051,
+      "net_r": 18.738780000000002,
+      "AvgR_CI95_Low": -0.08334367157172995,
+      "AvgR_CI95_High": 0.16610248976793238,
+      "BinomialP_WR_GT_33pct": 0.2033040461697424
+    },
+    {
+      "Scope": "ALL_CAUSAL_CANDIDATES",
+      "Rule": "ATASApproachBars3 <= 1",
+      "Period": "2025",
+      "n": 296,
+      "wins": 105,
+      "losses": 191,
+      "wr": 0.3547297297297297,
+      "pf": 1.0841942309615702,
+      "avg_r": 0.05385266216216217,
+      "net_r": 15.940388000000002,
+      "AvgR_CI95_Low": -0.11134044020270267,
+      "AvgR_CI95_High": 0.2192833773648646,
+      "BinomialP_WR_GT_33pct": 0.23500151966805025
+    },
+    {
+      "Scope": "ALL_CAUSAL_CANDIDATES",
+      "Rule": "ATASApproachBars3 <= 1",
+      "Period": "2026",
+      "n": 178,
+      "wins": 62,
+      "losses": 116,
+      "wr": 0.34831460674157305,
+      "pf": 1.0241240689655173,
+      "avg_r": 0.015721303370786515,
+      "net_r": 2.7983919999999998,
+      "AvgR_CI95_Low": -0.19727760603932581,
+      "AvgR_CI95_High": 0.22652323174157282,
+      "BinomialP_WR_GT_33pct": 0.3623637375744635
+    },
+    {
+      "Scope": "ALL_CAUSAL_CANDIDATES",
+      "Rule": "MappedPivotGapATR > 0",
+      "Period": "TOTAL",
+      "n": 637,
+      "wins": 217,
+      "losses": 420,
+      "wr": 0.34065934065934067,
+      "pf": 1.0084136995505797,
+      "avg_r": 0.005518682888540038,
+      "net_r": 3.515401000000004,
+      "AvgR_CI95_Low": -0.10233044803767662,
+      "AvgR_CI95_High": 0.11434591499215052,
+      "BinomialP_WR_GT_33pct": 0.3615711178294473
+    },
+    {
+      "Scope": "ALL_CAUSAL_CANDIDATES",
+      "Rule": "MappedPivotGapATR > 0",
+      "Period": "2025",
+      "n": 386,
+      "wins": 137,
+      "losses": 249,
+      "wr": 0.3549222797927461,
+      "pf": 1.0839568391945595,
+      "avg_r": 0.05381872538860103,
+      "net_r": 20.774027999999998,
+      "AvgR_CI95_Low": -0.08941928205958549,
+      "AvgR_CI95_High": 0.20166375064766837,
+      "BinomialP_WR_GT_33pct": 0.19836708103415915
+    },
+    {
+      "Scope": "ALL_CAUSAL_CANDIDATES",
+      "Rule": "MappedPivotGapATR > 0",
+      "Period": "2026",
+      "n": 251,
+      "wins": 80,
+      "losses": 171,
+      "wr": 0.3187250996015936,
+      "pf": 0.8987061016833122,
+      "avg_r": -0.0687594701195219,
+      "net_r": -17.258626999999997,
+      "AvgR_CI95_Low": -0.2358600823705179,
+      "AvgR_CI95_High": 0.10676582460159321,
+      "BinomialP_WR_GT_33pct": 0.7097404692092772
+    },
+    {
+      "Scope": "ALL_CAUSAL_CANDIDATES",
+      "Rule": "ATASApproachBars3 <= 1 AND MappedPivotGapATR > 0",
+      "Period": "TOTAL",
+      "n": 394,
+      "wins": 147,
+      "losses": 247,
+      "wr": 0.3730964467005076,
+      "pf": 1.153526829687481,
+      "avg_r": 0.09595816751269036,
+      "net_r": 37.807518,
+      "AvgR_CI95_Low": -0.04283153730964467,
+      "AvgR_CI95_High": 0.2383317508883249,
+      "BinomialP_WR_GT_33pct": 0.053476463471174046
+    },
+    {
+      "Scope": "ALL_CAUSAL_CANDIDATES",
+      "Rule": "ATASApproachBars3 <= 1 AND MappedPivotGapATR > 0",
+      "Period": "2025",
+      "n": 243,
+      "wins": 93,
+      "losses": 150,
+      "wr": 0.38271604938271603,
+      "pf": 1.2144521285896237,
+      "avg_r": 0.13172479835390943,
+      "net_r": 32.009125999999995,
+      "AvgR_CI95_Low": -0.04443033744855967,
+      "AvgR_CI95_High": 0.3148267969135802,
+      "BinomialP_WR_GT_33pct": 0.05995425184908905
+    },
+    {
+      "Scope": "ALL_CAUSAL_CANDIDATES",
+      "Rule": "ATASApproachBars3 <= 1 AND MappedPivotGapATR > 0",
+      "Period": "2026",
+      "n": 151,
+      "wins": 54,
+      "losses": 97,
+      "wr": 0.3576158940397351,
+      "pf": 1.0597772371134022,
+      "avg_r": 0.03839994701986756,
+      "net_r": 5.7983920000000015,
+      "AvgR_CI95_Low": -0.1854372013245033,
+      "AvgR_CI95_High": 0.2622370953642383,
+      "BinomialP_WR_GT_33pct": 0.2900653526905569
+    },
+    {
+      "Scope": "CONFIRMED_LATER_SUBSET",
+      "Rule": "ATASApproachBars3 <= 1",
+      "Period": "TOTAL",
+      "n": 43,
+      "wins": 19,
+      "losses": 24,
+      "wr": 0.4418604651162791,
+      "pf": 1.5833333333333333,
+      "avg_r": 0.32558139534883723,
+      "net_r": 14.0,
+      "AvgR_CI95_Low": -0.09302325581395349,
+      "AvgR_CI95_High": 0.7441860465116279,
+      "BinomialP_WR_GT_33pct": 0.09069733866721083
+    },
+    {
+      "Scope": "CONFIRMED_LATER_SUBSET",
+      "Rule": "ATASApproachBars3 <= 1",
+      "Period": "2025",
+      "n": 30,
+      "wins": 14,
+      "losses": 16,
+      "wr": 0.4666666666666667,
+      "pf": 1.75,
+      "avg_r": 0.4,
+      "net_r": 12.0,
+      "AvgR_CI95_Low": -0.1,
+      "AvgR_CI95_High": 0.9,
+      "BinomialP_WR_GT_33pct": 0.08977091541745613
+    },
+    {
+      "Scope": "CONFIRMED_LATER_SUBSET",
+      "Rule": "ATASApproachBars3 <= 1",
+      "Period": "2026",
+      "n": 13,
+      "wins": 5,
+      "losses": 8,
+      "wr": 0.38461538461538464,
+      "pf": 1.25,
+      "avg_r": 0.15384615384615385,
+      "net_r": 2.0,
+      "AvgR_CI95_Low": -0.5384615384615384,
+      "AvgR_CI95_High": 1.0769230769230769,
+      "BinomialP_WR_GT_33pct": 0.4479612976793286
+    },
+    {
+      "Scope": "CONFIRMED_LATER_SUBSET",
+      "Rule": "MappedPivotGapATR > 0",
+      "Period": "TOTAL",
+      "n": 82,
+      "wins": 38,
+      "losses": 44,
+      "wr": 0.4634146341463415,
+      "pf": 1.7272727272727273,
+      "avg_r": 0.3902439024390244,
+      "net_r": 32.0,
+      "AvgR_CI95_Low": 0.06097560975609756,
+      "AvgR_CI95_High": 0.7195121951219512,
+      "BinomialP_WR_GT_33pct": 0.009766996815840685
+    },
+    {
+      "Scope": "CONFIRMED_LATER_SUBSET",
+      "Rule": "MappedPivotGapATR > 0",
+      "Period": "2025",
+      "n": 59,
+      "wins": 29,
+      "losses": 30,
+      "wr": 0.4915254237288136,
+      "pf": 1.9333333333333333,
+      "avg_r": 0.4745762711864407,
+      "net_r": 28.0,
+      "AvgR_CI95_Low": 0.06779661016949153,
+      "AvgR_CI95_High": 0.8813559322033898,
+      "BinomialP_WR_GT_33pct": 0.008548592012212386
+    },
+    {
+      "Scope": "CONFIRMED_LATER_SUBSET",
+      "Rule": "MappedPivotGapATR > 0",
+      "Period": "2026",
+      "n": 23,
+      "wins": 9,
+      "losses": 14,
+      "wr": 0.391304347826087,
+      "pf": 1.2857142857142858,
+      "avg_r": 0.17391304347826086,
+      "net_r": 4.0,
+      "AvgR_CI95_Low": -0.34782608695652173,
+      "AvgR_CI95_High": 0.8260869565217391,
+      "BinomialP_WR_GT_33pct": 0.348646783547812
+    },
+    {
+      "Scope": "CONFIRMED_LATER_SUBSET",
+      "Rule": "ATASApproachBars3 <= 1 AND MappedPivotGapATR > 0",
+      "Period": "TOTAL",
+      "n": 42,
+      "wins": 18,
+      "losses": 24,
+      "wr": 0.42857142857142855,
+      "pf": 1.5,
+      "avg_r": 0.2857142857142857,
+      "net_r": 12.0,
+      "AvgR_CI95_Low": -0.14285714285714285,
+      "AvgR_CI95_High": 0.7142857142857143,
+      "BinomialP_WR_GT_33pct": 0.12685226354532794
+    },
+    {
+      "Scope": "CONFIRMED_LATER_SUBSET",
+      "Rule": "ATASApproachBars3 <= 1 AND MappedPivotGapATR > 0",
+      "Period": "2025",
+      "n": 29,
+      "wins": 13,
+      "losses": 16,
+      "wr": 0.4482758620689655,
+      "pf": 1.625,
+      "avg_r": 0.3448275862068966,
+      "net_r": 10.0,
+      "AvgR_CI95_Low": -0.1724137931034483,
+      "AvgR_CI95_High": 0.8620689655172413,
+      "BinomialP_WR_GT_33pct": 0.132973645794357
+    },
+    {
+      "Scope": "CONFIRMED_LATER_SUBSET",
+      "Rule": "ATASApproachBars3 <= 1 AND MappedPivotGapATR > 0",
+      "Period": "2026",
+      "n": 13,
+      "wins": 5,
+      "losses": 8,
+      "wr": 0.38461538461538464,
+      "pf": 1.25,
+      "avg_r": 0.15384615384615385,
+      "net_r": 2.0,
+      "AvgR_CI95_Low": -0.5384615384615384,
+      "AvgR_CI95_High": 0.8461538461538461,
+      "BinomialP_WR_GT_33pct": 0.4479612976793286
+    }
+  ],
+  "year_holdout": [
+    {
+      "scope": "ALL_CAUSAL_CANDIDATES",
+      "rule": "MappedPivotGapATR_AtEntry >= -0.0411855",
+      "train": {
+        "n": 396,
+        "wins": 140,
+        "losses": 256,
+        "wr": 0.35353535353535354,
+        "pf": 1.077716795861388,
+        "avg_r": 0.04993441414141415,
+        "net_r": 19.774028
+      },
+      "test_2026": {
+        "n": 259,
+        "wins": 83,
+        "losses": 176,
+        "wr": 0.3204633204633205,
+        "pf": 0.9072957633026532,
+        "avg_r": -0.0627746216216216,
+        "net_r": -16.258626999999997
+      },
+      "test_2026_baseline": {
+        "n": 479,
+        "wins": 109,
+        "losses": 370,
+        "wr": 0.22755741127348644,
+        "pf": 0.5664457544437556,
+        "avg_r": -0.3343361294363256,
+        "net_r": -160.14700599999998
+      }
+    },
+    {
+      "scope": "CONFIRMED_LATER_SUBSET",
+      "rule": "MappedPivotGapATR_AtEntry >= 0.373455",
+      "train": {
+        "n": 38,
+        "wins": 23,
+        "losses": 15,
+        "wr": 0.6052631578947368,
+        "pf": 3.066666666666667,
+        "avg_r": 0.8157894736842105,
+        "net_r": 31.0
+      },
+      "test_2026": {
+        "n": 13,
+        "wins": 6,
+        "losses": 7,
+        "wr": 0.46153846153846156,
+        "pf": 1.7142857142857142,
+        "avg_r": 0.38461538461538464,
+        "net_r": 5.0
+      },
+      "test_2026_baseline": {
+        "n": 37,
+        "wins": 13,
+        "losses": 24,
+        "wr": 0.35135135135135137,
+        "pf": 1.0833333333333333,
+        "avg_r": 0.05405405405405406,
+        "net_r": 2.0
+      }
+    }
+  ],
+  "walkforward": [
+    {
+      "scope": "ALL_CAUSAL_CANDIDATES",
+      "selected_oos": {
+        "n": 311,
+        "wins": 100,
+        "losses": 211,
+        "wr": 0.3215434083601286,
+        "pf": 0.9253158088185409,
+        "avg_r": -0.05012016398713826,
+        "net_r": -15.587371
+      },
+      "baseline_same_oos_windows": {
+        "n": 635,
+        "wins": 152,
+        "losses": 483,
+        "wr": 0.23937007874015748,
+        "pf": 0.6097399697041742,
+        "avg_r": -0.29543633700787403,
+        "net_r": -187.60207400000002
+      }
+    },
+    {
+      "scope": "CONFIRMED_LATER_SUBSET",
+      "selected_oos": {
+        "n": 15,
+        "wins": 6,
+        "losses": 9,
+        "wr": 0.4,
+        "pf": 1.3333333333333333,
+        "avg_r": 0.2,
+        "net_r": 3.0
+      },
+      "baseline_same_oos_windows": {
+        "n": 53,
+        "wins": 20,
+        "losses": 33,
+        "wr": 0.37735849056603776,
+        "pf": 1.2121212121212122,
+        "avg_r": 0.1320754716981132,
+        "net_r": 7.0
+      }
+    }
+  ],
+  "leakage_guard": "PASS: explicit AtEntry allowlist and feature_timestamp <= entry_timestamp"
+}

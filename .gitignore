@@ -1,0 +1,26 @@
+# Build output — rebuilt from source, and the DLL is deployed to ATAS from disk,
+# never from the repository.
+bin/
+obj/
+*.dll
+*.pdb
+
+# Visual Studio / Rider local state
+.vs/
+.idea/
+*.suo
+*.user
+*.vsidx
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Run artifacts: logs, pids and progress files are regenerated on every run
+*.log
+*.pid
+run_logs/
+catboost_info/
+
+# Temp files from the atomic file bridges
+*.tmp

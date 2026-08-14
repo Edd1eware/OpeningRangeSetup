@@ -1,5 +1,12 @@
 # ATAS L2 vs MT5 Sync Monitor
 
+> **RETIRADO el 13-ago-2026.** La comparación operativa ahora es **NQ ATAS vs ES ATAS**
+> (`13_NQ_ES_SyncMonitor.cs` + `17_ES_FeedPublisher.cs`, documentado en
+> `leader_context/2026_08_13_NQ_vs_ES_sync_monitor.md`). La clase `AtasMt5SyncMonitor`
+> que describe este documento ya no existe. El EA `ATAS_MT5_SyncBridge.mq5` se conserva
+> porque sigue siendo el único camino para leer un CFD, pero el motivo del cambio fue
+> justamente el reloj del broker: ES nativo de CME elimina esa fuente de error.
+
 Componentes:
 
 - `ATAS_MT5_SyncBridge.mq5`: indicador de MT5 que publica bid/ask/last de USTEC cada 100 ms y 180 velas M1 en `FILE_COMMON`.
@@ -12,7 +19,9 @@ El monitor no compara directamente el nivel de NQ con USTEC porque futuro y CFD 
 - `L2 ATAS LIDERA`
 - `MT5 LIDERA`
 
-Telegram permanece silencioso durante la sincronía. Cuando aparece por primera vez un liderazgo estructural confirmado, manda una alerta inmediata con una imagen que contiene las gráficas NQ/ATAS y USTEC/MT5. Los cambios que no alcanzan tres velas permanecen clasificados como sincronía y no generan mensajes.
+Telegram permanece silencioso durante la sincronía. Cuando aparece por primera vez un liderazgo estructural confirmado, manda una sola alerta con una imagen que contiene las gráficas NQ/ATAS y USTEC/MT5. El mensaje indica claramente `ATAS L2 LIDERA` o `CFD MT5 LIDERA`, el escenario LONG/SHORT, el nivel equivalente por base aditiva, la hora de la vela pivote y la hora causal de detección. Los cambios que no alcanzan tres velas permanecen clasificados como sincronía y no generan mensajes.
+
+El monitor incorpora como indicador hijo el detector causal de `Liquidity Burst` de un segundo. Un burst reciente se reporta como `APOYA EL ESCENARIO` o `CONTRADICE EL ESCENARIO`, pero nunca bloquea ni retrasa la alerta de desfase. Si no hubo burst durante los 10 segundos anteriores, el Telegram dice expresamente que no fue detectado. El burst exacto de un segundo solo existe en datos de tape en vivo; no se reconstruye artificialmente desde velas M1 históricas.
 
 Mientras el indicador está cargado, un hilo dedicado mantiene despiertos el sistema y la pantalla. Al retirar el indicador o cerrar ATAS se restaura la política normal de energía.
 
