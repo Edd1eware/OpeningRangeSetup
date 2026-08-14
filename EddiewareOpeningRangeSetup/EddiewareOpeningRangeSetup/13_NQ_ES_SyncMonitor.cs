@@ -171,6 +171,17 @@ namespace ATAS.Indicators
                 UseCandleFallback = false
             };
             Add(_liquidityBurstDetector);
+
+            // The detector exists only to enrich the alert, so keep it out of the
+            // chart legend: hiding every series drops its entry, and the tape
+            // callbacks it depends on keep firing regardless of what is drawn.
+            _liquidityBurstDetector.ShowDescription = false;
+            foreach (var series in _liquidityBurstDetector.DataSeries)
+            {
+                series.IsHidden = true;
+                series.ShowTooltip = false;
+                series.ShowNameOnMouseOver = false;
+            }
         }
 
         protected override void OnInitialize()

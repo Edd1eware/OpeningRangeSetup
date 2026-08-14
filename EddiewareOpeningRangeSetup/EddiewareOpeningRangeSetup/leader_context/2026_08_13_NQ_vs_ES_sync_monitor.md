@@ -145,6 +145,24 @@ Los umbrales 0.55 / 2.5 son **puntos de partida, no calibrados**: no hay muestra
 3. Verificar que aparecen `es_price.csv` y `es_m1_history.csv` en `atas_es_sync` y que el `ratio` mostrado ronda NQ/ES real (≈3.7–3.8 con NQ ~24k / ES ~6.4k).
 4. Dejar correr y revisar el CSV antes de tocar los umbrales de divergencia.
 
-## 11. Lo que este monitor NO es
+## 11. Ajuste 14-ago: etiqueta Liquidity Burst fuera de la leyenda
+
+El detector se carga como indicador hijo y ATAS lo listaba en la leyenda del chart como `Liquidity Burst Detector`. Ahora, justo después del `Add(...)`, el monitor apaga su descripción y oculta todas sus series:
+
+```csharp
+_liquidityBurstDetector.ShowDescription = false;
+foreach (var series in _liquidityBurstDetector.DataSeries)
+{
+    series.IsHidden = true;
+    series.ShowTooltip = false;
+    series.ShowNameOnMouseOver = false;
+}
+```
+
+`IDataSeries.IsVisible` es **solo lectura** en el SDK (CS0200), por eso el ocultamiento va por `IsHidden`. El detector sigue corriendo: depende de los callbacks de tape (`OnNewTrade`), no del dibujo, así que la línea de Liquidity Burst del Telegram y las columnas del CSV no cambian.
+
+DLL redesplegado: 614,912 B, 14-ago 10:47:29.
+
+## 12. Lo que este monitor NO es
 
 Sigue siendo **informativo**. Que NQ lidere a ES no está validado como edge: la línea CFD/NQ ya quedó como *no concluyente* por potencia estadística (evento real ~0.25/sesión, réplica 35.9%). Aquí solo cambia la calidad de la pata comparada (ES nativo de CME en vez de un CFD con reloj de broker), lo cual elimina el bug de reloj del broker pero **no** convierte el liderazgo en señal operable. Cualquier decisión de trading exige medir esto contra su propio breakeven, año por año.
