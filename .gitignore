@@ -24,3 +24,12 @@ catboost_info/
 
 # Temp files from the atomic file bridges
 *.tmp
+
+# Node dependencies pulled in by the browser-driven labs
+node_modules/
+
+# Raw market data caches. GitHub rejects anything over 100 MB and these are
+# rebuilt from the vendor feed or from the ATAS tick cache.
+*.npz
+*.dbn
+*.dbn.zst
