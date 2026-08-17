@@ -32,6 +32,7 @@ namespace ATAS.Indicators
         private const string StatusEsNoData = "ES SIN DATOS";
         private const string StatusNqFeedOk = "NQ FEED OK";
         private const string StatusEsFeedOk = "ES FEED OK";
+        private const string StatusBeforeWeekStart = "SEMANA NO INICIADA";
         private const string StatusLoading = "CARGANDO ESTRUCTURA M1";
         private const string StatusNqLeads = "NQ LIDERA";
         private const string StatusEsLeads = "ES LIDERA";
@@ -156,6 +157,21 @@ namespace ATAS.Indicators
 
         [Display(Name = "Telegram también en divergencia", Order = 33, GroupName = "Conversión ES→NQ")]
         public bool AlertOnDivergence { get; set; } = false;
+
+        // Off by default: the Telegram alert moved to the MT5 side (StructuralLeadSync),
+        // because no ATAS instrument was found to pair against the SP500 CFD. The sending
+        // code stays intact so flipping this back on is enough to restore it.
+        [Display(Name = "Enviar alertas a Telegram", Order = 39, GroupName = "Alertas")]
+        public bool EnableTelegram { get; set; } = false;
+
+        // ES has no meaningful session before the week opens, so any lead read over that
+        // stretch is noise: neither side can legitimately lead. Suppress the verdict itself,
+        // not just the Telegram alert.
+        [Display(Name = "Sin liderazgo ni Telegram hasta el inicio de semana", Order = 40, GroupName = "Alertas")]
+        public bool MuteBeforeWeekStart { get; set; } = true;
+
+        [Display(Name = "Inicio de semana ES (lunes, hora NY)", Order = 41, GroupName = "Alertas")]
+        public TimeSpan WeekStartNy { get; set; } = new TimeSpan(9, 30, 0);
 
         public NqEsStructuralSyncMonitor()
         {
@@ -544,6 +560,11 @@ namespace ATAS.Indicators
                 _displayStatus = BuildFeedStatus(nqOk, esOk);
                 _displayColor = Color.OrangeRed;
             }
+            else if (IsBeforeWeekStart(now))
+            {
+                _displayStatus = StatusBeforeWeekStart;
+                _displayColor = Color.Gold;
+            }
             else if (_nqBars.Count < MinimumCompletedCandles || _esBars.Count < MinimumCompletedCandles)
             {
                 _displayStatus = StatusLoading;
@@ -608,6 +629,7 @@ namespace ATAS.Indicators
             var isLead = report.Status == StatusNqLeads || report.Status == StatusEsLeads;
             var isDivergence = report.Status == StatusDivergence;
             var alertable = isLead || (isDivergence && AlertOnDivergence);
+            var muted = IsBeforeWeekStart(now);
             var shouldAlert = false;
             var signature = $"{report.Status}|{report.PivotKind}|{report.LeaderPivotMinute:O}|{report.LaggerPivotMinute:O}";
             lock (_sync)
@@ -617,7 +639,7 @@ namespace ATAS.Indicators
                 _displayPrices = report.Prices;
                 _displayColor = report.Color;
 
-                if (alertable && !_sentAlertSignatures.Contains(signature))
+                if (alertable && !muted && !_sentAlertSignatures.Contains(signature))
                 {
                     _sentAlertSignatures.Add(signature);
                     _sentAlertOrder.Enqueue(signature);
@@ -631,9 +653,33 @@ namespace ATAS.Indicators
                 ProduceAlert(now, report);
         }
 
+        // Silent from Sunday 00:00 NY until the ES week opens on Monday. The on-screen
+        // status keeps updating: only Telegram is held back.
+        private bool IsBeforeWeekStart(DateTime now)
+        {
+            if (!MuteBeforeWeekStart)
+                return false;
+
+            var ny = TimeZoneInfo.ConvertTimeFromUtc(
+                now.Kind == DateTimeKind.Utc ? now : now.ToUniversalTime(),
+                NewYorkTimeZone);
+
+            return ny.DayOfWeek switch
+            {
+                DayOfWeek.Sunday => true,
+                DayOfWeek.Monday => ny.TimeOfDay < WeekStartNy,
+                _ => false,
+            };
+        }
+
         private void ProduceAlert(DateTime now, Report report)
         {
+            // The CSV keeps recording regardless: only the outbound notification is gated,
+            // so local diagnostics survive with Telegram off.
             WriteReportCsv(now, "alerta", report);
+            if (!EnableTelegram)
+                return;
+
             var caption = BuildTelegramMessage(now, report);
             var screenshot = AtasMt5ComparisonScreenshot.Capture(
                 OutputFolder,
@@ -705,6 +751,14 @@ namespace ATAS.Indicators
                 status = BuildFeedStatus(nqOk, esOk);
                 detail = BuildFeedDetail(nqOk, esOk, nqAge, esAge);
                 color = Color.OrangeRed;
+            }
+            else if (IsBeforeWeekStart(now))
+            {
+                // Before the ES week opens neither side can legitimately lead, so the
+                // verdict is withheld rather than reported as a real lead.
+                status = StatusBeforeWeekStart;
+                detail = $"ES abre el lunes {WeekStartNy:hh\\:mm} NY: sin veredicto de liderazgo";
+                color = Color.Gold;
             }
             else if (!analysis.Available)
             {
