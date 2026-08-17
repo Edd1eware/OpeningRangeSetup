@@ -30,6 +30,8 @@ namespace ATAS.Indicators
 
         private const string StatusNqNoData = "NQ SIN DATOS";
         private const string StatusEsNoData = "ES SIN DATOS";
+        private const string StatusNqFeedOk = "NQ FEED OK";
+        private const string StatusEsFeedOk = "ES FEED OK";
         private const string StatusLoading = "CARGANDO ESTRUCTURA M1";
         private const string StatusNqLeads = "NQ LIDERA";
         private const string StatusEsLeads = "ES LIDERA";
@@ -534,14 +536,12 @@ namespace ATAS.Indicators
             var esAge = AgeMilliseconds(now, _lastEsPriceUtc);
             var staleMs = Math.Max(1, StaleAfterSeconds) * 1000L;
 
-            if (_nqMid <= 0 || nqAge > staleMs)
+            var nqOk = _nqMid > 0 && nqAge <= staleMs;
+            var esOk = _esMid > 0 && esAge <= staleMs;
+
+            if (!nqOk || !esOk)
             {
-                _displayStatus = StatusNqNoData;
-                _displayColor = Color.OrangeRed;
-            }
-            else if (_esMid <= 0 || esAge > staleMs)
-            {
-                _displayStatus = StatusEsNoData;
+                _displayStatus = BuildFeedStatus(nqOk, esOk);
                 _displayColor = Color.OrangeRed;
             }
             else if (_nqBars.Count < MinimumCompletedCandles || _esBars.Count < MinimumCompletedCandles)
@@ -554,6 +554,33 @@ namespace ATAS.Indicators
             if (!string.IsNullOrWhiteSpace(_lastError))
                 _displayDetail += " | " + _lastError;
             _displayPrices = BuildPricesLine(_lastScaleRatio);
+        }
+
+        // Always names BOTH feeds so a stale side is never mistaken for a total outage:
+        // "ES SIN DATOS | NQ FEED OK" tells you at a glance which half of the bridge broke.
+        private static string BuildFeedStatus(bool nqOk, bool esOk)
+        {
+            if (!nqOk && !esOk)
+                return StatusNqNoData + " | " + StatusEsNoData;
+
+            if (!nqOk)
+                return StatusNqNoData + " | " + StatusEsFeedOk;
+
+            if (!esOk)
+                return StatusEsNoData + " | " + StatusNqFeedOk;
+
+            return StatusSync;
+        }
+
+        private static string BuildFeedDetail(bool nqOk, bool esOk, long nqAge, long esAge)
+        {
+            if (!nqOk && !esOk)
+                return $"Sin movimiento NQ ({nqAge} ms) ni ES ({esAge} ms)";
+
+            if (!nqOk)
+                return $"Sin movimiento NQ: última llegada L2 hace {nqAge} ms | ES vivo ({esAge} ms)";
+
+            return $"Sin movimiento ES: puente hace {esAge} ms (¿publicador ES adjunto?) | NQ vivo ({nqAge} ms)";
         }
 
         private string BuildPricesLine(double ratio)
@@ -670,16 +697,13 @@ namespace ATAS.Indicators
             var detail = analysis.Reason;
             var color = Color.LimeGreen;
 
-            if (_nqMid <= 0 || nqAge > staleMs)
+            var nqOk = _nqMid > 0 && nqAge <= staleMs;
+            var esOk = _esMid > 0 && esAge <= staleMs;
+
+            if (!nqOk || !esOk)
             {
-                status = StatusNqNoData;
-                detail = $"Sin movimiento NQ: última llegada L2 hace {nqAge} ms";
-                color = Color.OrangeRed;
-            }
-            else if (_esMid <= 0 || esAge > staleMs)
-            {
-                status = StatusEsNoData;
-                detail = $"Sin movimiento ES: puente hace {esAge} ms (¿publicador ES adjunto?)";
+                status = BuildFeedStatus(nqOk, esOk);
+                detail = BuildFeedDetail(nqOk, esOk, nqAge, esAge);
                 color = Color.OrangeRed;
             }
             else if (!analysis.Available)
