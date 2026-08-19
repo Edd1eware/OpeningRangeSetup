@@ -40,6 +40,10 @@ namespace ATAS.Indicators
         private const string StatusLag = "DESFASE NQ/ES";
         private const string StatusSync = "EN SINCRONÍA";
 
+        private const string SessionCash = "SESION CASH";
+        private const string SessionOvernight = "SESION OVERNIGHT";
+        private const string SessionOvernightPending = "OVERNIGHT SIN MOVIMIENTO";
+
         private const string NqName = "NQ";
         private const string EsName = "ES";
 
@@ -52,8 +56,7 @@ namespace ATAS.Indicators
         private readonly SortedDictionary<DateTime, StructuralBar> _esBars = new();
         private readonly HashSet<string> _sentAlertSignatures = new(StringComparer.Ordinal);
         private readonly Queue<string> _sentAlertOrder = new();
-        private readonly RenderFont _titleFont = new("Arial", 14);
-        private readonly RenderFont _detailFont = new("Arial", 10);
+        private const float DefaultSessionFontSize = 28f;
         private readonly LiquidityBurstDetector _liquidityBurstDetector;
 
         private TimeSpan _timerPeriod;
@@ -82,6 +85,12 @@ namespace ATAS.Indicators
         private string _displayPrices = "";
         private Color _displayColor = Color.Gold;
         private string _lastError = "";
+        private string _sessionLabel = "";
+        private Color _sessionColor = Color.Gold;
+        private RenderFont _sessionFont = new("Arial", DefaultSessionFontSize);
+        private float _sessionFontSizeInUse = DefaultSessionFontSize;
+        private DateTime _overnightMoveDay = DateTime.MinValue;
+        private DateTime _lastSessionCandleMinute = DateTime.MinValue;
 
         [Display(Name = "Archivo precio ES", Order = 1, GroupName = "Conexión")]
         public string EsPriceFile { get; set; } =
@@ -173,6 +182,38 @@ namespace ATAS.Indicators
         [Display(Name = "Inicio de semana ES (lunes, hora NY)", Order = 41, GroupName = "Alertas")]
         public TimeSpan WeekStartNy { get; set; } = new TimeSpan(9, 30, 0);
 
+        [Display(Name = "Apertura cash (hora NY)", Order = 50, GroupName = "Sesión")]
+        public TimeSpan CashOpenNy { get; set; } = new TimeSpan(9, 30, 0);
+
+        // Only the earliest instant an overnight candle can count: the label does NOT
+        // flip at this clock time, it waits for the first M1 candle that actually moved.
+        [Display(Name = "Cierre cash / inicio overnight (hora NY)", Order = 51, GroupName = "Sesión")]
+        public TimeSpan CashCloseNy { get; set; } = new TimeSpan(16, 0, 0);
+
+        [Range(0.0, 100.0)]
+        [Display(Name = "Rango mínimo de vela para contar movimiento (puntos)", Order = 52, GroupName = "Sesión")]
+        public double SessionMoveMinimumRange { get; set; } = 0.0;
+
+        [Range(8.0, 72.0)]
+        [Display(Name = "Tamaño de fuente de la sesión", Order = 53, GroupName = "Sesión")]
+        public float SessionFontSize { get; set; } = DefaultSessionFontSize;
+
+        // Where the text starts, measured from the left edge of the panel. This clears the
+        // cursor-counter box, whose width does not depend on how wide the chart is: an
+        // offset from the center would drift over the box every time the window resizes.
+        // 0 falls back to centering plus SessionOffsetX.
+        [Range(0, 2000)]
+        [Display(Name = "Inicio del texto (px desde el borde izquierdo, 0 = centrado)", Order = 54, GroupName = "Sesión")]
+        public int SessionStartX { get; set; } = 590;
+
+        [Range(-1200, 1200)]
+        [Display(Name = "Desplazamiento horizontal si va centrado (px)", Order = 56, GroupName = "Sesión")]
+        public int SessionOffsetX { get; set; } = 0;
+
+        [Range(0, 400)]
+        [Display(Name = "Desplazamiento vertical (px desde arriba)", Order = 55, GroupName = "Sesión")]
+        public int SessionOffsetY { get; set; } = 12;
+
         public NqEsStructuralSyncMonitor()
         {
             Name = "NQ vs ES Structural Sync";
@@ -256,6 +297,7 @@ namespace ATAS.Indicators
                 {
                     _nqBars[minute] = structuralBar;
                     TrimBars(_nqBars, 360);
+                    TrackOvernightCandle(structuralBar);
                 }
             }
             catch (Exception ex)
@@ -298,36 +340,55 @@ namespace ATAS.Indicators
                 return;
 
             var region = Container.Region;
-            string status;
-            string detail;
-            string prices;
-            Color color;
+            string session;
+            Color sessionColor;
 
             lock (_sync)
             {
-                status = _displayStatus;
-                detail = _displayDetail;
-                prices = _displayPrices;
-                color = _displayColor;
+                session = _sessionLabel;
+                sessionColor = _sessionColor;
             }
 
-            // Center the synchronization block horizontally at the top of the chart.
-            // The indicator legend is left aligned, so a centered block does not
-            // overlap indicator names or the selected-candle OHLC.
-            var title = "ESTADO NQ/ES | " + status;
-            var y = region.Top + 12;
-            DrawCentered(context, title, _titleFont, color, region, y);
-            DrawCentered(context, detail, _detailFont, Color.White, region, y + 24);
-            DrawCentered(context, prices, _detailFont, Color.LightGray, region, y + 43);
+            // Only the session label is drawn. The feed status, the M1/age line and the
+            // price/ratio line still run and still reach the CSV and the alerts: they were
+            // dropped from the chart, not from the monitor.
+            // Rebuilt only when the setting actually changes: allocating a font on every
+            // frame would churn GDI handles at the timer's redraw rate.
+            var size = Math.Clamp(SessionFontSize, 8f, 72f);
+            if (Math.Abs(size - _sessionFontSizeInUse) > 0.01f)
+            {
+                _sessionFont = new RenderFont("Arial", size);
+                _sessionFontSizeInUse = size;
+            }
+
+            if (string.IsNullOrEmpty(session))
+                return;
+
+            var y = region.Top + SessionOffsetY;
+
+            if (SessionStartX > 0)
+            {
+                context.DrawString(session, _sessionFont, sessionColor, region.Left + SessionStartX, y);
+                return;
+            }
+
+            DrawCentered(context, session, _sessionFont, sessionColor, region, y, SessionOffsetX);
         }
 
-        private static void DrawCentered(RenderContext context, string text, RenderFont font, Color color, Rectangle region, int y)
+        private static void DrawCentered(
+            RenderContext context,
+            string text,
+            RenderFont font,
+            Color color,
+            Rectangle region,
+            int y,
+            int offsetX = 0)
         {
             if (string.IsNullOrEmpty(text))
                 return;
 
             var width = context.MeasureString(text, font).Width;
-            var x = region.Left + ((region.Width - width) / 2);
+            var x = region.Left + ((region.Width - width) / 2) + offsetX;
             if (x < region.Left)
                 x = region.Left;
 
@@ -571,6 +632,8 @@ namespace ATAS.Indicators
                 _displayColor = Color.Gold;
             }
 
+            UpdateSessionLabel(now);
+
             _displayDetail = $"M1 NQ={_nqBars.Count} ES={_esBars.Count} | edad NQ={nqAge} ms ES={esAge} ms";
             if (!string.IsNullOrWhiteSpace(_lastError))
                 _displayDetail += " | " + _lastError;
@@ -651,6 +714,69 @@ namespace ATAS.Indicators
 
             if (shouldAlert)
                 ProduceAlert(now, report);
+        }
+
+        // Marks the overnight session as started only when a real M1 candle printed
+        // after the cash close. The clock alone never flips the label: a candle whose
+        // high equals its low is a frozen feed, not a session, so it does not count.
+        private void TrackOvernightCandle(StructuralBar bar)
+        {
+            // Older bars only arrive on history reloads and must not rewind the state.
+            // The current minute is re-evaluated on every update because its first tick
+            // always has high == low: the movement only shows up on later updates.
+            if (bar.UtcMinute < _lastSessionCandleMinute)
+                return;
+
+            _lastSessionCandleMinute = bar.UtcMinute;
+
+            var ny = TimeZoneInfo.ConvertTimeFromUtc(bar.UtcMinute, NewYorkTimeZone);
+            if (IsCashWindow(ny))
+                return;
+
+            var range = bar.High - bar.Low;
+            if (range <= 0 || range < SessionMoveMinimumRange)
+                return;
+
+            _overnightMoveDay = OvernightDayKey(ny);
+        }
+
+        private bool IsCashWindow(DateTime ny)
+        {
+            return ny.DayOfWeek != DayOfWeek.Saturday
+                && ny.DayOfWeek != DayOfWeek.Sunday
+                && ny.TimeOfDay >= CashOpenNy
+                && ny.TimeOfDay < CashCloseNy;
+        }
+
+        // One overnight stretch spans two calendar days, so both halves must resolve to
+        // the same key: everything before the cash open belongs to the previous day.
+        private DateTime OvernightDayKey(DateTime ny)
+        {
+            return ny.TimeOfDay < CashOpenNy ? ny.Date.AddDays(-1) : ny.Date;
+        }
+
+        private void UpdateSessionLabel(DateTime now)
+        {
+            var ny = TimeZoneInfo.ConvertTimeFromUtc(
+                now.Kind == DateTimeKind.Utc ? now : now.ToUniversalTime(),
+                NewYorkTimeZone);
+
+            if (IsCashWindow(ny))
+            {
+                _sessionLabel = SessionCash;
+                _sessionColor = Color.Red;
+                return;
+            }
+
+            if (_overnightMoveDay == OvernightDayKey(ny))
+            {
+                _sessionLabel = SessionOvernight;
+                _sessionColor = Color.DeepSkyBlue;
+                return;
+            }
+
+            _sessionLabel = SessionOvernightPending;
+            _sessionColor = Color.Gold;
         }
 
         // Silent from Sunday 00:00 NY until the ES week opens on Monday. The on-screen

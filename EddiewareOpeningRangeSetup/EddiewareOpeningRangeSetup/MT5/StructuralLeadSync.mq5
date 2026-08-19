@@ -20,6 +20,8 @@
 #property indicator_plots 0
 
 input string           SymbolB              = "SPY.NYSE-24"; // Segundo simbolo (A = el del grafico)
+input string           DisplayNameA         = "NQ";        // Nombre a mostrar del simbolo del grafico
+input string           DisplayNameB         = "SP500";     // Nombre a mostrar del segundo simbolo
 input ENUM_TIMEFRAMES  WorkTimeframe        = PERIOD_M1;  // Timeframe de analisis
 input int              HistoryBars          = 240;        // Velas de historia a leer
 input int              PivotStrength        = 2;          // Fuerza del pivote (velas a cada lado)
@@ -46,11 +48,15 @@ input int              MinFontSize          = 6;          // Fuente minima al en
 input bool             EnableTelegram       = true;       // Avisar por Telegram al detectar desfase
 input string           CredentialsFile      = "telegram_credentials.txt"; // En Common\Files
 input int              TelegramCooldownSecs = 300;         // Minimo entre avisos
+input bool             SendScreenshot       = true;        // Adjuntar captura del grafico
+input int              ScreenshotWidth      = 0;           // 0 = ancho actual del grafico
+input int              ScreenshotHeight     = 0;           // 0 = alto actual del grafico
 
 #define PREFIX  "SLS_"
 #define LBL_MAIN   PREFIX "main"
 #define LBL_DETAIL PREFIX "detail"
 #define LBL_DATA   PREFIX "data"
+#define SCREENSHOT_FILE "StructuralLeadSync_shot.png"
 
 string symbol_a = "";
 
@@ -130,11 +136,11 @@ void Evaluate()
    if(!a_ok || !b_ok)
    {
       string status = "";
-      if(!a_ok && !b_ok)      status = symbol_a + " SIN DATOS | " + SymbolB + " SIN DATOS";
-      else if(!a_ok)          status = symbol_a + " SIN DATOS | " + SymbolB + " FEED OK";
-      else                    status = SymbolB  + " SIN DATOS | " + symbol_a + " FEED OK";
+      if(!a_ok && !b_ok)      status = NameA() + " SIN DATOS | " + NameB() + " SIN DATOS";
+      else if(!a_ok)          status = NameA() + " SIN DATOS | " + NameB() + " FEED OK";
+      else                    status = NameB() + " SIN DATOS | " + NameA() + " FEED OK";
 
-      Show(status, "Ultimo tick: " + symbol_a + "=" + AgeText(symbol_a) + " | " + SymbolB + "=" + AgeText(SymbolB),
+      Show(status, "Ultimo tick: " + NameA() + "=" + AgeText(symbol_a) + " | " + NameB() + "=" + AgeText(SymbolB),
            DataLine(got_a, got_b), ProblemColor);
       return;
    }
@@ -152,7 +158,7 @@ void Evaluate()
    {
       Show("SEMANA NO INICIADA",
            StringFormat("%s abre lunes %02d:%02d NY: sin veredicto de liderazgo",
-                        SymbolB, WeekStartHourNy, WeekStartMinuteNy),
+                        NameB(), WeekStartHourNy, WeekStartMinuteNy),
            DataLine(got_a, got_b), WaitColor);
       return;
    }
@@ -161,7 +167,7 @@ void Evaluate()
    int      kind_a  = 0;   // +1 = maximo, -1 = minimo
    if(!FindLastPivot(a, got_a, pivot_a, kind_a))
    {
-      Show("SIN PIVOTE CONFIRMADO", "No hay swing >= " + DoubleToString(MinPivotSwingAtr, 1) + " ATR en " + symbol_a,
+      Show("SIN PIVOTE CONFIRMADO", "No hay swing >= " + DoubleToString(MinPivotSwingAtr, 1) + " ATR en " + NameA(),
            DataLine(got_a, got_b), WaitColor);
       return;
    }
@@ -169,12 +175,17 @@ void Evaluate()
    datetime pivot_b = 0;
    if(!FindPairedPivot(b, got_b, kind_a, pivot_a, MaxLeadCandles, pivot_b))
    {
-      // No hay swing equivalente cerca: las dos estructuras no se corresponden.
-      Show("ESTRUCTURAS DESACOPLADAS",
-           StringFormat("%s marco pivote %s a las %s y %s no tiene uno equivalente en +-%d velas",
-                        symbol_a, KindText(kind_a), TimeToString(pivot_a, TIME_MINUTES),
-                        SymbolB, MaxLeadCandles),
-           DataLine(got_a, got_b), ProblemColor);
+      // Uno marco estructura y el otro no la acompano: el que la imprimio va
+      // adelante. El detalle aclara que el seguimiento todavia no ocurre, para
+      // no confundirlo con un desfase ya medido entre dos pivotes reales.
+      Show(NameA() + " LIDERA",
+           StringFormat("Pivote %s en %s a las %s; %s aun no marca equivalente en +-%d velas",
+                        KindText(kind_a), NameA(), TimeToString(pivot_a, TIME_MINUTES),
+                        NameB(), MaxLeadCandles),
+           DataLine(got_a, got_b), LeadColor);
+
+      MaybeNotify(NameA() + " LIDERA", "Sin seguimiento de " + NameB(),
+                  DataLine(got_a, got_b), pivot_a, 0);
       return;
    }
 
@@ -190,16 +201,16 @@ void Evaluate()
 
    if(lag >= MinLeadCandles)
    {
-      status = symbol_a + " LIDERA";
+      status = NameA() + " LIDERA";
       detail = StringFormat("Pivote %s: %s adelanta %d velas a %s",
-                            KindText(kind_a), symbol_a, lag, SymbolB);
+                            KindText(kind_a), NameA(), lag, NameB());
       paint  = LeadColor;
    }
    else if(lag <= -MinLeadCandles)
    {
-      status = SymbolB + " LIDERA";
+      status = NameB() + " LIDERA";
       detail = StringFormat("Pivote %s: %s adelanta %d velas a %s",
-                            KindText(kind_a), SymbolB, -lag, symbol_a);
+                            KindText(kind_a), NameB(), -lag, NameA());
       paint  = LeadColor;
    }
    else
@@ -211,15 +222,16 @@ void Evaluate()
    }
 
    string data = StringFormat("%s pivote %s  |  %s pivote %s  |  %s",
-                              symbol_a, TimeToString(pivot_a, TIME_MINUTES),
-                              SymbolB,  TimeToString(pivot_b, TIME_MINUTES),
+                              NameA(), TimeToString(pivot_a, TIME_MINUTES),
+                              NameB(), TimeToString(pivot_b, TIME_MINUTES),
                               DataLine(got_a, got_b));
 
    Show(status, detail, data, paint);
 
    // Solo el desfase (liderazgo) se avisa: sincronia y estados de espera no.
+   // Este es el caso con desfase medido entre dos pivotes, asi que lleva captura.
    if(MathAbs(lag) >= MinLeadCandles)
-      MaybeNotify(status, detail, data, pivot_a, pivot_b);
+      MaybeNotify(status, detail, data, pivot_a, pivot_b, true);
 }
 
 //+------------------------------------------------------------------+
@@ -389,15 +401,22 @@ bool IsBeforeWeekStart()
 string KindText(const int kind) { return kind > 0 ? "SUPERIOR" : "INFERIOR"; }
 
 //+------------------------------------------------------------------+
+//| Nombres para pantalla: el ticker del broker (USTEC, SPY.NYSE-24)   |
+//| no es como el usuario piensa los instrumentos (NQ, SP500).         |
+//+------------------------------------------------------------------+
+string NameA() { return StringLen(DisplayNameA) > 0 ? DisplayNameA : symbol_a; }
+string NameB() { return StringLen(DisplayNameB) > 0 ? DisplayNameB : SymbolB;  }
+
+//+------------------------------------------------------------------+
 string DataLine(const int got_a, const int got_b)
 {
-   return StringFormat("velas %s=%d %s=%d", symbol_a, got_a, SymbolB, got_b);
+   return StringFormat("velas %s=%d %s=%d", NameA(), got_a, NameB(), got_b);
 }
 
 //+------------------------------------------------------------------+
 void Show(const string status, const string detail, const string data, const color paint)
 {
-   string main = "ESTADO " + symbol_a + "/" + SymbolB + " | " + status;
+   string main = "ESTADO " + NameA() + "/" + NameB() + " | " + status;
 
    // En mosaico el grafico es angosto y el texto se sale o se encima con otros
    // indicadores. Se busca el mayor recorte de fuente con el que las TRES lineas
@@ -424,7 +443,7 @@ void Show(const string status, const string detail, const string data, const col
 //| solo que el timer haya vuelto a correr.                            |
 //+------------------------------------------------------------------+
 void MaybeNotify(const string status, const string detail, const string data,
-                 const datetime pivot_a, const datetime pivot_b)
+                 const datetime pivot_a, const datetime pivot_b, const bool with_photo = false)
 {
    if(!EnableTelegram)
       return;
@@ -449,14 +468,109 @@ void MaybeNotify(const string status, const string detail, const string data,
 
    string text = StringFormat("%s\n%s\n%s\n%s %s",
                               status, detail, data,
-                              symbol_a, TimeToString(TimeCurrent(), TIME_DATE | TIME_MINUTES));
+                              NameA(), TimeToString(TimeCurrent(), TIME_DATE | TIME_MINUTES));
 
-   if(SendTelegram(token, chat_id, text))
+   // La captura solo acompana un desfase ya medido entre dos pivotes reales.
+   // Si falla, el aviso igual sale como texto: perder el mensaje por no poder
+   // guardar un PNG seria peor que mandarlo sin imagen.
+   bool sent = false;
+   if(with_photo && SendScreenshot && CaptureChart())
+      sent = SendTelegramPhoto(token, chat_id, text, SCREENSHOT_FILE);
+
+   if(!sent)
+      sent = SendTelegram(token, chat_id, text);
+
+   if(sent)
    {
       last_alert_signature = signature;
       last_alert_time      = TimeCurrent();
       Print("StructuralLeadSync: aviso enviado -> ", status);
    }
+}
+
+//+------------------------------------------------------------------+
+bool CaptureChart()
+{
+   int w = ScreenshotWidth  > 0 ? ScreenshotWidth  : (int)ChartGetInteger(0, CHART_WIDTH_IN_PIXELS);
+   int h = ScreenshotHeight > 0 ? ScreenshotHeight : (int)ChartGetInteger(0, CHART_HEIGHT_IN_PIXELS);
+   if(w <= 0 || h <= 0)
+      return false;
+
+   if(!ChartScreenShot(0, SCREENSHOT_FILE, w, h, ALIGN_RIGHT))
+   {
+      Print("StructuralLeadSync: ChartScreenShot fallo. Error=", GetLastError());
+      return false;
+   }
+   return true;
+}
+
+//+------------------------------------------------------------------+
+//| sendPhoto exige multipart/form-data, que MQL5 no arma solo: hay    |
+//| que concatenar cabecera de texto + bytes del PNG + cierre.         |
+//+------------------------------------------------------------------+
+bool SendTelegramPhoto(const string token, const string chat_id,
+                       const string caption, const string file_name)
+{
+   uchar image[];
+   int fh = FileOpen(file_name, FILE_READ | FILE_BIN);
+   if(fh == INVALID_HANDLE)
+   {
+      Print("StructuralLeadSync: no se pudo abrir la captura. Error=", GetLastError());
+      return false;
+   }
+   int image_size = (int)FileSize(fh);
+   if(image_size <= 0)
+   {
+      FileClose(fh);
+      return false;
+   }
+   ArrayResize(image, image_size);
+   FileReadArray(fh, image, 0, image_size);
+   FileClose(fh);
+
+   string boundary = "----MQL5Boundary" + IntegerToString(GetTickCount());
+
+   string head = "--" + boundary + "\r\n"
+               + "Content-Disposition: form-data; name=\"chat_id\"\r\n\r\n" + chat_id + "\r\n"
+               + "--" + boundary + "\r\n"
+               + "Content-Disposition: form-data; name=\"caption\"\r\n\r\n" + caption + "\r\n"
+               + "--" + boundary + "\r\n"
+               + "Content-Disposition: form-data; name=\"photo\"; filename=\"chart.png\"\r\n"
+               + "Content-Type: image/png\r\n\r\n";
+   string tail = "\r\n--" + boundary + "--\r\n";
+
+   uchar head_b[], tail_b[], body[];
+   int head_n = StringToCharArray(head, head_b, 0, WHOLE_ARRAY, CP_UTF8) - 1;  // sin el nulo
+   int tail_n = StringToCharArray(tail, tail_b, 0, WHOLE_ARRAY, CP_UTF8) - 1;
+   if(head_n < 0 || tail_n < 0)
+      return false;
+
+   ArrayResize(body, head_n + image_size + tail_n);
+   ArrayCopy(body, head_b,  0,                    0, head_n);
+   ArrayCopy(body, image,   head_n,               0, image_size);
+   ArrayCopy(body, tail_b,  head_n + image_size,  0, tail_n);
+
+   uchar result[];
+   string result_headers;
+   ResetLastError();
+   int code = WebRequest("POST", "https://api.telegram.org/bot" + token + "/sendPhoto",
+                         "Content-Type: multipart/form-data; boundary=" + boundary + "\r\n",
+                         10000, body, result, result_headers);
+
+   if(code == -1)
+   {
+      Print("StructuralLeadSync: WebRequest (foto) fallo. Error=", GetLastError(),
+            " (habilita https://api.telegram.org en Herramientas > Opciones > Asesores Expertos)");
+      return false;
+   }
+
+   if(code != 200)
+   {
+      Print("StructuralLeadSync: Telegram sendPhoto respondio HTTP ", code, " -> ",
+            CharArrayToString(result, 0, WHOLE_ARRAY, CP_UTF8));
+      return false;
+   }
+   return true;
 }
 
 //+------------------------------------------------------------------+
