@@ -41,6 +41,9 @@ namespace ATAS.Indicators
         private const string StatusSync = "EN SINCRONÍA";
 
         private const string SessionCash = "SESION CASH";
+        private const string SessionPostCash = "POST CASH";
+        private const string SessionCmeHalt = "PAUSA CME";
+        private const string SessionClosed = "MERCADO CERRADO";
         private const string SessionOvernight = "SESION OVERNIGHT";
         private const string SessionOvernightPending = "OVERNIGHT SIN MOVIMIENTO";
 
@@ -89,7 +92,7 @@ namespace ATAS.Indicators
         private Color _sessionColor = Color.Gold;
         private RenderFont _sessionFont = new("Arial", DefaultSessionFontSize);
         private float _sessionFontSizeInUse = DefaultSessionFontSize;
-        private DateTime _overnightMoveDay = DateTime.MinValue;
+        private DateTime _lastOvernightMoveMinute = DateTime.MinValue;
         private DateTime _lastSessionCandleMinute = DateTime.MinValue;
 
         [Display(Name = "Archivo precio ES", Order = 1, GroupName = "Conexión")]
@@ -185,17 +188,35 @@ namespace ATAS.Indicators
         [Display(Name = "Apertura cash (hora NY)", Order = 50, GroupName = "Sesión")]
         public TimeSpan CashOpenNy { get; set; } = new TimeSpan(9, 30, 0);
 
-        // Only the earliest instant an overnight candle can count: the label does NOT
-        // flip at this clock time, it waits for the first M1 candle that actually moved.
-        [Display(Name = "Cierre cash / inicio overnight (hora NY)", Order = 51, GroupName = "Sesión")]
+        // Cash close only ends the RTH label: Globex keeps trading until the CME halt,
+        // so this is NOT the start of the overnight session.
+        [Display(Name = "Cierre cash (hora NY)", Order = 51, GroupName = "Sesión")]
         public TimeSpan CashCloseNy { get; set; } = new TimeSpan(16, 0, 0);
+
+        // Daily CME maintenance halt: no candles print between this time and the Globex
+        // reopen, and on Friday it becomes the weekend break.
+        [Display(Name = "Pausa CME / cierre diario (hora NY)", Order = 58, GroupName = "Sesión")]
+        public TimeSpan CmeHaltStartNy { get; set; } = new TimeSpan(17, 0, 0);
+
+        // Earliest instant an overnight candle can count: the label does NOT flip at this
+        // clock time, it waits for the first M1 candle that actually moved.
+        [Display(Name = "Inicio overnight / Globex (hora NY)", Order = 59, GroupName = "Sesión")]
+        public TimeSpan OvernightOpenNy { get; set; } = new TimeSpan(18, 0, 0);
 
         [Range(0.0, 100.0)]
         [Display(Name = "Rango mínimo de vela para contar movimiento (puntos)", Order = 52, GroupName = "Sesión")]
         public double SessionMoveMinimumRange { get; set; } = 0.0;
 
+        // How stale the last moving candle may be before the label falls back to
+        // "sin movimiento". The CME halt runs 17:00-18:00 NY and prints no candles at
+        // all, so without this window the label would stay on the movement recorded
+        // just before the halt.
+        [Range(1, 120)]
+        [Display(Name = "Minutos sin movimiento para volver a 'sin movimiento'", Order = 53, GroupName = "Sesión")]
+        public int SessionMoveLookbackMinutes { get; set; } = 3;
+
         [Range(8.0, 72.0)]
-        [Display(Name = "Tamaño de fuente de la sesión", Order = 53, GroupName = "Sesión")]
+        [Display(Name = "Tamaño de fuente de la sesión", Order = 57, GroupName = "Sesión")]
         public float SessionFontSize { get; set; } = DefaultSessionFontSize;
 
         // Where the text starts, measured from the left edge of the panel. This clears the
@@ -716,9 +737,9 @@ namespace ATAS.Indicators
                 ProduceAlert(now, report);
         }
 
-        // Marks the overnight session as started only when a real M1 candle printed
-        // after the cash close. The clock alone never flips the label: a candle whose
-        // high equals its low is a frozen feed, not a session, so it does not count.
+        // Records the last minute an outside-cash candle actually moved. The clock alone
+        // never flips the label: a candle whose high equals its low is a frozen feed, not
+        // a session, so it does not count.
         private void TrackOvernightCandle(StructuralBar bar)
         {
             // Older bars only arrive on history reloads and must not rewind the state.
@@ -730,45 +751,101 @@ namespace ATAS.Indicators
             _lastSessionCandleMinute = bar.UtcMinute;
 
             var ny = TimeZoneInfo.ConvertTimeFromUtc(bar.UtcMinute, NewYorkTimeZone);
-            if (IsCashWindow(ny))
+            if (ResolveSessionPhase(ny) != SessionPhase.Overnight)
                 return;
 
             var range = bar.High - bar.Low;
             if (range <= 0 || range < SessionMoveMinimumRange)
                 return;
 
-            _overnightMoveDay = OvernightDayKey(ny);
+            _lastOvernightMoveMinute = bar.UtcMinute;
         }
 
-        private bool IsCashWindow(DateTime ny)
+        private enum SessionPhase
         {
-            return ny.DayOfWeek != DayOfWeek.Saturday
-                && ny.DayOfWeek != DayOfWeek.Sunday
-                && ny.TimeOfDay >= CashOpenNy
-                && ny.TimeOfDay < CashCloseNy;
+            Cash,
+            PostCash,
+            Halt,
+            Overnight,
+            Closed,
         }
 
-        // One overnight stretch spans two calendar days, so both halves must resolve to
-        // the same key: everything before the cash open belongs to the previous day.
-        private DateTime OvernightDayKey(DateTime ny)
+        // CME NQ week: Sunday 18:00 NY through Friday 17:00 NY, with a daily halt from
+        // 17:00 to 18:00. Cash close (16:00) does not open the overnight session: the
+        // 16:00-17:00 stretch is still the regular Globex day.
+        private SessionPhase ResolveSessionPhase(DateTime ny)
         {
-            return ny.TimeOfDay < CashOpenNy ? ny.Date.AddDays(-1) : ny.Date;
+            // Guard against a misconfigured order of the three boundaries: a halt set
+            // before the cash close would otherwise swallow the post-cash window.
+            var cashClose = CashCloseNy;
+            var haltStart = CmeHaltStartNy < cashClose ? cashClose : CmeHaltStartNy;
+            var globexOpen = OvernightOpenNy < haltStart ? haltStart : OvernightOpenNy;
+            var t = ny.TimeOfDay;
+
+            switch (ny.DayOfWeek)
+            {
+                case DayOfWeek.Saturday:
+                    return SessionPhase.Closed;
+
+                case DayOfWeek.Sunday:
+                    return t >= globexOpen ? SessionPhase.Overnight : SessionPhase.Closed;
+
+                case DayOfWeek.Friday:
+                    if (t < CashOpenNy)
+                        return SessionPhase.Overnight;
+                    if (t < cashClose)
+                        return SessionPhase.Cash;
+                    if (t < haltStart)
+                        return SessionPhase.PostCash;
+                    return SessionPhase.Closed;     // weekend break, no Globex reopen
+
+                default:
+                    if (t < CashOpenNy)
+                        return SessionPhase.Overnight;   // carried from the previous evening
+                    if (t < cashClose)
+                        return SessionPhase.Cash;
+                    if (t < haltStart)
+                        return SessionPhase.PostCash;
+                    if (t < globexOpen)
+                        return SessionPhase.Halt;
+                    return SessionPhase.Overnight;
+            }
         }
 
         private void UpdateSessionLabel(DateTime now)
         {
-            var ny = TimeZoneInfo.ConvertTimeFromUtc(
-                now.Kind == DateTimeKind.Utc ? now : now.ToUniversalTime(),
-                NewYorkTimeZone);
+            var utc = now.Kind == DateTimeKind.Utc ? now : now.ToUniversalTime();
+            var ny = TimeZoneInfo.ConvertTimeFromUtc(utc, NewYorkTimeZone);
 
-            if (IsCashWindow(ny))
+            switch (ResolveSessionPhase(ny))
             {
-                _sessionLabel = SessionCash;
-                _sessionColor = Color.Red;
-                return;
+                case SessionPhase.Cash:
+                    _sessionLabel = SessionCash;
+                    _sessionColor = Color.Red;
+                    return;
+
+                case SessionPhase.PostCash:
+                    _sessionLabel = SessionPostCash;
+                    _sessionColor = Color.Orange;
+                    return;
+
+                case SessionPhase.Halt:
+                    _sessionLabel = SessionCmeHalt;
+                    _sessionColor = Color.DimGray;
+                    return;
+
+                case SessionPhase.Closed:
+                    _sessionLabel = SessionClosed;
+                    _sessionColor = Color.Gray;
+                    return;
             }
 
-            if (_overnightMoveDay == OvernightDayKey(ny))
+            // Sliding window instead of a per-night latch: the CME halt (17:00-18:00 NY)
+            // and any dead feed print no candles at all, so the movement recorded before
+            // the gap must expire on its own or the label stays lit over a frozen chart.
+            var lookback = TimeSpan.FromMinutes(Math.Clamp(SessionMoveLookbackMinutes, 1, 120));
+            var elapsed = FloorMinute(utc) - _lastOvernightMoveMinute;
+            if (_lastOvernightMoveMinute != DateTime.MinValue && elapsed <= lookback)
             {
                 _sessionLabel = SessionOvernight;
                 _sessionColor = Color.DeepSkyBlue;
