@@ -15,6 +15,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- ATAS ships System.Drawing.Common 8.0.0.0 in its own folder, and this
+         assembly is NOT part of the shared framework. Referencing 10.x makes
+         the plugin unloadable: ATAS logs "Could not load assembly
+         EddiewareOpeningRangeSetup" and skips every type in this DLL, so
+         nothing gets drawn on the chart. Keep this aligned with the version
+         shipped by the installed ATAS platform. -->
     <PackageReference Include="System.Drawing.Common" Version="10.0.7" />
   </ItemGroup>
 
