@@ -103,6 +103,9 @@ namespace ATAS.Indicators
         [DisplayName("Show Entry SL TP")]
         public bool ShowEntrySlTp { get; set; } = true;
 
+        [DisplayName("Time Over Label Offset Ticks")]
+        public decimal TimeOverLabelOffsetTicks { get; set; } = 35;
+
         [DisplayName("Min Normal Speed Ticks/Sec")]
         public decimal MinNormalSpeedTicksPerSecond { get; set; } = 2;
 
@@ -228,7 +231,7 @@ namespace ATAS.Indicators
                 }
             }
 
-            if (TryRegisterTimeOver(candle))
+            if (TryDrawTimeOver(bar, candle))
                 return;
 
             if (!_orReady)
@@ -770,7 +773,7 @@ namespace ATAS.Indicators
                 true);
         }
 
-        private bool TryRegisterTimeOver(dynamic candle)
+        private bool TryDrawTimeOver(int bar, dynamic candle)
         {
             var time = EffectiveTimeOfDay(candle.Time);
 
@@ -782,7 +785,26 @@ namespace ATAS.Indicators
             }
 
             _timeOverDrawn = true;
+            DrawTimeOverLabel(bar, candle);
             return true;
+        }
+
+        private void DrawTimeOverLabel(int bar, dynamic candle)
+        {
+            AddText(
+                $"EW_TIME_OVER_{_currentDate:yyyyMMdd}_{bar}",
+                "TIME OVER",
+                true,
+                bar,
+                candle.High + GetTickSize() * TimeOverLabelOffsetTicks,
+                0,
+                0,
+                Color.White,
+                Color.Blue,
+                Color.Blue,
+                14,
+                DrawingText.TextAlign.Center,
+                true);
         }
 
         private bool IsOpeningCandle(dynamic candle)
