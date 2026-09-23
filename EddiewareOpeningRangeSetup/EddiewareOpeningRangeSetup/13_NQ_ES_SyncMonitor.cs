@@ -60,7 +60,6 @@ namespace ATAS.Indicators
         private readonly HashSet<string> _sentAlertSignatures = new(StringComparer.Ordinal);
         private readonly Queue<string> _sentAlertOrder = new();
         private const float DefaultSessionFontSize = 28f;
-        private readonly LiquidityBurstDetector _liquidityBurstDetector;
 
         private TimeSpan _timerPeriod;
         private bool _timerSubscribed;
@@ -151,10 +150,6 @@ namespace ATAS.Indicators
         [Display(Name = "Lectura del puente (ms)", Order = 20, GroupName = "Estructura M1")]
         public int SampleIntervalMilliseconds { get; set; } = 100;
 
-        [Range(1, 60)]
-        [Display(Name = "Vigencia Liquidity Burst (s)", Order = 21, GroupName = "Estructura M1")]
-        public int LiquidityBurstMaxAgeSeconds { get; set; } = 10;
-
         [Range(20, 240)]
         [Display(Name = "Ventana de escala NQ/ES (velas)", Order = 30, GroupName = "Conversión ES→NQ")]
         public int ScaleWindowCandles { get; set; } = 60;
@@ -241,27 +236,6 @@ namespace ATAS.Indicators
             DenyToChangePanel = true;
             EnableCustomDrawing = true;
             SubscribeToDrawingEvents(DrawingLayouts.LatestBar);
-
-            // Run the causal one-second tape detector as a child so the Telegram
-            // alert does not depend on a second indicator being added manually.
-            _liquidityBurstDetector = new LiquidityBurstDetector
-            {
-                ExportCsv = false,
-                GateByTargetDate = false,
-                UseCandleFallback = false
-            };
-            Add(_liquidityBurstDetector);
-
-            // The detector exists only to enrich the alert, so keep it out of the
-            // chart legend: hiding every series drops its entry, and the tape
-            // callbacks it depends on keep firing regardless of what is drawn.
-            _liquidityBurstDetector.ShowDescription = false;
-            foreach (var series in _liquidityBurstDetector.DataSeries)
-            {
-                series.IsHidden = true;
-                series.ShowTooltip = false;
-                series.ShowNameOnMouseOver = false;
-            }
         }
 
         protected override void OnInitialize()
@@ -927,21 +901,6 @@ namespace ATAS.Indicators
             var expectedLagger = analysis.LeaderName == NqName
                 ? EsName
                 : analysis.LeaderName == EsName ? NqName : "";
-            var nowNy = TimeZoneInfo.ConvertTimeFromUtc(
-                now.Kind == DateTimeKind.Utc ? now : now.ToUniversalTime(),
-                NewYorkTimeZone);
-            var burst = LiquidityBurstSignalBus.GetLatest(
-                nowNy.Date,
-                now,
-                Math.Clamp(LiquidityBurstMaxAgeSeconds, 1, 60));
-            var expectedBurstSide = expectedSide == "LONG"
-                ? "SELL"
-                : expectedSide == "SHORT" ? "BUY" : "";
-            var burstAlignment = burst == null || string.IsNullOrWhiteSpace(expectedBurstSide)
-                ? "NO DISPONIBLE"
-                : string.Equals(burst.Side, expectedBurstSide, StringComparison.OrdinalIgnoreCase)
-                    ? "APOYA EL ESCENARIO"
-                    : "CONTRADICE EL ESCENARIO";
             var status = StatusSync;
             var detail = analysis.Reason;
             var color = Color.LimeGreen;
@@ -1039,15 +998,7 @@ namespace ATAS.Indicators
                 analysis.BestLagCorrelation,
                 analysis.SpreadPoints,
                 analysis.SpreadZ,
-                analysis.SpreadAtr,
-                burst?.BurstId ?? "",
-                burst?.Side ?? "",
-                burst?.TimestampUtc ?? DateTime.MinValue,
-                burst?.Price ?? 0,
-                burst?.Delta1s ?? 0,
-                burst?.DeltaChangeZScore ?? 0,
-                burst?.Velocity1s ?? 0,
-                burstAlignment);
+                analysis.SpreadAtr);
         }
 
         private StructuralAnalysis AnalyzeStructure(DateTime now)
@@ -1476,18 +1427,6 @@ namespace ATAS.Indicators
             var header = report.Status == StatusDivergence
                 ? "⚠️⚠️ DIVERGENCIA NQ/ES ⚠️⚠️"
                 : $"🚨🚨 {report.LeaderName} LIDERA 🚨🚨";
-            var burstLine = string.IsNullOrWhiteSpace(report.LiquidityBurstId)
-                ? $"Liquidity Burst 1s: no detectado en los últimos {LiquidityBurstMaxAgeSeconds}s"
-                : string.Format(
-                    CultureInfo.InvariantCulture,
-                    "Liquidity Burst 1s: {0} | {1} | NY {2} | px {3:0.00} | Δ1s {4:0} | z {5:0.00} | v {6:0.00}t/s",
-                    report.LiquidityBurstSide,
-                    report.LiquidityBurstAlignment,
-                    FormatNy(report.LiquidityBurstUtc),
-                    report.LiquidityBurstPrice,
-                    report.LiquidityBurstDelta1s,
-                    report.LiquidityBurstZScore,
-                    report.LiquidityBurstVelocity1s);
             return string.Join(Environment.NewLine,
                 header,
                 "ALERTA INFORMATIVA DE DESFASE — decisión y riesgo manuales",
@@ -1499,7 +1438,6 @@ namespace ATAS.Indicators
                 $"ESCALA ES→NQ: x{report.ScaleRatio:0.0000} | spread {report.SpreadPoints:+0.00;-0.00;0.00} pts NQ (z {report.SpreadZ:0.00})",
                 $"CORRELACIÓN M1: {report.Correlation:0.00} | mejor desfase {report.BestLagCandles:+0;-0;0} velas (corr {report.BestLagCorrelation:0.00})",
                 report.Detail,
-                burstLine,
                 report.Prices,
                 $"Modelo: pivote 2x2, swing ≥ {MinimumPivotSwingAtr:0.0} ATR, reacción ≥ {MinimumPivotReactionAtr:0.0} ATR",
                 $"Ventana válida: {MinimumLeadCandles}-{MaximumLeadCandles} velas M1 | historial común: {report.ComparedCandles}",
@@ -1516,7 +1454,7 @@ namespace ATAS.Indicators
                 using var writer = new StreamWriter(path, append: true);
                 if (writeHeader)
                 {
-                    writer.WriteLine("utc;trigger;status;leader;expected_lagger;expected_side;pivot_kind;lag_candles;leader_pivot_utc;evidence_utc;expected_lagger_price_nq;expected_lagger_price_native;mapping_basis;scale_ratio;correlation;best_lag_candles;best_lag_correlation;spread_points_nq;spread_z;spread_atr;leader_swing_atr;lagger_swing_atr;leader_reaction_atr;lagger_reaction_atr;liquidity_burst_id;liquidity_burst_side;liquidity_burst_utc;liquidity_burst_price;liquidity_burst_delta_1s;liquidity_burst_zscore;liquidity_burst_velocity_1s;liquidity_burst_alignment;compared_candles;nq_age_ms;es_age_ms;nq_symbol;nq_bid;nq_ask;nq_mid;es_symbol;es_bid;es_ask;es_mid;es_last;nq_last_bar_utc;es_last_bar_utc");
+                    writer.WriteLine("utc;trigger;status;leader;expected_lagger;expected_side;pivot_kind;lag_candles;leader_pivot_utc;evidence_utc;expected_lagger_price_nq;expected_lagger_price_native;mapping_basis;scale_ratio;correlation;best_lag_candles;best_lag_correlation;spread_points_nq;spread_z;spread_atr;leader_swing_atr;lagger_swing_atr;leader_reaction_atr;lagger_reaction_atr;compared_candles;nq_age_ms;es_age_ms;nq_symbol;nq_bid;nq_ask;nq_mid;es_symbol;es_bid;es_ask;es_mid;es_last;nq_last_bar_utc;es_last_bar_utc");
                 }
 
                 writer.WriteLine(string.Join(";",
@@ -1544,14 +1482,6 @@ namespace ATAS.Indicators
                     report.LaggerSwingAtr.ToString("0.0000", CultureInfo.InvariantCulture),
                     report.LeaderReactionAtr.ToString("0.0000", CultureInfo.InvariantCulture),
                     report.LaggerReactionAtr.ToString("0.0000", CultureInfo.InvariantCulture),
-                    report.LiquidityBurstId,
-                    report.LiquidityBurstSide,
-                    report.LiquidityBurstUtc.ToString("O", CultureInfo.InvariantCulture),
-                    report.LiquidityBurstPrice.ToString(CultureInfo.InvariantCulture),
-                    report.LiquidityBurstDelta1s.ToString(CultureInfo.InvariantCulture),
-                    report.LiquidityBurstZScore.ToString(CultureInfo.InvariantCulture),
-                    report.LiquidityBurstVelocity1s.ToString(CultureInfo.InvariantCulture),
-                    report.LiquidityBurstAlignment,
                     report.ComparedCandles.ToString(CultureInfo.InvariantCulture),
                     report.NqAgeMs.ToString(CultureInfo.InvariantCulture),
                     report.EsAgeMs.ToString(CultureInfo.InvariantCulture),
@@ -1768,14 +1698,6 @@ namespace ATAS.Indicators
             double BestLagCorrelation,
             double SpreadPoints,
             double SpreadZ,
-            double SpreadAtr,
-            string LiquidityBurstId,
-            string LiquidityBurstSide,
-            DateTime LiquidityBurstUtc,
-            decimal LiquidityBurstPrice,
-            decimal LiquidityBurstDelta1s,
-            decimal LiquidityBurstZScore,
-            decimal LiquidityBurstVelocity1s,
-            string LiquidityBurstAlignment);
+            double SpreadAtr);
     }
 }
