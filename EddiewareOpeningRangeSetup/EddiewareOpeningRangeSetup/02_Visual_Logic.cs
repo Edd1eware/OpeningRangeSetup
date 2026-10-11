@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
@@ -47,6 +47,8 @@ namespace ATAS.Indicators
         private decimal _cvdProfitLockBestMfeTicks;
         private bool _cvdRiskBracketActive;
         private bool _tradeHitDrawn;
+        private const int SignalEndLookbackBars = 240;
+
         private bool _timeOverDrawn;
         private int _activeMarketUpdateBar = -1;
         private DateTime _activeMarketUpdateTime = DateTime.MinValue;
@@ -728,9 +730,34 @@ namespace ATAS.Indicators
                 return false;
             }
 
+            // The label belongs to the last signal candle (09:40 NY /
+            // SignalEndTimeUtc), not to the bar that happens to cross
+            // MaxSignalTimeUtc one minute later. Anchor it to that candle so the
+            // text always sits on a single, predictable bar.
+            var labelBar = FindSignalEndBar(bar);
+
+            if (labelBar < 0)
+                return false;
+
             _timeOverDrawn = true;
-            DrawTimeOverLabel(bar, candle);
+            DrawTimeOverLabel(labelBar, GetCandle(labelBar));
             return true;
+        }
+
+        private int FindSignalEndBar(int fromBar)
+        {
+            for (var i = fromBar; i >= 0 && fromBar - i <= SignalEndLookbackBars; i--)
+            {
+                var scan = GetCandle(i);
+
+                if (scan.Time.Date != _currentDate)
+                    break;
+
+                if (EffectiveTimeOfDay(scan.Time) <= SignalEndTimeUtc)
+                    return i;
+            }
+
+            return -1;
         }
 
         private void DrawTimeOverLabel(int bar, dynamic candle)

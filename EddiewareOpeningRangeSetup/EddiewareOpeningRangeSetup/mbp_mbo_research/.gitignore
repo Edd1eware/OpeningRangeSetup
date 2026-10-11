@@ -1,0 +1,6 @@
+credentials/*.env
+credentials/NUEVA_API_KEY.txt
+data/
+logs/
+__pycache__/
+*.part

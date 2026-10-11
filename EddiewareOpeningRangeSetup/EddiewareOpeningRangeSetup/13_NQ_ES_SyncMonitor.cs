@@ -180,6 +180,11 @@ namespace ATAS.Indicators
         [Display(Name = "Inicio de semana ES (lunes, hora NY)", Order = 41, GroupName = "Alertas")]
         public TimeSpan WeekStartNy { get; set; } = new TimeSpan(9, 30, 0);
 
+        // Independent of EnableTelegram: the on-demand screenshot answers a message the
+        // user typed, so it must work even with the automatic alerts switched off.
+        [Display(Name = "Responder 's' en Telegram con captura de ATAS", Order = 42, GroupName = "Alertas")]
+        public bool EnableScreenshotCommand { get; set; } = true;
+
         [Display(Name = "Apertura cash (hora NY)", Order = 50, GroupName = "Sesión")]
         public TimeSpan CashOpenNy { get; set; } = new TimeSpan(9, 30, 0);
 
@@ -255,6 +260,16 @@ namespace ATAS.Indicators
             _timerPeriod = TimeSpan.FromMilliseconds(Math.Clamp(SampleIntervalMilliseconds, 50, 1000));
             SubscribeToTimer(_timerPeriod, MonitorTick);
             _timerSubscribed = true;
+
+            if (EnableScreenshotCommand)
+            {
+                TelegramTradeNotifier.EnsureScreenshotCommandListener(
+                    TelegramFolder,
+                    () => AtasMt5ComparisonScreenshot.CaptureAtasChart(
+                        OutputFolder,
+                        "ATAS · " + InstrumentInfo?.Instrument + " · " +
+                        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)));
+            }
         }
 
         protected override void OnDispose()

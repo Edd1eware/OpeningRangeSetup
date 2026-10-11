@@ -77,6 +77,57 @@ namespace ATAS.Indicators
             }
         }
 
+        // ATAS-only capture, used by the Telegram "s" command. The comparison capture
+        // above returns null whenever MT5 is closed, which is useless for an on-demand
+        // request: here only the ATAS chart window is required.
+        public static string? CaptureAtasChart(string outputFolder, string header)
+        {
+            try
+            {
+                var atasHandle = FindAtasChartWindow();
+                if (atasHandle == IntPtr.Zero)
+                    return null;
+
+                using var atas = CaptureWindow(atasHandle);
+                if (atas == null)
+                    return null;
+
+                const int headerHeight = 44;
+                const int gap = 10;
+                var canvasWidth = atas.Width + gap * 2;
+                var canvasHeight = atas.Height + headerHeight + gap * 2;
+
+                using var canvas = new Bitmap(canvasWidth, canvasHeight, PixelFormat.Format24bppRgb);
+                using var graphics = Graphics.FromImage(canvas);
+                graphics.Clear(Color.FromArgb(18, 18, 20));
+                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                graphics.SmoothingMode = SmoothingMode.HighQuality;
+                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                using var titleFont = new Font("Arial", 16, FontStyle.Bold);
+                using var whiteBrush = new SolidBrush(Color.White);
+                using var borderPen = new Pen(Color.FromArgb(80, 80, 86), 2);
+
+                graphics.DrawString(header ?? "", titleFont, whiteBrush, gap, 10);
+
+                var imageArea = new Rectangle(gap, headerHeight + gap, atas.Width, atas.Height);
+                graphics.DrawImage(atas, imageArea);
+                graphics.DrawRectangle(borderPen, imageArea);
+
+                var screenshotFolder = Path.Combine(outputFolder, "screenshots");
+                Directory.CreateDirectory(screenshotFolder);
+                var path = Path.Combine(
+                    screenshotFolder,
+                    $"atas_ondemand_{DateTime.UtcNow:yyyyMMdd_HHmmss_fff}.png");
+                canvas.Save(path, ImageFormat.Png);
+                return path;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         private static void DrawWindow(
             Graphics graphics,
             Bitmap source,

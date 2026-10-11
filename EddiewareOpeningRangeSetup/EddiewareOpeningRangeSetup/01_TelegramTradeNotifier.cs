@@ -5,6 +5,7 @@ using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ATAS.Indicators
@@ -17,6 +18,18 @@ namespace ATAS.Indicators
             Timeout = TimeSpan.FromSeconds(15)
         };
         private static readonly HashSet<string> PendingDates = new HashSet<string>(StringComparer.Ordinal);
+
+        // Long polling needs its own client: getUpdates holds the connection open for
+        // PollTimeoutSeconds, which is longer than the 15s outbound timeout above.
+        private static readonly HttpClient PollClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(PollTimeoutSeconds + 20)
+        };
+
+        private const int PollTimeoutSeconds = 25;
+        private const int CommandCooldownSeconds = 3;
+
+        private static int _commandListenerStarted;
 
         public static void QueueTerminalResult(string folder, DateTime nyDate, string message)
         {
@@ -294,6 +307,247 @@ namespace ATAS.Indicators
                 }
             });
         }
+
+        // Starts the inbound command poller once per process. Any indicator may call it
+        // on every OnInitialize: the interlock keeps a single getUpdates loop alive, which
+        // matters because Telegram rejects concurrent pollers on the same bot token.
+        public static void EnsureScreenshotCommandListener(string folder, Func<string?> captureScreenshot)
+        {
+            if (captureScreenshot == null)
+                return;
+
+            if (Interlocked.Exchange(ref _commandListenerStarted, 1) == 1)
+                return;
+
+            _ = Task.Run(() => CommandLoop(folder, captureScreenshot));
+        }
+
+        private static async Task CommandLoop(string folder, Func<string?> captureScreenshot)
+        {
+            long offset = 0;
+            var lastHandledUtc = DateTime.MinValue;
+
+            while (true)
+            {
+                try
+                {
+                    var credentials = ReadCredentials(Path.Combine(folder, "telegram_credentials.txt"));
+                    if (credentials == null)
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                        continue;
+                    }
+
+                    // Drop whatever piled up while ATAS was closed: an "s" typed hours ago
+                    // must not fire a screenshot of an unrelated chart state.
+                    if (offset == 0)
+                    {
+                        offset = await ResolveStartOffset(credentials.Token).ConfigureAwait(false);
+                        WriteCommandLog(folder, "listener_started", null);
+                        continue;
+                    }
+
+                    var updates = await FetchUpdates(credentials.Token, offset).ConfigureAwait(false);
+                    foreach (var update in updates)
+                    {
+                        offset = update.UpdateId + 1;
+
+                        // Only the configured chat may drive the terminal.
+                        if (!string.Equals(update.ChatId, credentials.ChatId, StringComparison.Ordinal))
+                        {
+                            WriteCommandLog(folder, "chat_rejected", update.Text);
+                            continue;
+                        }
+
+                        if (!IsScreenshotCommand(update.Text))
+                            continue;
+
+                        if ((DateTime.UtcNow - lastHandledUtc).TotalSeconds < CommandCooldownSeconds)
+                        {
+                            WriteCommandLog(folder, "cooldown_skipped", update.Text);
+                            continue;
+                        }
+
+                        lastHandledUtc = DateTime.UtcNow;
+                        await HandleScreenshotCommand(
+                                folder,
+                                credentials,
+                                captureScreenshot)
+                            .ConfigureAwait(false);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    WriteCommandLog(folder, "loop_error:" + ex.GetType().Name, null);
+                    await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+            }
+        }
+
+        private static bool IsScreenshotCommand(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            var value = text.Trim();
+            if (value.StartsWith("/", StringComparison.Ordinal))
+                value = value.Substring(1);
+
+            // "/s@BotName" when the bot sits in a group.
+            var at = value.IndexOf('@');
+            if (at > 0)
+                value = value.Substring(0, at);
+
+            return value.Equals("s", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static async Task HandleScreenshotCommand(
+            string folder,
+            Credentials credentials,
+            Func<string?> captureScreenshot)
+        {
+            string? photoPath = null;
+            try
+            {
+                photoPath = captureScreenshot();
+            }
+            catch (Exception ex)
+            {
+                WriteCommandLog(folder, "capture_error:" + ex.GetType().Name, null);
+            }
+
+            if (string.IsNullOrWhiteSpace(photoPath) || !File.Exists(photoPath))
+            {
+                await SendMessage(
+                        credentials.Token,
+                        credentials.ChatId,
+                        "No se pudo capturar la ventana de ATAS.")
+                    .ConfigureAwait(false);
+                WriteCommandLog(folder, "capture_failed", null);
+                return;
+            }
+
+            var caption = "Captura ATAS a solicitud · " +
+                          DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss 'UTC'", CultureInfo.InvariantCulture);
+
+            long? messageId = null;
+            for (var attempt = 1; attempt <= 3 && !messageId.HasValue; attempt++)
+            {
+                messageId = await SendPhoto(credentials.Token, credentials.ChatId, caption, photoPath)
+                    .ConfigureAwait(false);
+                if (!messageId.HasValue && attempt < 3)
+                    await Task.Delay(TimeSpan.FromSeconds(2 * attempt)).ConfigureAwait(false);
+            }
+
+            if (messageId.HasValue)
+            {
+                AppendMessageId(folder, messageId.Value);
+                WriteCommandLog(folder, "screenshot_sent", messageId.Value.ToString(CultureInfo.InvariantCulture));
+            }
+            else
+            {
+                WriteCommandLog(folder, "screenshot_send_failed", null);
+            }
+        }
+
+        private static async Task<long> ResolveStartOffset(string token)
+        {
+            var url = $"https://api.telegram.org/bot{token}/getUpdates?offset=-1&timeout=0";
+            using var response = await PollClient.GetAsync(url).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+                return 1;
+
+            var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+            if (!root.TryGetProperty("ok", out var ok) || !ok.GetBoolean())
+                return 1;
+
+            if (!root.TryGetProperty("result", out var result) || result.GetArrayLength() == 0)
+                return 1;
+
+            var last = result[result.GetArrayLength() - 1];
+            return last.TryGetProperty("update_id", out var updateId)
+                ? updateId.GetInt64() + 1
+                : 1;
+        }
+
+        private static async Task<List<TelegramCommand>> FetchUpdates(string token, long offset)
+        {
+            var commands = new List<TelegramCommand>();
+            var url = $"https://api.telegram.org/bot{token}/getUpdates" +
+                      $"?offset={offset.ToString(CultureInfo.InvariantCulture)}" +
+                      $"&timeout={PollTimeoutSeconds.ToString(CultureInfo.InvariantCulture)}" +
+                      "&allowed_updates=%5B%22message%22%5D";
+
+            using var response = await PollClient.GetAsync(url).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+                return commands;
+
+            var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+            if (!root.TryGetProperty("ok", out var ok) || !ok.GetBoolean())
+                return commands;
+
+            if (!root.TryGetProperty("result", out var result) ||
+                result.ValueKind != JsonValueKind.Array)
+            {
+                return commands;
+            }
+
+            foreach (var update in result.EnumerateArray())
+            {
+                if (!update.TryGetProperty("update_id", out var updateIdElement))
+                    continue;
+
+                var updateId = updateIdElement.GetInt64();
+                var text = "";
+                var chatId = "";
+
+                if (update.TryGetProperty("message", out var message))
+                {
+                    if (message.TryGetProperty("text", out var textElement) &&
+                        textElement.ValueKind == JsonValueKind.String)
+                    {
+                        text = textElement.GetString() ?? "";
+                    }
+
+                    if (message.TryGetProperty("chat", out var chat) &&
+                        chat.TryGetProperty("id", out var chatIdElement))
+                    {
+                        chatId = chatIdElement.ValueKind == JsonValueKind.String
+                            ? chatIdElement.GetString() ?? ""
+                            : chatIdElement.GetRawText();
+                    }
+                }
+
+                commands.Add(new TelegramCommand(updateId, chatId, text));
+            }
+
+            return commands;
+        }
+
+        private static void WriteCommandLog(string folder, string result, string? detail)
+        {
+            try
+            {
+                Directory.CreateDirectory(folder);
+                var line = string.Join(";",
+                    DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture),
+                    result,
+                    (detail ?? "").Replace(';', ',').Replace('\n', ' ').Replace('\r', ' '));
+                File.AppendAllText(
+                    Path.Combine(folder, "telegram_commands.csv"),
+                    line + Environment.NewLine);
+            }
+            catch
+            {
+                // Command diagnostics must never interrupt the indicator.
+            }
+        }
+
+        private readonly record struct TelegramCommand(long UpdateId, string ChatId, string Text);
 
         private static void AppendMessageId(string folder, long messageId)
         {
