@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Navegador Control Inside OR</title>
+<style>
+:root {
+  --bg: #0f1115; --panel: #171a21; --panel-2: #1e222b; --line: #2b313d;
+  --text: #e6e9ef; --muted: #98a1b3; --accent: #6ea8fe;
+  --up: #3fb950; --down: #f85149; --warn: #d29922;
+  --or: #8b5cf6; --vwap: #e3b341;
+  --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+}
+:root[data-theme="light"] {
+  --bg: #f6f7f9; --panel: #ffffff; --panel-2: #f0f2f5; --line: #d8dde5;
+  --text: #15181d; --muted: #5a6476; --accent: #1f6feb;
+  --up: #1a7f37; --down: #cf222e; --warn: #9a6700;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+header {
+  padding: 16px; border-bottom: 1px solid var(--line);
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+  background: var(--panel); position: sticky; top: 0; z-index: 10;
+}
+h1 { font-size: 17px; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+.sub { color: var(--muted); font-size: 12px; }
+.spacer { flex: 1; }
+.kpis { display: flex; gap: 14px; flex-wrap: wrap; }
+.kpi { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 11px; }
+.kpi b { display: block; font-size: 15px; font-variant-numeric: tabular-nums; }
+.kpi span { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.wrap { display: grid; grid-template-columns: minmax(380px, 1fr) minmax(420px, 1.05fr); gap: 0; }
+@media (max-width: 1000px) { .wrap { grid-template-columns: 1fr; } }
+.left { border-right: 1px solid var(--line); min-width: 0; }
+.right { padding: 16px; min-width: 0; }
+.filters { padding: 10px 16px; display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+button.f, select {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; font-family: inherit;
+}
+button.f.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th {
+  text-align: left; padding: 7px 10px; color: var(--muted); font-weight: 600;
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em;
+  border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel);
+}
+td { padding: 6px 10px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--panel-2); }
+tbody tr.sel { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.num { text-align: right; }
+.mono { font-family: var(--mono); }
+.tp { color: var(--up); font-weight: 600; }
+.sl { color: var(--down); font-weight: 600; }
+.long { color: var(--up); } .short { color: var(--down); }
+.tag {
+  display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px;
+  border: 1px solid var(--line); background: var(--panel-2); color: var(--muted);
+}
+.tag.warn { color: var(--warn); border-color: var(--warn); }
+.tag.atas { color: var(--accent); border-color: var(--accent); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+.card h3 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 650; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 10px; }
+.field span { display: block; font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.field b { font-family: var(--mono); font-size: 14px; font-weight: 600; }
+.navbox { background: var(--panel-2); border: 1px dashed var(--accent); border-radius: 8px; padding: 12px; }
+.navbox .big { font-family: var(--mono); font-size: 19px; font-weight: 650; letter-spacing: -0.01em; }
+.copy { background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 5px 11px; font-size: 11.5px; cursor: pointer; font-family: inherit; }
+table.inner { font-size: 12px; }
+table.inner th { position: static; background: transparent; }
+svg { display: block; width: 100%; height: auto; }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; color: var(--muted); margin-top: 8px; }
+.legend i { display: inline-block; width: 14px; height: 2px; vertical-align: middle; margin-right: 4px; }
+.empty { padding: 40px 16px; text-align: center; color: var(--muted); }
+.note { font-size: 11.5px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+.warnbox { border-color: var(--warn); }
+.warnbox h3 { color: var(--warn); }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Control &ldquo;apertura dentro del OR&rdquo; &mdash; 35 operaciones</h1>
+    <div class="sub">Run <code>calibrated_inside_control_v1</code> &middot; NQ &middot; 9 Mar &ndash; 9 Oct 2026 &middot; RR 1:1 &middot; horas de Nueva York (EDT)</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="kpis">
+    <div class="kpi"><b>35</b><span>Trades</span></div>
+    <div class="kpi"><b>54.29%</b><span>WR</span></div>
+    <div class="kpi"><b>1.382</b><span>PF 1 NQ</span></div>
+    <div class="kpi"><b>0.959</b><span>PF en R</span></div>
+    <div class="kpi"><b>+$1,515</b><span>Neto 1 NQ</span></div>
+    <div class="kpi"><b>&minus;0.79R</b><span>Neto en R</span></div>
+  </div>
+  <button class="f" id="theme">Tema</button>
+</header>
+
+<div class="wrap">
+  <div class="left">
+    <div class="filters">
+      <button class="f on" data-k="all">Todas (35)</button>
+      <button class="f" data-k="tp">Solo TP (19)</button>
+      <button class="f" data-k="sl">Solo SL (16)</button>
+      <button class="f" data-k="long">Largos (19)</button>
+      <button class="f" data-k="short">Cortos (16)</button>
+      <select id="month"><option value="">Todos los meses</option></select>
+    </div>
+    <table>
+      <thead><tr>
+        <th>#</th><th>Sesión</th><th>Vela</th><th>Dir</th>
+        <th class="num">Riesgo</th><th>Salida</th><th class="num">Ticks</th><th class="num">R</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="empty" id="empty" hidden>Sin operaciones con este filtro.</div>
+  </div>
+  <div class="right" id="detail"></div>
+</div>
+
+<script>
+const TRADES = [{"n": 1, "session": "2026-03-13", "month": "Marzo 2026", "month_key": "2026-03", "weekday": "Vie", "dir": -1, "dir_label": "CORTO", "candle_start": "09:35:00", "signal_close": "09:36:00", "minute": "09:35", "o": 24660.0, "h": 24665.0, "l": 24618.75, "c": 24633.75, "raw_o": 24660.0, "raw_h": 24664.25, "raw_l": 24618.5, "raw_c": 24633.25, "volume": 2394.0, "or_high": 24687.5, "or_low": 24636.25, "vwap": 24660.45403252572, "prev_vwap": 24665.499368637044, "vwap_slope": -5.045336111321376, "entry": 24633.25, "stop": 24636.25, "target": 24630.25, "exit": 24630.25, "entry_clock": "09:36:00.014", "exit_clock": "09:36:01.793", "entry_print": 24633.5, "exit_print": 24630.25, "risk": 12.0, "imbalances": [{"direction": -1, "label_ticks": 98540, "label_price": 24635.0, "row_lo": 24634.0, "row_hi": 24635.0, "volume": 77, "reference": 12, "ratio": 6.416666666666667, "ratio_infinite": false, "reference_label_ticks": 98545, "reference_level_present": true, "dominant_level_present": true}, {"direction": -1, "label_ticks": 98515, "label_price": 24628.75, "row_lo": 24627.75, "row_hi": 24628.75, "volume": 80, "reference": 24, "ratio": 3.3333333333333335, "ratio_infinite": false, "reference_label_ticks": 98520, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 2, "imb_label": 24635.0, "imb_lo": 24634.0, "imb_hi": 24635.0, "imb_vol": 77.0, "imb_ref": 12.0, "imb_ratio": 6.416666666666667, "result": "TP", "net_ticks": 11.2, "net_r": 0.9333333333333332, "net_usd": 56.0, "mae": 11.0, "mfe": 12.0, "duration": 1.778461584, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-03-24", "month": "Marzo 2026", "month_key": "2026-03", "weekday": "Mar", "dir": 1, "dir_label": "LARGO", "candle_start": "09:31:00", "signal_close": "09:32:00", "minute": "09:31", "o": 24265.0, "h": 24317.5, "l": 24243.75, "c": 24313.75, "raw_o": 24264.25, "raw_h": 24317.5, "raw_l": 24242.75, "raw_c": 24313.0, "volume": 4091.0, "or_high": 24285.0, "or_low": 24227.5, "vwap": 24287.21025920404, "prev_vwap": 24263.75, "vwap_slope": 23.460259204035538, "entry": 24311.5, "stop": 24307.75, "target": 24315.25, "exit": 24307.5, "entry_clock": "09:32:00.012", "exit_clock": "09:32:00.761", "entry_print": 24311.25, "exit_print": 24307.75, "risk": 15.0, "imbalances": [{"direction": 1, "label_ticks": 97240, "label_price": 24310.0, "row_lo": 24309.0, "row_hi": 24310.0, "volume": 90, "reference": 28, "ratio": 3.2142857142857144, "ratio_infinite": false, "reference_label_ticks": 97235, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 24310.0, "imb_lo": 24309.0, "imb_hi": 24310.0, "imb_vol": 90.0, "imb_ref": 28.0, "imb_ratio": 3.2142857142857144, "result": "SL", "net_ticks": -16.8, "net_r": -1.12, "net_usd": -84.0, "mae": 16.0, "mfe": 8.0, "duration": 0.749526856, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-03-31", "month": "Marzo 2026", "month_key": "2026-03", "weekday": "Mar", "dir": 1, "dir_label": "LARGO", "candle_start": "09:34:00", "signal_close": "09:35:00", "minute": "09:34", "o": 23426.25, "h": 23460.0, "l": 23415.0, "c": 23458.75, "raw_o": 23425.25, "raw_h": 23459.25, "raw_l": 23414.75, "raw_c": 23458.0, "volume": 2429.0, "or_high": 23428.75, "or_low": 23378.75, "vwap": 23424.790005217263, "prev_vwap": 23417.28283127048, "vwap_slope": 7.50717394678577, "entry": 23457.5, "stop": 23446.5, "target": 23468.5, "exit": 23446.25, "entry_clock": "09:35:00.003", "exit_clock": "09:35:10.608", "entry_print": 23457.25, "exit_print": 23446.5, "risk": 44.0, "imbalances": [{"direction": 1, "label_ticks": 93795, "label_price": 23448.75, "row_lo": 23447.75, "row_hi": 23448.75, "volume": 73, "reference": 20, "ratio": 3.65, "ratio_infinite": false, "reference_label_ticks": 93790, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 23448.75, "imb_lo": 23447.75, "imb_hi": 23448.75, "imb_vol": 73.0, "imb_ref": 20.0, "imb_ratio": 3.65, "result": "SL", "net_ticks": -45.8, "net_r": -1.0409090909090908, "net_usd": -229.0, "mae": 45.0, "mfe": 13.0, "duration": 10.604993776, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-04-02", "month": "Abril 2026", "month_key": "2026-04", "weekday": "Jue", "dir": 1, "dir_label": "LARGO", "candle_start": "09:31:00", "signal_close": "09:32:00", "minute": "09:31", "o": 23795.0, "h": 23818.75, "l": 23785.0, "c": 23813.75, "raw_o": 23795.0, "raw_h": 23818.75, "raw_l": 23785.0, "raw_c": 23813.0, "volume": 2505.0, "or_high": 23811.25, "or_low": 23763.75, "vwap": 23801.220202622168, "prev_vwap": 23795.0, "vwap_slope": 6.220202622167562, "entry": 23812.25, "stop": 23806.5, "target": 23818.0, "exit": 23806.25, "entry_clock": "09:32:00.032", "exit_clock": "09:32:12.799", "entry_print": 23812.0, "exit_print": 23806.5, "risk": 23.0, "imbalances": [{"direction": 1, "label_ticks": 95235, "label_price": 23808.75, "row_lo": 23807.75, "row_hi": 23808.75, "volume": 79, "reference": 21, "ratio": 3.761904761904762, "ratio_infinite": false, "reference_label_ticks": 95230, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 23808.75, "imb_lo": 23807.75, "imb_hi": 23808.75, "imb_vol": 79.0, "imb_ref": 21.0, "imb_ratio": 3.761904761904762, "result": "SL", "net_ticks": -24.8, "net_r": -1.0782608695652174, "net_usd": -124.0, "mae": 24.0, "mfe": 15.0, "duration": 12.767066426, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-04-06", "month": "Abril 2026", "month_key": "2026-04", "weekday": "Lun", "dir": -1, "dir_label": "CORTO", "candle_start": "09:36:00", "signal_close": "09:37:00", "minute": "09:36", "o": 24326.25, "h": 24326.25, "l": 24252.5, "c": 24255.0, "raw_o": 24325.25, "raw_h": 24325.25, "raw_l": 24252.25, "raw_c": 24255.0, "volume": 3298.0, "or_high": 24330.0, "or_low": 24263.75, "vwap": 24323.224558712733, "prev_vwap": 24337.946136482595, "vwap_slope": -14.721577769862051, "entry": 24252.75, "stop": 24257.5, "target": 24248.0, "exit": 24248.0, "entry_clock": "09:37:00.004", "exit_clock": "09:37:00.287", "entry_print": 24253.0, "exit_print": 24248.0, "risk": 19.0, "imbalances": [{"direction": -1, "label_ticks": 97025, "label_price": 24256.25, "row_lo": 24255.25, "row_hi": 24256.25, "volume": 135, "reference": 41, "ratio": 3.292682926829268, "ratio_infinite": false, "reference_label_ticks": 97030, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 24256.25, "imb_lo": 24255.25, "imb_hi": 24256.25, "imb_vol": 135.0, "imb_ref": 41.0, "imb_ratio": 3.292682926829268, "result": "TP", "net_ticks": 18.2, "net_r": 0.9578947368421052, "net_usd": 91.0, "mae": 1.0, "mfe": 19.0, "duration": 0.283157124, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-04-09", "month": "Abril 2026", "month_key": "2026-04", "weekday": "Jue", "dir": -1, "dir_label": "CORTO", "candle_start": "09:32:00", "signal_close": "09:33:00", "minute": "09:32", "o": 25086.25, "h": 25091.25, "l": 25047.5, "c": 25048.75, "raw_o": 25086.0, "raw_h": 25090.75, "raw_l": 25047.25, "raw_c": 25048.5, "volume": 2026.0, "or_high": 25103.75, "or_low": 25068.75, "vwap": 25073.693297915812, "prev_vwap": 25080.20387786653, "vwap_slope": -6.5105799507146, "entry": 25047.75, "stop": 25062.5, "target": 25033.0, "exit": 25033.0, "entry_clock": "09:33:00.013", "exit_clock": "09:34:37.036", "entry_print": 25048.0, "exit_print": 25033.0, "risk": 59.0, "imbalances": [{"direction": -1, "label_ticks": 100245, "label_price": 25061.25, "row_lo": 25060.25, "row_hi": 25061.25, "volume": 87, "reference": 28, "ratio": 3.107142857142857, "ratio_infinite": false, "reference_label_ticks": 100250, "reference_level_present": true, "dominant_level_present": true}, {"direction": -1, "label_ticks": 100195, "label_price": 25048.75, "row_lo": 25047.75, "row_hi": 25048.75, "volume": 75, "reference": 12, "ratio": 6.25, "ratio_infinite": false, "reference_label_ticks": 100200, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 2, "imb_label": 25061.25, "imb_lo": 25060.25, "imb_hi": 25061.25, "imb_vol": 87.0, "imb_ref": 28.0, "imb_ratio": 3.107142857142857, "result": "TP", "net_ticks": 58.2, "net_r": 0.9864406779661018, "net_usd": 291.0, "mae": 37.0, "mfe": 59.0, "duration": 97.022598416, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-04-14", "month": "Abril 2026", "month_key": "2026-04", "weekday": "Mar", "dir": 1, "dir_label": "LARGO", "candle_start": "09:33:00", "signal_close": "09:34:00", "minute": "09:33", "o": 25705.0, "h": 25722.5, "l": 25702.5, "c": 25720.0, "raw_o": 25705.0, "raw_h": 25722.0, "raw_l": 25701.75, "raw_c": 25719.5, "volume": 1900.0, "or_high": 25708.75, "or_low": 25656.25, "vwap": 25701.846896579413, "prev_vwap": 25698.57885635778, "vwap_slope": 3.2680402216319635, "entry": 25719.75, "stop": 25717.75, "target": 25721.75, "exit": 25717.5, "entry_clock": "09:34:00.031", "exit_clock": "09:34:00.484", "entry_print": 25719.5, "exit_print": 25717.75, "risk": 8.0, "imbalances": [{"direction": 1, "label_ticks": 102880, "label_price": 25720.0, "row_lo": 25719.0, "row_hi": 25720.0, "volume": 75, "reference": 12, "ratio": 6.25, "ratio_infinite": false, "reference_label_ticks": 102875, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 25720.0, "imb_lo": 25719.0, "imb_hi": 25720.0, "imb_vol": 75.0, "imb_ref": 12.0, "imb_ratio": 6.25, "result": "SL", "net_ticks": -9.8, "net_r": -1.225, "net_usd": -49.0, "mae": 9.0, "mfe": 0.0, "duration": 0.452910072, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-04-16", "month": "Abril 2026", "month_key": "2026-04", "weekday": "Jue", "dir": -1, "dir_label": "CORTO", "candle_start": "09:31:00", "signal_close": "09:32:00", "minute": "09:31", "o": 26396.25, "h": 26401.25, "l": 26368.75, "c": 26373.75, "raw_o": 26395.75, "raw_h": 26400.5, "raw_l": 26367.75, "raw_c": 26373.0, "volume": 3058.0, "or_high": 26453.75, "or_low": 26388.75, "vwap": 26389.153774752474, "prev_vwap": 26396.25, "vwap_slope": -7.096225247525581, "entry": 26373.75, "stop": 26381.25, "target": 26366.25, "exit": 26381.5, "entry_clock": "09:32:00.021", "exit_clock": "09:32:02.638", "entry_print": 26374.0, "exit_print": 26381.25, "risk": 30.0, "imbalances": [{"direction": -1, "label_ticks": 105520, "label_price": 26380.0, "row_lo": 26379.0, "row_hi": 26380.0, "volume": 95, "reference": 31, "ratio": 3.064516129032258, "ratio_infinite": false, "reference_label_ticks": 105525, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 26380.0, "imb_lo": 26379.0, "imb_hi": 26380.0, "imb_vol": 95.0, "imb_ref": 31.0, "imb_ratio": 3.064516129032258, "result": "SL", "net_ticks": -31.8, "net_r": -1.06, "net_usd": -159.0, "mae": 31.0, "mfe": 7.0, "duration": 2.617506272, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-04-21", "month": "Abril 2026", "month_key": "2026-04", "weekday": "Mar", "dir": -1, "dir_label": "CORTO", "candle_start": "09:31:00", "signal_close": "09:32:00", "minute": "09:31", "o": 26772.5, "h": 26777.5, "l": 26746.25, "c": 26748.75, "raw_o": 26772.0, "raw_h": 26777.25, "raw_l": 26746.0, "raw_c": 26748.0, "volume": 3781.0, "or_high": 26827.5, "or_low": 26772.5, "vwap": 26763.8500209468, "prev_vwap": 26773.75, "vwap_slope": -9.899979053203424, "entry": 26748.0, "stop": 26766.25, "target": 26729.75, "exit": 26729.75, "entry_clock": "09:32:00.001", "exit_clock": "09:35:30.884", "entry_print": 26748.25, "exit_print": 26729.75, "risk": 73.0, "imbalances": [{"direction": -1, "label_ticks": 107060, "label_price": 26765.0, "row_lo": 26764.0, "row_hi": 26765.0, "volume": 173, "reference": 41, "ratio": 4.219512195121951, "ratio_infinite": false, "reference_label_ticks": 107065, "reference_level_present": true, "dominant_level_present": true}, {"direction": -1, "label_ticks": 107055, "label_price": 26763.75, "row_lo": 26762.75, "row_hi": 26763.75, "volume": 157, "reference": 35, "ratio": 4.485714285714286, "ratio_infinite": false, "reference_label_ticks": 107060, "reference_level_present": true, "dominant_level_present": true}, {"direction": -1, "label_ticks": 107020, "label_price": 26755.0, "row_lo": 26754.0, "row_hi": 26755.0, "volume": 180, "reference": 37, "ratio": 4.864864864864865, "ratio_infinite": false, "reference_label_ticks": 107025, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 3, "imb_label": 26765.0, "imb_lo": 26764.0, "imb_hi": 26765.0, "imb_vol": 173.0, "imb_ref": 41.0, "imb_ratio": 4.219512195121951, "result": "TP", "net_ticks": 72.2, "net_r": 0.989041095890411, "net_usd": 361.0, "mae": 72.0, "mfe": 73.0, "duration": 210.883224384, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-04-22", "month": "Abril 2026", "month_key": "2026-04", "weekday": "Mié", "dir": -1, "dir_label": "CORTO", "candle_start": "09:32:00", "signal_close": "09:33:00", "minute": "09:32", "o": 26866.25, "h": 26866.25, "l": 26832.5, "c": 26838.75, "raw_o": 26866.25, "raw_h": 26866.25, "raw_l": 26831.75, "raw_c": 26837.75, "volume": 2282.0, "or_high": 26893.75, "or_low": 26852.5, "vwap": 26860.916719948847, "prev_vwap": 26868.03928470853, "vwap_slope": -7.122564759683883, "entry": 26837.75, "stop": 26851.25, "target": 26824.25, "exit": 26824.25, "entry_clock": "09:33:00.034", "exit_clock": "09:33:30.648", "entry_print": 26838.0, "exit_print": 26824.25, "risk": 54.0, "imbalances": [{"direction": -1, "label_ticks": 107400, "label_price": 26850.0, "row_lo": 26849.0, "row_hi": 26850.0, "volume": 105, "reference": 13, "ratio": 8.076923076923077, "ratio_infinite": false, "reference_label_ticks": 107405, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 26850.0, "imb_lo": 26849.0, "imb_hi": 26850.0, "imb_vol": 105.0, "imb_ref": 13.0, "imb_ratio": 8.076923076923077, "result": "TP", "net_ticks": 53.2, "net_r": 0.9851851851851853, "net_usd": 266.0, "mae": 30.0, "mfe": 54.0, "duration": 30.614343352, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-05-19", "month": "Mayo 2026", "month_key": "2026-05", "weekday": "Mar", "dir": 1, "dir_label": "LARGO", "candle_start": "09:32:00", "signal_close": "09:33:00", "minute": "09:32", "o": 28938.75, "h": 28982.5, "l": 28931.25, "c": 28972.5, "raw_o": 28938.5, "raw_h": 28981.75, "raw_l": 28930.25, "raw_c": 28972.5, "volume": 3844.0, "or_high": 28943.75, "or_low": 28851.25, "vwap": 28932.33170652109, "prev_vwap": 28920.46246829118, "vwap_slope": 11.869238229912298, "entry": 28973.0, "stop": 28945.25, "target": 29000.75, "exit": 28945.0, "entry_clock": "09:33:00.019", "exit_clock": "09:35:04.716", "entry_print": 28972.75, "exit_print": 28945.25, "risk": 111.0, "imbalances": [{"direction": 1, "label_ticks": 115790, "label_price": 28947.5, "row_lo": 28946.5, "row_hi": 28947.5, "volume": 73, "reference": 23, "ratio": 3.1739130434782608, "ratio_infinite": false, "reference_label_ticks": 115785, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 28947.5, "imb_lo": 28946.5, "imb_hi": 28947.5, "imb_vol": 73.0, "imb_ref": 23.0, "imb_ratio": 3.1739130434782608, "result": "SL", "net_ticks": -112.8, "net_r": -1.0162162162162163, "net_usd": -564.0, "mae": 112.0, "mfe": 104.0, "duration": 124.696645398, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-05-27", "month": "Mayo 2026", "month_key": "2026-05", "weekday": "Mié", "dir": -1, "dir_label": "CORTO", "candle_start": "09:35:00", "signal_close": "09:36:00", "minute": "09:35", "o": 30140.0, "h": 30153.75, "l": 30105.0, "c": 30116.25, "raw_o": 30140.0, "raw_h": 30153.5, "raw_l": 30104.75, "raw_c": 30116.0, "volume": 4571.0, "or_high": 30192.5, "or_low": 30133.75, "vwap": 30138.750274956925, "prev_vwap": 30143.27985994891, "vwap_slope": -4.529584991985757, "entry": 30116.25, "stop": 30122.5, "target": 30110.0, "exit": 30110.0, "entry_clock": "09:36:00.036", "exit_clock": "09:36:04.061", "entry_print": 30116.5, "exit_print": 30110.0, "risk": 25.0, "imbalances": [{"direction": -1, "label_ticks": 120485, "label_price": 30121.25, "row_lo": 30120.25, "row_hi": 30121.25, "volume": 184, "reference": 5, "ratio": 36.8, "ratio_infinite": false, "reference_label_ticks": 120490, "reference_level_present": true, "dominant_level_present": true}, {"direction": -1, "label_ticks": 120480, "label_price": 30120.0, "row_lo": 30119.0, "row_hi": 30120.0, "volume": 565, "reference": 29, "ratio": 19.482758620689655, "ratio_infinite": false, "reference_label_ticks": 120485, "reference_level_present": true, "dominant_level_present": true}, {"direction": -1, "label_ticks": 120455, "label_price": 30113.75, "row_lo": 30112.75, "row_hi": 30113.75, "volume": 100, "reference": 24, "ratio": 4.166666666666667, "ratio_infinite": false, "reference_label_ticks": 120460, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 3, "imb_label": 30121.25, "imb_lo": 30120.25, "imb_hi": 30121.25, "imb_vol": 184.0, "imb_ref": 5.0, "imb_ratio": 36.8, "result": "TP", "net_ticks": 24.2, "net_r": 0.968, "net_usd": 121.0, "mae": 4.0, "mfe": 25.0, "duration": 4.02492615, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-05-29", "month": "Mayo 2026", "month_key": "2026-05", "weekday": "Vie", "dir": 1, "dir_label": "LARGO", "candle_start": "09:35:00", "signal_close": "09:36:00", "minute": "09:35", "o": 30375.0, "h": 30427.5, "l": 30370.0, "c": 30420.0, "raw_o": 30375.0, "raw_h": 30426.5, "raw_l": 30369.75, "raw_c": 30420.0, "volume": 3349.0, "or_high": 30405.0, "or_low": 30365.0, "vwap": 30398.32818504897, "prev_vwap": 30394.8471822542, "vwap_slope": 3.4810027947714843, "entry": 30420.25, "stop": 30417.75, "target": 30422.75, "exit": 30422.75, "entry_clock": "09:36:00.004", "exit_clock": "09:36:04.415", "entry_print": 30420.0, "exit_print": 30422.75, "risk": 10.0, "imbalances": [{"direction": 1, "label_ticks": 121680, "label_price": 30420.0, "row_lo": 30419.0, "row_hi": 30420.0, "volume": 117, "reference": 19, "ratio": 6.157894736842105, "ratio_infinite": false, "reference_label_ticks": 121675, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 30420.0, "imb_lo": 30419.0, "imb_hi": 30420.0, "imb_vol": 117.0, "imb_ref": 19.0, "imb_ratio": 6.157894736842105, "result": "TP", "net_ticks": 9.2, "net_r": 0.9199999999999999, "net_usd": 46.0, "mae": 9.0, "mfe": 10.0, "duration": 4.41064094, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-06-03", "month": "Junio 2026", "month_key": "2026-06", "weekday": "Mié", "dir": -1, "dir_label": "CORTO", "candle_start": "09:34:00", "signal_close": "09:35:00", "minute": "09:34", "o": 30763.75, "h": 30763.75, "l": 30715.0, "c": 30715.0, "raw_o": 30763.75, "raw_h": 30763.75, "raw_l": 30714.0, "raw_c": 30714.25, "volume": 4447.0, "or_high": 30792.5, "or_low": 30755.0, "vwap": 30765.77425417519, "prev_vwap": 30779.40087507544, "vwap_slope": -13.626620900246053, "entry": 30714.75, "stop": 30742.5, "target": 30687.0, "exit": 30687.0, "entry_clock": "09:35:00.002", "exit_clock": "09:35:40.477", "entry_print": 30715.0, "exit_print": 30687.0, "risk": 111.0, "imbalances": [{"direction": -1, "label_ticks": 122965, "label_price": 30741.25, "row_lo": 30740.25, "row_hi": 30741.25, "volume": 73, "reference": 19, "ratio": 3.8421052631578947, "ratio_infinite": false, "reference_label_ticks": 122970, "reference_level_present": true, "dominant_level_present": true}, {"direction": -1, "label_ticks": 122960, "label_price": 30740.0, "row_lo": 30739.0, "row_hi": 30740.0, "volume": 102, "reference": 30, "ratio": 3.4, "ratio_infinite": false, "reference_label_ticks": 122965, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 2, "imb_label": 30741.25, "imb_lo": 30740.25, "imb_hi": 30741.25, "imb_vol": 73.0, "imb_ref": 19.0, "imb_ratio": 3.842105263157895, "result": "TP", "net_ticks": 110.2, "net_r": 0.9927927927927929, "net_usd": 551.0, "mae": 2.0, "mfe": 111.0, "duration": 40.474784196, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-06-05", "month": "Junio 2026", "month_key": "2026-06", "weekday": "Vie", "dir": 1, "dir_label": "LARGO", "candle_start": "09:31:00", "signal_close": "09:32:00", "minute": "09:31", "o": 30021.25, "h": 30098.75, "l": 30012.5, "c": 30097.5, "raw_o": 30020.25, "raw_h": 30098.75, "raw_l": 30011.75, "raw_c": 30097.25, "volume": 6202.0, "or_high": 30060.0, "or_low": 29998.75, "vwap": 30055.252192982454, "prev_vwap": 30021.25, "vwap_slope": 34.00219298245793, "entry": 30098.0, "stop": 30092.75, "target": 30103.25, "exit": 30091.75, "entry_clock": "09:32:00.000", "exit_clock": "09:32:01.362", "entry_print": 30097.75, "exit_print": 30092.0, "risk": 21.0, "imbalances": [{"direction": 1, "label_ticks": 120380, "label_price": 30095.0, "row_lo": 30094.0, "row_hi": 30095.0, "volume": 135, "reference": 41, "ratio": 3.292682926829268, "ratio_infinite": false, "reference_label_ticks": 120375, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 30095.0, "imb_lo": 30094.0, "imb_hi": 30095.0, "imb_vol": 135.0, "imb_ref": 41.0, "imb_ratio": 3.292682926829268, "result": "SL", "net_ticks": -25.8, "net_r": -1.2285714285714286, "net_usd": -129.0, "mae": 25.0, "mfe": 10.0, "duration": 1.362631182, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-06-15", "month": "Junio 2026", "month_key": "2026-06", "weekday": "Lun", "dir": 1, "dir_label": "LARGO", "candle_start": "09:35:00", "signal_close": "09:36:00", "minute": "09:35", "o": 30358.75, "h": 30405.0, "l": 30358.75, "c": 30401.25, "raw_o": 30358.75, "raw_h": 30404.5, "raw_l": 30358.5, "raw_c": 30400.5, "volume": 837.0, "or_high": 30363.75, "or_low": 30302.5, "vwap": 30376.376364399664, "prev_vwap": 30372.30851895272, "vwap_slope": 4.0678454469489225, "entry": 30398.25, "stop": 30397.75, "target": 30398.75, "exit": 30397.0, "entry_clock": "09:36:00.126", "exit_clock": "09:36:00.165", "entry_print": 30398.0, "exit_print": 30397.25, "risk": 2.0, "imbalances": [{"direction": 1, "label_ticks": 121600, "label_price": 30400.0, "row_lo": 30399.0, "row_hi": 30400.0, "volume": 104, "reference": 12, "ratio": 8.666666666666666, "ratio_infinite": false, "reference_label_ticks": 121595, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 30400.0, "imb_lo": 30399.0, "imb_hi": 30400.0, "imb_vol": 104.0, "imb_ref": 12.0, "imb_ratio": 8.666666666666666, "result": "SL", "net_ticks": -5.8, "net_r": -2.9, "net_usd": -29.0, "mae": 5.0, "mfe": 0.0, "duration": 0.038297982, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-06-18", "month": "Junio 2026", "month_key": "2026-06", "weekday": "Jue", "dir": -1, "dir_label": "CORTO", "candle_start": "09:33:00", "signal_close": "09:34:00", "minute": "09:33", "o": 30573.75, "h": 30586.25, "l": 30542.5, "c": 30545.0, "raw_o": 30573.75, "raw_h": 30585.75, "raw_l": 30541.5, "raw_c": 30544.75, "volume": 2343.0, "or_high": 30616.25, "or_low": 30553.75, "vwap": 30568.72376250572, "prev_vwap": 30573.016023166023, "vwap_slope": -4.292260660302418, "entry": 30545.5, "stop": 30573.75, "target": 30517.25, "exit": 30517.25, "entry_clock": "09:34:00.000", "exit_clock": "09:34:38.710", "entry_print": 30545.75, "exit_print": 30517.25, "risk": 113.0, "imbalances": [{"direction": -1, "label_ticks": 122290, "label_price": 30572.5, "row_lo": 30571.5, "row_hi": 30572.5, "volume": 98, "reference": 29, "ratio": 3.3793103448275863, "ratio_infinite": false, "reference_label_ticks": 122295, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 30572.5, "imb_lo": 30571.5, "imb_hi": 30572.5, "imb_vol": 98.0, "imb_ref": 29.0, "imb_ratio": 3.3793103448275863, "result": "TP", "net_ticks": 112.2, "net_r": 0.9929203539823009, "net_usd": 561.0, "mae": 64.0, "mfe": 113.0, "duration": 38.709481614, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-07-01", "month": "Julio 2026", "month_key": "2026-07", "weekday": "Mié", "dir": -1, "dir_label": "CORTO", "candle_start": "09:33:00", "signal_close": "09:34:00", "minute": "09:33", "o": 30176.25, "h": 30180.0, "l": 30118.75, "c": 30121.25, "raw_o": 30175.25, "raw_h": 30180.0, "raw_l": 30118.5, "raw_c": 30120.25, "volume": 3803.0, "or_high": 30260.0, "or_low": 30168.75, "vwap": 30200.42621830879, "prev_vwap": 30219.294946108534, "vwap_slope": -18.868727799745106, "entry": 30121.0, "stop": 30151.25, "target": 30090.75, "exit": 30151.5, "entry_clock": "09:34:00.038", "exit_clock": "09:34:06.146", "entry_print": 30121.25, "exit_print": 30151.25, "risk": 121.0, "imbalances": [{"direction": -1, "label_ticks": 120600, "label_price": 30150.0, "row_lo": 30149.0, "row_hi": 30150.0, "volume": 118, "reference": 22, "ratio": 5.363636363636363, "ratio_infinite": false, "reference_label_ticks": 120605, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 30150.0, "imb_lo": 30149.0, "imb_hi": 30150.0, "imb_vol": 118.0, "imb_ref": 22.0, "imb_ratio": 5.363636363636363, "result": "SL", "net_ticks": -122.8, "net_r": -1.0148760330578512, "net_usd": -614.0, "mae": 122.0, "mfe": 0.0, "duration": 6.107807938, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-07-08", "month": "Julio 2026", "month_key": "2026-07", "weekday": "Mié", "dir": 1, "dir_label": "LARGO", "candle_start": "09:39:00", "signal_close": "09:40:00", "minute": "09:39", "o": 29270.0, "h": 29330.0, "l": 29267.5, "c": 29320.0, "raw_o": 29269.25, "raw_h": 29329.25, "raw_l": 29266.75, "raw_c": 29320.0, "volume": 1721.0, "or_high": 29277.5, "or_low": 29201.25, "vwap": 29292.03959510358, "prev_vwap": 29290.101544564823, "vwap_slope": 1.9380505387562152, "entry": 29321.75, "stop": 29312.75, "target": 29330.75, "exit": 29311.75, "entry_clock": "09:40:00.019", "exit_clock": "09:40:03.594", "entry_print": 29321.5, "exit_print": 29312.0, "risk": 36.0, "imbalances": [{"direction": 1, "label_ticks": 117260, "label_price": 29315.0, "row_lo": 29314.0, "row_hi": 29315.0, "volume": 86, "reference": 23, "ratio": 3.739130434782609, "ratio_infinite": false, "reference_label_ticks": 117255, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 29315.0, "imb_lo": 29314.0, "imb_hi": 29315.0, "imb_vol": 86.0, "imb_ref": 23.0, "imb_ratio": 3.739130434782609, "result": "SL", "net_ticks": -40.8, "net_r": -1.1333333333333333, "net_usd": -204.0, "mae": 40.0, "mfe": 18.0, "duration": 3.575248614, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-07-09", "month": "Julio 2026", "month_key": "2026-07", "weekday": "Jue", "dir": 1, "dir_label": "LARGO", "candle_start": "09:34:00", "signal_close": "09:35:00", "minute": "09:34", "o": 29733.75, "h": 29782.5, "l": 29732.5, "c": 29778.75, "raw_o": 29733.5, "raw_h": 29781.5, "raw_l": 29732.5, "raw_c": 29778.75, "volume": 2311.0, "or_high": 29755.0, "or_low": 29682.5, "vwap": 29715.60402261596, "prev_vwap": 29702.99446988681, "vwap_slope": 12.60955272915453, "entry": 29778.5, "stop": 29747.75, "target": 29809.25, "exit": 29809.25, "entry_clock": "09:35:00.012", "exit_clock": "09:35:20.196", "entry_print": 29778.25, "exit_print": 29809.75, "risk": 123.0, "imbalances": [{"direction": 1, "label_ticks": 119000, "label_price": 29750.0, "row_lo": 29749.0, "row_hi": 29750.0, "volume": 104, "reference": 6, "ratio": 17.333333333333332, "ratio_infinite": false, "reference_label_ticks": 118995, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 29750.0, "imb_lo": 29749.0, "imb_hi": 29750.0, "imb_vol": 104.0, "imb_ref": 6.0, "imb_ratio": 17.333333333333332, "result": "TP", "net_ticks": 122.2, "net_r": 0.9934959349593496, "net_usd": 611.0, "mae": 45.0, "mfe": 123.0, "duration": 20.184616014, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-07-17", "month": "Julio 2026", "month_key": "2026-07", "weekday": "Vie", "dir": 1, "dir_label": "LARGO", "candle_start": "09:31:00", "signal_close": "09:32:00", "minute": "09:31", "o": 28645.0, "h": 28683.75, "l": 28643.75, "c": 28682.5, "raw_o": 28644.25, "raw_h": 28682.75, "raw_l": 28643.75, "raw_c": 28681.75, "volume": 3115.0, "or_high": 28660.0, "or_low": 28600.0, "vwap": 28659.483880967146, "prev_vwap": 28645.0, "vwap_slope": 14.483880967141886, "entry": 28680.25, "stop": 28664.0, "target": 28696.5, "exit": 28663.75, "entry_clock": "09:32:00.023", "exit_clock": "09:32:05.946", "entry_print": 28680.0, "exit_print": 28664.0, "risk": 65.0, "imbalances": [{"direction": 1, "label_ticks": 114665, "label_price": 28666.25, "row_lo": 28665.25, "row_hi": 28666.25, "volume": 184, "reference": 58, "ratio": 3.1724137931034484, "ratio_infinite": false, "reference_label_ticks": 114660, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 28666.25, "imb_lo": 28665.25, "imb_hi": 28666.25, "imb_vol": 184.0, "imb_ref": 58.0, "imb_ratio": 3.1724137931034484, "result": "SL", "net_ticks": -66.8, "net_r": -1.0276923076923077, "net_usd": -334.0, "mae": 66.0, "mfe": 23.0, "duration": 5.922584428, "source": "atas_archived", "atas_source": true, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-07-24", "month": "Julio 2026", "month_key": "2026-07", "weekday": "Vie", "dir": 1, "dir_label": "LARGO", "candle_start": "09:32:00", "signal_close": "09:33:00", "minute": "09:32", "o": 28532.5, "h": 28560.0, "l": 28517.5, "c": 28560.0, "raw_o": 28532.0, "raw_h": 28559.75, "raw_l": 28517.5, "raw_c": 28559.75, "volume": 2207.0, "or_high": 28542.5, "or_low": 28505.0, "vwap": 28536.965294782443, "prev_vwap": 28530.92111520628, "vwap_slope": 6.044179576165334, "entry": 28560.25, "stop": 28554.0, "target": 28566.5, "exit": 28566.5, "entry_clock": "09:33:00.001", "exit_clock": "09:33:01.817", "entry_print": 28560.0, "exit_print": 28566.75, "risk": 25.0, "imbalances": [{"direction": 1, "label_ticks": 114225, "label_price": 28556.25, "row_lo": 28555.25, "row_hi": 28556.25, "volume": 83, "reference": 20, "ratio": 4.15, "ratio_infinite": false, "reference_label_ticks": 114220, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 28556.25, "imb_lo": 28555.25, "imb_hi": 28556.25, "imb_vol": 83.0, "imb_ref": 20.0, "imb_ratio": 4.15, "result": "TP", "net_ticks": 24.2, "net_r": 0.968, "net_usd": 121.0, "mae": 8.0, "mfe": 25.0, "duration": 1.816378814, "source": "atas_archived", "atas_source": true, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-08-05", "month": "Agosto 2026", "month_key": "2026-08", "weekday": "Mié", "dir": 1, "dir_label": "LARGO", "candle_start": "09:39:00", "signal_close": "09:40:00", "minute": "09:39", "o": 29976.25, "h": 30032.5, "l": 29948.75, "c": 30006.25, "raw_o": 29976.25, "raw_h": 30032.5, "raw_l": 29947.75, "raw_c": 30005.25, "volume": 3073.0, "or_high": 29997.5, "or_low": 29947.5, "vwap": 29973.771070984865, "prev_vwap": 29970.68515598429, "vwap_slope": 3.0859150005708216, "entry": 30006.5, "stop": 29997.75, "target": 30015.25, "exit": 30015.25, "entry_clock": "09:40:00.039", "exit_clock": "09:40:02.929", "entry_print": 30006.25, "exit_print": 30015.25, "risk": 35.0, "imbalances": [{"direction": 1, "label_ticks": 120000, "label_price": 30000.0, "row_lo": 29999.0, "row_hi": 30000.0, "volume": 132, "reference": 9, "ratio": 14.666666666666666, "ratio_infinite": false, "reference_label_ticks": 119995, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 30000.0, "imb_lo": 29999.0, "imb_hi": 30000.0, "imb_vol": 132.0, "imb_ref": 9.0, "imb_ratio": 14.666666666666666, "result": "TP", "net_ticks": 34.2, "net_r": 0.9771428571428572, "net_usd": 171.0, "mae": 22.0, "mfe": 35.0, "duration": 2.8903949, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-08-06", "month": "Agosto 2026", "month_key": "2026-08", "weekday": "Jue", "dir": 1, "dir_label": "LARGO", "candle_start": "09:36:00", "signal_close": "09:37:00", "minute": "09:36", "o": 29367.5, "h": 29422.5, "l": 29367.5, "c": 29416.25, "raw_o": 29367.5, "raw_h": 29422.5, "raw_l": 29367.25, "raw_c": 29416.0, "volume": 4361.0, "or_high": 29373.75, "or_low": 29322.5, "vwap": 29330.460614272808, "prev_vwap": 29314.41328171914, "vwap_slope": 16.04733255366955, "entry": 29417.0, "stop": 29397.75, "target": 29436.25, "exit": 29436.25, "entry_clock": "09:37:00.008", "exit_clock": "09:37:07.614", "entry_print": 29416.75, "exit_print": 29436.25, "risk": 77.0, "imbalances": [{"direction": 1, "label_ticks": 117600, "label_price": 29400.0, "row_lo": 29399.0, "row_hi": 29400.0, "volume": 320, "reference": 19, "ratio": 16.842105263157894, "ratio_infinite": false, "reference_label_ticks": 117595, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 29400.0, "imb_lo": 29399.0, "imb_hi": 29400.0, "imb_vol": 320.0, "imb_ref": 19.0, "imb_ratio": 16.842105263157894, "result": "TP", "net_ticks": 76.2, "net_r": 0.9896103896103896, "net_usd": 381.0, "mae": 16.0, "mfe": 77.0, "duration": 7.605908854, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-08-13", "month": "Agosto 2026", "month_key": "2026-08", "weekday": "Jue", "dir": 1, "dir_label": "LARGO", "candle_start": "09:34:00", "signal_close": "09:35:00", "minute": "09:34", "o": 29901.25, "h": 29947.5, "l": 29901.25, "c": 29946.25, "raw_o": 29901.0, "raw_h": 29947.25, "raw_l": 29901.0, "raw_c": 29945.5, "volume": 3077.0, "or_high": 29913.75, "or_low": 29880.0, "vwap": 29900.136086627183, "prev_vwap": 29887.738313674094, "vwap_slope": 12.3977729530925, "entry": 29945.5, "stop": 29930.25, "target": 29960.75, "exit": 29960.75, "entry_clock": "09:35:00.002", "exit_clock": "09:35:18.312", "entry_print": 29945.25, "exit_print": 29960.75, "risk": 61.0, "imbalances": [{"direction": 1, "label_ticks": 119730, "label_price": 29932.5, "row_lo": 29931.5, "row_hi": 29932.5, "volume": 80, "reference": 6, "ratio": 13.333333333333334, "ratio_infinite": false, "reference_label_ticks": 119725, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 29932.5, "imb_lo": 29931.5, "imb_hi": 29932.5, "imb_vol": 80.0, "imb_ref": 6.0, "imb_ratio": 13.333333333333334, "result": "TP", "net_ticks": 60.2, "net_r": 0.9868852459016394, "net_usd": 301.0, "mae": 22.0, "mfe": 61.0, "duration": 18.3095666, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-08-17", "month": "Agosto 2026", "month_key": "2026-08", "weekday": "Lun", "dir": -1, "dir_label": "CORTO", "candle_start": "09:32:00", "signal_close": "09:33:00", "minute": "09:32", "o": 30247.5, "h": 30248.75, "l": 30201.25, "c": 30206.25, "raw_o": 30247.5, "raw_h": 30248.75, "raw_l": 30200.25, "raw_c": 30205.5, "volume": 2788.0, "or_high": 30257.5, "or_low": 30210.0, "vwap": 30240.08314906947, "prev_vwap": 30251.77752293578, "vwap_slope": -11.694373866310343, "entry": 30205.25, "stop": 30217.5, "target": 30193.0, "exit": 30193.0, "entry_clock": "09:33:00.009", "exit_clock": "09:33:02.141", "entry_print": 30205.5, "exit_print": 30193.0, "risk": 49.0, "imbalances": [{"direction": -1, "label_ticks": 120865, "label_price": 30216.25, "row_lo": 30215.25, "row_hi": 30216.25, "volume": 94, "reference": 24, "ratio": 3.9166666666666665, "ratio_infinite": false, "reference_label_ticks": 120870, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 30216.25, "imb_lo": 30215.25, "imb_hi": 30216.25, "imb_vol": 94.0, "imb_ref": 24.0, "imb_ratio": 3.9166666666666665, "result": "TP", "net_ticks": 48.2, "net_r": 0.9836734693877551, "net_usd": 241.0, "mae": 9.0, "mfe": 49.0, "duration": 2.13217582, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-08-18", "month": "Agosto 2026", "month_key": "2026-08", "weekday": "Mar", "dir": -1, "dir_label": "CORTO", "candle_start": "09:33:00", "signal_close": "09:34:00", "minute": "09:33", "o": 29666.25, "h": 29671.25, "l": 29643.75, "c": 29648.75, "raw_o": 29666.0, "raw_h": 29670.5, "raw_l": 29643.5, "raw_c": 29648.0, "volume": 3926.0, "or_high": 29717.5, "or_low": 29658.75, "vwap": 29695.132812126427, "prev_vwap": 29705.852710896568, "vwap_slope": -10.7198987701413, "entry": 29647.0, "stop": 29651.25, "target": 29642.75, "exit": 29642.75, "entry_clock": "09:34:00.013", "exit_clock": "09:34:02.946", "entry_print": 29647.25, "exit_print": 29642.75, "risk": 17.0, "imbalances": [{"direction": -1, "label_ticks": 118600, "label_price": 29650.0, "row_lo": 29649.0, "row_hi": 29650.0, "volume": 128, "reference": 25, "ratio": 5.12, "ratio_infinite": false, "reference_label_ticks": 118605, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 29650.0, "imb_lo": 29649.0, "imb_hi": 29650.0, "imb_vol": 128.0, "imb_ref": 25.0, "imb_ratio": 5.12, "result": "TP", "net_ticks": 16.2, "net_r": 0.9529411764705882, "net_usd": 81.0, "mae": 7.0, "mfe": 17.0, "duration": 2.932567712, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-08-31", "month": "Agosto 2026", "month_key": "2026-08", "weekday": "Lun", "dir": -1, "dir_label": "CORTO", "candle_start": "09:38:00", "signal_close": "09:39:00", "minute": "09:38", "o": 29422.5, "h": 29437.5, "l": 29393.75, "c": 29393.75, "raw_o": 29422.5, "raw_h": 29436.5, "raw_l": 29392.75, "raw_c": 29392.75, "volume": 2264.0, "or_high": 29482.5, "or_low": 29417.5, "vwap": 29452.880577792603, "prev_vwap": 29458.29653491383, "vwap_slope": -5.4159571212258015, "entry": 29392.25, "stop": 29401.25, "target": 29383.25, "exit": 29401.5, "entry_clock": "09:39:00.017", "exit_clock": "09:39:16.043", "entry_print": 29392.5, "exit_print": 29401.25, "risk": 36.0, "imbalances": [{"direction": -1, "label_ticks": 117600, "label_price": 29400.0, "row_lo": 29399.0, "row_hi": 29400.0, "volume": 70, "reference": 21, "ratio": 3.3333333333333335, "ratio_infinite": false, "reference_label_ticks": 117605, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 29400.0, "imb_lo": 29399.0, "imb_hi": 29400.0, "imb_vol": 70.0, "imb_ref": 21.0, "imb_ratio": 3.333333333333333, "result": "SL", "net_ticks": -37.8, "net_r": -1.0499999999999998, "net_usd": -189.0, "mae": 37.0, "mfe": 8.0, "duration": 16.025688548, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-09-03", "month": "Septiembre 2026", "month_key": "2026-09", "weekday": "Jue", "dir": 1, "dir_label": "LARGO", "candle_start": "09:39:00", "signal_close": "09:40:00", "minute": "09:39", "o": 29282.5, "h": 29337.5, "l": 29281.25, "c": 29330.0, "raw_o": 29281.75, "raw_h": 29337.5, "raw_l": 29281.0, "raw_c": 29329.5, "volume": 3832.0, "or_high": 29285.0, "or_low": 29241.25, "vwap": 29264.167616724557, "prev_vwap": 29256.72273867493, "vwap_slope": 7.444878049624094, "entry": 29329.75, "stop": 29297.75, "target": 29361.75, "exit": 29361.75, "entry_clock": "09:40:00.014", "exit_clock": "09:49:13.201", "entry_print": 29329.5, "exit_print": 29361.75, "risk": 128.0, "imbalances": [{"direction": 1, "label_ticks": 117250, "label_price": 29312.5, "row_lo": 29311.5, "row_hi": 29312.5, "volume": 81, "reference": 15, "ratio": 5.4, "ratio_infinite": false, "reference_label_ticks": 117245, "reference_level_present": true, "dominant_level_present": true}, {"direction": 1, "label_ticks": 117200, "label_price": 29300.0, "row_lo": 29299.0, "row_hi": 29300.0, "volume": 184, "reference": 10, "ratio": 18.4, "ratio_infinite": false, "reference_label_ticks": 117195, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 2, "imb_label": 29300.0, "imb_lo": 29299.0, "imb_hi": 29300.0, "imb_vol": 184.0, "imb_ref": 10.0, "imb_ratio": 18.4, "result": "TP", "net_ticks": 127.2, "net_r": 0.99375, "net_usd": 636.0, "mae": 63.0, "mfe": 128.0, "duration": 553.187144118, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-09-10", "month": "Septiembre 2026", "month_key": "2026-09", "weekday": "Jue", "dir": 1, "dir_label": "LARGO", "candle_start": "09:38:00", "signal_close": "09:39:00", "minute": "09:38", "o": 29118.75, "h": 29145.0, "l": 29111.25, "c": 29142.5, "raw_o": 29118.0, "raw_h": 29145.0, "raw_l": 29111.25, "raw_c": 29141.5, "volume": 2694.0, "or_high": 29123.75, "or_low": 29078.75, "vwap": 29111.470988737077, "prev_vwap": 29108.666071069056, "vwap_slope": 2.804917668017879, "entry": 29142.0, "stop": 29137.75, "target": 29146.25, "exit": 29146.25, "entry_clock": "09:39:00.021", "exit_clock": "09:39:08.812", "entry_print": 29141.75, "exit_print": 29146.25, "risk": 17.0, "imbalances": [{"direction": 1, "label_ticks": 116560, "label_price": 29140.0, "row_lo": 29139.0, "row_hi": 29140.0, "volume": 176, "reference": 51, "ratio": 3.450980392156863, "ratio_infinite": false, "reference_label_ticks": 116555, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 29140.0, "imb_lo": 29139.0, "imb_hi": 29140.0, "imb_vol": 176.0, "imb_ref": 51.0, "imb_ratio": 3.450980392156863, "result": "TP", "net_ticks": 16.2, "net_r": 0.9529411764705882, "net_usd": 81.0, "mae": 16.0, "mfe": 17.0, "duration": 8.790299606, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-09-17", "month": "Septiembre 2026", "month_key": "2026-09", "weekday": "Jue", "dir": -1, "dir_label": "CORTO", "candle_start": "09:31:00", "signal_close": "09:32:00", "minute": "09:31", "o": 29717.5, "h": 29723.75, "l": 29673.75, "c": 29673.75, "raw_o": 29717.25, "raw_h": 29723.75, "raw_l": 29673.0, "raw_c": 29673.75, "volume": 3904.0, "or_high": 29737.5, "or_low": 29698.75, "vwap": 29701.907894736843, "prev_vwap": 29718.75, "vwap_slope": -16.842105263156554, "entry": 29674.0, "stop": 29700.0, "target": 29648.0, "exit": 29648.0, "entry_clock": "09:32:00.007", "exit_clock": "09:34:53.004", "entry_print": 29674.25, "exit_print": 29648.0, "risk": 104.0, "imbalances": [{"direction": -1, "label_ticks": 118795, "label_price": 29698.75, "row_lo": 29697.75, "row_hi": 29698.75, "volume": 109, "reference": 25, "ratio": 4.36, "ratio_infinite": false, "reference_label_ticks": 118800, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 29698.75, "imb_lo": 29697.75, "imb_hi": 29698.75, "imb_vol": 109.0, "imb_ref": 25.0, "imb_ratio": 4.36, "result": "TP", "net_ticks": 103.2, "net_r": 0.9923076923076923, "net_usd": 516.0, "mae": 44.0, "mfe": 104.0, "duration": 172.997030686, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-09-18", "month": "Septiembre 2026", "month_key": "2026-09", "weekday": "Vie", "dir": 1, "dir_label": "LARGO", "candle_start": "09:39:00", "signal_close": "09:40:00", "minute": "09:39", "o": 29830.0, "h": 29840.0, "l": 29830.0, "c": 29836.25, "raw_o": 29830.0, "raw_h": 29839.75, "raw_l": 29829.25, "raw_c": 29836.25, "volume": 1234.0, "or_high": 29832.5, "or_low": 29803.75, "vwap": 29822.619504928232, "prev_vwap": 29821.958574010765, "vwap_slope": 0.6609309174673399, "entry": 29836.0, "stop": 29830.25, "target": 29841.75, "exit": 29830.0, "entry_clock": "09:40:00.001", "exit_clock": "09:40:31.130", "entry_print": 29835.75, "exit_print": 29830.25, "risk": 23.0, "imbalances": [{"direction": 1, "label_ticks": 119330, "label_price": 29832.5, "row_lo": 29831.5, "row_hi": 29832.5, "volume": 82, "reference": 21, "ratio": 3.9047619047619047, "ratio_infinite": false, "reference_label_ticks": 119325, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 29832.5, "imb_lo": 29831.5, "imb_hi": 29832.5, "imb_vol": 82.0, "imb_ref": 21.0, "imb_ratio": 3.9047619047619047, "result": "SL", "net_ticks": -24.8, "net_r": -1.0782608695652174, "net_usd": -124.0, "mae": 24.0, "mfe": 17.0, "duration": 31.12838203, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-09-29", "month": "Septiembre 2026", "month_key": "2026-09", "weekday": "Mar", "dir": -1, "dir_label": "CORTO", "candle_start": "09:31:00", "signal_close": "09:32:00", "minute": "09:31", "o": 30677.5, "h": 30706.25, "l": 30655.0, "c": 30663.75, "raw_o": 30676.75, "raw_h": 30705.75, "raw_l": 30654.5, "raw_c": 30663.25, "volume": 4716.0, "or_high": 30726.25, "or_low": 30666.25, "vwap": 30671.39464268901, "prev_vwap": 30677.5, "vwap_slope": -6.105357310989348, "entry": 30663.0, "stop": 30666.25, "target": 30659.75, "exit": 30667.0, "entry_clock": "09:32:00.000", "exit_clock": "09:32:01.876", "entry_print": 30663.25, "exit_print": 30666.75, "risk": 13.0, "imbalances": [{"direction": -1, "label_ticks": 122660, "label_price": 30665.0, "row_lo": 30664.0, "row_hi": 30665.0, "volume": 81, "reference": 19, "ratio": 4.2631578947368425, "ratio_infinite": false, "reference_label_ticks": 122665, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 30665.0, "imb_lo": 30664.0, "imb_hi": 30665.0, "imb_vol": 81.0, "imb_ref": 19.0, "imb_ratio": 4.2631578947368425, "result": "SL", "net_ticks": -16.8, "net_r": -1.2923076923076924, "net_usd": -84.0, "mae": 16.0, "mfe": 0.0, "duration": 1.876225114, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-09-30", "month": "Septiembre 2026", "month_key": "2026-09", "weekday": "Mié", "dir": 1, "dir_label": "LARGO", "candle_start": "09:31:00", "signal_close": "09:32:00", "minute": "09:31", "o": 30725.0, "h": 30805.0, "l": 30721.25, "c": 30796.25, "raw_o": 30724.75, "raw_h": 30804.25, "raw_l": 30721.25, "raw_c": 30795.75, "volume": 7948.0, "or_high": 30728.75, "or_low": 30683.75, "vwap": 30767.39052324276, "prev_vwap": 30725.0, "vwap_slope": 42.3905232427569, "entry": 30796.75, "stop": 30767.75, "target": 30825.75, "exit": 30767.25, "entry_clock": "09:32:00.003", "exit_clock": "09:32:46.021", "entry_print": 30796.5, "exit_print": 30767.5, "risk": 116.0, "imbalances": [{"direction": 1, "label_ticks": 123200, "label_price": 30800.0, "row_lo": 30799.0, "row_hi": 30800.0, "volume": 169, "reference": 27, "ratio": 6.2592592592592595, "ratio_infinite": false, "reference_label_ticks": 123195, "reference_level_present": true, "dominant_level_present": true}, {"direction": 1, "label_ticks": 123120, "label_price": 30780.0, "row_lo": 30779.0, "row_hi": 30780.0, "volume": 167, "reference": 55, "ratio": 3.036363636363636, "ratio_infinite": false, "reference_label_ticks": 123115, "reference_level_present": true, "dominant_level_present": true}, {"direction": 1, "label_ticks": 123080, "label_price": 30770.0, "row_lo": 30769.0, "row_hi": 30770.0, "volume": 933, "reference": 31, "ratio": 30.096774193548388, "ratio_infinite": false, "reference_label_ticks": 123075, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 3, "imb_label": 30770.0, "imb_lo": 30769.0, "imb_hi": 30770.0, "imb_vol": 933.0, "imb_ref": 31.0, "imb_ratio": 30.096774193548388, "result": "SL", "net_ticks": -118.8, "net_r": -1.0241379310344827, "net_usd": -594.0, "mae": 118.0, "mfe": 52.0, "duration": 46.018060514, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}, {"n": 1, "session": "2026-10-01", "month": "Octubre 2026", "month_key": "2026-10", "weekday": "Jue", "dir": -1, "dir_label": "CORTO", "candle_start": "09:31:00", "signal_close": "09:32:00", "minute": "09:31", "o": 30768.75, "h": 30785.0, "l": 30735.0, "c": 30755.0, "raw_o": 30768.25, "raw_h": 30784.0, "raw_l": 30734.25, "raw_c": 30754.75, "volume": 6045.0, "or_high": 30831.25, "or_low": 30768.75, "vwap": 30762.907675546496, "prev_vwap": 30768.75, "vwap_slope": -5.842324453504261, "entry": 30755.0, "stop": 30777.5, "target": 30732.5, "exit": 30777.75, "entry_clock": "09:32:00.014", "exit_clock": "09:32:10.445", "entry_print": 30755.25, "exit_print": 30777.5, "risk": 90.0, "imbalances": [{"direction": -1, "label_ticks": 123105, "label_price": 30776.25, "row_lo": 30775.25, "row_hi": 30776.25, "volume": 249, "reference": 69, "ratio": 3.608695652173913, "ratio_infinite": false, "reference_label_ticks": 123110, "reference_level_present": true, "dominant_level_present": true}], "imb_count": 1, "imb_label": 30776.25, "imb_lo": 30775.25, "imb_hi": 30776.25, "imb_vol": 249.0, "imb_ref": 69.0, "imb_ratio": 3.608695652173913, "result": "SL", "net_ticks": -91.8, "net_r": -1.02, "net_usd": -459.0, "mae": 91.0, "mfe": 12.0, "duration": 10.43043326, "source": "databento_calibrated", "atas_source": false, "print_at_stop": false, "grouped_mismatch": true}];
+const fx = (v, d = 2) => v === null || v === undefined ? "&mdash;" : v.toFixed(d);
+const px = v => v === null || v === undefined ? "&mdash;" : v.toFixed(2);
+let filter = "all", month = "", selected = TRADES[0].n;
+
+function visible() {
+  return TRADES.filter(t => {
+    if (month && t.month_key !== month) return false;
+    if (filter === "tp") return t.result === "TP";
+    if (filter === "sl") return t.result === "SL";
+    if (filter === "long") return t.dir > 0;
+    if (filter === "short") return t.dir < 0;
+    return true;
+  });
+}
+
+function renderList() {
+  const list = visible();
+  document.getElementById("empty").hidden = list.length > 0;
+  document.getElementById("rows").innerHTML = list.map(t => `
+    <tr data-n="${t.n}" class="${t.n === selected ? "sel" : ""}">
+      <td class="mono">${t.n}</td>
+      <td class="mono">${t.session}</td>
+      <td class="mono">${t.minute}</td>
+      <td class="${t.dir > 0 ? "long" : "short"}">${t.dir > 0 ? "▲ L" : "▼ C"}</td>
+      <td class="num mono">${fx(t.risk, 0)}t</td>
+      <td class="${t.result.toLowerCase()}">${t.result}</td>
+      <td class="num mono ${t.net_ticks > 0 ? "tp" : "sl"}">${t.net_ticks > 0 ? "+" : ""}${fx(t.net_ticks, 1)}</td>
+      <td class="num mono ${t.net_r > 0 ? "tp" : "sl"}">${t.net_r > 0 ? "+" : ""}${fx(t.net_r, 2)}</td>
+    </tr>`).join("");
+  document.querySelectorAll("#rows tr").forEach(tr => {
+    tr.onclick = () => { selected = +tr.dataset.n; renderList(); renderDetail(); };
+  });
+}
+
+/* Vertical price ladder: OR band, signal candle, orders and imbalance rows. */
+function ladder(t) {
+  const vals = [t.h, t.l, t.or_high, t.or_low, t.entry, t.stop, t.target, t.exit, t.vwap]
+    .filter(v => v !== null);
+  t.imbalances.forEach(i => { vals.push(i.row_lo, i.row_hi); });
+  let hi = Math.max(...vals), lo = Math.min(...vals);
+  const pad = (hi - lo) * 0.10 || 1;
+  hi += pad; lo -= pad;
+  const W = 460, H = 330, L = 118, R = 74;
+  const y = p => H - 18 - ((p - lo) / (hi - lo)) * (H - 36);
+  const lbl = (p, text, color, dash = "") => `
+    <line x1="${L}" x2="${W - R}" y1="${y(p).toFixed(1)}" y2="${y(p).toFixed(1)}"
+          stroke="${color}" stroke-width="1.4" ${dash ? `stroke-dasharray="${dash}"` : ""}/>
+    <text x="${L - 7}" y="${(y(p) + 3.5).toFixed(1)}" fill="${color}" font-size="10.5"
+          text-anchor="end" font-family="var(--mono)">${text}</text>
+    <text x="${W - R + 6}" y="${(y(p) + 3.5).toFixed(1)}" fill="${color}" font-size="10.5"
+          font-family="var(--mono)">${p.toFixed(2)}</text>`;
+
+  // OR band.
+  const orTop = y(t.or_high), orBot = y(t.or_low);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Escalera de precios de la operación">
+    <rect x="${L}" y="${orTop.toFixed(1)}" width="${W - L - R}" height="${(orBot - orTop).toFixed(1)}"
+          fill="var(--or)" opacity="0.13"/>`;
+  s += lbl(t.or_high, "OR high", "var(--or)", "4 3");
+  s += lbl(t.or_low, "OR low", "var(--or)", "4 3");
+
+  // Imbalance rows (5-tick bands) drawn as blocks.
+  t.imbalances.forEach((i, k) => {
+    const top = y(i.row_hi), bot = y(i.row_lo);
+    s += `<rect x="${L + 6}" y="${top.toFixed(1)}" width="${(W - L - R - 12).toFixed(1)}"
+            height="${Math.max(bot - top, 3).toFixed(1)}"
+            fill="${t.dir > 0 ? "var(--up)" : "var(--down)"}" opacity="0.22"/>
+          <text x="${L + 12}" y="${(top + Math.max(bot - top, 10) / 2 + 3.5).toFixed(1)}"
+            font-size="9.5" fill="var(--muted)" font-family="var(--mono)">imb ${k + 1} · ${i.volume}×${i.reference} · ${i.ratio_infinite ? "∞" : i.ratio.toFixed(1)}</text>`;
+  });
+
+  // Signal candle body + wicks, centred.
+  const cx = (L + W - R) / 2, bw = 26;
+  const bodyTop = y(Math.max(t.o, t.c)), bodyBot = y(Math.min(t.o, t.c));
+  const col = t.c >= t.o ? "var(--up)" : "var(--down)";
+  s += `<line x1="${cx}" x2="${cx}" y1="${y(t.h).toFixed(1)}" y2="${y(t.l).toFixed(1)}" stroke="${col}" stroke-width="1.6"/>
+        <rect x="${cx - bw / 2}" y="${bodyTop.toFixed(1)}" width="${bw}"
+              height="${Math.max(bodyBot - bodyTop, 2).toFixed(1)}" fill="${col}"/>`;
+
+  s += lbl(t.vwap, "VWAP", "var(--vwap)", "2 3");
+  s += lbl(t.stop, "SL", "var(--down)");
+  s += lbl(t.target, "TP", "var(--up)");
+  s += lbl(t.entry, "Entrada", "var(--accent)");
+  s += `</svg>`;
+  return s;
+}
+
+function renderDetail() {
+  const t = TRADES.find(x => x.n === selected);
+  const warn = [];
+  if (t.print_at_stop) warn.push("El primer print de entrada ya está en o más allá del SL: no ejecutable tal cual.");
+  if (t.risk <= 5) warn.push(`Riesgo de ${t.risk} ticks: demasiado fino para ser ejecutable en NQ.`);
+  if (t.grouped_mismatch) warn.push("OHLC nativo distinto del agrupado ceil-5: ATAS y Databento pueden dibujar la vela distinta.");
+
+  document.getElementById("detail").innerHTML = `
+    <div class="card">
+      <h3>Dónde buscarlo en ATAS</h3>
+      <div class="navbox">
+        <div class="big">${t.session} &middot; ${t.minute} NY</div>
+        <div class="sub" style="margin:6px 0 10px">
+          ${t.weekday} &middot; vela M1 que abre ${t.candle_start} y cierra ${t.signal_close} &middot;
+          señal ${t.dir > 0 ? "<span class='long'>LARGA</span>" : "<span class='short'>CORTA</span>"}
+        </div>
+        <button class="copy" data-copy="${t.session} ${t.minute}">Copiar fecha y minuto</button>
+        <span class="tag ${t.atas_source ? "atas" : ""}">${t.atas_source ? "footprint desde export ATAS" : "footprint reconstruido Databento"}</span>
+      </div>
+      <div class="note">
+        Poner el replay en <b>${t.session}</b>, gráfico M1 de NQ, e ir a la vela de las <b>${t.minute}</b>.
+        El OR es la vela 09:30&ndash;09:31. La entrada simulada ocurre al primer print tras el cierre,
+        a las <b>${t.entry_clock}</b>; la salida, a las <b>${t.exit_clock}</b>
+        (${t.duration < 60 ? fx(t.duration, 1) + " s" : fx(t.duration / 60, 1) + " min"} después).
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Niveles a verificar</h3>
+      <div class="grid2">
+        <div class="field"><span>OR high</span><b>${px(t.or_high)}</b></div>
+        <div class="field"><span>OR low</span><b>${px(t.or_low)}</b></div>
+        <div class="field"><span>Entrada</span><b style="color:var(--accent)">${px(t.entry)}</b></div>
+        <div class="field"><span>Stop</span><b style="color:var(--down)">${px(t.stop)}</b></div>
+        <div class="field"><span>Target</span><b style="color:var(--up)">${px(t.target)}</b></div>
+        <div class="field"><span>Salida real</span><b>${px(t.exit)}</b></div>
+        <div class="field"><span>Riesgo</span><b>${fx(t.risk, 0)} ticks</b></div>
+        <div class="field"><span>VWAP al cierre</span><b style="color:var(--vwap)">${px(t.vwap)}</b></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Geometría de la operación</h3>
+      ${ladder(t)}
+      <div class="legend">
+        <span><i style="background:var(--or)"></i>Opening Range</span>
+        <span><i style="background:var(--accent)"></i>Entrada</span>
+        <span><i style="background:var(--down)"></i>Stop</span>
+        <span><i style="background:var(--up)"></i>Target</span>
+        <span><i style="background:var(--vwap)"></i>VWAP</span>
+        <span>Bloque sombreado = fila de imbalance (5 ticks)</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Vela de señal (M1 ${t.minute})</h3>
+      <table class="inner">
+        <tr><th></th><th class="num">Open</th><th class="num">High</th><th class="num">Low</th><th class="num">Close</th></tr>
+        <tr><td>Agrupado ceil-5 (motor)</td><td class="num mono">${px(t.o)}</td><td class="num mono">${px(t.h)}</td><td class="num mono">${px(t.l)}</td><td class="num mono">${px(t.c)}</td></tr>
+        <tr><td>Nativo Databento</td><td class="num mono">${px(t.raw_o)}</td><td class="num mono">${px(t.raw_h)}</td><td class="num mono">${px(t.raw_l)}</td><td class="num mono">${px(t.raw_c)}</td></tr>
+      </table>
+      <div class="note">
+        Volumen ${fx(t.volume, 0)} &middot; VWAP previa ${px(t.prev_vwap)} &rarr; actual ${px(t.vwap)}
+        (pendiente ${t.vwap_slope > 0 ? "+" : ""}${fx(t.vwap_slope, 2)} puntos/min, ${t.vwap_slope > 0 ? "al alza" : "a la baja"}).
+        El motor usa la rejilla agrupada, igual que el export de ATAS: cada etiqueta es el tick
+        superior de un intervalo de 5 ticks.
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Imbalances alineados (${t.imb_count})</h3>
+      <table class="inner">
+        <tr><th>#</th><th class="num">Etiqueta</th><th>Fila (5t)</th><th class="num">Volumen</th><th class="num">Referencia</th><th class="num">Ratio</th><th></th></tr>
+        ${t.imbalances.map((i, k) => `
+          <tr>
+            <td>${k + 1}</td>
+            <td class="num mono">${i.label_price.toFixed(2)}</td>
+            <td class="mono">${i.row_lo.toFixed(2)}&ndash;${i.row_hi.toFixed(2)}</td>
+            <td class="num mono">${i.volume}</td>
+            <td class="num mono">${i.reference}</td>
+            <td class="num mono">${i.ratio_infinite ? "&infin;" : i.ratio.toFixed(2)}</td>
+            <td>${i.label_price === t.imb_label ? '<span class="tag">define el SL</span>' : ""}</td>
+          </tr>`).join("")}
+      </table>
+      <div class="note">
+        Comparación diagonal: ${t.dir > 0
+          ? "compra = ask de la fila contra bid de la fila inferior"
+          : "venta = bid de la fila contra ask de la fila superior"}.
+        Ratio exigido &gt; 3.0, volumen mínimo 70. El SL va 5 ticks detrás de la fila alineada
+        más lejana al precio.
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Resultado</h3>
+      <div class="grid2">
+        <div class="field"><span>Salida</span><b class="${t.result.toLowerCase()}">${t.result}</b></div>
+        <div class="field"><span>Ticks netos</span><b class="${t.net_ticks > 0 ? "tp" : "sl"}">${t.net_ticks > 0 ? "+" : ""}${fx(t.net_ticks, 1)}</b></div>
+        <div class="field"><span>R neto</span><b class="${t.net_r > 0 ? "tp" : "sl"}">${t.net_r > 0 ? "+" : ""}${fx(t.net_r, 3)}</b></div>
+        <div class="field"><span>USD 1 NQ</span><b class="${t.net_usd > 0 ? "tp" : "sl"}">${t.net_usd > 0 ? "+" : ""}${fx(t.net_usd, 0)}</b></div>
+        <div class="field"><span>MAE</span><b>${fx(t.mae, 0)} ticks</b></div>
+        <div class="field"><span>MFE</span><b>${fx(t.mfe, 0)} ticks</b></div>
+      </div>
+      <div class="note">Costes incluidos: 1 tick adverso en entrada, 1 tick adverso más overshoot en SL, USD 4 round-trip (0.8 ticks).</div>
+    </div>
+
+    ${warn.length ? `<div class="card warnbox"><h3>Advertencias de ejecución</h3>
+      <ul style="margin:0;padding-left:18px">${warn.map(w => `<li>${w}</li>`).join("")}</ul></div>` : ""}
+  `;
+  const btn = document.querySelector("[data-copy]");
+  if (btn) btn.onclick = () => {
+    navigator.clipboard.writeText(btn.dataset.copy).then(
+      () => { btn.textContent = "Copiado"; setTimeout(() => btn.textContent = "Copiar fecha y minuto", 1200); },
+      () => { btn.textContent = "No se pudo copiar"; }
+    );
+  };
+}
+
+// Filters.
+document.querySelectorAll("button.f[data-k]").forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll("button.f[data-k]").forEach(x => x.classList.remove("on"));
+    btn.classList.add("on");
+    filter = btn.dataset.k;
+    const list = visible();
+    if (list.length && !list.some(t => t.n === selected)) selected = list[0].n;
+    renderList(); renderDetail();
+  };
+});
+const sel = document.getElementById("month");
+[...new Set(TRADES.map(t => t.month_key))].sort().forEach(k => {
+  const t = TRADES.find(x => x.month_key === k);
+  sel.insertAdjacentHTML("beforeend", `<option value="${k}">${t.month}</option>`);
+});
+sel.onchange = () => {
+  month = sel.value;
+  const list = visible();
+  if (list.length && !list.some(t => t.n === selected)) selected = list[0].n;
+  renderList(); renderDetail();
+};
+
+// Theme toggle and keyboard navigation.
+document.getElementById("theme").onclick = () => {
+  const cur = document.documentElement.dataset.theme;
+  document.documentElement.dataset.theme = cur === "light" ? "dark" : "light";
+};
+document.onkeydown = e => {
+  if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+  const list = visible(), i = list.findIndex(t => t.n === selected);
+  const next = e.key === "ArrowDown" ? Math.min(i + 1, list.length - 1) : Math.max(i - 1, 0);
+  selected = list[next].n; renderList(); renderDetail();
+  e.preventDefault();
+};
+
+renderList(); renderDetail();
+</script>
+</body>
+</html>

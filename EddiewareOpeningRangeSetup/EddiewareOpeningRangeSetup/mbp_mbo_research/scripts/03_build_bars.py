@@ -31,7 +31,11 @@ def load_day(path: Path) -> pd.DataFrame:
     df = df.reset_index().rename(columns={"ts_event": "ts_utc"})
     df["ts_ny"] = df.ts_utc.dt.tz_convert(NY)
     df["session"] = df.ts_ny.dt.date
-    keep = ["ts_utc", "ts_ny", "session", "open", "high", "low", "close", "volume"]
+    # instrument_id identifies WHICH contract the continuous symbol resolved to.
+    # It is the only honest way to spot a roll: the price jumps by the calendar
+    # spread there, so any overnight gap measured across it is meaningless.
+    keep = ["ts_utc", "ts_ny", "session", "instrument_id",
+            "open", "high", "low", "close", "volume"]
     return df[keep]
 
 

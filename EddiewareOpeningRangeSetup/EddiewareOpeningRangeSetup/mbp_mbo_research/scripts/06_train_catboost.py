@@ -29,21 +29,48 @@ COMMISSION_TICKS = 0.8      # ~$4 round turn on NQ at $5/tick
 SLIPPAGE_TICKS = 1.0        # 1 tick of adverse fill, entry + exit combined
 COST_TICKS = COMMISSION_TICKS + SLIPPAGE_TICKS
 
-DROP = {"session", "signal_ts", "signal_ts_ny", "entry_ts", "exit_ts", "exit_kind",
-        "ticks", "r_multiple", "exit_px", "entry_px", "year", "label",
-        "or_high", "or_low", "mid"}
+# Columns that must never reach the model.
+# Outcomes: knowing any of these is knowing the answer. `mins_to_exit` is the
+# worst of them because it is numeric and looks like a feature.
+# Absolute prices: they encode the date, so the model learns the calendar
+# instead of the setup.
+# Constants after filtering by bracket: no information, just noise in the splits.
+DROP = {
+    # outcomes
+    "ticks", "r_multiple", "exit_kind", "exit_ts", "exit_px", "mins_to_exit",
+    "label", "filled",
+    # identifiers and timestamps
+    "session", "signal_ts", "signal_ts_ny", "signal_minute_ny", "entry_ts", "year",
+    # absolute price levels
+    "entry_px", "or_high", "or_low", "vwap", "mid",
+    # known only at or after the fill
+    "fill_wait_s",
+    # constant once a bracket is selected
+    "tp_ticks", "sl_ticks", "rr", "breakeven_wr",
+}
 
 
-def report(df: pd.DataFrame, label: str) -> pd.DataFrame:
-    """Year x metric table, per the project's backtest reporting standard."""
+MIN_N_YEAR = 30     # below this a yearly row is noise, not evidence
+
+
+def report(df: pd.DataFrame, label: str, universe: pd.DataFrame | None = None
+           ) -> pd.DataFrame:
+    """Year x metric table, per the project's backtest reporting standard.
+
+    `universe` is the unfiltered event set: trades/mes is measured against the
+    calendar months actually available, so a selective filter correctly shows a
+    LOWER trade frequency instead of being rescaled back up.
+    """
     rows = []
+    univ = df if universe is None else universe
     for year, g in list(df.groupby("year")) + [("TOTAL", df)]:
         if g.empty:
             continue
+        pool = univ if year == "TOTAL" else univ[univ.year == year]
+        months = max(pd.to_datetime(pool.session).dt.to_period("M").nunique(), 1)
         wins = g.ticks > 0
         gross_win = g.loc[wins, "ticks"].sum()
         gross_loss = -g.loc[~wins, "ticks"].sum()
-        months = max(g.session.nunique() / 21, 1e-9)
         rows.append({
             "year": year,
             "trades": len(g),
@@ -54,20 +81,50 @@ def report(df: pd.DataFrame, label: str) -> pd.DataFrame:
             "PF": round(gross_win / gross_loss, 2) if gross_loss else np.inf,
             "EV bruto": round(g.ticks.mean(), 2),
             f"EV neto (-{COST_TICKS}t)": round(g.ticks.mean() - COST_TICKS, 2),
+            "n ok": "" if len(g) >= MIN_N_YEAR else f"<{MIN_N_YEAR}!",
         })
     out = pd.DataFrame(rows)
     print(f"\n=== {label} ===")
     print(out.to_string(index=False))
+    thin = out[(out.year != "TOTAL") & (out["n ok"] != "")]
+    if not thin.empty:
+        print(f"  WARNING: {len(thin)} year(s) under {MIN_N_YEAR} trades "
+              "-> those rows carry no statistical weight.")
     return out
+
+
+def placebo(universe: pd.DataFrame, picked: pd.DataFrame, iters: int = 2000,
+            seed: int = 17) -> float:
+    """p-value of the filter vs. picking the same count of trades at random.
+
+    The null is 'the filter selects no better than a coin'. Drawing the same
+    number of trades per year from the same pool is the only honest null: a
+    small, lucky subset of a zero-edge pool shows a great PF all by itself.
+    """
+    rng = np.random.default_rng(seed)
+    target = picked.ticks.mean()
+    counts = picked.groupby("year").size().to_dict()
+    pools = {y: universe.loc[universe.year == y, "ticks"].to_numpy()
+             for y in counts}
+    better = 0
+    for _ in range(iters):
+        draws = [rng.choice(pools[y], size=min(k, len(pools[y])), replace=False)
+                 for y, k in counts.items() if len(pools[y])]
+        if draws and np.concatenate(draws).mean() >= target:
+            better += 1
+    return better / iters
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--or-minutes", type=int, default=15)
-    ap.add_argument("--tp", type=int, default=40)
-    ap.add_argument("--sl", type=int, default=20)
+    ap.add_argument("--bracket", type=int, default=40,
+                    help="bracket size in ticks; TP = SL (1:1)")
     ap.add_argument("--threshold", type=float, default=0.55)
+    ap.add_argument("--entry-mode", default="market",
+                    help="which entry mode to train on; the modes are not "
+                         "comparable rows and must not be pooled")
     a = ap.parse_args()
+    a.tp = a.sl = a.bracket
 
     for p in (EVENTS, FEATURES):
         if not p.exists():
@@ -75,20 +132,22 @@ def main() -> int:
             return 1
 
     ev = pd.read_parquet(EVENTS)
-    ev = ev[(ev.or_minutes == a.or_minutes) & (ev.tp_ticks == a.tp)
-            & (ev.sl_ticks == a.sl)].copy()
+    ev = ev[(ev.tp_ticks == a.tp) & (ev.sl_ticks == a.sl)
+            & (ev.entry_mode == a.entry_mode) & ev.filled].copy()
     feats = pd.read_parquet(FEATURES)
-    df = ev.merge(feats, on=["session", "or_minutes"], how="left")
+    on = ["session"] + (["or_minutes"] if "or_minutes" in feats.columns
+                        and "or_minutes" in ev.columns else [])
+    df = ev.merge(feats, on=on, how="left")
     df["label"] = (df.ticks > 0).astype(int)
     df = df.sort_values("signal_ts").reset_index(drop=True)
-    print(f"bracket TP{a.tp}/SL{a.sl} OR{a.or_minutes}m -> {len(df)} events, "
-          f"{df.year.min()}-{df.year.max()}")
+    print(f"bracket 1:1 {a.bracket} ticks, entrada {a.entry_mode} -> "
+          f"{len(df)} events, {df.year.min()}-{df.year.max()}")
 
     x_cols = [c for c in df.columns
               if c not in DROP and pd.api.types.is_numeric_dtype(df[c])]
     print(f"{len(x_cols)} features")
 
-    base = report(df, "BASELINE - take every breakout")
+    base = report(df, "BASELINE - take every qualifying setup")
 
     picks = []
     years = sorted(df.year.unique())
@@ -118,12 +177,26 @@ def main() -> int:
         print("not enough history for a walk-forward.")
         return 1
     oos = pd.concat(picks, ignore_index=True)
-    filt = report(oos, f"CATBOOST FILTER OOS (p >= {a.threshold})")
+    tested = df[df.year.isin(oos.year.unique())]
+    filt = report(oos, f"CATBOOST FILTER OOS (p >= {a.threshold})", universe=tested)
 
-    LOGS.mkdir(parents=True, exist_ok=True)
-    base.to_csv(LOGS / "report_baseline.csv", index=False)
-    filt.to_csv(LOGS / "report_catboost_oos.csv", index=False)
-    print(f"\nreports -> {LOGS}")
+    p_val = placebo(tested, oos)
+    kept = 100 * len(oos) / max(len(tested), 1)
+    print(f"\nselectivity: kept {len(oos)}/{len(tested)} OOS events ({kept:.1f}%)")
+    print(f"placebo p-value (same count drawn at random): {p_val:.3f}")
+    if p_val > 0.05:
+        print("  -> NOT significant. The filter does not beat a random pick of "
+              "the same size. Treat the pretty PF above as noise.")
+    elif len(oos) < MIN_N_YEAR:
+        print(f"  -> significant but n={len(oos)} is tiny; re-check with more data.")
+    else:
+        print("  -> survives the placebo. Still needs a forward test before size.")
+
+    rep = DATA / "reports"
+    rep.mkdir(parents=True, exist_ok=True)
+    base.to_csv(rep / f"report_baseline_{a.bracket}t.csv", index=False)
+    filt.to_csv(rep / f"report_catboost_oos_{a.bracket}t.csv", index=False)
+    print(f"\nreports -> {rep}")
     return 0
 
 

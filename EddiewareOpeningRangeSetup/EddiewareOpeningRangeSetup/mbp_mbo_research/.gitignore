@@ -1,5 +1,7 @@
 credentials/*.env
 credentials/NUEVA_API_KEY.txt
+credentials/telegram_credentials.txt
+credentials/.telegram_offset
 data/
 logs/
 __pycache__/
