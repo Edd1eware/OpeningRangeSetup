@@ -21,6 +21,11 @@
          EddiewareOpeningRangeSetup" and skips every type in this DLL, so
          nothing gets drawn on the chart. Keep this aligned with the version
          shipped by the installed ATAS platform. -->
+    <!-- Re-verified 2026-10-12: ATAS.Indicators and OFT.Rendering 8.0.15.303 both
+         reference System.Drawing.Common 10.0.0.0, so 10.x is REQUIRED here.
+         Pinning this to 8.0.x fails the build outright with CS1705. The older
+         comment claiming ATAS ships 8.0.0.0 was based on the file version of
+         System.Drawing.Common.dll (8.0.1525), not its assembly version. -->
     <PackageReference Include="System.Drawing.Common" Version="10.0.7" />
   </ItemGroup>
 

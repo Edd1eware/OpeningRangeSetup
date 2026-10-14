@@ -23,6 +23,11 @@ SRC = Path(
 )
 OUT = Path(__file__).resolve().parent.parent / "notes_md_claude" / "inside_control_navigator.html"
 
+# Flat CSV consumed by the ATAS indicator (19_InsideControlTradeNavigator) and by
+# the replay driver. It lives in the folder the rest of the project already uses
+# to exchange files with ATAS, so the indicator needs no extra configuration.
+ATAS_FEED = Path(r"C:/Users/k_99_/Desktop/codding/data_footprint_generator/inside_control_trades.csv")
+
 TICK = 0.25
 MONTHS_ES = {
     1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril", 5: "Mayo", 6: "Junio",
@@ -83,8 +88,10 @@ def build_trades() -> list[dict]:
         target = f(row, "target")
         exit_px = f(row, "exit")
 
+        # The engine writes trade_number per session (max 1 trade/day), so it is 1
+        # on every row. The navigator needs a unique key: renumber after sorting.
         trades.append({
-            "n": int(row["trade_number"]),
+            "n": 0,
             "session": session,
             "month": f"{MONTHS_ES[date.month]} {date.year}",
             "month_key": f"{date.year}-{date.month:02d}",
@@ -130,13 +137,19 @@ def build_trades() -> list[dict]:
             "source": row["source_kind"],
             "atas_source": row["source_kind"] == "atas_archived",
             "print_at_stop": b(row, "entry_print_at_or_beyond_stop"),
+            # The ceil-5 grid always shifts the close a little, so a plain
+            # raw-vs-grouped difference is normal and not worth flagging. Only
+            # flag when the two grids disagree about the break itself, because
+            # then ATAS and the engine would not even see the same signal.
             "grouped_mismatch": (
-                f(row, "raw_close") != f(row, "reconstructed_close_grouped")
-                or f(row, "raw_high") != f(row, "reconstructed_high_grouped")
-                or f(row, "raw_low") != f(row, "reconstructed_low_grouped")
+                (f(row, "raw_close") > f(row, "or_high")) != (f(row, "close") > f(row, "or_high"))
+                if direction > 0 else
+                (f(row, "raw_close") < f(row, "or_low")) != (f(row, "close") < f(row, "or_low"))
             ),
         })
     trades.sort(key=lambda t: t["session"])
+    for i, t in enumerate(trades, start=1):
+        t["n"] = i
     return trades
 
 
@@ -515,16 +528,60 @@ renderList(); renderDetail();
 """
 
 
+ATAS_COLUMNS = [
+    "n", "session", "minute", "candle_start", "signal_close", "dir",
+    "or_high", "or_low", "o", "h", "l", "c", "raw_o", "raw_h", "raw_l", "raw_c",
+    "vwap", "entry", "stop", "target", "exit", "risk_ticks",
+    "result", "net_ticks", "net_r", "net_usd", "mae", "mfe", "duration_s",
+    "entry_clock", "exit_clock", "source", "warn", "imb_rows",
+]
+
+
+def write_atas_feed(trades: list[dict]) -> None:
+    """Flat, parser-free CSV: no JSON column, imbalance rows packed as text."""
+    ATAS_FEED.parent.mkdir(parents=True, exist_ok=True)
+    with ATAS_FEED.open("w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh, delimiter=";")
+        w.writerow(ATAS_COLUMNS)
+        for t in trades:
+            # lo:hi:vol:ref:ratio, rows separated by '|'
+            imb = "|".join(
+                f"{i['row_lo']:.2f}:{i['row_hi']:.2f}:{i['volume']:.0f}:"
+                f"{i['reference']:.0f}:{(999 if i['ratio_infinite'] else i['ratio']):.2f}"
+                for i in t["imbalances"]
+            )
+            warn = []
+            if t["print_at_stop"]:
+                warn.append("PRINT_EN_SL")
+            if t["risk"] <= 5:
+                warn.append("RIESGO_MINIMO")
+            if t["grouped_mismatch"]:
+                warn.append("OHLC_AGRUPADO")
+            w.writerow([
+                t["n"], t["session"], t["minute"], t["candle_start"], t["signal_close"], t["dir"],
+                t["or_high"], t["or_low"], t["o"], t["h"], t["l"], t["c"],
+                t["raw_o"], t["raw_h"], t["raw_l"], t["raw_c"],
+                f"{t['vwap']:.4f}", t["entry"], t["stop"], t["target"], t["exit"], t["risk"],
+                t["result"], t["net_ticks"], f"{t['net_r']:.4f}", t["net_usd"],
+                t["mae"], t["mfe"], f"{t['duration']:.3f}",
+                t["entry_clock"], t["exit_clock"],
+                "ATAS" if t["atas_source"] else "DATABENTO",
+                ",".join(warn), imb,
+            ])
+
+
 def main() -> None:
     trades = build_trades()
     html = HTML.replace("__DATA__", json.dumps(trades, ensure_ascii=False))
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(html, encoding="utf-8")
+    write_atas_feed(trades)
     wins = sum(1 for t in trades if t["net_ticks"] > 0)
     print(f"trades: {len(trades)} | TP: {wins} | WR: {wins / len(trades):.2%}")
     print(f"net USD 1 NQ: {sum(t['net_usd'] for t in trades):+.0f}")
     print(f"net R: {sum(t['net_r'] for t in trades):+.4f}")
     print(f"written: {OUT}  ({OUT.stat().st_size:,} bytes)")
+    print(f"written: {ATAS_FEED}  ({ATAS_FEED.stat().st_size:,} bytes)")
 
 
 if __name__ == "__main__":

@@ -46,20 +46,37 @@ def main() -> int:
         return 1
 
     OUT.mkdir(parents=True, exist_ok=True)
-    by_year: dict[int, list[pd.DataFrame]] = {}
+    rows = 0
+    # Files are named NQ_ohlcv-1s_<date>, so sorting them sorts by date and a
+    # year is finished the moment the next one starts. Flushing there keeps one
+    # year in memory instead of all of them: with ~1,000 sessions on disk the
+    # old all-at-once version held tens of millions of rows before writing
+    # anything.
+    cur_year: int | None = None
+    frames: list[pd.DataFrame] = []
+
+    def flush() -> int:
+        nonlocal frames
+        if cur_year is None or not frames:
+            return 0
+        out = pd.concat(frames, ignore_index=True).sort_values("ts_utc")
+        out = out.drop_duplicates("ts_utc", keep="last")
+        out.to_parquet(OUT / f"bars_1s_{cur_year}.parquet", index=False)
+        print(f"  {cur_year}: {len(out):>9,} bars  {out.session.nunique():>4} sessions")
+        n = len(out)
+        frames = []
+        return n
+
     for f in track(files, label="1s bars -> parquet"):
         df = load_day(f)
         if df.empty:
             continue
-        by_year.setdefault(df.ts_ny.iloc[0].year, []).append(df)
-
-    rows = 0
-    for year, frames in sorted(by_year.items()):
-        out = pd.concat(frames, ignore_index=True).sort_values("ts_utc")
-        out = out.drop_duplicates("ts_utc", keep="last")
-        out.to_parquet(OUT / f"bars_1s_{year}.parquet", index=False)
-        rows += len(out)
-        print(f"  {year}: {len(out):>9,} bars  {out.session.nunique():>4} sessions")
+        year = int(df.ts_ny.iloc[0].year)
+        if cur_year is not None and year != cur_year:
+            rows += flush()
+        cur_year = year
+        frames.append(df)
+    rows += flush()
     print(f"total {rows:,} bars -> {OUT}")
     return 0
 

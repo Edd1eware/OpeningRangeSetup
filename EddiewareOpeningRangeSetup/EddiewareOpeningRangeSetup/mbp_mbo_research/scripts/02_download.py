@@ -16,7 +16,7 @@ import csv
 import gc
 import sys
 import time as _time
-from datetime import date, datetime
+from datetime import date, datetime, time
 from pathlib import Path
 
 import databento as db
@@ -57,16 +57,29 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--cost-samples", type=int, default=5)
     p.add_argument("--include-est", action="store_true",
                    help="also take EST days (default: EDT only)")
+    p.add_argument("--window", metavar="HH:MM-HH:MM",
+                   help="override the schema's ET window. A full day of 1s bars "
+                        "costs about four times what the RTH session costs, so "
+                        "restricting it is how a fixed budget buys more SESSIONS "
+                        "instead of more overnight hours.")
     return p.parse_args()
+
+
+def parse_window(spec: str) -> tuple[time, time]:
+    a, b = spec.split("-")
+    hh, mm = a.split(":")
+    hh2, mm2 = b.split(":")
+    return time(int(hh), int(mm)), time(int(hh2), int(mm2))
 
 
 def iso(d: str) -> date:
     return datetime.strptime(d, "%Y-%m-%d").date()
 
 
-def estimate(client: db.Historical, schema: str, days: list[date], n: int) -> tuple[float, float]:
+def estimate(client: db.Historical, schema: str, days: list[date], n: int,
+             window: tuple[time, time] | None = None) -> tuple[float, float]:
     """Mean USD and MB per day, measured on `n` evenly spaced sample days."""
-    t0, t1 = WINDOWS[schema]
+    t0, t1 = window or WINDOWS[schema]
     step = max(len(days) // max(n, 1), 1)
     picks = days[::step][:n] or days[:1]
     usd = mb = 0.0
@@ -95,7 +108,7 @@ def main() -> int:
     todo = [d for d in days
             if not (out_path(a.schema, d).exists()
                     and out_path(a.schema, d).stat().st_size > MIN_BYTES)]
-    t0, t1 = WINDOWS[a.schema]
+    t0, t1 = parse_window(a.window) if a.window else WINDOWS[a.schema]
 
     print(f"schema={a.schema}  window={t0}-{t1} ET  {'EDT only' if not a.include_est else 'EDT+EST'}  sessions={len(days)}  "
           f"missing={len(todo)}  symbol={SYMBOL}")
@@ -106,7 +119,7 @@ def main() -> int:
     load_api_key()
     client = db.Historical()
     try:
-        usd_day, mb_day = estimate(client, a.schema, todo, a.cost_samples)
+        usd_day, mb_day = estimate(client, a.schema, todo, a.cost_samples, (t0, t1))
     except Exception as exc:
         msg = str(exc)
         if "auth_account_locked" in msg:

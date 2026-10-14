@@ -29,6 +29,10 @@ FULL_DAY = (time(0, 0), time(0, 0))
 
 WINDOWS: dict[str, tuple[time, time]] = {
     "ohlcv-1s": FULL_DAY,
+    # 1m is the granularity a daily-frequency hypothesis needs, and it is two
+    # orders of magnitude cheaper than 1s: a decade of full days costs under
+    # ten dollars, against $66 for five years of 1s bars.
+    "ohlcv-1m": FULL_DAY,
     "mbp-10":   (time(9, 25), time(10, 30)),
     "mbo":      (time(9, 30), time(10, 0)),
     "trades":   (time(9, 25), time(10, 30)),
@@ -68,7 +72,22 @@ LOGS = DATA / "logs"
 MANIFEST = LOGS / "download_manifest.csv"
 
 # CME equity-index full holidays (no RTH session). Half days still trade.
+# 2015-2020 were added when the research window was extended back a decade for
+# the daily-frequency hypotheses; without them the downloader spends requests
+# on days that return nothing.
 CME_HOLIDAYS = {
+    "2015-01-01", "2015-01-19", "2015-02-16", "2015-04-03", "2015-05-25",
+    "2015-07-03", "2015-09-07", "2015-11-26", "2015-12-25",
+    "2016-01-01", "2016-01-18", "2016-02-15", "2016-03-25", "2016-05-30",
+    "2016-07-04", "2016-09-05", "2016-11-24", "2016-12-26",
+    "2017-01-02", "2017-01-16", "2017-02-20", "2017-04-14", "2017-05-29",
+    "2017-07-04", "2017-09-04", "2017-11-23", "2017-12-25",
+    "2018-01-01", "2018-01-15", "2018-02-19", "2018-03-30", "2018-05-28",
+    "2018-07-04", "2018-09-03", "2018-11-22", "2018-12-25",
+    "2019-01-01", "2019-01-21", "2019-02-18", "2019-04-19", "2019-05-27",
+    "2019-07-04", "2019-09-02", "2019-11-28", "2019-12-25",
+    "2020-01-01", "2020-01-20", "2020-02-17", "2020-04-10", "2020-05-25",
+    "2020-07-03", "2020-09-07", "2020-11-26", "2020-12-25",
     "2021-01-01", "2021-01-18", "2021-02-15", "2021-04-02", "2021-05-31",
     "2021-07-05", "2021-09-06", "2021-11-25", "2021-12-24",
     "2022-01-17", "2022-02-21", "2022-04-15", "2022-05-30", "2022-06-20",

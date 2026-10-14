@@ -17,6 +17,7 @@ Objetivo: validar estadísticamente el setup de apertura del usuario y comparar 
 11. [Objetivo de automatización y reproducción corregida del cuerpo a favor](2026-10-12_11_REPRODUCCION_DEL_CUERPO_Y_OBJETIVO.md).
 12. [Paridad ATAS / Databento y base de datos por vela y precio](2026-10-12_12_PARIDAD_ATAS_DATABENTO_Y_BASE_DE_DATOS.md).
 13. [Setup calibrado y búsqueda del edge:78 trades de referencia y35 del control](2026-10-12_13_SETUP_CALIBRADO_Y_BUSQUEDA_DEL_EDGE.md).
+14. [Cuenta Lucid aprobada y diario histórico en ATAS:27 entradas,50 ejecuciones y capturas por entrada](2026-10-12_14_CUENTA_LUCID_Y_DIARIO_HISTORICO_ATAS.md).
 
 El control del punto 4 utiliza un stop fijo para aislar información direccional. No es el replay completo del SL detrás del imbalance.
 
@@ -30,4 +31,6 @@ Por indicación del usuario, las mejoras de salida y el feature condicional qued
 
 La comparación del punto 9 encontró una pista positiva en ticks al exigir open dentro del OR: 39 trades, +295.8 ticks con un NQ fijo. El resultado en R sigue ligeramente negativo y los intervalos incluyen cero. Todavía no es un edge validado ni un candidato que cumpla los criterios fijados para pagar más datos.
 
-Actualización más reciente: tras el cotejo del punto12, el usuario pidió retomar señales y el edge. El punto13 documenta la referencia calibrada:78trades,WR42.31%,PF neto1NQ0.602. El único control de apertura dentro obtiene35trades,WR54.29%,PF1NQ1.382 yPF_R0.959. Es una pista exploratoria; no hay edge confirmado. Ambas corridas y todos sus cruces están auditados. La comparación C#/ATAS actual sigue pendiente. Se mantiene navegador → C# y ATAS → indicador de confirmación manual; no se fuerza60% ajustando el histórico ni se compran datos aún.
+El punto13 documenta la referencia calibrada:78trades,WR42.31%,PF neto1NQ0.602. El único control de apertura dentro obtiene35trades,WR54.29%,PF1NQ1.382 yPF_R0.959. Es una pista exploratoria; no hay edge confirmado. Ambas corridas y todos sus cruces están auditados.
+
+Actualización más reciente: punto14, historial Lucid con27grupos de entrada hasta las9:40NY,WR70.37%,PF registrado2.025,+USD4,470 y comisiones reales no disponibles. El usuario pidió ahora recorrido histórico y capturas, y confirmó SL estructural/TP1:1. Feed y cálculo auditados; overlay compilado y runner actualizado. El acceso manual a ATAS y las27capturas de esta versión siguen pendientes. El diario no equivale al port validado del setup ni a señales nuevas. Se mantiene la finalidad de confirmación manual; no se compran datos aún.
